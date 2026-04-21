@@ -4815,24 +4815,30 @@ function clearBrowseFilters(silent) {
 /* ══════════════════════════════════════════════════════════════
    BOXES GRID RENDERING
 ══════════════════════════════════════════════════════════════ */
-function renderBoxGrids() {
-  const keys = Object.keys(boxDB);
-  const html = (keyArr) => keyArr.map(k => {
-    const b = boxDB[k];
+async function renderBoxGrids() {
+  const { data: boxes, error } = await db
+    .from('boxes')
+    .select('*')
+    .eq('is_active', true)
+    .order('sold_count', { ascending: false });
+
+  if (error) { console.error('Erreur boxes:', error.message); return; }
+
+  const html = boxes.map(b => {
     const isPremium = b.price >= 3499;
-    return `<div class="bcard${isPremium?' premium-border':''}" onclick="loadProduct('${k}');go('product')">
+    return `<div class="bcard${isPremium?' premium-border':''}" onclick="loadProduct('${b.id}');go('product')">
       <div class="bcard-img">
-        <img src="${b.img}" alt="${b.name}" loading="lazy">
+        <img src="${b.image_url}" alt="${b.name}" loading="lazy">
         <div class="bcard-ov"></div>
         <div class="badge${isPremium?' gold':''}">${b.badge}</div>
-        <div class="exp-badge"><i class="fa fa-layer-group"></i> ${b.cnt} experiences</div>
+        <div class="exp-badge"><i class="fa fa-layer-group"></i> ${b.experience_count} experiences</div>
       </div>
       <div class="bcard-body">
         <div class="bcard-title">${b.name}</div>
-        <div class="bcard-desc">${b.desc.substring(0,90)}…</div>
+        <div class="bcard-desc">${b.description.substring(0,90)}…</div>
         <div class="bcard-foot">
           <div class="price-disp"><small>From</small>R${b.price.toLocaleString()}</div>
-          <button class="btn bp bsm" onclick="event.stopPropagation();loadProduct('${k}');go('product')">View box</button>
+          <button class="btn bp bsm" onclick="event.stopPropagation();loadProduct('${b.id}');go('product')">View box</button>
         </div>
       </div>
     </div>`;
@@ -4840,15 +4846,23 @@ function renderBoxGrids() {
 
   const hg = document.getElementById('home-boxes-grid');
   const ag = document.getElementById('all-boxes-grid');
-  const homeKeys = keys.slice(0,4);
-  if (hg) hg.innerHTML = html(homeKeys);
-  if (ag) ag.innerHTML = html(keys);
+  if (hg) hg.innerHTML = html;
+  if (ag) ag.innerHTML = html;
 
-  const at = document.getElementById('adm-boxes-tbody');
-  if (at) at.innerHTML = keys.map(k => {
-    const b = boxDB[k];
-    return `<tr><td><strong>${b.name}</strong></td><td><span class="tag t-act">${b.db}</span></td><td><strong style="color:var(--b700)">${b.cnt}</strong></td><td>R${b.price.toLocaleString()}</td><td><span class="tag" style="background:#fef3c7;color:#92400e">E + Physical</span></td><td>${b.sold}</td><td><span class="sbadge sb-a">Active</span></td><td><button class="btn bg bsm"><i class="fa fa-pen"></i></button></td></tr>`;
-  }).join('');
+  // Mettre à jour boxDB en mémoire pour les autres fonctions
+  boxes.forEach(b => {
+    boxDB[b.id] = {
+      name:    b.name,
+      price:   b.price,
+      db:      b.database_name,
+      cnt:     b.experience_count,
+      img:     b.image_url,
+      badge:   b.badge,
+      rating:  b.rating,
+      sold:    b.sold_count,
+      desc:    b.description
+    };
+  });
 }
 
 /* ══════════════════════════════════════════════════════════════
