@@ -1,6 +1,19 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<!-- Connexion Supabase -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+  const SUPABASE_URL  = 'https://gfqxuygfkzgmotnxrlwb.supabase.co';
+  const SUPABASE_KEY  = 'sb_publishable_NNDH11RkDff2KHghf_k-8g_wL2NtUIL';
+  const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  // Test de connexion
+  db.from('boxes').select('count').then(({ data, error }) => {
+    if (error) console.error('Supabase erreur:', error.message);
+    else console.log('Supabase connecté !', data);
+  });
+</script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>WowBox — Offer Unforgettable Experiences</title>
