@@ -4888,20 +4888,25 @@ async function renderBoxGrids() {
   if (hg) hg.innerHTML = html;
   if (ag) ag.innerHTML = html;
 
-  // Sync final boxDB — always preserve local image if Supabase has none
+  // Sync final boxDB — Supabase image_url takes priority, then local fallback
   boxes.forEach(b => {
+    const resolvedImg = b.image_url || localImgs[b.id] || boxDB[b.id]?.img || '';
     boxDB[b.id] = {
       name:   b.name,
       price:  b.price,
       db:     b.database_name,
       cnt:    b.experience_count,
-      img:    b.image_url || localImgs[b.id] || boxDB[b.id]?.img || '',
+      img:    resolvedImg,
       badge:  b.badge,
       rating: b.rating,
       sold:   b.sold_count,
       desc:   b.description
     };
   });
+  // After syncing boxDB, reload product page if one is open
+  if (appState.currentBoxId && boxDB[appState.currentBoxId]) {
+    loadProduct(appState.currentBoxId);
+  }
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -6320,13 +6325,14 @@ async function admSaveBox() {
   );
   const mainImg = imgs[0] || '';
 
+  // Only include image_url if we actually have one (don't overwrite with empty)
   const payload = {
     name,
     price,
     database_name: db,
     description:   desc,
-    image_url:     mainImg,
     is_active:     true,
+    ...(mainImg ? { image_url: mainImg } : {}),
   };
 
   try {
@@ -6338,7 +6344,7 @@ async function admSaveBox() {
       if (boxDB[appState.editingBoxId]) {
         boxDB[appState.editingBoxId].name  = name;
         boxDB[appState.editingBoxId].price = price;
-        boxDB[appState.editingBoxId].img   = mainImg || boxDB[appState.editingBoxId].img;
+        if (mainImg) boxDB[appState.editingBoxId].img = mainImg;
         boxDB[appState.editingBoxId].desc  = desc;
       }
     } else {
