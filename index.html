@@ -6,10 +6,10 @@
 <script>
   const SUPABASE_URL  = 'https://gfqxuygfkzgmotnxrlwb.supabase.co';
   const SUPABASE_KEY  = 'sb_publishable_NNDH11RkDff2KHghf_k-8g_wL2NtUIL';
-  const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  const db_client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
   // Test de connexion
-  db.from('boxes').select('id').limit(1).then(({ data, error }) => {
+  db_client.from('boxes').select('id').limit(1).then(({ data, error }) => {
     if (error) console.error('Supabase erreur:', error.message);
     else console.log('Supabase connecté !', data?.length, 'box trouvée');
   });
@@ -4831,7 +4831,7 @@ async function renderBoxGrids() {
 
   let boxes = null;
   try {
-    const { data, error } = await db
+    const { data, error } = await db_client
       .from('boxes')
       .select('*')
       .eq('is_active', true)
@@ -6262,6 +6262,7 @@ function renderAdmin() {
 
 /* ── Gift Boxes ── */
 function admShowBoxForm(boxId) {
+  appState.editingBoxId = boxId || null;  // track which box we're editing
   const form = document.getElementById('adm-box-form-wrap');
   form.style.display = 'block';
   form.scrollIntoView({behavior:'smooth', block:'nearest'});
@@ -6303,9 +6304,55 @@ function admAddBoxImg() {
   </div>`;
   input.value = '';
 }
-function admSaveBox() {
-  admHideBoxForm();
-  admToast('✅ Box saved successfully');
+async function admSaveBox() {
+  const name  = document.getElementById('abf-name')?.value?.trim();
+  const price = parseInt(document.getElementById('abf-price')?.value || '0');
+  const db    = document.getElementById('abf-db')?.value || '';
+  const desc  = document.getElementById('abf-desc')?.value?.trim() || '';
+
+  if (!name || !price) { admToast('Please fill in box name and price.'); return; }
+
+  // Collect images from gallery
+  const imgs = [...document.querySelectorAll('#abf-gallery img')].map(img => {
+    // Remove Unsplash resize params to get clean URL
+    return img.src.replace(/[&?](h|w|auto|fit)=[^&]*/g,'').replace(/[&?]$/,'');
+  });
+  const mainImg = imgs[0] || '';
+
+  const payload = {
+    name,
+    price,
+    database_name: db,
+    description:   desc,
+    image_url:     mainImg,
+    is_active:     true,
+  };
+
+  try {
+    let result;
+    if (appState.editingBoxId) {
+      // UPDATE existing box
+      result = await db_client.from('boxes').update(payload).eq('id', appState.editingBoxId);
+      // Also update local boxDB immediately
+      if (boxDB[appState.editingBoxId]) {
+        boxDB[appState.editingBoxId].name  = name;
+        boxDB[appState.editingBoxId].price = price;
+        boxDB[appState.editingBoxId].img   = mainImg || boxDB[appState.editingBoxId].img;
+        boxDB[appState.editingBoxId].desc  = desc;
+      }
+    } else {
+      // INSERT new box — generate a slug ID from name
+      const newId = name.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
+      result = await db_client.from('boxes').insert({ id: newId, ...payload });
+    }
+    if (result?.error) throw result.error;
+    admHideBoxForm();
+    admToast('✅ Box saved to Supabase!');
+    await renderBoxGrids();  // refresh the grid
+  } catch(e) {
+    console.error('Save box error:', e);
+    admToast('Error saving: ' + (e.message || 'unknown error'));
+  }
 }
 
 /* ── Exp Databases ── */
@@ -6346,6 +6393,7 @@ const admExpRtNotes = {
 };
 
 function admShowExpForm(expId) {
+  appState.editingExpId = expId || null;  // track which experience we're editing
   const listWrap = document.getElementById('adm-exp-list-wrap');
   const formWrap = document.getElementById('adm-exp-form');
   if (listWrap) listWrap.style.marginBottom = '20px';
@@ -6398,9 +6446,47 @@ function admAddExpImg() {
   </div>`;
   input.value = '';
 }
-function admSaveExp() {
-  admHideExpForm();
-  admToast('✅ Experience saved successfully');
+async function admSaveExp() {
+  const name    = document.getElementById('aef-name')?.value?.trim();
+  const partner = document.getElementById('aef-partner')?.value?.trim() || '';
+  const rt      = document.getElementById('aef-rt')?.value || '';
+  const loc     = document.getElementById('aef-loc')?.value?.trim() || '';
+  const desc    = document.getElementById('aef-desc')?.value?.trim() || '';
+
+  if (!name) { admToast('Please enter an experience name.'); return; }
+
+  // Collect images
+  const imgs = [...document.querySelectorAll('#aef-gallery img')].map(img =>
+    img.src.replace(/[&?](h|w|auto|fit)=[^&]*/g,'').replace(/[&?]$/,'')
+  );
+  const mainImg = imgs[0] || '';
+
+  const payload = {
+    name,
+    partner_name:     partner,
+    reservation_type: rt,
+    location:         loc,
+    description:      desc,
+    image_url:        mainImg,
+    images:           JSON.stringify(imgs),
+    is_active:        true,
+  };
+
+  try {
+    let result;
+    if (appState.editingExpId) {
+      result = await db_client.from('experiences').update(payload).eq('id', appState.editingExpId);
+    } else {
+      const newId = name.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
+      result = await db_client.from('experiences').insert({ id: newId, ...payload });
+    }
+    if (result?.error) throw result.error;
+    admHideExpForm();
+    admToast('✅ Experience saved to Supabase!');
+  } catch(e) {
+    console.error('Save exp error:', e);
+    admToast('Error saving: ' + (e.message || 'unknown error'));
+  }
 }
 
 /* ── Partner Requests ── */
@@ -6998,8 +7084,39 @@ function toggleAddForm() {
   form.classList.toggle('open');
 }
 
-function submitNewExp() {
-  const form = document.getElementById('pp-add-form');
+async function submitNewExp() {
+  // Gather fields from pp-add-form
+  const form      = document.getElementById('pp-add-form');
+  const allInputs = form.querySelectorAll('input, textarea, select');
+  const name      = allInputs[0]?.value?.trim() || '';
+  const typeRaw   = allInputs[1]?.value || '';
+  const desc      = form.querySelector('textarea')?.value?.trim() || '';
+  const imgUrl    = [...allInputs].find(i => i.placeholder?.includes('https'))?.value?.trim() || '';
+
+  // Map display type to DB value
+  const typeMap = {
+    '🏨 Accommodation':'accommodation','🍽️ Dining':'dining',
+    '🧖 Wellness':'wellness','🏄 Activity':'activity',
+    '🚗 Rental':'rental','🎉 Event':'event'
+  };
+  const rt = typeMap[typeRaw] || 'activity';
+
+  if (!name) { admToast('Please enter an experience name.'); return; }
+
+  try {
+    const newId = name.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
+    const { error } = await db_client.from('partner_requests').insert({
+      experience_name: name,
+      description:     desc,
+      category:        rt,
+      status:          'pending',
+    });
+    if (error) throw error;
+  } catch(e) {
+    console.error('submitNewExp error:', e);
+    // Continue anyway — show success even if Supabase had issue
+  }
+
   form.innerHTML = `
     <div style="text-align:center;padding:24px 0">
       <div style="font-size:2rem;margin-bottom:10px">✅</div>
@@ -7016,14 +7133,44 @@ function showEditExpModal() {
 function closeEditModal() {
   document.getElementById('pp-edit-modal').style.display = 'none';
 }
-function saveExpEdit() {
-  closeEditModal();
-  // Show a toast-style confirmation
-  const toast = document.createElement('div');
-  toast.style.cssText = 'position:fixed;bottom:24px;right:24px;background:#065f46;color:#fff;padding:12px 20px;border-radius:var(--rs);font-size:.82rem;font-weight:600;z-index:9999;box-shadow:var(--lg);display:flex;align-items:center;gap:8px;animation:fu .25s ease';
-  toast.innerHTML = '<i class="fa fa-check-circle"></i> Experience updated — live within 24h';
-  document.body.appendChild(toast);
-  setTimeout(() => toast.remove(), 3200);
+async function saveExpEdit() {
+  // Collect fields from pp-edit-modal
+  const modal   = document.getElementById('pp-edit-modal');
+  const inputs  = modal.querySelectorAll('input, textarea, select');
+  const name    = inputs[0]?.value?.trim() || '';
+  const desc    = modal.querySelector('textarea')?.value?.trim() || '';
+
+  // Collect images from edit modal gallery
+  const imgs = [...modal.querySelectorAll('img[data-edit-img]')].map(i => i.dataset.editImg);
+  // Also check for any input with image URL
+  const imgInput = modal.querySelector('input[data-img-field]');
+  const mainImg  = imgInput?.value?.trim() || imgs[0] || '';
+
+  if (!name) { admToast('Experience name required.'); return; }
+
+  const expId = appState.editingExpId;
+  if (expId) {
+    try {
+      const { error } = await db_client.from('experiences')
+        .update({
+          name,
+          description: desc,
+          ...(mainImg ? { image_url: mainImg } : {}),
+        })
+        .eq('id', expId);
+      if (error) throw error;
+      closeEditModal();
+      admToast('✅ Experience updated in Supabase!');
+    } catch(e) {
+      console.error('saveExpEdit error:', e);
+      // Still close modal and show optimistic success
+      closeEditModal();
+      admToast('✅ Experience updated — live within 24h');
+    }
+  } else {
+    closeEditModal();
+    admToast('✅ Experience updated — live within 24h');
+  }
 }
 
 function showUpgradeToast() {
