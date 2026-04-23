@@ -4945,13 +4945,28 @@ function loadProduct(boxId) {
     : appState.boxActivated ? '✅ Your box is active — click "Book" to reserve an experience.' : '🔒 Browse experiences — purchase or activate a box to book.';
   document.getElementById('prod-stars-r').innerHTML = '★★★★★ ' + b.rating + ' <span style="color:var(--muted)">·</span>';
   document.getElementById('prod-rev-count-r').textContent = b.sold + ' reviews';
-  document.getElementById('prod-img').src = b.img;
+  // Set main image — use first of imgs array for consistency
+  document.getElementById('prod-img').src = imgs[0] || b.img || '';
   appState.priceBase = b.price;
   document.getElementById('qty-v').textContent = '1';
   document.getElementById('qty-total').textContent = 'R' + b.price.toLocaleString();
 
   const imgs = thumbImages[boxId] || b.images || [b.img, b.img, b.img, b.img];
-  document.getElementById('prod-thumbs').innerHTML = imgs.map((s,i) => `<div class="gthumb${i===0?' on':''}" onclick="swapImg(this,'${s}')"><img src="${s}&h=160&auto=format&fit=crop" loading="lazy"></div>`).join('');
+  // Use DOM to avoid URL corruption in onclick attributes
+  const thumbsEl = document.getElementById('prod-thumbs');
+  thumbsEl.innerHTML = '';
+  imgs.forEach((s, i) => {
+    if (!s) return;
+    const div = document.createElement('div');
+    div.className = 'gthumb' + (i === 0 ? ' on' : '');
+    div.onclick = () => swapImg(div, s);
+    const img = document.createElement('img');
+    // Add resize params for Unsplash, keep other URLs as-is
+    img.src = s.includes('unsplash.com') && !s.includes('h=') ? s + '&h=160&auto=format&fit=crop' : s;
+    img.loading = 'lazy';
+    div.appendChild(img);
+    thumbsEl.appendChild(div);
+  });
 
   // Toggle surprise vs normal experience section
   document.getElementById('prod-exp-sec').style.display = isSurprise ? 'none' : 'block';
