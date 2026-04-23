@@ -2,18 +2,21 @@
 <html lang="en">
 <head>
 <!-- Connexion Supabase -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.3/dist/umd/supabase.js"></script>
 <script>
   const SUPABASE_URL  = 'https://gfqxuygfkzgmotnxrlwb.supabase.co';
   const SUPABASE_KEY  = 'sb_publishable_NNDH11RkDff2KHghf_k-8g_wL2NtUIL';
   const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
   // Test de connexion
-  db.from('boxes').select('count').then(({ data, error }) => {
+  db.from('boxes').select('id').limit(1).then(({ data, error }) => {
     if (error) console.error('Supabase erreur:', error.message);
-    else console.log('Supabase connecté !', data);
+    else console.log('Supabase connecté !', data?.length, 'box trouvée');
   });
 </script>
+
+<!-- Paystack -->
+<script src="https://js.paystack.co/v1/inline.js"></script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>WowBox — Offer Unforgettable Experiences</title>
@@ -4816,13 +4819,36 @@ function clearBrowseFilters(silent) {
    BOXES GRID RENDERING
 ══════════════════════════════════════════════════════════════ */
 async function renderBoxGrids() {
-  const { data: boxes, error } = await db
-    .from('boxes')
-    .select('*')
-    .eq('is_active', true)
-    .order('sold_count', { ascending: false });
+  let boxes = null;
+  try {
+    const { data, error } = await db
+      .from('boxes')
+      .select('*')
+      .eq('is_active', true)
+      .order('sold_count', { ascending: false });
+    if (!error && data && data.length > 0) {
+      boxes = data;
+      // Sync Supabase data into local boxDB
+      boxes.forEach(b => {
+        boxDB[b.id] = {
+          name: b.name, price: b.price, db: b.database_name,
+          cnt: b.experience_count, img: b.image_url,
+          badge: b.badge, rating: b.rating, sold: b.sold_count, desc: b.description
+        };
+      });
+    }
+  } catch(e) { console.warn('Supabase unavailable, using local data'); }
 
-  if (error) { console.error('Erreur boxes:', error.message); return; }
+  // Fallback: use local boxDB if Supabase failed or returned nothing
+  if (!boxes) {
+    boxes = Object.entries(boxDB).map(([id, b]) => ({
+      id, name: b.name, price: b.price, database_name: b.db,
+      experience_count: b.cnt, image_url: b.img,
+      badge: b.badge, rating: b.rating, sold_count: b.sold, description: b.desc
+    }));
+  }
+
+  if (!boxes || !boxes.length) { console.error('No boxes to display'); return; }
 
   const html = boxes.map(b => {
     const isPremium = b.price >= 3499;
@@ -5678,37 +5704,90 @@ function nextStep(step, quiet) {
 }
 
 function completeOrder() {
-  const ct = getCartType();
+  const ct       = getCartType();
   const subtotal = getCartTotal();
-  // Capture personalisation data
-  const personalMsg = document.getElementById('ck-personal-msg')?.value?.trim() || '';
-  const videoUrl    = document.getElementById('ck-video-url')?.value?.trim() || '';
-  appState.lastOrderMsg   = personalMsg;
-  appState.lastOrderVideo = videoUrl;
   const discount = activeCoupon
     ? (activeCoupon.type === 'percentage'
         ? Math.round(subtotal * activeCoupon.value / 100)
         : Math.min(activeCoupon.value, subtotal))
     : 0;
   const total = subtotal - discount;
-  const ref = 'WB-ORD-2025-' + String(Math.floor(1000+Math.random()*9000));
+
+  // Capture personalisation
+  const personalMsg = document.getElementById('ck-personal-msg')?.value?.trim() || '';
+  const videoUrl    = document.getElementById('ck-video-url')?.value?.trim() || '';
+  appState.lastOrderMsg   = personalMsg;
+  appState.lastOrderVideo = videoUrl;
+
+  // Get customer email from checkout form
+  const email = document.getElementById('ck-email')?.value?.trim()
+             || document.getElementById('ck-card-name')?.value?.trim()
+             || 'customer@wowbox.co.za';
+
+  // Open Paystack popup
+  const handler = PaystackPop.setup({
+    key:       'pk_test_4bf191b7b3f10da349ac729e9a50812459548889',
+    email:     email,
+    amount:    total * 100,   // Paystack works in cents
+    currency:  'ZAR',
+    ref:       'WB-' + Date.now(),
+    label:     'WowBox — ' + appState.cart.map(i => boxDB[i.boxId]?.name || i.boxId).join(', '),
+    metadata: {
+      custom_fields: [
+        { display_name: 'Delivery type',     variable_name: 'delivery_type',    value: getCartType() },
+        { display_name: 'Gift message',      variable_name: 'personal_message', value: personalMsg },
+        { display_name: 'Video URL',         variable_name: 'video_url',        value: videoUrl },
+      ]
+    },
+    onClose: function() {
+      admToast('Payment cancelled. Your cart is still saved.');
+    },
+    callback: function(response) {
+      // Payment successful — run the original confirmation logic
+      completeOrderConfirm(response.reference, total, discount);
+    }
+  });
+  handler.openIframe();
+}
+
+function completeOrderConfirm(paystackRef, total, discount) {
+  const ct  = getCartType();
+  const ref = paystackRef || ('WB-ORD-2025-' + String(Math.floor(1000+Math.random()*9000)));
+
   document.getElementById('ck-order-ref').textContent = ref;
-  const msgs = {ebox:'Your PDF vouchers have been generated and sent to your email. Present them at the venue to enjoy your experiences.',physical:'Your physical box(es) have been dispatched! Track delivery in your account. Expected arrival: 2–3 business days.',mixed:'Your E-Box vouchers have been emailed. Physical boxes dispatched — track in your account.'};
-  document.getElementById('ck-conf-msg').textContent = msgs[ct]||'';
-  const titles = {ebox:'Your e-vouchers are on their way!',physical:'Your boxes have been shipped!',mixed:'Order processed!'};
-  document.getElementById('ck-conf-title').textContent = titles[ct]||'Order confirmed!';
-  const subs = {ebox:'Vouchers sent to your email',physical:'Delivery in 2–3 business days',mixed:'Vouchers emailed · Physical boxes shipped'};
-  document.getElementById('ck-conf-sub').textContent = subs[ct]||'';
-  const couponLine = discount > 0
-    ? `<div class="cf"><label>Coupon</label><span style="color:var(--green)">−R${discount.toLocaleString()} (${activeCoupon.code})</span></div>`
+
+  const msgs = {
+    ebox:     'Your PDF vouchers have been generated and sent to your email. Present them at the venue to enjoy your experiences.',
+    physical: 'Your physical box(es) have been dispatched! Track delivery in your account. Expected arrival: 2-3 business days.',
+    mixed:    'Your E-Box vouchers have been emailed. Physical boxes dispatched — track in your account.'
+  };
+  document.getElementById('ck-conf-msg').textContent = msgs[ct] || '';
+
+  const titles = { ebox:'Your e-vouchers are on their way!', physical:'Your boxes have been shipped!', mixed:'Order processed!' };
+  document.getElementById('ck-conf-title').textContent = titles[ct] || 'Order confirmed!';
+
+  const subs = { ebox:'Vouchers sent to your email', physical:'Delivery in 2-3 business days', mixed:'Vouchers emailed · Physical boxes shipped' };
+  document.getElementById('ck-conf-sub').textContent = subs[ct] || '';
+
+  const couponLine = discount > 0 && activeCoupon
+    ? `<div class="cf"><label>Coupon</label><span style="color:var(--green)">-R${discount.toLocaleString()} (${activeCoupon.code})</span></div>`
     : '';
-  const msgLine   = personalMsg ? `<div class="cf"><label>Gift message</label><span style="font-style:italic">${personalMsg.substring(0,80)}${personalMsg.length>80?'…':''}</span></div>` : '';
-  const videoLine = videoUrl    ? `<div class="cf"><label>Video link</label><span><a href="${videoUrl}" target="_blank" style="color:var(--b600);word-break:break-all">${videoUrl.substring(0,50)}…</a></span></div>` : '';
-  document.getElementById('ck-conf-grid').innerHTML = `<div class="cf"><label>Order #</label><span>${ref}</span></div><div class="cf"><label>Date</label><span>${new Date().toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'})}</span></div><div class="cf"><label>Items</label><span>${appState.cart.length} box${appState.cart.length>1?'es':''}</span></div>${couponLine}${msgLine}${videoLine}<div class="cf"><label>Total paid</label><span style="color:var(--b700);font-weight:700">R${total.toLocaleString()}</span></div>`;
+  const msgLine   = appState.lastOrderMsg   ? `<div class="cf"><label>Gift message</label><span style="font-style:italic">${appState.lastOrderMsg.substring(0,60)}...</span></div>` : '';
+  const videoLine = appState.lastOrderVideo ? `<div class="cf"><label>Video link</label><span style="color:var(--b600)">Included</span></div>` : '';
+
+  document.getElementById('ck-conf-grid').innerHTML =
+    `<div class="cf"><label>Order #</label><span>${ref}</span></div>
+     <div class="cf"><label>Date</label><span>${new Date().toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'})}</span></div>
+     <div class="cf"><label>Items</label><span>${appState.cart.length} box${appState.cart.length>1?'es':''}</span></div>
+     ${couponLine}${msgLine}${videoLine}
+     <div class="cf"><label>Total paid</label><span style="color:var(--b700);font-weight:700">R${total.toLocaleString()}</span></div>
+     <div class="cf"><label>Payment ref</label><span style="font-size:.75rem;color:var(--muted)">${ref}</span></div>`;
+
   if (ct==='ebox'||ct==='mixed') document.getElementById('ck-voucher-btn').style.display='flex';
   nextStep(4);
   appState.cart = []; activeCoupon = null; updateCartBadge();
 }
+
 
 /* ══════════════════════════════════════════════════════════════
    MISC
@@ -6984,25 +7063,54 @@ function isPro() {
 function processProSubscription() {
   const name = document.getElementById('sub-card-name')?.value?.trim();
   if (!name) { admToast('Please enter your cardholder name.'); return; }
-  // Simulate payment success
-  const now   = new Date();
-  const end   = new Date(now); end.setMonth(end.getMonth() + 1);
-  partnerSubscription.status       = 'active';
-  partnerSubscription.plan         = 'pro';
-  partnerSubscription.period_start = now.toISOString().slice(0,10);
-  partnerSubscription.period_end   = end.toISOString().slice(0,10);
-  partnerSubscription.cancel_at_period_end = false;
-  hideProPaymentForm();
-  renderSubscriptionUI();
-  updatePartnerSidebar();
-  updatePlanLockedUI();
-  renderPlanPage();
-  admToast('Pro activated! All features are now unlocked.');
-  // Auto-navigate to plan overview
-  setTimeout(() => {
-    switchPP(document.querySelector('[onclick*=pp-plan]'), 'pp-plan');
-  }, 400);
+
+  // Get partner email (use card name field as identifier for demo)
+  const email = name.includes('@') ? name : 'partner@wowbox.co.za';
+
+  admToast('Opening secure payment...');
+
+  const handler = PaystackPop.setup({
+    key:      'pk_test_4bf191b7b3f10da349ac729e9a50812459548889',
+    email:    email,
+    amount:   49900,   // R499 in cents
+    currency: 'ZAR',
+    ref:      'PRO-' + Date.now(),
+    label:    'WowBox Pro Plan — Monthly Subscription',
+    metadata: {
+      custom_fields: [
+        { display_name: 'Plan',         variable_name: 'plan',         value: 'Pro Monthly' },
+        { display_name: 'Partner name', variable_name: 'partner_name', value: name },
+      ]
+    },
+    onClose: function() {
+      admToast('Payment cancelled.');
+    },
+    callback: function(response) {
+      // Payment success — activate Pro
+      const now = new Date();
+      const end = new Date(now);
+      end.setMonth(end.getMonth() + 1);
+      partnerSubscription.status             = 'active';
+      partnerSubscription.plan               = 'pro';
+      partnerSubscription.period_start       = now.toISOString().slice(0,10);
+      partnerSubscription.period_end         = end.toISOString().slice(0,10);
+      partnerSubscription.cancel_at_period_end = false;
+      partnerSubscription.paystack_ref       = response.reference;
+
+      hideProPaymentForm();
+      renderSubscriptionUI();
+      updatePartnerSidebar();
+      updatePlanLockedUI();
+      renderPlanPage();
+      admToast('Pro activated! Payment ref: ' + response.reference);
+      setTimeout(() => {
+        switchPP(document.querySelector('[onclick*=pp-plan]'), 'pp-plan');
+      }, 400);
+    }
+  });
+  handler.openIframe();
 }
+
 
 function cancelSubscription() {
   if (!confirm('Cancel your Pro subscription? You keep full access until the end of your current billing period.')) return;
@@ -7346,12 +7454,11 @@ function admDeleteCoupon(id) {
 /* ══════════════════════════════════════════════════════════════
    INIT
 ══════════════════════════════════════════════════════════════ */
-window.addEventListener('DOMContentLoaded', () => {
-  renderBoxGrids();
-  loadProduct('couples-retreat');
+window.addEventListener('DOMContentLoaded', async () => {
+  await renderBoxGrids();          // attend que les images Supabase soient chargées
+  loadProduct('couples-retreat');  // ensuite charge le produit par défaut
   setNL('nl-home');
   document.getElementById('nl-home').classList.add('on');
-  // Set a default current box in dashboard
   appState.priceBase = 1499;
 });
 </script>
