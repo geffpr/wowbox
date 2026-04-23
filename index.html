@@ -4945,13 +4945,13 @@ function loadProduct(boxId) {
     : appState.boxActivated ? '✅ Your box is active — click "Book" to reserve an experience.' : '🔒 Browse experiences — purchase or activate a box to book.';
   document.getElementById('prod-stars-r').innerHTML = '★★★★★ ' + b.rating + ' <span style="color:var(--muted)">·</span>';
   document.getElementById('prod-rev-count-r').textContent = b.sold + ' reviews';
-  // Set main image — use first of imgs array for consistency
-  document.getElementById('prod-img').src = imgs[0] || b.img || '';
   appState.priceBase = b.price;
   document.getElementById('qty-v').textContent = '1';
   document.getElementById('qty-total').textContent = 'R' + b.price.toLocaleString();
 
   const imgs = thumbImages[boxId] || b.images || [b.img, b.img, b.img, b.img];
+  // Set main image from imgs array
+  document.getElementById('prod-img').src = imgs[0] || b.img || '';
   // Use DOM to avoid URL corruption in onclick attributes
   const thumbsEl = document.getElementById('prod-thumbs');
   thumbsEl.innerHTML = '';
