@@ -6313,16 +6313,31 @@ function renderBoxGallery() {
   const gallery = document.getElementById('abf-gallery');
   if (!gallery) return;
   const labels = ['Main','Alt 1','Alt 2','Alt 3'];
-  gallery.innerHTML = admBoxImgUrls.map((url, i) => {
-    const preview = url.includes('unsplash.com')
-      ? url.split('?')[0] + '?q=80&w=200&h=140&auto=format&fit=crop'
-      : url;
-    return `<div style="position:relative;display:inline-block;margin-right:8px">
-      <img src="${preview}" style="width:100px;height:70px;object-fit:cover;border-radius:var(--rs);border:2px solid ${i===0?'var(--b300)':'var(--border)'}">
-      <span style="position:absolute;top:-5px;right:-5px;background:var(--border);border-radius:50%;width:18px;height:18px;display:flex;align-items:center;justify-content:center;font-size:.6rem;cursor:pointer" onclick="admRemoveBoxImg(${i})">✕</span>
-      <div style="font-size:.58rem;text-align:center;color:var(--muted);margin-top:2px">${labels[i]||''}</div>
-    </div>`;
-  }).join('');
+  gallery.innerHTML = '';
+  admBoxImgUrls.forEach((url, i) => {
+    // Use DOM methods to avoid URL corruption
+    const wrap = document.createElement('div');
+    wrap.style.cssText = 'position:relative;display:inline-block;margin-right:8px';
+
+    const img = document.createElement('img');
+    img.src = url;  // show the URL as-is — browser handles it
+    img.style.cssText = 'width:100px;height:70px;object-fit:cover;border-radius:var(--rs);border:2px solid ' + (i===0?'var(--b300)':'var(--border)');
+    img.onerror = () => img.style.border = '2px solid #ef4444';
+
+    const del = document.createElement('span');
+    del.style.cssText = 'position:absolute;top:-5px;right:-5px;background:var(--border);border-radius:50%;width:18px;height:18px;display:flex;align-items:center;justify-content:center;font-size:.6rem;cursor:pointer';
+    del.textContent = '✕';
+    del.onclick = () => admRemoveBoxImg(i);
+
+    const lbl = document.createElement('div');
+    lbl.style.cssText = 'font-size:.58rem;text-align:center;color:var(--muted);margin-top:2px';
+    lbl.textContent = labels[i] || '';
+
+    wrap.appendChild(img);
+    wrap.appendChild(del);
+    wrap.appendChild(lbl);
+    gallery.appendChild(wrap);
+  });
 }
 
 function admRemoveBoxImg(idx) {
@@ -6332,7 +6347,7 @@ function admRemoveBoxImg(idx) {
 async function admSaveBox() {
   const name  = document.getElementById('abf-name')?.value?.trim();
   const price = parseInt(document.getElementById('abf-price')?.value || '0');
-  const db    = document.getElementById('abf-db')?.value || '';
+  const dbName = document.getElementById('abf-db')?.value || '';
   const desc  = document.getElementById('abf-desc')?.value?.trim() || '';
 
   if (!name || !price) { admToast('Please fill in box name and price.'); return; }
@@ -6345,7 +6360,7 @@ async function admSaveBox() {
   const payload = {
     name,
     price,
-    database_name: db,
+    database_name: dbName,
     description:   desc,
     is_active:     true,
     ...(mainImg ? { image_url: mainImg } : {}),
@@ -6355,9 +6370,7 @@ async function admSaveBox() {
     let result;
     if (appState.editingBoxId) {
       // UPDATE existing box
-      console.log('[admSaveBox] Saving box:', appState.editingBoxId, 'payload:', JSON.stringify(payload));
       result = await db_client.from('boxes').update(payload).eq('id', appState.editingBoxId);
-      console.log('[admSaveBox] Supabase result:', JSON.stringify(result));
       // Also update local boxDB immediately
       if (boxDB[appState.editingBoxId]) {
         boxDB[appState.editingBoxId].name  = name;
@@ -6465,16 +6478,30 @@ function renderExpGallery() {
   const gallery = document.getElementById('aef-gallery');
   if (!gallery) return;
   const labels = ['Main','Alt 1','Alt 2'];
-  gallery.innerHTML = admExpImgUrls.map((url, i) => {
-    const preview = url.includes('unsplash.com')
-      ? url.split('?')[0] + '?q=80&w=200&h=140&auto=format&fit=crop'
-      : url;
-    return `<div style="position:relative;display:inline-block;margin-right:8px">
-      <img src="${preview}" style="width:100px;height:70px;object-fit:cover;border-radius:var(--rs);border:2px solid ${i===0?'var(--b300)':'var(--border)'}">
-      <span style="position:absolute;top:-5px;right:-5px;background:var(--border);border-radius:50%;width:18px;height:18px;display:flex;align-items:center;justify-content:center;font-size:.6rem;cursor:pointer" onclick="admRemoveExpImg(${i})">✕</span>
-      <div style="font-size:.58rem;text-align:center;color:var(--muted);margin-top:2px">${labels[i]||''}</div>
-    </div>`;
-  }).join('');
+  gallery.innerHTML = '';
+  admExpImgUrls.forEach((url, i) => {
+    const wrap = document.createElement('div');
+    wrap.style.cssText = 'position:relative;display:inline-block;margin-right:8px';
+
+    const img = document.createElement('img');
+    img.src = url;
+    img.style.cssText = 'width:100px;height:70px;object-fit:cover;border-radius:var(--rs);border:2px solid ' + (i===0?'var(--b300)':'var(--border)');
+    img.onerror = () => img.style.border = '2px solid #ef4444';
+
+    const del = document.createElement('span');
+    del.style.cssText = 'position:absolute;top:-5px;right:-5px;background:var(--border);border-radius:50%;width:18px;height:18px;display:flex;align-items:center;justify-content:center;font-size:.6rem;cursor:pointer';
+    del.textContent = '✕';
+    del.onclick = () => admRemoveExpImg(i);
+
+    const lbl = document.createElement('div');
+    lbl.style.cssText = 'font-size:.58rem;text-align:center;color:var(--muted);margin-top:2px';
+    lbl.textContent = labels[i] || '';
+
+    wrap.appendChild(img);
+    wrap.appendChild(del);
+    wrap.appendChild(lbl);
+    gallery.appendChild(wrap);
+  });
 }
 
 function admRemoveExpImg(idx) {
