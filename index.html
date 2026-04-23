@@ -6275,11 +6275,12 @@ function admShowBoxForm(boxId) {
     document.getElementById('abf-desc').value = b.desc;
     // Pre-populate image gallery
     const galleryEl = document.getElementById('abf-gallery');
-    galleryEl.innerHTML = `<div style="position:relative;display:inline-block">
-      <img src="${b.img}&h=80&w=100&auto=format&fit=crop" style="width:100px;height:70px;object-fit:cover;border-radius:var(--rs);border:2px solid var(--b300)">
+    const previewSrc = b.img ? (b.img.includes('unsplash.com') ? b.img + '&h=80&w=100&auto=format&fit=crop' : b.img) : '';
+    galleryEl.innerHTML = b.img ? `<div style="position:relative;display:inline-block">
+      <img src="${previewSrc}" data-original-url="${b.img}" style="width:100px;height:70px;object-fit:cover;border-radius:var(--rs);border:2px solid var(--b300)">
       <span style="position:absolute;top:-5px;right:-5px;background:var(--border);border-radius:50%;width:18px;height:18px;display:flex;align-items:center;justify-content:center;font-size:.6rem;cursor:pointer" onclick="this.parentElement.remove()">✕</span>
       <div style="font-size:.58rem;text-align:center;color:var(--muted);margin-top:2px">Main</div>
-    </div>`;
+    </div>` : '';
   } else {
     title.textContent = 'Create new gift box';
     document.getElementById('abf-name').value = '';
@@ -6297,8 +6298,9 @@ function admAddBoxImg() {
   if (!url) return;
   const gallery = document.getElementById('abf-gallery');
   const isFirst = gallery.children.length === 0;
+  const preview = url.includes('unsplash.com') ? url + '&h=80&w=100&auto=format&fit=crop' : url;
   gallery.innerHTML += `<div style="position:relative;display:inline-block">
-    <img src="${url}&h=80&w=100&auto=format&fit=crop" style="width:100px;height:70px;object-fit:cover;border-radius:var(--rs);border:2px solid ${isFirst?'var(--b300)':'var(--border)'}">
+    <img src="${preview}" data-original-url="${url}" style="width:100px;height:70px;object-fit:cover;border-radius:var(--rs);border:2px solid ${isFirst?'var(--b300)':'var(--border)'}">
     <span style="position:absolute;top:-5px;right:-5px;background:var(--border);border-radius:50%;width:18px;height:18px;display:flex;align-items:center;justify-content:center;font-size:.6rem;cursor:pointer" onclick="this.parentElement.remove()">✕</span>
     ${isFirst?'<div style="font-size:.58rem;text-align:center;color:var(--muted);margin-top:2px">Main</div>':''}
   </div>`;
@@ -6312,11 +6314,10 @@ async function admSaveBox() {
 
   if (!name || !price) { admToast('Please fill in box name and price.'); return; }
 
-  // Collect images from gallery
-  const imgs = [...document.querySelectorAll('#abf-gallery img')].map(img => {
-    // Remove Unsplash resize params to get clean URL
-    return img.src.replace(/[&?](h|w|auto|fit)=[^&]*/g,'').replace(/[&?]$/,'');
-  });
+  // Collect images — use data-original-url if set, otherwise clean the src
+  const imgs = [...document.querySelectorAll('#abf-gallery img')].map(img =>
+    img.dataset.originalUrl || img.src.split('?')[0]
+  );
   const mainImg = imgs[0] || '';
 
   const payload = {
@@ -6439,8 +6440,9 @@ function admAddExpImg() {
   const idx = gallery.children.length;
   const labels = ['Main','Alt 1','Alt 2'];
   if (idx >= 3) { admToast('Maximum 3 images per experience'); return; }
+  const preview = url.includes('unsplash.com') ? url + '&h=80&w=100&auto=format&fit=crop' : url;
   gallery.innerHTML += `<div style="position:relative;display:inline-block">
-    <img src="${url}&h=80&w=100&auto=format&fit=crop" style="width:100px;height:70px;object-fit:cover;border-radius:var(--rs);border:2px solid ${idx===0?'var(--b300)':'var(--border)'}">
+    <img src="${preview}" data-original-url="${url}" style="width:100px;height:70px;object-fit:cover;border-radius:var(--rs);border:2px solid ${idx===0?'var(--b300)':'var(--border)'}">
     <span style="position:absolute;top:-5px;right:-5px;background:var(--border);border-radius:50%;width:18px;height:18px;display:flex;align-items:center;justify-content:center;font-size:.6rem;cursor:pointer" onclick="this.parentElement.remove()">✕</span>
     <div style="font-size:.58rem;text-align:center;color:var(--muted);margin-top:2px">${labels[idx]||''}</div>
   </div>`;
@@ -6455,9 +6457,9 @@ async function admSaveExp() {
 
   if (!name) { admToast('Please enter an experience name.'); return; }
 
-  // Collect images
+  // Collect images — use data-original-url if set, otherwise clean the src
   const imgs = [...document.querySelectorAll('#aef-gallery img')].map(img =>
-    img.src.replace(/[&?](h|w|auto|fit)=[^&]*/g,'').replace(/[&?]$/,'')
+    img.dataset.originalUrl || img.src.split('?')[0]
   );
   const mainImg = imgs[0] || '';
 
