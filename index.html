@@ -6352,8 +6352,17 @@ async function admSaveBox() {
 
   if (!name || !price) { admToast('Please fill in box name and price.'); return; }
 
-  // Read images from the JS array (no DOM attribute issues)
-  const imgs    = [...admBoxImgUrls];
+  // Read images from the JS array — normalize Unsplash URLs
+  const normalizeImgUrl = url => {
+    if (!url) return '';
+    if (url.includes('unsplash.com')) {
+      // Strip existing params and add standard ones
+      const base = url.split('?')[0];
+      return base + '?q=80&w=800&auto=format&fit=crop';
+    }
+    return url;
+  };
+  const imgs    = admBoxImgUrls.map(normalizeImgUrl);
   const mainImg = imgs[0] || '';
 
   // Only include image_url if we actually have one (don't overwrite with empty)
@@ -6384,9 +6393,11 @@ async function admSaveBox() {
       result = await db_client.from('boxes').insert({ id: newId, ...payload });
     }
     if (result?.error) throw result.error;
+    // Update the local array with normalized URLs so re-opening shows correct preview
+    admBoxImgUrls = imgs.filter(Boolean);
     admHideBoxForm();
-    admToast('✅ Box saved to Supabase!');
-    await renderBoxGrids();  // refresh the grid
+    admToast('✅ Box saved! Image updated.');
+    await renderBoxGrids();  // refresh the grid — reloads from Supabase
   } catch(e) {
     console.error('Save box error:', e);
     admToast('Error saving: ' + (e.message || 'unknown error'));
