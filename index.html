@@ -22,6 +22,12 @@
 <title>WowBox — Offer Unforgettable Experiences</title>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="icon" type="image/png" href="/favicon-96x96.png" sizes="96x96" />
+<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+<link rel="shortcut icon" href="/favicon.ico" />
+<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+<meta name="apple-mobile-web-app-title" content="WowBox" />
+<link rel="manifest" href="/site.webmanifest" />
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js">
 /* ══════════════════════════════════════════════════════════════
    PRO PLAN — PLAN PAGE RENDERER
@@ -4854,7 +4860,7 @@ async function renderBoxGrids() {
     const isPremium = b.price >= 3499;
     return `<div class="bcard${isPremium?' premium-border':''}" onclick="loadProduct('${b.id}');go('product')">
       <div class="bcard-img">
-        <img src="${b.image_url}" alt="${b.name}" loading="lazy">
+        <img src="${b.image_url || boxDB[b.id]?.img || ''}" alt="${b.name}" loading="lazy">
         <div class="bcard-ov"></div>
         <div class="badge${isPremium?' gold':''}">${b.badge}</div>
         <div class="exp-badge"><i class="fa fa-layer-group"></i> ${b.experience_count} experiences</div>
