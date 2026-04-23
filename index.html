@@ -3614,12 +3614,15 @@ tr:hover td{background:var(--b50)}
                 <option>Active</option><option>Draft</option><option>Archived</option>
               </select>
             </div>
-            <!-- Image gallery -->
+            <!-- Images (up to 4) -->
             <div class="fg">
-              <label>Image gallery</label>
-              <div id="abf-gallery" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px"></div>
-              <input class="fi" id="abf-img-input" placeholder="Paste image URL and press Enter" onkeydown="if(event.key==='Enter'){event.preventDefault();admAddBoxImg()}">
-              <div style="font-size:.7rem;color:var(--muted);margin-top:4px">Add up to 4 images. First image is the main display image.</div>
+              <label>Images (up to 4)</label>
+              <div style="display:grid;gap:12px;margin-top:6px">
+                <div style="display:grid;grid-template-columns:1fr 84px;gap:10px;align-items:end"><div><div style="font-size:.7rem;font-weight:600;color:var(--b600);margin-bottom:4px">Main image *</div><input class="fi" id="abf-img-0" placeholder="https://..." oninput="admPreviewBoxImg(0,this.value)"></div><img id="abf-prev-0" src="" style="width:80px;height:58px;object-fit:cover;border-radius:var(--rs);border:2px solid var(--b300);display:none"></div>
+                <div style="display:grid;grid-template-columns:1fr 84px;gap:10px;align-items:end"><div><div style="font-size:.7rem;color:var(--muted);margin-bottom:4px">Image 2</div><input class="fi" id="abf-img-1" placeholder="https://..." oninput="admPreviewBoxImg(1,this.value)"></div><img id="abf-prev-1" src="" style="width:80px;height:58px;object-fit:cover;border-radius:var(--rs);border:1.5px solid var(--border);display:none"></div>
+                <div style="display:grid;grid-template-columns:1fr 84px;gap:10px;align-items:end"><div><div style="font-size:.7rem;color:var(--muted);margin-bottom:4px">Image 3</div><input class="fi" id="abf-img-2" placeholder="https://..." oninput="admPreviewBoxImg(2,this.value)"></div><img id="abf-prev-2" src="" style="width:80px;height:58px;object-fit:cover;border-radius:var(--rs);border:1.5px solid var(--border);display:none"></div>
+                <div style="display:grid;grid-template-columns:1fr 84px;gap:10px;align-items:end"><div><div style="font-size:.7rem;color:var(--muted);margin-bottom:4px">Image 4</div><input class="fi" id="abf-img-3" placeholder="https://..." oninput="admPreviewBoxImg(3,this.value)"></div><img id="abf-prev-3" src="" style="width:80px;height:58px;object-fit:cover;border-radius:var(--rs);border:1.5px solid var(--border);display:none"></div>
+              </div>
             </div>
             <div style="display:flex;gap:9px">
               <button class="btn bp bsm" onclick="admSaveBox()"><i class="fa fa-check"></i> Save box</button>
@@ -4895,12 +4898,16 @@ async function renderBoxGrids() {
   // Sync final boxDB — Supabase image_url takes priority, then local fallback
   boxes.forEach(b => {
     const resolvedImg = b.image_url || localImgs[b.id] || boxDB[b.id]?.img || '';
+    const resolvedImgs = (b.images && b.images.length)
+      ? b.images
+      : [resolvedImg, resolvedImg, resolvedImg, resolvedImg];
     boxDB[b.id] = {
       name:   b.name,
       price:  b.price,
       db:     b.database_name,
       cnt:    b.experience_count,
       img:    resolvedImg,
+      images: resolvedImgs,
       badge:  b.badge,
       rating: b.rating,
       sold:   b.sold_count,
@@ -4943,7 +4950,7 @@ function loadProduct(boxId) {
   document.getElementById('qty-v').textContent = '1';
   document.getElementById('qty-total').textContent = 'R' + b.price.toLocaleString();
 
-  const imgs = thumbImages[boxId] || [b.img, b.img, b.img, b.img];
+  const imgs = thumbImages[boxId] || b.images || [b.img, b.img, b.img, b.img];
   document.getElementById('prod-thumbs').innerHTML = imgs.map((s,i) => `<div class="gthumb${i===0?' on':''}" onclick="swapImg(this,'${s}')"><img src="${s}&h=160&auto=format&fit=crop" loading="lazy"></div>`).join('');
 
   // Toggle surprise vs normal experience section
@@ -6282,18 +6289,22 @@ function admShowBoxForm(boxId) {
     document.getElementById('abf-name').value = b.name;
     document.getElementById('abf-price').value = b.price;
     document.getElementById('abf-desc').value = b.desc;
-    // Pre-populate image gallery
-    const galleryEl = document.getElementById('abf-gallery');
-    // Reset and populate the JS array
-    admBoxImgUrls = b.img ? [b.img] : [];
-    renderBoxGallery();
+    // Pre-populate 4 image fields
+    const imgs4 = (b.images && b.images.length) ? b.images : (b.img ? [b.img] : []);
+    for (let i = 0; i < 4; i++) {
+      const inp = document.getElementById('abf-img-' + i);
+      if (inp) { inp.value = imgs4[i] || ''; admPreviewBoxImg(i, imgs4[i] || ''); }
+    }
   } else {
     title.textContent = 'Create new gift box';
     document.getElementById('abf-name').value = '';
     document.getElementById('abf-price').value = '';
     document.getElementById('abf-desc').value = '';
-    admBoxImgUrls = [];
-    renderBoxGallery();
+    for (let i = 0; i < 4; i++) {
+      const inp = document.getElementById('abf-img-' + i);
+      if (inp) inp.value = '';
+      admPreviewBoxImg(i, '');
+    }
   }
 }
 function admHideBoxForm() {
@@ -6309,6 +6320,17 @@ function admAddBoxImg() {
   renderBoxGallery();
 }
 
+function admPreviewBoxImg(idx, url) {
+  const img = document.getElementById('abf-prev-' + idx);
+  if (!img) return;
+  if (url && url.length > 5) {
+    img.src = url;
+    img.style.display = 'block';
+    img.onerror = () => { img.style.display = 'none'; };
+  } else {
+    img.style.display = 'none';
+  }
+}
 function renderBoxGallery() {
   const gallery = document.getElementById('abf-gallery');
   if (!gallery) return;
@@ -6352,18 +6374,13 @@ async function admSaveBox() {
 
   if (!name || !price) { admToast('Please fill in box name and price.'); return; }
 
-  // Read images from the JS array — normalize Unsplash URLs
-  const normalizeImgUrl = url => {
-    if (!url) return '';
-    if (url.includes('unsplash.com')) {
-      // Strip existing params and add standard ones
-      const base = url.split('?')[0];
-      return base + '?q=80&w=800&auto=format&fit=crop';
-    }
-    return url;
-  };
-  const imgs    = admBoxImgUrls.map(normalizeImgUrl);
-  const mainImg = imgs[0] || '';
+  // Read 4 image URLs
+  const allImgs = [];
+  for (let i = 0; i < 4; i++) {
+    const url = document.getElementById('abf-img-' + i)?.value?.trim() || '';
+    if (url) allImgs.push(url);
+  }
+  const mainImg = allImgs[0] || '';
 
   // Only include image_url if we actually have one (don't overwrite with empty)
   const payload = {
@@ -6372,6 +6389,7 @@ async function admSaveBox() {
     database_name: dbName,
     description:   desc,
     is_active:     true,
+    images:        allImgs,
     ...(mainImg ? { image_url: mainImg } : {}),
   };
 
@@ -6393,8 +6411,6 @@ async function admSaveBox() {
       result = await db_client.from('boxes').insert({ id: newId, ...payload });
     }
     if (result?.error) throw result.error;
-    // Update the local array with normalized URLs so re-opening shows correct preview
-    admBoxImgUrls = imgs.filter(Boolean);
     admHideBoxForm();
     admToast('✅ Box saved! Image updated.');
     await renderBoxGrids();  // refresh the grid — reloads from Supabase
