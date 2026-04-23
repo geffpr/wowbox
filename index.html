@@ -4825,6 +4825,10 @@ function clearBrowseFilters(silent) {
    BOXES GRID RENDERING
 ══════════════════════════════════════════════════════════════ */
 async function renderBoxGrids() {
+  // Keep original images from local boxDB (Supabase image_url may be empty)
+  const localImgs = {};
+  Object.entries(boxDB).forEach(([id, b]) => { localImgs[id] = b.img; });
+
   let boxes = null;
   try {
     const { data, error } = await db
@@ -4834,11 +4838,12 @@ async function renderBoxGrids() {
       .order('sold_count', { ascending: false });
     if (!error && data && data.length > 0) {
       boxes = data;
-      // Sync Supabase data into local boxDB
+      // Sync Supabase data into local boxDB, keeping local image if Supabase has none
       boxes.forEach(b => {
         boxDB[b.id] = {
           name: b.name, price: b.price, db: b.database_name,
-          cnt: b.experience_count, img: b.image_url,
+          cnt: b.experience_count,
+          img: b.image_url || localImgs[b.id],  // keep local image as fallback
           badge: b.badge, rating: b.rating, sold: b.sold_count, desc: b.description
         };
       });
@@ -4858,9 +4863,11 @@ async function renderBoxGrids() {
 
   const html = boxes.map(b => {
     const isPremium = b.price >= 3499;
+    // Always use local image as fallback if Supabase image_url is empty
+    const imgSrc = b.image_url || localImgs[b.id] || '';
     return `<div class="bcard${isPremium?' premium-border':''}" onclick="loadProduct('${b.id}');go('product')">
       <div class="bcard-img">
-        <img src="${b.image_url || boxDB[b.id]?.img || ''}" alt="${b.name}" loading="lazy">
+        <img src="${imgSrc}" alt="${b.name}" loading="lazy">
         <div class="bcard-ov"></div>
         <div class="badge${isPremium?' gold':''}">${b.badge}</div>
         <div class="exp-badge"><i class="fa fa-layer-group"></i> ${b.experience_count} experiences</div>
@@ -4881,18 +4888,18 @@ async function renderBoxGrids() {
   if (hg) hg.innerHTML = html;
   if (ag) ag.innerHTML = html;
 
-  // Mettre à jour boxDB en mémoire pour les autres fonctions
+  // Sync final boxDB — always preserve local image if Supabase has none
   boxes.forEach(b => {
     boxDB[b.id] = {
-      name:    b.name,
-      price:   b.price,
-      db:      b.database_name,
-      cnt:     b.experience_count,
-      img:     b.image_url,
-      badge:   b.badge,
-      rating:  b.rating,
-      sold:    b.sold_count,
-      desc:    b.description
+      name:   b.name,
+      price:  b.price,
+      db:     b.database_name,
+      cnt:    b.experience_count,
+      img:    b.image_url || localImgs[b.id] || boxDB[b.id]?.img || '',
+      badge:  b.badge,
+      rating: b.rating,
+      sold:   b.sold_count,
+      desc:   b.description
     };
   });
 }
