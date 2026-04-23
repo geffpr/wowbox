@@ -4623,6 +4623,10 @@ const admDatabases = [
 /* ══════════════════════════════════════════════════════════════
    STATE
 ══════════════════════════════════════════════════════════════ */
+// Gallery state arrays (avoids DOM attribute escaping issues)
+let admBoxImgUrls = [];   // stores clean URLs for box gallery
+let admExpImgUrls = [];   // stores clean URLs for experience gallery
+
 const appState = {
   cart: [],
   boxActivated: false,
@@ -6280,18 +6284,16 @@ function admShowBoxForm(boxId) {
     document.getElementById('abf-desc').value = b.desc;
     // Pre-populate image gallery
     const galleryEl = document.getElementById('abf-gallery');
-    const previewSrc = b.img ? (b.img.includes('unsplash.com') ? b.img + '&h=80&w=100&auto=format&fit=crop' : b.img) : '';
-    galleryEl.innerHTML = b.img ? `<div style="position:relative;display:inline-block">
-      <img src="${previewSrc}" data-original-url="${b.img}" style="width:100px;height:70px;object-fit:cover;border-radius:var(--rs);border:2px solid var(--b300)">
-      <span style="position:absolute;top:-5px;right:-5px;background:var(--border);border-radius:50%;width:18px;height:18px;display:flex;align-items:center;justify-content:center;font-size:.6rem;cursor:pointer" onclick="this.parentElement.remove()">✕</span>
-      <div style="font-size:.58rem;text-align:center;color:var(--muted);margin-top:2px">Main</div>
-    </div>` : '';
+    // Reset and populate the JS array
+    admBoxImgUrls = b.img ? [b.img] : [];
+    renderBoxGallery();
   } else {
     title.textContent = 'Create new gift box';
     document.getElementById('abf-name').value = '';
     document.getElementById('abf-price').value = '';
     document.getElementById('abf-desc').value = '';
-    document.getElementById('abf-gallery').innerHTML = '';
+    admBoxImgUrls = [];
+    renderBoxGallery();
   }
 }
 function admHideBoxForm() {
@@ -6299,17 +6301,33 @@ function admHideBoxForm() {
 }
 function admAddBoxImg() {
   const input = document.getElementById('abf-img-input');
-  const url = input.value.trim();
+  const url   = input.value.trim();
   if (!url) return;
-  const gallery = document.getElementById('abf-gallery');
-  const isFirst = gallery.children.length === 0;
-  const preview = url.includes('unsplash.com') ? url + '&h=80&w=100&auto=format&fit=crop' : url;
-  gallery.innerHTML += `<div style="position:relative;display:inline-block">
-    <img src="${preview}" data-original-url="${url}" style="width:100px;height:70px;object-fit:cover;border-radius:var(--rs);border:2px solid ${isFirst?'var(--b300)':'var(--border)'}">
-    <span style="position:absolute;top:-5px;right:-5px;background:var(--border);border-radius:50%;width:18px;height:18px;display:flex;align-items:center;justify-content:center;font-size:.6rem;cursor:pointer" onclick="this.parentElement.remove()">✕</span>
-    ${isFirst?'<div style="font-size:.58rem;text-align:center;color:var(--muted);margin-top:2px">Main</div>':''}
-  </div>`;
+  if (admBoxImgUrls.length >= 4) { admToast('Maximum 4 images per box.'); return; }
+  admBoxImgUrls.push(url);
   input.value = '';
+  renderBoxGallery();
+}
+
+function renderBoxGallery() {
+  const gallery = document.getElementById('abf-gallery');
+  if (!gallery) return;
+  const labels = ['Main','Alt 1','Alt 2','Alt 3'];
+  gallery.innerHTML = admBoxImgUrls.map((url, i) => {
+    const preview = url.includes('unsplash.com')
+      ? url.split('?')[0] + '?q=80&w=200&h=140&auto=format&fit=crop'
+      : url;
+    return `<div style="position:relative;display:inline-block;margin-right:8px">
+      <img src="${preview}" style="width:100px;height:70px;object-fit:cover;border-radius:var(--rs);border:2px solid ${i===0?'var(--b300)':'var(--border)'}">
+      <span style="position:absolute;top:-5px;right:-5px;background:var(--border);border-radius:50%;width:18px;height:18px;display:flex;align-items:center;justify-content:center;font-size:.6rem;cursor:pointer" onclick="admRemoveBoxImg(${i})">✕</span>
+      <div style="font-size:.58rem;text-align:center;color:var(--muted);margin-top:2px">${labels[i]||''}</div>
+    </div>`;
+  }).join('');
+}
+
+function admRemoveBoxImg(idx) {
+  admBoxImgUrls.splice(idx, 1);
+  renderBoxGallery();
 }
 async function admSaveBox() {
   const name  = document.getElementById('abf-name')?.value?.trim();
@@ -6319,10 +6337,8 @@ async function admSaveBox() {
 
   if (!name || !price) { admToast('Please fill in box name and price.'); return; }
 
-  // Collect images — use data-original-url if set, otherwise clean the src
-  const imgs = [...document.querySelectorAll('#abf-gallery img')].map(img =>
-    img.dataset.originalUrl || img.src.split('?')[0]
-  );
+  // Read images from the JS array (no DOM attribute issues)
+  const imgs    = [...admBoxImgUrls];
   const mainImg = imgs[0] || '';
 
   // Only include image_url if we actually have one (don't overwrite with empty)
@@ -6339,7 +6355,9 @@ async function admSaveBox() {
     let result;
     if (appState.editingBoxId) {
       // UPDATE existing box
+      console.log('[admSaveBox] Saving box:', appState.editingBoxId, 'payload:', JSON.stringify(payload));
       result = await db_client.from('boxes').update(payload).eq('id', appState.editingBoxId);
+      console.log('[admSaveBox] Supabase result:', JSON.stringify(result));
       // Also update local boxDB immediately
       if (boxDB[appState.editingBoxId]) {
         boxDB[appState.editingBoxId].name  = name;
@@ -6416,14 +6434,9 @@ function admShowExpForm(expId) {
   const rtSel = document.getElementById('aef-rt');
   rtSel.value = d?.rt || '';
   admExpTypeNote();
-  // Gallery
-  const gallery = document.getElementById('aef-gallery');
-  gallery.innerHTML = (d?.imgs || []).map((img, i) => `
-    <div style="position:relative;display:inline-block">
-      <img src="${img}&h=80&w=100&auto=format&fit=crop" style="width:100px;height:70px;object-fit:cover;border-radius:var(--rs);border:2px solid ${i===0?'var(--b300)':'var(--border)'}">
-      <span style="position:absolute;top:-5px;right:-5px;background:var(--border);border-radius:50%;width:18px;height:18px;display:flex;align-items:center;justify-content:center;font-size:.6rem;cursor:pointer" onclick="this.parentElement.remove()">✕</span>
-      <div style="font-size:.58rem;text-align:center;color:var(--muted);margin-top:2px">${['Main','Alt 1','Alt 2'][i]||''}</div>
-    </div>`).join('');
+  // Reset and populate the JS array
+  admExpImgUrls = d?.imgs ? [...d.imgs] : (d?.img ? [d.img] : []);
+  renderExpGallery();
 }
 function admHideExpForm() {
   document.getElementById('adm-exp-form').style.display = 'none';
@@ -6440,19 +6453,33 @@ function admExpTypeNote() {
 }
 function admAddExpImg() {
   const input = document.getElementById('aef-img-input');
-  const url = input.value.trim();
+  const url   = input.value.trim();
   if (!url) return;
-  const gallery = document.getElementById('aef-gallery');
-  const idx = gallery.children.length;
-  const labels = ['Main','Alt 1','Alt 2'];
-  if (idx >= 3) { admToast('Maximum 3 images per experience'); return; }
-  const preview = url.includes('unsplash.com') ? url + '&h=80&w=100&auto=format&fit=crop' : url;
-  gallery.innerHTML += `<div style="position:relative;display:inline-block">
-    <img src="${preview}" data-original-url="${url}" style="width:100px;height:70px;object-fit:cover;border-radius:var(--rs);border:2px solid ${idx===0?'var(--b300)':'var(--border)'}">
-    <span style="position:absolute;top:-5px;right:-5px;background:var(--border);border-radius:50%;width:18px;height:18px;display:flex;align-items:center;justify-content:center;font-size:.6rem;cursor:pointer" onclick="this.parentElement.remove()">✕</span>
-    <div style="font-size:.58rem;text-align:center;color:var(--muted);margin-top:2px">${labels[idx]||''}</div>
-  </div>`;
+  if (admExpImgUrls.length >= 3) { admToast('Maximum 3 images per experience.'); return; }
+  admExpImgUrls.push(url);
   input.value = '';
+  renderExpGallery();
+}
+
+function renderExpGallery() {
+  const gallery = document.getElementById('aef-gallery');
+  if (!gallery) return;
+  const labels = ['Main','Alt 1','Alt 2'];
+  gallery.innerHTML = admExpImgUrls.map((url, i) => {
+    const preview = url.includes('unsplash.com')
+      ? url.split('?')[0] + '?q=80&w=200&h=140&auto=format&fit=crop'
+      : url;
+    return `<div style="position:relative;display:inline-block;margin-right:8px">
+      <img src="${preview}" style="width:100px;height:70px;object-fit:cover;border-radius:var(--rs);border:2px solid ${i===0?'var(--b300)':'var(--border)'}">
+      <span style="position:absolute;top:-5px;right:-5px;background:var(--border);border-radius:50%;width:18px;height:18px;display:flex;align-items:center;justify-content:center;font-size:.6rem;cursor:pointer" onclick="admRemoveExpImg(${i})">✕</span>
+      <div style="font-size:.58rem;text-align:center;color:var(--muted);margin-top:2px">${labels[i]||''}</div>
+    </div>`;
+  }).join('');
+}
+
+function admRemoveExpImg(idx) {
+  admExpImgUrls.splice(idx, 1);
+  renderExpGallery();
 }
 async function admSaveExp() {
   const name    = document.getElementById('aef-name')?.value?.trim();
@@ -6463,10 +6490,8 @@ async function admSaveExp() {
 
   if (!name) { admToast('Please enter an experience name.'); return; }
 
-  // Collect images — use data-original-url if set, otherwise clean the src
-  const imgs = [...document.querySelectorAll('#aef-gallery img')].map(img =>
-    img.dataset.originalUrl || img.src.split('?')[0]
-  );
+  // Read images from the JS array (no DOM attribute issues)
+  const imgs    = [...admExpImgUrls];
   const mainImg = imgs[0] || '';
 
   const payload = {
