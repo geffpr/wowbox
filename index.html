@@ -1017,7 +1017,7 @@ function physRenderLog() {
     not_found:      { badge:'Not Found',  color:'#991b1b',     bg:'#fee2e2' },
   };
   body.innerHTML = physActivationLog.slice(0, 20).map(e => {
-    const lbl = outcomeLabel[e.outcome] || { badge:e.outcome, color:var(--muted), bg:var(--border) };
+    const lbl = outcomeLabel[e.outcome] || { badge:e.outcome, color:'var(--muted)', bg:'var(--border)' };
     const entry = codeDB[e.code];
     const boxName = entry ? entry.boxName : e.code;
     const timeStr = e.ts ? new Date(e.ts).toLocaleTimeString('en-ZA', { hour:'2-digit', minute:'2-digit', second:'2-digit' }) : '—';
