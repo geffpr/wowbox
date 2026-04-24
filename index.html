@@ -254,19 +254,23 @@ function exportGenCSV() {
 function buildPrintCards(codes) {
   const perPage = 9;
   let pages = '';
-  for (let p=0;p<codes.length;p+=perPage) {
-    const slice = codes.slice(p,p+perPage);
-    pages += `<div style="page-break-after:always;padding:20mm;font-family:Arial,sans-serif">
-      <div style="text-align:center;margin-bottom:8mm"><div style="font-size:18px;font-weight:700">WowBox</div><div style="font-size:10px;color:#64748b">${slice[0]?.batch||''}</div></div>
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10mm">
-        ${slice.map(e => `<div style="border:1.5px solid #0f172a;border-radius:8px;padding:12px;text-align:center">
-          <div style="font-size:13px;font-weight:700;margin-bottom:4px">WowBox</div>
-          <div style="font-size:9px;color:#64748b;margin-bottom:6px">${e.boxName}</div>
-          <div style="font-family:monospace;font-size:12px;font-weight:700;color:#2563eb;word-break:break-all;margin-bottom:4px">${e.code}</div>
-          <div style="font-size:8px;color:#94a3b8">${e.batch}</div>
-        </div>`).join('')}
-      </div>
-    </div>`;
+  for (let p = 0; p < codes.length; p += perPage) {
+    const slice = codes.slice(p, p + perPage);
+    const cards = slice.map(function(e) {
+      return '<div style="border:1.5px solid #0f172a;border-radius:8px;padding:12px;text-align:center">'
+        + '<div style="font-size:13px;font-weight:700;margin-bottom:4px">WowBox</div>'
+        + '<div style="font-size:9px;color:#64748b;margin-bottom:6px">' + e.boxName + '</div>'
+        + '<div style="font-family:monospace;font-size:12px;font-weight:700;color:#2563eb;word-break:break-all;margin-bottom:4px">' + e.code + '</div>'
+        + '<div style="font-size:8px;color:#94a3b8">' + e.batch + '</div>'
+        + '</div>';
+    }).join('');
+    pages += '<div style="page-break-after:always;padding:20mm;font-family:Arial,sans-serif">'
+      + '<div style="text-align:center;margin-bottom:8mm">'
+      + '<div style="font-size:18px;font-weight:700">WowBox</div>'
+      + '<div style="font-size:10px;color:#64748b">' + (slice[0] ? slice[0].batch : '') + '</div>'
+      + '</div>'
+      + '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10mm">' + cards + '</div>'
+      + '</div>';
   }
   return pages;
 }
