@@ -848,17 +848,82 @@ function physDoActivate(code) {
 
   /* ── 4. CRITICAL: Status inactive → activation at POS ── */
   if (entry.status === 'inactive') {
-    // THIS is the retail activation flow — activate it now
+    const customerEmail = (document.getElementById('phys-customer-email')?.value || '').trim().toLowerCase();
+    if (!customerEmail || !customerEmail.includes('@')) {
+      physShowResult('error',
+        '<i class="fa fa-envelope"></i> Email required',
+        'Please enter the customer email address before activating. This is needed to send them their WowBox code.',
+        null);
+      return;
+    }
+
+    // Update local state
     entry.status       = 'active';
     entry.activatedAt  = nowTs.slice(0, 10);
     entry.activatedBy  = adminId;
+    entry.userId       = customerEmail;
     if (!entry.activationLog) entry.activationLog = [];
     entry.activationLog.push({ ts: nowTs, by: adminId, ip: '(session)' });
+
+    // Generate WB-XXXX voucher code
+    const wbCode = 'WB-' + Date.now().toString(36).toUpperCase().slice(-4) + '-' + Math.random().toString(36).toUpperCase().slice(2,6);
+
+    // Run Supabase + email async (non-blocking — show success immediately)
+    (async () => {
+      try {
+        // 1. Mark physical code as active in Supabase
+        await db_client.from('vouchers')
+          .update({ status: 'active', user_email: customerEmail, activated_at: nowTs.slice(0,10), activated_by: adminId })
+          .eq('code', code);
+
+        // 2. Create WB-XXXX voucher in Supabase for the customer
+        await db_client.from('vouchers').insert({
+          code:        wbCode,
+          box_id:      entry.boxId,
+          box_name:    entry.boxName,
+          user_email:  customerEmail,
+          status:      'active',
+          retail_batch: entry.retailBatch || null,
+          source_code: code,
+        });
+
+        // 3. Log activation
+        await db_client.from('activation_logs').insert({
+          voucher_code:  code,
+          outcome:       'activated',
+          activated_by:  adminId,
+          ip_address:    '(pos)',
+        });
+
+        // 4. Send email to customer via Resend API
+        await fetch('/api/send-email', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            type: 'box_activated',
+            order: {
+              id:    wbCode,
+              name:  customerEmail.split('@')[0],
+              email: customerEmail,
+              type:  'Physical',
+              total: 'R' + (entry.price || '0'),
+              date:  nowTs.slice(0,10),
+              items: [{ name: entry.boxName, code: wbCode, type: 'Physical', status: 'active' }],
+            }
+          })
+        });
+
+        admToast('Email sent to ' + customerEmail + ' with code ' + wbCode);
+      } catch(err) {
+        console.warn('physDoActivate Supabase/email (non-blocking):', err.message);
+        admToast('Box activated locally. Sync error: ' + err.message.slice(0,40));
+      }
+    })();
 
     physLogAction(code, 'activated', adminId, nowTs);
     physShowResult('success',
       '<i class="fa fa-circle-check"></i> Box activated!',
-      'The box is now active and ready for the customer to use at wowbox.co.za.',
+      'The box is now active. Customer code <strong>' + wbCode + '</strong> is being emailed to <strong>' + customerEmail + '</strong>.',
       {
         code,
         box:         entry.boxName,
@@ -866,6 +931,8 @@ function physDoActivate(code) {
         activatedAt: nowFmt,
         activatedBy: adminId,
         batch:       entry.retailBatch || '—',
+        wbCode:      wbCode,
+        sentTo:      customerEmail,
       });
     return;
   }
@@ -4673,6 +4740,12 @@ tr:hover td{background:var(--b50)}
             <button class="scan-camera-btn" id="phys-scan-btn" onclick="physStartScan()">
               <i class="fa fa-camera"></i> Scan with camera
             </button>
+
+            <!-- Customer email for WB code generation -->
+            <div class="fg" style="margin-bottom:14px">
+              <label style="font-size:.8rem;font-weight:600;color:var(--navy)">Customer email <span style="font-weight:400;color:var(--muted)">(required to send activation code)</span></label>
+              <input class="fi" id="phys-customer-email" type="email" placeholder="customer@email.com" style="font-size:.88rem">
+            </div>
 
             <!-- Activate button -->
             <button class="phys-activate-btn" id="phys-activate-btn" onclick="physActivate()">
