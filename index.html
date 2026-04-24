@@ -56,13 +56,7 @@ function renderUsageTable() {
     (!fBox||r.box.includes(fBox)) && (!fPartner||r.partner===fPartner) && (!fFrom||r.date>=fFrom) && (!fTo||r.date<=fTo)
   );
   const fmt = d => d ? new Date(d+'T00:00:00').toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'}) : '—';
-  tbody.innerHTML = filtered.map(r => `<tr>
-    <td><code style="font-size:.75rem;color:var(--b700)">${r.code}</code></td>
-    <td>${r.box}</td><td>${r.customer}</td>
-    <td style="font-size:.78rem;color:var(--muted)">${r.email}</td>
-    <td>${r.experience}</td><td>${r.partner}</td>
-    <td style="font-size:.8rem;color:var(--muted)">${fmt(r.date)}</td>
-  </tr>`).join('') || '<tr><td colspan="7" style="text-align:center;padding:28px;color:var(--muted)">No records match your filters.</td></tr>';
+  tbody.innerHTML = filtered.map(r => '<tr><td><code style="font-size:.75rem;color:var(--b700)">' + r.code + '</code></td><td>' + r.box + '</td><td>' + r.customer + '</td><td style="font-size:.78rem;color:var(--muted)">' + r.email + '</td><td>' + r.experience + '</td><td>' + r.partner + '</td><td style="font-size:.8rem;color:var(--muted)">' + fmt(r.date) + '</td></tr>').join('') || '<tr><td colspan="7" style="text-align:center;padding:28px;color:var(--muted)">No records match your filters.</td></tr>';
   const month = new Date().toISOString().slice(0,7);
   const thisMonth = filtered.filter(r => r.date.startsWith(month)).length;
   if (lbl) lbl.textContent = `${filtered.length} redemption${filtered.length!==1?'s':''} · ${thisMonth} this month`;
@@ -78,9 +72,8 @@ function exportUsageCSV() {
   );
   if (!filtered.length) { admToast('No data to export.'); return; }
   const headers = ['Box Code','Box Type','Customer','Email','Experience Used','Partner','Date Used'];
-  const rows = filtered.map(r => [r.code,r.box,r.customer,r.email,r.experience,r.partner,r.date].map(v => `"${String(v).replace(/"/g,'""')}"`).join(','));
-  const csv = [headers.join(','), ...rows].join('
-');
+    const rows = filtered.map(r => [r.code,r.box,r.customer,r.email,r.experience,r.partner,r.date].map(v => '"' + String(v).replace(/"/g, '""') + '"').join(','));
+  const csv = [headers.join(','), ...rows].join('\n');
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
   a.download = `wowbox-usage-${new Date().toISOString().slice(0,10)}.csv`;
@@ -121,21 +114,20 @@ function renderOrdersTable() {
       const codes = o.items.filter(i => i.code !== '—').map(i => i.code).join('<br>');
       const first = o.items.find(i => i.code !== '—');
       const opts  = allStatuses.map(s => `<option${s===st?' selected':''}>${s}</option>`).join('');
-      return `<tr style="cursor:pointer" onclick="admOrderDetail('${id}')">
-        <td><strong>${id}</strong></td>
-        <td>${o.name}<div style="font-size:.7rem;color:var(--muted)">${o.email}</div></td>
-        <td style="font-size:.8rem">${o.items.length} box${o.items.length>1?'es':''}</td>
-        <td>${typeTag[o.type]||o.type}</td>
-        <td><code style="font-size:.72rem;color:var(--b700)">${codes}</code></td>
-        <td style="font-weight:600;color:var(--b700)">${o.total}</td>
-        <td style="font-size:.8rem;color:var(--muted)">${o.date}</td>
-        <td><select class="fi" data-order-id="${id}" style="padding:5px 9px;font-size:.75rem;width:auto"
-          onchange="admUpdateOrderStatus(this)" onclick="event.stopPropagation()">${opts}</select></td>
-        <td onclick="event.stopPropagation()" style="white-space:nowrap">
-          <button class="btn bg bsm" onclick="admOrderDetail('${id}')"><i class="fa fa-eye"></i></button>
-          ${first?`<button class="btn bg bsm" style="margin-left:4px" onclick="admPrintCode('${first.code}','${first.name}')"><i class="fa fa-print"></i></button>`:''}
-        </td>
-      </tr>`;
+      const printBtn = first ? '<button class="btn bg bsm" style="margin-left:4px" onclick="admPrintCode(\'' + first.code + '\',\'' + first.name + '\')"><i class="fa fa-print"></i></button>' : '';
+      return '<tr style="cursor:pointer" onclick="admOrderDetail(\'' + id + '\')">'
+        + '<td><strong>' + id + '</strong></td>'
+        + '<td>' + o.name + '<div style="font-size:.7rem;color:var(--muted)">' + o.email + '</div></td>'
+        + '<td style="font-size:.8rem">' + o.items.length + ' box' + (o.items.length>1?'es':'') + '</td>'
+        + '<td>' + (typeTag[o.type]||o.type) + '</td>'
+        + '<td><code style="font-size:.72rem;color:var(--b700)">' + codes + '</code></td>'
+        + '<td style="font-weight:600;color:var(--b700)">' + o.total + '</td>'
+        + '<td style="font-size:.8rem;color:var(--muted)">' + o.date + '</td>'
+        + '<td><select class="fi" data-order-id="' + id + '" style="padding:5px 9px;font-size:.75rem;width:auto" onchange="admUpdateOrderStatus(this)" onclick="event.stopPropagation()">' + opts + '</select></td>'
+        + '<td onclick="event.stopPropagation()" style="white-space:nowrap">'
+        + '<button class="btn bg bsm" onclick="admOrderDetail(\'' + id + '\')"><i class="fa fa-eye"></i></button>'
+        + printBtn
+        + '</td></tr>';
     }).join('');
   tbody.innerHTML = rows || '<tr><td colspan="9" style="text-align:center;padding:28px;color:var(--muted)">No orders match your filters.</td></tr>';
 }
@@ -223,14 +215,7 @@ function renderGenCodes() {
   if (title) title.innerHTML = '<i class="fa fa-check-circle" style="color:var(--green)"></i> '+generatedCodes.length+' codes — '+(generatedCodes[0]?.batch||'');
   document.getElementById('gen-select-all').checked = false;
   document.getElementById('gen-selected-count').textContent = '0 selected';
-  listEl.innerHTML = generatedCodes.map((e,i) => `
-    <div class="gen-code-row">
-      <input type="checkbox" class="gen-code-check gen-cb" data-idx="${i}" onchange="genUpdateCount()">
-      <div class="gen-code-text">${e.code}</div>
-      <div class="gen-code-box">${e.boxName}</div>
-      <div class="gen-code-batch">${e.batch}</div>
-      <button class="btn bg bsm" onclick="printSingleCode(${i})"><i class="fa fa-print"></i></button>
-    </div>`).join('');
+  listEl.innerHTML = generatedCodes.map(function(e,i){ return '<div class="gen-code-row"><input type="checkbox" class="gen-code-check gen-cb" data-idx="' + i + '" onchange="genUpdateCount()"><div class="gen-code-text">' + e.code + '</div><div class="gen-code-box">' + e.boxName + '</div><div class="gen-code-batch">' + e.batch + '</div><button class="btn bg bsm" onclick="printSingleCode(' + i + ')"><i class="fa fa-print"></i></button></div>'; }).join('');
 }
 
 function genToggleAll(checked) {
@@ -246,10 +231,9 @@ function genUpdateCount() {
 function exportGenCSV() {
   if (!generatedCodes.length) { admToast('No codes to export.'); return; }
   const headers = ['Code','Box Type','Box ID','Batch','Status','Created'];
-  const rows = generatedCodes.map(e => [e.code,e.boxName,e.boxId,e.batch,'inactive',e.createdAt].map(v => `"${String(v).replace(/"/g,'""')}"`).join(','));
+  const rows = generatedCodes.map(e => [e.code,e.boxName,e.boxId,e.batch,'inactive',e.createdAt].map(v => '"' + String(v).replace(/"/g, '""') + '"').join(','));
   const a = document.createElement('a');
-  a.href = URL.createObjectURL(new Blob([[headers.join(','),...rows].join('
-')],{type:'text/csv'}));
+  a.href = URL.createObjectURL(new Blob([[headers.join(','),...rows].join('\n')],{type:'text/csv'}));
   a.download = `wowbox-codes-${generatedCodes[0]?.batch||'batch'}.csv`;
   a.click();
   admToast('Exported '+generatedCodes.length+' codes');
