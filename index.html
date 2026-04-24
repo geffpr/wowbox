@@ -195,7 +195,7 @@ async function loadUserBoxes(email) {
         + '</div>'
         + '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:7px">'
         + '<span class="sbadge ' + (statusMap[st] || 'sb-p') + '">' + (statusLabel[st] || st) + '</span>'
-        + (st === 'active' ? '<button class="btn bp bsm" onclick="openBrowsePage('' + v.box_id + '')">Browse experiences <i class="fa fa-arrow-right"></i></button>' : '')
+        + (st === 'active' ? '<button class="btn bp bsm" onclick="openBrowsePage(\'' + v.box_id + '\')">Browse experiences <i class="fa fa-arrow-right"></i></button>' : '')
         + '</div>'
         + '</div>';
     }).join('');
