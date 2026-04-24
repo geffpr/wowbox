@@ -407,7 +407,7 @@ function renderPlanPage() {
   const sub = document.getElementById('pp-plan-subtitle');
   if (sub) sub.innerHTML = pro
     ? 'You are on the <strong style="color:var(--b600)">Pro Plan</strong>. All features are active.'
-    : 'You're on the <strong>Free Plan</strong>. Unlock advanced tools with Pro.';
+    : "You're on the <strong>Free Plan</strong>. Unlock advanced tools with Pro.";
 
   // Pro banner
   const banner = document.getElementById('pp-plan-pro-banner');
@@ -431,8 +431,8 @@ function renderPlanPage() {
     ? 'Analytics · Calendar · Boost · Reporting Pro · Priority support'
     : 'Voucher validation · Basic experience management · Monthly stats';
   if (planPrice) planPrice.innerHTML   = pro
-    ? 'R499<small style="font-family:'DM Sans',sans-serif;font-size:.7rem;font-weight:400;color:var(--muted)">/month</small>'
-    : 'R0<small style="font-family:'DM Sans',sans-serif;font-size:.7rem;font-weight:400;color:var(--muted)">/month</small>';
+    ? 'R499<small style="font-family:DM Sans,sans-serif;font-size:.7rem;font-weight:400;color:var(--muted)">/month</small>'
+    : 'R0<small style="font-family:DM Sans,sans-serif;font-size:.7rem;font-weight:400;color:var(--muted)">/month</small>';
 
   // Pro card header
   const hdrLabel = document.getElementById('pp-pro-hdr-label');
