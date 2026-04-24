@@ -1,148 +1,247 @@
-// api/send-email.js
-// Sends transactional emails via Resend
-// POST { to, type: 'voucher' | 'confirmation', data: {...} }
+// Vercel Serverless Function — WowBox Email System
+// POST /api/send-email
+// Body: { type, order, adminEmail? }
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const resendKey = process.env.RESEND_API_KEY;
-  if (!resendKey) {
-    return res.status(500).json({ error: 'Resend API key not configured' });
+  const RESEND_KEY   = process.env.RESEND_API_KEY;
+  const ADMIN_EMAIL  = 'geff.pr@gmail.com';
+  const FROM_EMAIL   = 'WowBox <orders@wowbox.co.za>';
+  const FROM_FALLBACK = 'WowBox <onboarding@resend.dev>'; // fallback if domain not verified
+
+  if (!RESEND_KEY) {
+    return res.status(500).json({ error: 'RESEND_API_KEY not configured in Vercel env vars' });
   }
 
-  const { to, type, data } = req.body || {};
-  if (!to || !type) {
-    return res.status(400).json({ error: 'Missing to or type' });
+  const { type, order } = req.body;
+  if (!type || !order) {
+    return res.status(400).json({ error: 'Missing type or order' });
   }
 
-  let subject, html;
+  // ── Build email content based on type ──────────────────────────
+  let subject, html, customerEmail, ccAdmin = true;
 
-  if (type === 'voucher') {
-    const { name, code, box, message } = data || {};
-    subject = `🎁 Your WowBox Voucher — ${box?.name || 'Experience'}`;
-    html = `
-<!DOCTYPE html>
-<html>
-<head><meta charset="UTF-8"><style>
-  body{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;background:#faf8f2;margin:0;padding:0}
-  .container{max-width:580px;margin:0 auto;background:#ffffff}
-  .header{background:#0b2419;padding:32px;text-align:center}
-  .logo{color:#c8983a;font-size:28px;font-weight:700;letter-spacing:.02em}
-  .body{padding:40px 32px}
-  .voucher-box{background:#0b2419;border-radius:12px;padding:28px;text-align:center;margin:28px 0}
-  .code{font-family:monospace;font-size:26px;font-weight:700;color:#e2b75a;letter-spacing:.15em;border:2px dashed rgba(200,152,58,.4);padding:14px 28px;border-radius:8px;display:inline-block;margin:12px 0}
-  .box-name{color:rgba(255,255,255,.7);font-size:14px;margin-bottom:8px}
-  h1{color:#0b2419;font-size:24px;margin:0 0 12px}
-  p{color:#555;line-height:1.7;font-size:15px;margin:0 0 16px}
-  .message-box{background:#faf8f2;border-left:3px solid #c8983a;padding:16px;border-radius:0 8px 8px 0;font-style:italic;color:#444;margin:20px 0}
-  .footer{background:#0b2419;padding:24px;text-align:center;color:rgba(255,255,255,.45);font-size:13px}
-  .footer a{color:#c8983a;text-decoration:none}
-  .steps{display:flex;gap:16px;margin:20px 0}
-  .step{flex:1;background:#faf8f2;border-radius:8px;padding:16px;text-align:center;font-size:13px;color:#555}
-  .step-icon{font-size:24px;margin-bottom:8px}
-</style></head>
-<body>
-<div class="container">
-  <div class="header">
-    <div class="logo">WowBox</div>
-    <p style="color:rgba(255,255,255,.6);font-size:13px;margin:4px 0 0">South Africa's Gift Experience Platform</p>
-  </div>
-  <div class="body">
-    <h1>Your gift experience awaits! 🎉</h1>
-    <p>Hi <strong>${escHtml(name || 'there')}</strong>,</p>
-    <p>Your WowBox has been confirmed. Below is your unique voucher code for <strong>${escHtml(box?.name || 'your experience')}</strong>.</p>
+  const isEbox     = order.type === 'E-Box';
+  const isPhysical = order.type === 'Physical';
+  const isMixed    = order.type === 'Mixed';
+  const codes      = (order.items || [])
+    .filter(i => i.code && i.code !== '—')
+    .map(i => `<code style="font-family:monospace;font-size:15px;font-weight:700;color:#2563eb;background:#dbeafe;padding:4px 10px;border-radius:6px">${i.code}</code> — ${i.name}`)
+    .join('<br>');
 
-    <div class="voucher-box">
-      <div class="box-name">${escHtml(box?.name || 'Experience Box')}</div>
-      <div>Your Voucher Code</div>
-      <div class="code">${escHtml(code)}</div>
-      <div style="color:rgba(255,255,255,.5);font-size:13px;margin-top:8px">Valid for 12 months</div>
+  customerEmail = order.email;
+
+  // Shared header/footer
+  const header = `
+    <div style="font-family:'DM Sans',Arial,sans-serif;max-width:600px;margin:0 auto;background:#f8fafc">
+      <div style="background:linear-gradient(135deg,#0f172a,#1e3a5f);padding:28px 32px;border-radius:12px 12px 0 0;text-align:center">
+        <div style="font-family:'Georgia',serif;font-size:28px;font-weight:700;color:#fff;letter-spacing:.02em">WowBox</div>
+        <div style="font-size:12px;color:rgba(255,255,255,.5);margin-top:4px;letter-spacing:.08em;text-transform:uppercase">Gift Experiences</div>
+      </div>
+      <div style="background:#fff;padding:32px 36px;border-radius:0 0 12px 12px;border:1px solid #e2e8f0;border-top:none">
+  `;
+  const footer = `
+      </div>
+      <div style="padding:20px 32px;text-align:center;font-size:12px;color:#94a3b8">
+        <p>WowBox · wowbox.co.za · support@wowbox.co.za</p>
+        <p style="margin-top:4px">This email was sent to ${customerEmail} regarding order ${order.id}</p>
+      </div>
     </div>
+  `;
 
-    ${message ? `<div class="message-box"><p style="margin:0"><strong>Personal message:</strong><br>${escHtml(message)}</p></div>` : ''}
-
-    <h2 style="font-size:18px;color:#0b2419">How to redeem</h2>
-    <p>1. <strong>Contact the experience provider</strong> directly to book your date.<br>
-       2. <strong>Present your voucher code</strong> at the time of your experience.<br>
-       3. <strong>Enjoy!</strong> — and leave a review on WowBox.</p>
-
-    <p>You can also manage your vouchers anytime at <a href="https://wowbox.co.za/my-vouchers" style="color:#0b2419;font-weight:600">wowbox.co.za/my-vouchers</a>.</p>
-
-    <p style="color:#999;font-size:13px">Questions? Email us at <a href="mailto:support@wowbox.co.za" style="color:#0b2419">support@wowbox.co.za</a></p>
-  </div>
-  <div class="footer">
-    <p>© ${new Date().getFullYear()} WowBox · <a href="https://wowbox.co.za">wowbox.co.za</a><br>
-    This voucher was sent to ${escHtml(to)}</p>
-  </div>
-</div>
-</body>
-</html>`;
-  } else if (type === 'partner_welcome') {
-    const { name, business_name, password } = data || {};
-    subject = `Welcome to WowBox Partner Portal — ${business_name}`;
-    html = `
-<!DOCTYPE html><html><body style="font-family:sans-serif;background:#faf8f2;padding:20px">
-<div style="max-width:520px;margin:auto;background:#fff;border-radius:12px;overflow:hidden">
-  <div style="background:#0b2419;padding:28px;text-align:center">
-    <div style="color:#c8983a;font-size:26px;font-weight:700">WowBox</div>
-    <p style="color:rgba(255,255,255,.6);font-size:13px">Partner Portal</p>
-  </div>
-  <div style="padding:36px 32px">
-    <h1 style="color:#0b2419;font-size:22px">Welcome aboard, ${escHtml(name || 'Partner')}!</h1>
-    <p style="color:#555;line-height:1.7">Your WowBox partner account for <strong>${escHtml(business_name || '')}</strong> has been created.</p>
-    <div style="background:#faf8f2;border-radius:8px;padding:20px;margin:20px 0">
-      <p style="margin:0;font-size:14px;color:#444"><strong>Login URL:</strong> <a href="https://wowbox.co.za/partner" style="color:#0b2419">wowbox.co.za/partner</a><br>
-      <strong>Email:</strong> ${escHtml(to)}<br>
-      <strong>Temp Password:</strong> ${escHtml(password || '(provided separately)')}</p>
+  const orderSummaryBlock = `
+    <div style="background:#f8fafc;border-radius:10px;padding:18px 22px;margin:20px 0;border:1px solid #e2e8f0">
+      <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#64748b;margin-bottom:12px">Order summary</div>
+      <div style="display:flex;justify-content:space-between;margin-bottom:6px"><span style="color:#64748b;font-size:14px">Order #</span><span style="font-weight:700;color:#0f172a;font-size:14px">${order.id}</span></div>
+      <div style="display:flex;justify-content:space-between;margin-bottom:6px"><span style="color:#64748b;font-size:14px">Date</span><span style="font-size:14px;color:#0f172a">${order.date}</span></div>
+      <div style="display:flex;justify-content:space-between;border-top:1px solid #e2e8f0;padding-top:10px;margin-top:10px"><span style="color:#64748b;font-size:14px">Total</span><span style="font-weight:700;font-size:16px;color:#2563eb">${order.total}</span></div>
     </div>
-    <p style="color:#555">Please change your password after first login. Questions? <a href="mailto:info@wowbox.co.za" style="color:#0b2419">info@wowbox.co.za</a></p>
-  </div>
-</div>
-</body></html>`;
-  } else {
-    return res.status(400).json({ error: 'Unknown email type' });
+  `;
+
+  // ── EMAIL TYPES ──────────────────────────────────────────────────
+
+  if (type === 'status_pending') {
+    subject = `Order confirmed — ${order.id}`;
+    html = header + `
+      <h2 style="font-size:22px;color:#0f172a;margin-bottom:8px">We've received your order! 🎁</h2>
+      <p style="color:#475569;font-size:15px;line-height:1.7">Hi ${order.name},<br><br>
+      Thank you for your WowBox order. We're processing it now and will update you at each step.</p>
+      ${orderSummaryBlock}
+      <p style="color:#475569;font-size:14px">Expected next update: within a few hours.</p>
+    ` + footer;
   }
 
+  else if (type === 'status_in_process') {
+    subject = `Your WowBox is being prepared — ${order.id}`;
+    html = header + `
+      <h2 style="font-size:22px;color:#0f172a;margin-bottom:8px">Your order is being prepared ⚙️</h2>
+      <p style="color:#475569;font-size:15px;line-height:1.7">Hi ${order.name},<br><br>
+      Great news — we're currently preparing your WowBox order. 
+      ${isEbox ? 'Your e-voucher(s) are being generated.' : 'Your physical box(es) are being packed.'}</p>
+      ${orderSummaryBlock}
+    ` + footer;
+  }
+
+  else if (type === 'status_in_transit') {
+    subject = `Your WowBox is on its way! 📦 — ${order.id}`;
+    const address = order.delivery
+      ? `${order.delivery.street}, ${order.delivery.city}, ${order.delivery.province}`
+      : 'your delivery address';
+    html = header + `
+      <h2 style="font-size:22px;color:#0f172a;margin-bottom:8px">Your WowBox has shipped! 🚚</h2>
+      <p style="color:#475569;font-size:15px;line-height:1.7">Hi ${order.name},<br><br>
+      Your WowBox is on its way to <strong>${address}</strong>. Expected delivery within 2–3 business days.</p>
+      ${orderSummaryBlock}
+      <p style="color:#475569;font-size:14px">If you have any questions about your delivery, reply to this email or contact us at support@wowbox.co.za</p>
+    ` + footer;
+  }
+
+  else if (type === 'status_delivered' && isPhysical) {
+    subject = `Your WowBox has arrived! — ${order.id}`;
+    html = header + `
+      <h2 style="font-size:22px;color:#0f172a;margin-bottom:8px">Your WowBox has arrived! 🎉</h2>
+      <p style="color:#475569;font-size:15px;line-height:1.7">Hi ${order.name},<br><br>
+      Your physical WowBox should now be with you. To activate your box and start browsing experiences, visit:</p>
+      <div style="text-align:center;margin:24px 0">
+        <a href="https://wowbox.co.za/activate" style="background:#2563eb;color:#fff;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:700;font-size:15px">Activate my WowBox →</a>
+      </div>
+      ${orderSummaryBlock}
+      <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:10px;padding:16px 20px;margin-top:16px">
+        <div style="font-size:13px;font-weight:700;color:#166534;margin-bottom:8px">Your box codes</div>
+        <div style="font-size:14px;line-height:2">${codes || 'See your original order email'}</div>
+      </div>
+    ` + footer;
+  }
+
+  else if (type === 'status_delivered' && (isEbox || isMixed)) {
+    subject = `Your e-voucher is ready! — ${order.id}`;
+    html = header + `
+      <h2 style="font-size:22px;color:#0f172a;margin-bottom:8px">Your e-voucher is ready! ✨</h2>
+      <p style="color:#475569;font-size:15px;line-height:1.7">Hi ${order.name},<br><br>
+      Your WowBox e-voucher is active and ready to use. Present your code at the partner venue to book your experience.</p>
+      <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:10px;padding:20px 24px;margin:24px 0;text-align:center">
+        <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#166534;margin-bottom:12px">Your voucher code(s)</div>
+        <div style="font-size:15px;line-height:2.2">${codes}</div>
+      </div>
+      <div style="text-align:center;margin:24px 0">
+        <a href="https://wowbox.co.za" style="background:#2563eb;color:#fff;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:700;font-size:15px">Browse experiences →</a>
+      </div>
+      ${orderSummaryBlock}
+      <p style="color:#94a3b8;font-size:13px">Your voucher is valid for 12 months from date of activation. Visit wowbox.co.za to browse and reserve your experience.</p>
+    ` + footer;
+  }
+
+  else if (type === 'resend') {
+    subject = `Your WowBox order — ${order.id}`;
+    html = header + `
+      <h2 style="font-size:22px;color:#0f172a;margin-bottom:8px">Your WowBox order 📋</h2>
+      <p style="color:#475569;font-size:15px;line-height:1.7">Hi ${order.name},<br><br>
+      Here's a copy of your WowBox order details as requested.</p>
+      ${orderSummaryBlock}
+      ${codes ? `<div style="background:#f0fdf4;border:1px solid #86efac;border-radius:10px;padding:20px 24px;margin:20px 0">
+        <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#166534;margin-bottom:12px">Your voucher code(s)</div>
+        <div style="font-size:14px;line-height:2.2">${codes}</div>
+      </div>` : ''}
+      <div style="text-align:center;margin:20px 0">
+        <a href="https://wowbox.co.za" style="background:#2563eb;color:#fff;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:700;font-size:15px">Go to WowBox →</a>
+      </div>
+    ` + footer;
+  }
+
+  else if (type === 'reissue') {
+    subject = `Your new WowBox code — ${order.id}`;
+    html = header + `
+      <h2 style="font-size:22px;color:#0f172a;margin-bottom:8px">Your new voucher code 🔄</h2>
+      <p style="color:#475569;font-size:15px;line-height:1.7">Hi ${order.name},<br><br>
+      As requested, here is your reissued WowBox voucher code. The previous code has been deactivated.</p>
+      <div style="background:#fef3c7;border:1px solid #fcd34d;border-radius:10px;padding:20px 24px;margin:24px 0;text-align:center">
+        <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#92400e;margin-bottom:12px">New voucher code</div>
+        <div style="font-size:15px;line-height:2.2">${codes}</div>
+      </div>
+      <div style="text-align:center;margin:20px 0">
+        <a href="https://wowbox.co.za" style="background:#2563eb;color:#fff;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:700;font-size:15px">Browse experiences →</a>
+      </div>
+    ` + footer;
+  }
+
+  else {
+    return res.status(400).json({ error: `Unknown email type: ${type}` });
+  }
+
+  // ── Internal admin notification ──────────────────────────────────
+  const adminSubject = `[WowBox Admin] ${type.replace(/_/g,' ')} — ${order.id} — ${order.name}`;
+  const adminHtml = `
+    <div style="font-family:Arial,sans-serif;max-width:500px;padding:20px">
+      <h3 style="color:#0f172a">WowBox internal notification</h3>
+      <p><strong>Type:</strong> ${type}</p>
+      <p><strong>Order:</strong> ${order.id}</p>
+      <p><strong>Customer:</strong> ${order.name} (${order.email})</p>
+      <p><strong>Type:</strong> ${order.type}</p>
+      <p><strong>Total:</strong> ${order.total}</p>
+      <p><strong>Codes:</strong> ${(order.items||[]).map(i=>i.code).join(', ')}</p>
+    </div>`;
+
+  // ── Send via Resend ──────────────────────────────────────────────
   try {
-    // Send via Resend
-    const emailRes = await fetch('https://api.resend.com/emails', {
+    // Customer email
+    const customerResp = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${resendKey}`,
+        'Authorization': `Bearer ${RESEND_KEY}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        from: 'WowBox <info@wowbox.co.za>',
-        to: [to],
-        cc: ['geff.pr@gmail.com'],   // BCC copy to admin
+        from:    FROM_EMAIL,
+        to:      [customerEmail],
         subject,
         html,
-        reply_to: 'support@wowbox.co.za',
       }),
     });
 
-    const result = await emailRes.json();
-
-    if (!emailRes.ok) {
-      console.error('Resend error:', result);
-      return res.status(400).json({ error: result.message || 'Email send failed' });
+    const customerData = await customerResp.json();
+    if (!customerResp.ok) {
+      // Try fallback sender
+      const fallbackResp = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${RESEND_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          from:    FROM_FALLBACK,
+          to:      [customerEmail],
+          subject,
+          html,
+        }),
+      });
+      const fallbackData = await fallbackResp.json();
+      if (!fallbackResp.ok) {
+        return res.status(500).json({ error: 'Resend error', detail: fallbackData });
+      }
     }
 
-    return res.status(200).json({ success: true, id: result.id });
-  } catch (err) {
-    console.error('Email error:', err);
-    return res.status(500).json({ error: 'Internal error' });
-  }
-}
+    // Admin notification
+    await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${RESEND_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        from:    FROM_FALLBACK,
+        to:      [ADMIN_EMAIL],
+        subject: adminSubject,
+        html:    adminHtml,
+      }),
+    });
 
-function escHtml(s) {
-  if (!s) return '';
-  return String(s)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
+    return res.status(200).json({ success: true, message: `Email sent to ${customerEmail}` });
+
+  } catch (err) {
+    console.error('Email send error:', err);
+    return res.status(500).json({ error: err.message });
+  }
 }

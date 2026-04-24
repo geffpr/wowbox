@@ -3671,7 +3671,7 @@ tr:hover td{background:var(--b50)}
         </div>
         <div class="atbl" id="adm-exp-list-wrap">
           <div class="atbl-hdr"><h3>All experiences</h3>
-            <input type="text" class="fi" id="adm-exp-search" style="width:200px;padding:7px 11px;font-size:.76rem" placeholder="🔍 Search..." oninput="renderAdmExpTable()">
+            <input type="text" class="fi" style="width:200px;padding:7px 11px;font-size:.76rem" placeholder="🔍 Search...">
           </div>
           <table>
             <thead><tr><th>Name</th><th>Res. type</th><th>Database</th><th>Partner</th><th>Location</th><th>Status</th><th>Actions</th></tr></thead>
@@ -3730,15 +3730,13 @@ tr:hover td{background:var(--b50)}
                 <div class="fg"><label>Capacity</label><input class="fi" id="aef-cap" type="number" placeholder="2"></div>
               </div>
               <div class="fg"><label>Description</label><textarea class="fi" id="aef-desc" rows="3" style="resize:vertical" placeholder="Full experience description shown on the detail page…"></textarea></div>
-              <!-- Images (up to 4 URLs) -->
+              <!-- Image gallery -->
               <div class="fg">
-                <label>Images (up to 4)</label>
-                <div style="display:grid;gap:12px;margin-top:6px">
-                  <div style="display:grid;grid-template-columns:1fr 84px;gap:10px;align-items:end"><div><div style="font-size:.7rem;font-weight:600;color:var(--b600);margin-bottom:4px">Main image *</div><input class="fi" id="aef-img-0" placeholder="https://..." oninput="admPreviewExpImg(0,this.value)"></div><img id="aef-prev-0" src="" style="width:80px;height:58px;object-fit:cover;border-radius:var(--rs);border:2px solid var(--b300);display:none"></div>
-                  <div style="display:grid;grid-template-columns:1fr 84px;gap:10px;align-items:end"><div><div style="font-size:.7rem;color:var(--muted);margin-bottom:4px">Image 2</div><input class="fi" id="aef-img-1" placeholder="https://..." oninput="admPreviewExpImg(1,this.value)"></div><img id="aef-prev-1" src="" style="width:80px;height:58px;object-fit:cover;border-radius:var(--rs);border:1.5px solid var(--border);display:none"></div>
-                  <div style="display:grid;grid-template-columns:1fr 84px;gap:10px;align-items:end"><div><div style="font-size:.7rem;color:var(--muted);margin-bottom:4px">Image 3</div><input class="fi" id="aef-img-2" placeholder="https://..." oninput="admPreviewExpImg(2,this.value)"></div><img id="aef-prev-2" src="" style="width:80px;height:58px;object-fit:cover;border-radius:var(--rs);border:1.5px solid var(--border);display:none"></div>
-                  <div style="display:grid;grid-template-columns:1fr 84px;gap:10px;align-items:end"><div><div style="font-size:.7rem;color:var(--muted);margin-bottom:4px">Image 4</div><input class="fi" id="aef-img-3" placeholder="https://..." oninput="admPreviewExpImg(3,this.value)"></div><img id="aef-prev-3" src="" style="width:80px;height:58px;object-fit:cover;border-radius:var(--rs);border:1.5px solid var(--border);display:none"></div>
-                </div>
+                <label>Image gallery (main + up to 3 more)</label>
+                <div id="aef-gallery" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px"></div>
+                <input class="fi" id="aef-img-input" placeholder="Paste image URL and press Enter"
+                  onkeydown="if(event.key==='Enter'){event.preventDefault();admAddExpImg()}">
+                <div style="font-size:.7rem;color:var(--muted);margin-top:4px">First image = main display, 2nd and 3rd appear in the gallery on the experience detail page.</div>
               </div>
               <div class="fg"><label>Status</label>
                 <select class="fi" id="aef-status" style="width:auto">
@@ -3976,8 +3974,8 @@ tr:hover td{background:var(--b50)}
                 <h4><i class="fa fa-print" style="color:var(--b400)"></i> Actions</h4>
                 <div style="display:flex;gap:8px;flex-wrap:wrap">
                   <button class="btn bp bsm" id="od-print-btn" onclick=""><i class="fa fa-print"></i> Print box code</button>
-                  <button class="btn bg bsm"><i class="fa fa-envelope"></i> Resend email</button>
-                  <button class="btn bg bsm"><i class="fa fa-rotate"></i> Reissue code</button>
+                  <button class="btn bg bsm" id="od-resend-btn" onclick="admResendEmail()"><i class="fa fa-envelope"></i> Resend email</button>
+                  <button class="btn bg bsm" id="od-reissue-btn" onclick="admReissueCode()"><i class="fa fa-rotate"></i> Reissue code</button>
                 </div>
               </div>
             </div>
@@ -5439,11 +5437,10 @@ function loadExp(expId) {
     }
   }
 
-  // Gallery — use images array if available (from Supabase), else legacy fields
-  const expImgsArr = e.images || [];
-  document.getElementById('exp-main-img').src = expImgsArr[0] || e.img || '';
-  document.getElementById('exp-img2').src      = expImgsArr[1] || e.img2 || e.img || '';
-  document.getElementById('exp-img3').src      = expImgsArr[2] || e.img3 || e.img || '';
+  // Gallery
+  document.getElementById('exp-main-img').src = e.img;
+  document.getElementById('exp-img2').src = e.img2 || e.img;
+  document.getElementById('exp-img3').src = e.img3 || e.img;
 
   // Overview
   document.getElementById('exp-title').textContent = e.name;
@@ -6256,7 +6253,6 @@ function switchAdm(btn, tab) {
   admTabs.forEach(t => { const el = document.getElementById(t); if (el) el.style.display = t===tab?'block':'none'; });
   document.querySelectorAll('.anl').forEach(n => n.classList.remove('on'));
   if (btn) btn.classList.add('on');
-  if (tab === 'adm-exp') renderAdmExpTable();
 }
 
 function renderAdmin() {
@@ -6265,7 +6261,6 @@ function renderAdmin() {
   document.querySelectorAll('.anl').forEach((n,i) => n.classList.toggle('on', i===0));
   renderBoxGrids();
   renderCouponTable();
-  renderAdmExpTable();
   // Render database grid with click handlers
   const dbGrid = document.getElementById('adm-db-grid');
   if (dbGrid) dbGrid.innerHTML = admDatabases.map((d,i) => `
@@ -6351,73 +6346,6 @@ function admPreviewBoxImg(idx, url) {
     img.style.display = 'none';
   }
 }
-function admPreviewExpImg(idx, url) {
-  const img = document.getElementById('aef-prev-' + idx);
-  if (!img) return;
-  if (url && url.length > 5) {
-    img.src = url;
-    img.style.display = 'block';
-    img.onerror = () => { img.style.display = 'none'; };
-  } else {
-    img.style.display = 'none';
-  }
-}
-
-function renderAdmExpTable() {
-  const tbody = document.getElementById('adm-exp-tbody');
-  if (!tbody) return;
-  const q = (document.getElementById('adm-exp-search')?.value || '').toLowerCase();
-  const rtBadgeClass = {accommodation:'rt-accommodation',dining:'rt-dining',wellness:'rt-wellness',activity:'rt-activity',rental:'rt-rental',event:'rt-event'};
-  const rtIcon = {accommodation:'🏨',dining:'🍽️',wellness:'🧖',activity:'🏄',rental:'🚗',event:'🎉'};
-
-  const rows = expDB
-    .filter(e => !q || e.name.toLowerCase().includes(q) || (e.partner||'').toLowerCase().includes(q) || (e.loc||'').toLowerCase().includes(q))
-    .map(e => `<tr>
-      <td>
-        <div style="display:flex;align-items:center;gap:9px">
-          <img src="${e.img}" style="width:44px;height:36px;object-fit:cover;border-radius:var(--rs);flex-shrink:0" loading="lazy">
-          <strong>${e.name}</strong>
-        </div>
-      </td>
-      <td><span class="rtype-badge ${rtBadgeClass[e.reservation_type]||'rt-activity'}">${rtIcon[e.reservation_type]||'🏄'} ${e.reservation_type}</span></td>
-      <td style="font-size:.8rem;color:var(--muted)">${e.box||'—'}</td>
-      <td style="font-size:.8rem">${e.partner||'—'}</td>
-      <td style="font-size:.8rem;color:var(--muted)">${e.loc||'—'}</td>
-      <td><span class="sbadge sb-a">Active</span></td>
-      <td>
-        <button class="btn bg bsm" onclick="admShowExpFormById('${e.id}')"><i class="fa fa-pen"></i> Edit</button>
-      </td>
-    </tr>`).join('');
-
-  tbody.innerHTML = rows || '<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--muted)">No experiences found.</td></tr>';
-}
-
-function admShowExpFormById(expId) {
-  // Find in expDB (real IDs like 'vineyard', 'clifton', etc.)
-  const e = expDB.find(x => x.id === expId);
-  if (!e) return;
-  appState.editingExpId = expId;  // this is the real Supabase ID
-  const listWrap = document.getElementById('adm-exp-list-wrap');
-  const formWrap = document.getElementById('adm-exp-form');
-  if (listWrap) listWrap.style.marginBottom = '20px';
-  formWrap.style.display = 'block';
-  formWrap.scrollIntoView({behavior:'smooth', block:'nearest'});
-  document.getElementById('adm-exp-form-title').textContent = 'Edit — ' + e.name;
-  document.getElementById('aef-name').value    = e.name    || '';
-  document.getElementById('aef-partner').value = e.partner || '';
-  document.getElementById('aef-loc').value     = e.loc     || '';
-  document.getElementById('aef-desc').value    = e.desc    || '';
-  const rtSel = document.getElementById('aef-rt');
-  if (rtSel) rtSel.value = e.reservation_type || '';
-  admExpTypeNote();
-  // Populate 4 image fields from expDB
-  const imgs4 = [e.img, e.img2, e.img3].filter(Boolean);
-  for (let i = 0; i < 4; i++) {
-    const inp = document.getElementById('aef-img-' + i);
-    if (inp) { inp.value = imgs4[i] || ''; admPreviewExpImg(i, imgs4[i] || ''); }
-  }
-}
-
 function renderBoxGallery() {
   const gallery = document.getElementById('abf-gallery');
   if (!gallery) return;
@@ -6561,12 +6489,9 @@ function admShowExpForm(expId) {
   const rtSel = document.getElementById('aef-rt');
   rtSel.value = d?.rt || '';
   admExpTypeNote();
-  // Populate 4 image fields
-  const expImgs = d?.imgs || (d?.img ? [d.img] : []);
-  for (let i = 0; i < 4; i++) {
-    const inp = document.getElementById('aef-img-' + i);
-    if (inp) { inp.value = expImgs[i] || ''; admPreviewExpImg(i, expImgs[i] || ''); }
-  }
+  // Reset and populate the JS array
+  admExpImgUrls = d?.imgs ? [...d.imgs] : (d?.img ? [d.img] : []);
+  renderExpGallery();
 }
 function admHideExpForm() {
   document.getElementById('adm-exp-form').style.display = 'none';
@@ -6634,12 +6559,8 @@ async function admSaveExp() {
 
   if (!name) { admToast('Please enter an experience name.'); return; }
 
-  // Read 4 image URL fields
-  const imgs = [];
-  for (let i = 0; i < 4; i++) {
-    const url = document.getElementById('aef-img-' + i)?.value?.trim() || '';
-    if (url) imgs.push(url);
-  }
+  // Read images from the JS array (no DOM attribute issues)
+  const imgs    = [...admExpImgUrls];
   const mainImg = imgs[0] || '';
 
   const payload = {
@@ -6648,9 +6569,9 @@ async function admSaveExp() {
     reservation_type: rt,
     location:         loc,
     description:      desc,
+    image_url:        mainImg,
+    images:           JSON.stringify(imgs),
     is_active:        true,
-    images:           imgs,
-    ...(mainImg ? { image_url: mainImg } : {}),
   };
 
   try {
@@ -6662,19 +6583,7 @@ async function admSaveExp() {
       result = await db_client.from('experiences').insert({ id: newId, ...payload });
     }
     if (result?.error) throw result.error;
-    // Update local expDB immediately so table refreshes correctly
-    const localExp = expDB.find(x => x.id === appState.editingExpId);
-    if (localExp) {
-      localExp.name    = name;
-      localExp.partner = partner;
-      localExp.loc     = loc;
-      localExp.desc    = desc;
-      if (imgs[0]) { localExp.img = imgs[0]; localExp.images = imgs; }
-      if (imgs[1]) localExp.img2 = imgs[1];
-      if (imgs[2]) localExp.img3 = imgs[2];
-    }
     admHideExpForm();
-    renderAdmExpTable();
     admToast('✅ Experience saved to Supabase!');
   } catch(e) {
     console.error('Save exp error:', e);
@@ -6724,9 +6633,79 @@ function admEditRequest(btn) {
 }
 
 /* ── Orders ── */
+async function sendOrderEmail(type, order) {
+  try {
+    const resp = await fetch('/api/send-email', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type, order }),
+    });
+    return await resp.json();
+  } catch(e) {
+    return { success: false, error: e.message };
+  }
+}
+
+function admResendEmail() {
+  const panel = document.getElementById('adm-ord-detail');
+  const title = document.getElementById('ord-detail-title')?.textContent || '';
+  const orderId = title.replace('Order ', '').trim();
+  const order = orderDetailDB[orderId];
+  if (!order) { admToast('Open an order first.'); return; }
+  admToast('Sending email to ' + order.email + '…');
+  sendOrderEmail('resend', { id: orderId, ...order })
+    .then(r => admToast(r.success ? '✅ Email sent to ' + order.email : '⚠️ Failed: ' + r.error));
+}
+
+function admReissueCode() {
+  const panel = document.getElementById('adm-ord-detail');
+  const title = document.getElementById('ord-detail-title')?.textContent || '';
+  const orderId = title.replace('Order ', '').trim();
+  const order = orderDetailDB[orderId];
+  if (!order) { admToast('Open an order first.'); return; }
+  if (!confirm('Reissue a new code for order ' + orderId + '? The old code will be deactivated.')) return;
+  // Generate new codes for each item
+  order.items.forEach(item => {
+    if (item.code && item.code !== '—') {
+      const old = item.code;
+      item.code = 'WB-' + Date.now().toString(36).toUpperCase().slice(-6);
+      // Update codeDB
+      if (codeDB[old]) { codeDB[old].status = 'used'; codeDB[old].usedAt = new Date().toISOString().slice(0,10); }
+      codeDB[item.code] = { ...codeDB[old], status:'active', activatedAt: new Date().toISOString().slice(0,10), usedAt: null };
+    }
+  });
+  admToast('New code generated. Sending to ' + order.email + '…');
+  sendOrderEmail('reissue', { id: orderId, ...order })
+    .then(r => admToast(r.success ? '✅ New code sent to ' + order.email : '⚠️ Code issued but email failed: ' + r.error));
+  // Refresh the detail panel
+  admOrderDetail(orderId);
+}
+
 function admUpdateOrderStatus(sel) {
-  const statusColors = { 'Pending':'sb-p', 'In process':'sb-p', 'In transit':'sb-p', 'Delivered':'sb-u' };
-  admToast('✅ Order status updated to "' + sel.value + '"');
+  const newStatus = sel.value;
+  admToast('Updating to "' + newStatus + '" and sending email…');
+
+  // Find the order ID from the row
+  const row      = sel.closest('tr');
+  const orderId  = row?.querySelector('td strong')?.textContent?.trim();
+  const order    = orderId ? orderDetailDB[orderId] : null;
+  if (!order || !order.email) {
+    admToast('✅ Status updated (no email — order not found in DB)');
+    return;
+  }
+
+  // Map status → email type
+  const statusMap = {
+    'Pending':    'status_pending',
+    'In process': 'status_in_process',
+    'In transit': 'status_in_transit',
+    'Delivered':  'status_delivered',
+  };
+  const emailType = statusMap[newStatus];
+  if (!emailType) return;
+
+  sendOrderEmail(emailType, { id: orderId, ...order })
+    .then(r => admToast(r.success ? '✅ Email sent to ' + order.email : '⚠️ Status saved, email failed: ' + r.error));
 }
 
 /* ── Commissions ── */
