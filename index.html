@@ -196,6 +196,7 @@ async function generateRetailCodes() {
     generatedCodes.push({ code, boxId, boxName, batch, createdAt: now });
     codeDB[code] = { boxId, boxName, userId:null, status:'inactive', activatedAt:null, activatedBy:null, usedAt:null, experience:null, partner:null, orderId:null, hasBoost:false, physicalBox:true, retailBatch:batch, activationLog:[] };
   }
+  // Save to Supabase (non-blocking - show codes regardless)
   try {
     const rows = generatedCodes.map(e => ({ code:e.code, box_id:e.boxId, box_name:e.boxName, status:'inactive', is_physical_box:true, retail_batch:e.batch }));
     for (let i=0;i<rows.length;i+=50) {
@@ -203,7 +204,10 @@ async function generateRetailCodes() {
       if (error) throw error;
     }
     admToast('✅ '+qty+' codes saved to Supabase!');
-  } catch(e) { admToast('⚠️ Generated locally — Supabase error: '+e.message); }
+  } catch(e) {
+    console.warn('Supabase write failed (codes still generated locally):', e.message);
+    admToast('Codes generated locally ('+qty+'). Supabase: ' + e.message.substring(0,50));
+  }
   btn.disabled = false;
   btn.innerHTML = '<i class="fa fa-barcode"></i> Generate codes';
   renderGenCodes();
