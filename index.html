@@ -518,25 +518,26 @@ function renderAnalytics(period) {
     {val:d.bk, lbl:'Bookings', chg:'+8 vs prev period', up:true, bg:'#dbeafe', ico:'fa-calendar-check', c:'#2563eb'},
     {val:d.views.toLocaleString(), lbl:'Profile views', chg:'', up:true, bg:'#ede9fe', ico:'fa-eye', c:'#7c3aed'},
     {val:d.cvr+'%', lbl:'Conversion rate', chg:'', up:true, bg:'#d1fae5', ico:'fa-arrow-trend-up', c:'#059669'},
-  ].map(k =>
-    `<div class="an-kpi-card">
-      <div class="pp-kpi-ico" style="background:${k.bg};margin-bottom:8px"><i class="fa ${k.ico}" style="color:${k.c}"></i></div>
-      <div class="an-kpi-val">${k.val}</div>
-      <div class="an-kpi-lbl">${k.lbl}</div>
-      ${k.chg ? `<div class="an-kpi-chg chg-up">&#8593; ${k.chg}</div>` : ''}
-    </div>`).join('');
+  ].map(function(k){
+    return '<div class="an-kpi-card">'
+      +'<div class="pp-kpi-ico" style="background:'+k.bg+';margin-bottom:8px"><i class="fa '+k.ico+'" style="color:'+k.c+'"></i></div>'
+      +'<div class="an-kpi-val">'+k.val+'</div>'
+      +'<div class="an-kpi-lbl">'+k.lbl+'</div>'
+      +(k.chg?'<div class="an-kpi-chg chg-up">&#8593; '+k.chg+'</div>':'')
+      +'</div>';
+  }).join('');
 
   // Bar chart
   const chartEl  = document.getElementById('an-bar-chart');
   const labelsEl = document.getElementById('an-bar-labels');
   if (chartEl) {
     const max = Math.max(...d.bars);
-    chartEl.innerHTML = d.bars.map((v,i) =>
-      `<div class="an-bar-col">
-        <div class="an-bar${i===d.bars.length-1?' hl':''}" style="height:${Math.round(v/max*100)}%" title="R${v.toLocaleString()}"></div>
-      </div>`).join('');
-    if (labelsEl) labelsEl.innerHTML = d.labels.map(l =>
-      `<div class="an-bar-lbl" style="flex:1;text-align:center">${l}</div>`).join('');
+    chartEl.innerHTML = d.bars.map(function(v,i){
+      return '<div class="an-bar-col"><div class="an-bar'+(i===d.bars.length-1?' hl':'')+'" style="height:'+Math.round(v/max*100)+'%" title="R'+v.toLocaleString()+'"></div></div>';
+    }).join('');
+    if (labelsEl) labelsEl.innerHTML = d.labels.map(function(l){
+      return '<div class="an-bar-lbl" style="flex:1;text-align:center">'+l+'</div>';
+    }).join('');
   }
 
   // By experience
@@ -544,16 +545,14 @@ function renderAnalytics(period) {
   if (bdEl) bdEl.innerHTML = [
     {name:'The Vineyard Retreat', pct:72, rev:'R33,014'},
     {name:'Estate Wine Tasting',  pct:28, rev:'R12,607'},
-  ].map(e =>
-    `<div class="an-exp-row">
-      <div style="flex:1">
-        <div style="display:flex;justify-content:space-between;font-size:.78rem;margin-bottom:4px">
-          <span style="font-weight:500;color:var(--navy)">${e.name}</span>
-          <span style="color:var(--green);font-weight:600">${e.rev}</span>
-        </div>
-        <div class="an-exp-bar-track"><div class="an-exp-bar-fill" style="width:${e.pct}%"></div></div>
-      </div>
-    </div>`).join('');
+  ].map(function(e){
+    return '<div class="an-exp-row"><div style="flex:1">'
+      +'<div style="display:flex;justify-content:space-between;font-size:.78rem;margin-bottom:4px">'
+      +'<span style="font-weight:500;color:var(--navy)">'+e.name+'</span>'
+      +'<span style="color:var(--green);font-weight:600">'+e.rev+'</span></div>'
+      +'<div class="an-exp-bar-track"><div class="an-exp-bar-fill" style="width:'+e.pct+'%"></div></div>'
+      +'</div></div>';
+  }).join('');
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -652,26 +651,25 @@ function renderBoostPage() {
   if (countEl)   countEl.innerHTML  = `<i class="fa fa-bolt"></i> ${activeCount} boost${activeCount!==1?'s':''} active`;
   if (creditsEl) creditsEl.textContent = credits;
 
-  listEl.innerHTML = boostData.map((exp, i) => `
-    <div class="boost-exp-row">
-      <div class="boost-thumb"><img src="${exp.img}" alt="" loading="lazy"></div>
-      <div style="flex:1">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
-          <span style="font-size:.88rem;font-weight:600;color:var(--navy)">${exp.name}</span>
-          <span class="boost-badge-${exp.boosted?'active':'off'}">${exp.boosted?'Boosted':'Inactive'}</span>
-        </div>
-        ${exp.boosted
-          ? `<div style="font-size:.72rem;color:var(--muted);margin-bottom:5px">Active boost &middot; <span style="color:var(--green);font-weight:600">+43% avg bookings</span></div>`
-          : `<div style="font-size:.72rem;color:var(--muted);margin-bottom:5px">Not currently boosted</div>`}
-        <div style="display:flex;align-items:center;gap:8px">
-          <div class="boost-bar-track"><div class="boost-bar-fill" style="width:${exp.boosted?85:0}%;background:${exp.boosted?'linear-gradient(90deg,#f59e0b,#d97706)':'var(--border)'}"></div></div>
-          <span style="font-size:.7rem;color:var(--muted);white-space:nowrap">${exp.boosted?'85%':'—'}</span>
-        </div>
-      </div>
-      <button class="btn ${exp.boosted?'bg':'bp'} bsm" style="${exp.boosted?'color:var(--red)':''}" onclick="toggleBoost(${i})">
-        ${exp.boosted?'<i class="fa fa-stop-circle"></i> Stop':'<i class="fa fa-rocket"></i> Boost now'}
-      </button>
-    </div>`).join('');
+  listEl.innerHTML = boostData.map(function(exp,i){
+    var actDiv = exp.boosted
+      ? '<div style="font-size:.72rem;color:var(--muted);margin-bottom:5px">Active boost &middot; <span style="color:var(--green);font-weight:600">+'+exp.boostPct+'% visibility</span></div>'
+      : '<div style="font-size:.72rem;color:var(--muted);margin-bottom:5px">Not currently boosted</div>';
+    var btnHtml = exp.boosted
+      ? '<button class="btn bg bsm" style="color:var(--red)" onclick="toggleBoost('+i+')"><i class="fa fa-stop-circle"></i> Stop</button>'
+      : '<button class="btn bp bsm" onclick="toggleBoost('+i+')"><i class="fa fa-rocket"></i> Boost now</button>';
+    return '<div class="boost-exp-row">'
+      +'<div class="boost-thumb"><img src="'+exp.img+'" alt="" loading="lazy"></div>'
+      +'<div style="flex:1">'
+      +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">'
+      +'<span style="font-size:.88rem;font-weight:600;color:var(--navy)">'+exp.name+'</span>'
+      +'<span class="boost-badge-'+(exp.boosted?'active':'off')+'">'+(exp.boosted?'Boosted':'Inactive')+'</span></div>'
+      +actDiv
+      +'<div style="display:flex;align-items:center;gap:8px">'
+      +'<div class="boost-bar-track"><div class="boost-bar-fill" style="width:'+(exp.boosted?85:0)+'%;background:'+(exp.boosted?'var(--green)':'var(--muted)')+'"></div></div>'
+      +'<span style="font-size:.7rem;color:var(--muted);white-space:nowrap">'+(exp.boosted?'85%':'-')+'</span></div>'
+      +'</div>'+btnHtml+'</div>';
+  }).join('');
 }
 
 function toggleBoost(i) {
@@ -1023,14 +1021,13 @@ function physRenderLog() {
     const entry = codeDB[e.code];
     const boxName = entry ? entry.boxName : e.code;
     const timeStr = e.ts ? new Date(e.ts).toLocaleTimeString('en-ZA', { hour:'2-digit', minute:'2-digit', second:'2-digit' }) : '—';
-    return `<div class="phys-log-row">
-      <span class="phys-log-code">${e.code}</span>
-      <div class="phys-log-box"><div>${boxName}</div><div class="phys-log-by">${e.by}</div></div>
-      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px;flex-shrink:0">
-        <span style="background:${lbl.bg};color:${lbl.color};padding:2px 9px;border-radius:99px;font-size:.62rem;font-weight:700">${lbl.badge}</span>
-        <span class="phys-log-time">${timeStr}</span>
-      </div>
-    </div>`;
+    return '<div class="phys-log-row">'
+      +'<span class="phys-log-code">'+e.code+'</span>'
+      +'<div class="phys-log-box"><div>'+boxName+'</div><div class="phys-log-by">'+e.by+'</div></div>'
+      +'<div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px;flex-shrink:0">'
+      +'<span style="background:'+lbl.bg+';color:'+lbl.color+';padding:2px 9px;border-radius:99px;font-size:.62rem;font-weight:700">'+lbl.label+'</span>'
+      +'<span class="phys-log-time">'+timeStr+'</span>'
+      +'</div></div>'
   }).join('');
 }
 
