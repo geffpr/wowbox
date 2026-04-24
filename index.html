@@ -3869,65 +3869,20 @@ tr:hover td{background:var(--b50)}
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
           <h2 style="font-size:1.7rem;color:var(--navy)">Orders</h2>
           <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-            <select class="fi" style="width:auto;padding:7px 11px;font-size:.76rem">
-              <option>All statuses</option>
-              <option>Pending</option><option>In process</option><option>In transit</option><option>Delivered</option>
+            <select class="fi" id="ord-filter-status" style="width:auto;padding:7px 11px;font-size:.76rem" onchange="renderOrdersTable()">
+              <option value="">All statuses</option>
+              <option value="Pending">Pending</option><option value="In process">In process</option><option value="In transit">In transit</option><option value="Delivered">Delivered</option>
             </select>
-            <select class="fi" style="width:auto;padding:7px 11px;font-size:.76rem">
-              <option>All types</option><option>E-Box</option><option>Physical</option><option>Mixed</option>
+            <select class="fi" id="ord-filter-type" style="width:auto;padding:7px 11px;font-size:.76rem" onchange="renderOrdersTable()">
+              <option value="">All types</option><option value="E-Box">E-Box</option><option value="Physical">Physical</option><option value="Mixed">Mixed</option>
             </select>
-            <input type="text" class="fi" style="width:170px;padding:7px 11px;font-size:.76rem" placeholder="🔍 Order # or customer…">
+            <input type="text" class="fi" id="ord-search" style="width:170px;padding:7px 11px;font-size:.76rem" placeholder="🔍 Order # or customer…" oninput="renderOrdersTable()">
           </div>
         </div>
         <div class="atbl">
           <table>
             <thead><tr><th>Order #</th><th>Customer</th><th>Items</th><th>Type</th><th>Codes</th><th>Total</th><th>Date</th><th>Status</th><th></th></tr></thead>
-            <tbody>
-              <tr style="cursor:pointer" onclick="admOrderDetail('WB-ORD-2025-0042')">
-                <td><strong>WB-ORD-2025-0042</strong></td><td>Amahle Dlamini</td><td>2 boxes</td>
-                <td><span class="tag" style="background:#fef3c7;color:#92400e">Mixed</span></td>
-                <td><code style="font-size:.72rem;color:var(--b700)">WB-2025-COUP<br>WB-2025-SURP</code></td>
-                <td>R10,498</td><td>10 Apr 2025</td>
-                <td><select class="fi" style="padding:5px 9px;font-size:.75rem;width:auto" onchange="admUpdateOrderStatus(this)" onclick="event.stopPropagation()"><option>Pending</option><option>In process</option><option selected>In transit</option><option>Delivered</option></select></td>
-                <td onclick="event.stopPropagation()" style="white-space:nowrap">
-                  <button class="btn bg bsm" onclick="admOrderDetail('WB-ORD-2025-0042')"><i class="fa fa-eye"></i></button>
-                  <button class="btn bg bsm" style="margin-left:4px" onclick="admPrintCode('WB-2025-COUP','WowBox Couples Retreat')"><i class="fa fa-print"></i></button>
-                </td>
-              </tr>
-              <tr style="cursor:pointer" onclick="admOrderDetail('WB-ORD-2025-0041')">
-                <td><strong>WB-ORD-2025-0041</strong></td><td>Sipho Khumalo</td><td>1 box</td>
-                <td><span class="tag t-act">E-Box</span></td>
-                <td><code style="font-size:.72rem;color:var(--b700)">WB-2025-CELB</code></td>
-                <td>R1,899</td><td>9 Apr 2025</td>
-                <td><select class="fi" style="padding:5px 9px;font-size:.75rem;width:auto" onchange="admUpdateOrderStatus(this)" onclick="event.stopPropagation()"><option>Pending</option><option>In process</option><option>In transit</option><option selected>Delivered</option></select></td>
-                <td onclick="event.stopPropagation()" style="white-space:nowrap">
-                  <button class="btn bg bsm" onclick="admOrderDetail('WB-ORD-2025-0041')"><i class="fa fa-eye"></i></button>
-                  <button class="btn bg bsm" style="margin-left:4px" onclick="admPrintCode('WB-2025-CELB','WowBox Celebration')"><i class="fa fa-print"></i></button>
-                </td>
-              </tr>
-              <tr style="cursor:pointer" onclick="admOrderDetail('WB-ORD-2025-0040')">
-                <td><strong>WB-ORD-2025-0040</strong></td><td>Fatima Naidoo</td><td>1 box</td>
-                <td><span class="tag t-hotel">Physical</span></td>
-                <td><code style="font-size:.72rem;color:var(--b700)">WB-2025-LUXE</code></td>
-                <td>R8,999</td><td>8 Apr 2025</td>
-                <td><select class="fi" style="padding:5px 9px;font-size:.75rem;width:auto" onchange="admUpdateOrderStatus(this)" onclick="event.stopPropagation()"><option>Pending</option><option>In process</option><option>In transit</option><option selected>Delivered</option></select></td>
-                <td onclick="event.stopPropagation()" style="white-space:nowrap">
-                  <button class="btn bg bsm" onclick="admOrderDetail('WB-ORD-2025-0040')"><i class="fa fa-eye"></i></button>
-                  <button class="btn bg bsm" style="margin-left:4px" onclick="admPrintCode('WB-2025-LUXE','WowBox Luxury Escape')"><i class="fa fa-print"></i></button>
-                </td>
-              </tr>
-              <tr style="cursor:pointer" onclick="admOrderDetail('WB-ORD-2025-0039')">
-                <td><strong>WB-ORD-2025-0039</strong></td><td>Lindi Botha</td><td>1 box</td>
-                <td><span class="tag t-act">E-Box</span></td>
-                <td><code style="font-size:.72rem;color:var(--b700)">WB-2025-ROAD</code></td>
-                <td>R1,299</td><td>7 Apr 2025</td>
-                <td><select class="fi" style="padding:5px 9px;font-size:.75rem;width:auto" onchange="admUpdateOrderStatus(this)" onclick="event.stopPropagation()"><option selected>Pending</option><option>In process</option><option>In transit</option><option>Delivered</option></select></td>
-                <td onclick="event.stopPropagation()" style="white-space:nowrap">
-                  <button class="btn bg bsm" onclick="admOrderDetail('WB-ORD-2025-0039')"><i class="fa fa-eye"></i></button>
-                  <button class="btn bg bsm" style="margin-left:4px" onclick="admPrintCode('WB-2025-ROAD','WowBox Road Trip')"><i class="fa fa-print"></i></button>
-                </td>
-              </tr>
-            </tbody>
+            <tbody id="adm-orders-tbody"></tbody>
           </table>
         </div>
 
@@ -3974,8 +3929,8 @@ tr:hover td{background:var(--b50)}
                 <h4><i class="fa fa-print" style="color:var(--b400)"></i> Actions</h4>
                 <div style="display:flex;gap:8px;flex-wrap:wrap">
                   <button class="btn bp bsm" id="od-print-btn" onclick=""><i class="fa fa-print"></i> Print box code</button>
-                  <button class="btn bg bsm" id="od-resend-btn" onclick="admResendEmail()"><i class="fa fa-envelope"></i> Resend email</button>
-                  <button class="btn bg bsm" id="od-reissue-btn" onclick="admReissueCode()"><i class="fa fa-rotate"></i> Reissue code</button>
+                  <button class="btn bg bsm"><i class="fa fa-envelope"></i> Resend email</button>
+                  <button class="btn bg bsm"><i class="fa fa-rotate"></i> Reissue code</button>
                 </div>
               </div>
             </div>
@@ -6253,6 +6208,8 @@ function switchAdm(btn, tab) {
   admTabs.forEach(t => { const el = document.getElementById(t); if (el) el.style.display = t===tab?'block':'none'; });
   document.querySelectorAll('.anl').forEach(n => n.classList.remove('on'));
   if (btn) btn.classList.add('on');
+  if (tab === 'adm-exp')    renderAdmExpTable();
+  if (tab === 'adm-orders') renderOrdersTable();
 }
 
 function renderAdmin() {
@@ -6261,6 +6218,7 @@ function renderAdmin() {
   document.querySelectorAll('.anl').forEach((n,i) => n.classList.toggle('on', i===0));
   renderBoxGrids();
   renderCouponTable();
+  renderOrdersTable();
   // Render database grid with click handlers
   const dbGrid = document.getElementById('adm-db-grid');
   if (dbGrid) dbGrid.innerHTML = admDatabases.map((d,i) => `
@@ -6633,77 +6591,70 @@ function admEditRequest(btn) {
 }
 
 /* ── Orders ── */
-async function sendOrderEmail(type, order) {
-  try {
-    const resp = await fetch('/api/send-email', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ type, order }),
-    });
-    return await resp.json();
-  } catch(e) {
-    return { success: false, error: e.message };
+/* ── Orders table ── */
+const ordersState = {
+  statuses: {
+    'WB-ORD-2025-0042': 'In transit',
+    'WB-ORD-2025-0041': 'Delivered',
+    'WB-ORD-2025-0040': 'Delivered',
+    'WB-ORD-2025-0039': 'Pending',
   }
-}
+};
 
-function admResendEmail() {
-  const panel = document.getElementById('adm-ord-detail');
-  const title = document.getElementById('ord-detail-title')?.textContent || '';
-  const orderId = title.replace('Order ', '').trim();
-  const order = orderDetailDB[orderId];
-  if (!order) { admToast('Open an order first.'); return; }
-  admToast('Sending email to ' + order.email + '…');
-  sendOrderEmail('resend', { id: orderId, ...order })
-    .then(r => admToast(r.success ? '✅ Email sent to ' + order.email : '⚠️ Failed: ' + r.error));
-}
-
-function admReissueCode() {
-  const panel = document.getElementById('adm-ord-detail');
-  const title = document.getElementById('ord-detail-title')?.textContent || '';
-  const orderId = title.replace('Order ', '').trim();
-  const order = orderDetailDB[orderId];
-  if (!order) { admToast('Open an order first.'); return; }
-  if (!confirm('Reissue a new code for order ' + orderId + '? The old code will be deactivated.')) return;
-  // Generate new codes for each item
-  order.items.forEach(item => {
-    if (item.code && item.code !== '—') {
-      const old = item.code;
-      item.code = 'WB-' + Date.now().toString(36).toUpperCase().slice(-6);
-      // Update codeDB
-      if (codeDB[old]) { codeDB[old].status = 'used'; codeDB[old].usedAt = new Date().toISOString().slice(0,10); }
-      codeDB[item.code] = { ...codeDB[old], status:'active', activatedAt: new Date().toISOString().slice(0,10), usedAt: null };
-    }
-  });
-  admToast('New code generated. Sending to ' + order.email + '…');
-  sendOrderEmail('reissue', { id: orderId, ...order })
-    .then(r => admToast(r.success ? '✅ New code sent to ' + order.email : '⚠️ Code issued but email failed: ' + r.error));
-  // Refresh the detail panel
-  admOrderDetail(orderId);
+function renderOrdersTable() {
+  const tbody = document.getElementById('adm-orders-tbody');
+  if (!tbody) return;
+  const fStatus = document.getElementById('ord-filter-status')?.value || '';
+  const fType   = document.getElementById('ord-filter-type')?.value   || '';
+  const search  = (document.getElementById('ord-search')?.value || '').toLowerCase();
+  const typeTag = {
+    'E-Box':    '<span class="tag t-act" style="font-size:.7rem">E-Box</span>',
+    'Physical': '<span class="tag t-hotel" style="font-size:.7rem">Physical</span>',
+    'Mixed':    '<span class="tag" style="background:#fef3c7;color:#92400e;font-size:.7rem">Mixed</span>',
+  };
+  const allStatuses = ['Pending','In process','In transit','Delivered'];
+  const rows = Object.entries(orderDetailDB)
+    .filter(([id, o]) => {
+      const st = ordersState.statuses[id] || 'Pending';
+      return (!fStatus || st === fStatus)
+          && (!fType   || o.type === fType)
+          && (!search  || id.toLowerCase().includes(search) || o.name.toLowerCase().includes(search) || o.email.toLowerCase().includes(search));
+    })
+    .map(([id, o]) => {
+      const st  = ordersState.statuses[id] || 'Pending';
+      const codes = o.items.filter(i => i.code !== '—').map(i => i.code).join('<br>');
+      const first = o.items.find(i => i.code !== '—');
+      const opts  = allStatuses.map(s => `<option${s===st?' selected':''}>${s}</option>`).join('');
+      return `<tr style="cursor:pointer" onclick="admOrderDetail('${id}')">
+        <td><strong>${id}</strong></td>
+        <td>${o.name}<div style="font-size:.7rem;color:var(--muted)">${o.email}</div></td>
+        <td style="font-size:.8rem">${o.items.length} box${o.items.length>1?'es':''}</td>
+        <td>${typeTag[o.type]||o.type}</td>
+        <td><code style="font-size:.72rem;color:var(--b700)">${codes}</code></td>
+        <td style="font-weight:600;color:var(--b700)">${o.total}</td>
+        <td style="font-size:.8rem;color:var(--muted)">${o.date}</td>
+        <td><select class="fi" data-order-id="${id}" style="padding:5px 9px;font-size:.75rem;width:auto"
+          onchange="admUpdateOrderStatus(this)" onclick="event.stopPropagation()">${opts}</select></td>
+        <td onclick="event.stopPropagation()" style="white-space:nowrap">
+          <button class="btn bg bsm" onclick="admOrderDetail('${id}')"><i class="fa fa-eye"></i></button>
+          ${first?`<button class="btn bg bsm" style="margin-left:4px" onclick="admPrintCode('${first.code}','${first.name}')"><i class="fa fa-print"></i></button>`:''}
+        </td>
+      </tr>`;
+    }).join('');
+  tbody.innerHTML = rows || '<tr><td colspan="9" style="text-align:center;padding:28px;color:var(--muted)">No orders match your filters.</td></tr>';
 }
 
 function admUpdateOrderStatus(sel) {
   const newStatus = sel.value;
-  admToast('Updating to "' + newStatus + '" and sending email…');
-
-  // Find the order ID from the row
-  const row      = sel.closest('tr');
-  const orderId  = row?.querySelector('td strong')?.textContent?.trim();
-  const order    = orderId ? orderDetailDB[orderId] : null;
-  if (!order || !order.email) {
-    admToast('✅ Status updated (no email — order not found in DB)');
-    return;
-  }
-
-  // Map status → email type
-  const statusMap = {
-    'Pending':    'status_pending',
-    'In process': 'status_in_process',
-    'In transit': 'status_in_transit',
-    'Delivered':  'status_delivered',
-  };
+  const orderId   = sel.dataset.orderId;
+  if (!orderId) return;
+  ordersState.statuses[orderId] = newStatus;
+  const order = orderDetailDB[orderId];
+  if (!order?.email) { admToast('✅ Status updated to "' + newStatus + '"'); return; }
+  admToast('Updating to "' + newStatus + '" — sending email…');
+  const statusMap = {'Pending':'status_pending','In process':'status_in_process','In transit':'status_in_transit','Delivered':'status_delivered'};
   const emailType = statusMap[newStatus];
   if (!emailType) return;
-
   sendOrderEmail(emailType, { id: orderId, ...order })
     .then(r => admToast(r.success ? '✅ Email sent to ' + order.email : '⚠️ Status saved, email failed: ' + r.error));
 }
