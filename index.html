@@ -5574,7 +5574,7 @@ function go(page) {
       history.pushState(null, '', '#/login');
       document.querySelectorAll('.page').forEach(function(p){ p.classList.remove('active'); });
       var loginEl = document.getElementById('page-login');
-      if (loginEl) loginEl.classList.add('active');
+      if (loginEl) { loginEl.classList.add('active'); loginEl.style.display = ''; }
       var loader = document.getElementById('app-loader');
       if (loader) loader.style.display = 'none';
       setNL('nl-login');
