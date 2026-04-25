@@ -409,7 +409,7 @@ function buildPrintCards(codes){
   }
   return pages;
 }
-function printGenCodes(){if(!generatedCodes.length){admToast('No codes.');return;}var w=window.open('','_blank');w.document.write('<html><body>'+buildPrintCards(generatedCodes)+'</body></html>');w.document.close();w.print();w.close();}
+function printGenCodes(){if(!generatedCodes.length){admToast('No codes.');return;}var w=window.open('','_blank');w.document.write('<html><body style="visibility:hidden">'+buildPrintCards(generatedCodes)+'</body></html>');w.document.close();w.print();w.close();}
 function printSelectedCodes(){var s=Array.from(document.querySelectorAll('.gen-cb:checked')).map(function(cb){return generatedCodes[parseInt(cb.dataset.idx)];}).filter(Boolean);if(!s.length){admToast('Select at least one.');return;}var w=window.open('','_blank');w.document.write('<html><body>'+buildPrintCards(s)+'</body></html>');w.document.close();w.print();w.close();}
 function printSingleCode(i){var e=generatedCodes[i];if(!e)return;var w=window.open('','_blank');w.document.write('<html><body>'+buildPrintCards([e])+'</body></html>');w.document.close();w.print();w.close();}
 function saveBookingToSupabase(payload){db_client.from('bookings').insert(payload).then(function(r){if(!r.error&&payload.voucher_code)db_client.from('vouchers').update({status:'used',used_at:new Date().toISOString().slice(0,10)}).eq('code',payload.voucher_code);}).catch(function(e){console.warn('saveBooking:',e.message);});}
@@ -2553,7 +2553,7 @@ tr:hover td{background:var(--b50)}
 </div>
 
 <!-- ═══════════════════════════ PAGE: HOME ═══════════════════════════ -->
-<div id="page-home" class="page active">
+<div id="page-home" class="page">
   <div class="hero">
     <div class="hero-bg"></div>
     <div class="hero-ov"></div>
@@ -5222,6 +5222,7 @@ function go(page) {
   if (page === 'browse') renderBrowse();
   if (page === 'roulette') initRoulettePage();
   if (page === 'partner') initPartnerPage();
+  document.body.style.visibility = 'visible';
 }
 
 function goFromHash() {
@@ -8568,9 +8569,9 @@ window.addEventListener('DOMContentLoaded', async () => {
   appState.priceBase = 1499;
   // Navigate to page from URL hash (or home if no hash)
   var hash = window.location.hash.replace('#','') || '/';
-  if (hash === '/') {
+  if (hash === '/' || hash === '') {
+    go('home');
     setNL('nl-home');
-    document.getElementById('nl-home').classList.add('on');
   } else {
     goFromHash();
   }
