@@ -4,187 +4,6 @@
 <!-- Connexion Supabase -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.3/dist/umd/supabase.js"></script>
 <script>
-
-/* ══════════════════════════════════════════════════════════════
-   SUPABASE AUTH
-══════════════════════════════════════════════════════════════ */
-let currentUser = null;
-
-function authSwitchTab(tab) {
-  const isUp = tab === 'up';
-  document.getElementById('auth-tab-in').classList.toggle('on', !isUp);
-  document.getElementById('auth-tab-up').classList.toggle('on',  isUp);
-  document.getElementById('auth-name-field').style.display = isUp ? 'block' : 'none';
-  document.getElementById('auth-forgot').style.display     = isUp ? 'none'  : 'block';
-  document.getElementById('auth-submit-label').textContent = isUp ? 'Create account' : 'Sign in';
-  authClearMessages();
-}
-function authClearMessages() {
-  var err = document.getElementById('auth-error');
-  var suc = document.getElementById('auth-success');
-  if (err) { err.textContent = ''; err.classList.remove('show'); }
-  if (suc) { suc.textContent = ''; suc.classList.remove('show'); }
-}
-function authShowError(msg) {
-  var el = document.getElementById('auth-error');
-  if (el) { el.textContent = msg; el.classList.add('show'); }
-}
-function authShowSuccess(msg) {
-  var el = document.getElementById('auth-success');
-  if (el) { el.textContent = msg; el.classList.add('show'); }
-}
-
-async function authSubmit() {
-  var email    = document.getElementById('auth-email') ? document.getElementById('auth-email').value.trim() : '';
-  var password = document.getElementById('auth-password') ? document.getElementById('auth-password').value : '';
-  var name     = document.getElementById('auth-name') ? document.getElementById('auth-name').value.trim() : '';
-  var isSignUp = document.getElementById('auth-tab-up') ? document.getElementById('auth-tab-up').classList.contains('on') : false;
-  var btn      = document.getElementById('auth-submit-btn');
-  authClearMessages();
-  if (!email || !password) { authShowError('Please enter your email and password.'); return; }
-  if (isSignUp && !name)   { authShowError('Please enter your full name.'); return; }
-  if (password.length < 6) { authShowError('Password must be at least 6 characters.'); return; }
-  if (btn) { btn.disabled = true; btn.textContent = 'Please wait...'; }
-  try {
-    if (isSignUp) {
-      var result = await db_client.auth.signUp({ email: email, password: password, options: { data: { full_name: name } } });
-      if (result.error) throw result.error;
-      authShowSuccess('Account created! Check your email to confirm, then sign in.');
-      authSwitchTab('in');
-    } else {
-      var result2 = await db_client.auth.signInWithPassword({ email: email, password: password });
-      if (result2.error) throw result2.error;
-      await authOnSignedIn(result2.data.user);
-    }
-  } catch(e) {
-    authShowError(e.message || 'Authentication failed. Please try again.');
-  }
-  if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa fa-arrow-right-to-bracket"></i> <span id="auth-submit-label">' + (isSignUp ? 'Create account' : 'Sign in') + '</span>'; }
-}
-
-async function authGoogle() {
-  authClearMessages();
-  try {
-    var result = await db_client.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.origin + window.location.pathname } });
-    if (result.error) throw result.error;
-  } catch(e) {
-    authShowError('Google sign-in failed: ' + e.message);
-  }
-}
-
-async function authForgot() {
-  var email = document.getElementById('auth-email') ? document.getElementById('auth-email').value.trim() : '';
-  if (!email) { authShowError('Enter your email address first.'); return; }
-  try {
-    var result = await db_client.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin });
-    if (result.error) throw result.error;
-    authShowSuccess('Password reset email sent! Check your inbox.');
-  } catch(e) { authShowError(e.message); }
-}
-
-async function authSignOut() {
-  await db_client.auth.signOut();
-  currentUser = null;
-  go('login');
-  setNL('nl-login');
-}
-
-async function authOnSignedIn(user) {
-  currentUser = user;
-  var name  = (user.user_metadata && user.user_metadata.full_name) ? user.user_metadata.full_name : (user.email ? user.email.split('@')[0] : 'User');
-  var email = user.email || '';
-
-  // Fetch or create profile with role
-  var role = 'customer';
-  try {
-    var profRes = await db_client.from('user_profiles').select('role,full_name').eq('id', user.id).single();
-    if (profRes.data) {
-      role = profRes.data.role || 'customer';
-      if (profRes.data.full_name) name = profRes.data.full_name;
-    } else {
-      await db_client.from('user_profiles').insert({ id: user.id, email: email, full_name: name, role: 'customer' });
-    }
-  } catch(e) { console.warn('Profile fetch:', e.message); }
-
-  currentUser.role = role;
-  currentUser.displayName = name;
-
-  var avatar  = document.getElementById('dash-avatar');
-  var nameEl  = document.getElementById('dash-user-name');
-  var emailEl = document.getElementById('dash-user-email');
-  if (avatar)  avatar.textContent  = name.charAt(0).toUpperCase();
-  if (nameEl)  nameEl.textContent  = name;
-  if (emailEl) emailEl.textContent = email;
-
-  // Route by role
-  if (role === 'admin') {
-    go('admin'); setNL('nl-admin');
-  } else if (role === 'partner') {
-    go('partner'); setNL('nl-partner');
-  } else {
-    await loadUserBoxes(email);
-    go('dashboard'); setNL('nl-dash');
-  }
-}
-
-async function loadUserBoxes(email) {
-  var subtitle = document.getElementById('dash-boxes-subtitle');
-  try {
-    var result = await db_client.from('vouchers').select('*').eq('user_email', email).order('created_at', { ascending: false });
-    if (result.error) throw result.error;
-    var vouchers = result.data || [];
-    if (!vouchers.length) {
-      if (subtitle) subtitle.textContent = 'You have no gift boxes yet. Browse our collection!';
-      document.querySelectorAll('#dash-boxes .dash-box-card').forEach(function(el) { el.remove(); });
-      return;
-    }
-    if (subtitle) subtitle.textContent = vouchers.length + ' gift box' + (vouchers.length !== 1 ? 'es' : '') + ' in your account.';
-    var statusMap   = { active:'sb-a', used:'sb-u', expired:'sb-e', inactive:'sb-p' };
-    var statusLabel = { active:'Active', used:'Used', expired:'Expired', inactive:'Pending activation' };
-    var html = vouchers.map(function(v) {
-      var box    = boxDB[v.box_id] || {};
-      var imgSrc = box.img || 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?q=80&w=100&auto=format&fit=crop';
-      var st     = v.status || 'inactive';
-      var browseBtn = st === 'active' ? '<button class="btn bp bsm" onclick="openBrowsePage(\'' + v.box_id + '\')">Browse <i class="fa fa-arrow-right"></i></button>' : '';
-      return '<div class="order-card dash-box-card" data-status="' + st + '" style="display:flex;align-items:center;gap:14px">'
-        + '<img src="' + imgSrc + '" style="width:58px;height:48px;border-radius:var(--rs);object-fit:cover;flex-shrink:0" alt="">'
-        + '<div style="flex:1"><div style="font-size:.9rem;font-weight:600;color:var(--navy);margin-bottom:2px">' + (v.box_name || box.name || 'WowBox') + '</div>'
-        + '<div style="font-size:.73rem;color:var(--muted)">Code: ' + v.code + '</div></div>'
-        + '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:7px">'
-        + '<span class="sbadge ' + (statusMap[st] || 'sb-p') + '">' + (statusLabel[st] || st) + '</span>'
-        + browseBtn + '</div></div>';
-    }).join('');
-    document.querySelectorAll('#dash-boxes .dash-box-card').forEach(function(el) { el.remove(); });
-    var tabsEl = document.querySelector('#dash-boxes .tabs');
-    if (tabsEl) tabsEl.insertAdjacentHTML('afterend', html);
-    var tabs = document.querySelectorAll('#dash-boxes .tabs .tab');
-    if (tabs[0]) tabs[0].textContent = 'All (' + vouchers.length + ')';
-    if (tabs[1]) tabs[1].textContent = 'Active (' + vouchers.filter(function(v){return v.status==='active';}).length + ')';
-    if (tabs[2]) tabs[2].textContent = 'Used (' + vouchers.filter(function(v){return v.status==='used';}).length + ')';
-    if (tabs[3]) tabs[3].textContent = 'Expired (' + vouchers.filter(function(v){return v.status==='expired';}).length + ')';
-  } catch(e) {
-    console.warn('loadUserBoxes:', e.message);
-    if (subtitle) subtitle.textContent = 'Manage all your WowBox experiences in one place.';
-  }
-}
-
-db_client.auth.onAuthStateChange(function(event, session) {
-  if (event === 'SIGNED_IN' && session && session.user && !currentUser) {
-    authOnSignedIn(session.user);
-  }
-  if (event === 'SIGNED_OUT') { currentUser = null; }
-});
-
-(async function() {
-  try {
-    var sessionResult = await db_client.auth.getSession();
-    if (sessionResult.data && sessionResult.data.session && sessionResult.data.session.user) {
-      await authOnSignedIn(sessionResult.data.session.user);
-    }
-  } catch(e) { console.warn('Session check:', e.message); }
-})();
-</script>
-<script>
   const SUPABASE_URL  = 'https://gfqxuygfkzgmotnxrlwb.supabase.co';
   const SUPABASE_KEY  = 'sb_publishable_NNDH11RkDff2KHghf_k-8g_wL2NtUIL';
   const db_client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -485,6 +304,188 @@ async function saveBookingToSupabase(payload) {
   } catch(err) { console.warn('saveBookingToSupabase (non-blocking):', err.message); }
 }
 
+
+
+
+
+/* ══════════════════════════════════════════════════════════════
+   SUPABASE AUTH
+══════════════════════════════════════════════════════════════ */
+let currentUser = null;
+
+function authSwitchTab(tab) {
+  const isUp = tab === 'up';
+  document.getElementById('auth-tab-in').classList.toggle('on', !isUp);
+  document.getElementById('auth-tab-up').classList.toggle('on',  isUp);
+  document.getElementById('auth-name-field').style.display = isUp ? 'block' : 'none';
+  document.getElementById('auth-forgot').style.display     = isUp ? 'none'  : 'block';
+  document.getElementById('auth-submit-label').textContent = isUp ? 'Create account' : 'Sign in';
+  authClearMessages();
+}
+function authClearMessages() {
+  var err = document.getElementById('auth-error');
+  var suc = document.getElementById('auth-success');
+  if (err) { err.textContent = ''; err.classList.remove('show'); }
+  if (suc) { suc.textContent = ''; suc.classList.remove('show'); }
+}
+function authShowError(msg) {
+  var el = document.getElementById('auth-error');
+  if (el) { el.textContent = msg; el.classList.add('show'); }
+}
+function authShowSuccess(msg) {
+  var el = document.getElementById('auth-success');
+  if (el) { el.textContent = msg; el.classList.add('show'); }
+}
+
+async function authSubmit() {
+  var email    = document.getElementById('auth-email') ? document.getElementById('auth-email').value.trim() : '';
+  var password = document.getElementById('auth-password') ? document.getElementById('auth-password').value : '';
+  var name     = document.getElementById('auth-name') ? document.getElementById('auth-name').value.trim() : '';
+  var isSignUp = document.getElementById('auth-tab-up') ? document.getElementById('auth-tab-up').classList.contains('on') : false;
+  var btn      = document.getElementById('auth-submit-btn');
+  authClearMessages();
+  if (!email || !password) { authShowError('Please enter your email and password.'); return; }
+  if (isSignUp && !name)   { authShowError('Please enter your full name.'); return; }
+  if (password.length < 6) { authShowError('Password must be at least 6 characters.'); return; }
+  if (btn) { btn.disabled = true; btn.textContent = 'Please wait...'; }
+  try {
+    if (isSignUp) {
+      var result = await db_client.auth.signUp({ email: email, password: password, options: { data: { full_name: name } } });
+      if (result.error) throw result.error;
+      authShowSuccess('Account created! Check your email to confirm, then sign in.');
+      authSwitchTab('in');
+    } else {
+      var result2 = await db_client.auth.signInWithPassword({ email: email, password: password });
+      if (result2.error) throw result2.error;
+      await authOnSignedIn(result2.data.user);
+    }
+  } catch(e) {
+    authShowError(e.message || 'Authentication failed. Please try again.');
+  }
+  if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa fa-arrow-right-to-bracket"></i> <span id="auth-submit-label">' + (isSignUp ? 'Create account' : 'Sign in') + '</span>'; }
+}
+
+async function authGoogle() {
+  authClearMessages();
+  try {
+    var result = await db_client.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.origin + window.location.pathname } });
+    if (result.error) throw result.error;
+  } catch(e) {
+    authShowError('Google sign-in failed: ' + e.message);
+  }
+}
+
+async function authForgot() {
+  var email = document.getElementById('auth-email') ? document.getElementById('auth-email').value.trim() : '';
+  if (!email) { authShowError('Enter your email address first.'); return; }
+  try {
+    var result = await db_client.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin });
+    if (result.error) throw result.error;
+    authShowSuccess('Password reset email sent! Check your inbox.');
+  } catch(e) { authShowError(e.message); }
+}
+
+async function authSignOut() {
+  await db_client.auth.signOut();
+  currentUser = null;
+  go('login');
+  setNL('nl-login');
+}
+
+async function authOnSignedIn(user) {
+  currentUser = user;
+  var name  = (user.user_metadata && user.user_metadata.full_name) ? user.user_metadata.full_name : (user.email ? user.email.split('@')[0] : 'User');
+  var email = user.email || '';
+
+  // Fetch or create profile with role
+  var role = 'customer';
+  try {
+    var profRes = await db_client.from('user_profiles').select('role,full_name').eq('id', user.id).single();
+    if (profRes.data) {
+      role = profRes.data.role || 'customer';
+      if (profRes.data.full_name) name = profRes.data.full_name;
+    } else {
+      await db_client.from('user_profiles').insert({ id: user.id, email: email, full_name: name, role: 'customer' });
+    }
+  } catch(e) { console.warn('Profile fetch:', e.message); }
+
+  currentUser.role = role;
+  currentUser.displayName = name;
+
+  var avatar  = document.getElementById('dash-avatar');
+  var nameEl  = document.getElementById('dash-user-name');
+  var emailEl = document.getElementById('dash-user-email');
+  if (avatar)  avatar.textContent  = name.charAt(0).toUpperCase();
+  if (nameEl)  nameEl.textContent  = name;
+  if (emailEl) emailEl.textContent = email;
+
+  // Route by role
+  if (role === 'admin') {
+    go('admin'); setNL('nl-admin');
+  } else if (role === 'partner') {
+    go('partner'); setNL('nl-partner');
+  } else {
+    await loadUserBoxes(email);
+    go('dashboard'); setNL('nl-dash');
+  }
+}
+
+async function loadUserBoxes(email) {
+  var subtitle = document.getElementById('dash-boxes-subtitle');
+  try {
+    var result = await db_client.from('vouchers').select('*').eq('user_email', email).order('created_at', { ascending: false });
+    if (result.error) throw result.error;
+    var vouchers = result.data || [];
+    if (!vouchers.length) {
+      if (subtitle) subtitle.textContent = 'You have no gift boxes yet. Browse our collection!';
+      document.querySelectorAll('#dash-boxes .dash-box-card').forEach(function(el) { el.remove(); });
+      return;
+    }
+    if (subtitle) subtitle.textContent = vouchers.length + ' gift box' + (vouchers.length !== 1 ? 'es' : '') + ' in your account.';
+    var statusMap   = { active:'sb-a', used:'sb-u', expired:'sb-e', inactive:'sb-p' };
+    var statusLabel = { active:'Active', used:'Used', expired:'Expired', inactive:'Pending activation' };
+    var html = vouchers.map(function(v) {
+      var box    = boxDB[v.box_id] || {};
+      var imgSrc = box.img || 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?q=80&w=100&auto=format&fit=crop';
+      var st     = v.status || 'inactive';
+      var browseBtn = st === 'active' ? '<button class="btn bp bsm" onclick="openBrowsePage(\'' + v.box_id + '\')">Browse <i class="fa fa-arrow-right"></i></button>' : '';
+      return '<div class="order-card dash-box-card" data-status="' + st + '" style="display:flex;align-items:center;gap:14px">'
+        + '<img src="' + imgSrc + '" style="width:58px;height:48px;border-radius:var(--rs);object-fit:cover;flex-shrink:0" alt="">'
+        + '<div style="flex:1"><div style="font-size:.9rem;font-weight:600;color:var(--navy);margin-bottom:2px">' + (v.box_name || box.name || 'WowBox') + '</div>'
+        + '<div style="font-size:.73rem;color:var(--muted)">Code: ' + v.code + '</div></div>'
+        + '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:7px">'
+        + '<span class="sbadge ' + (statusMap[st] || 'sb-p') + '">' + (statusLabel[st] || st) + '</span>'
+        + browseBtn + '</div></div>';
+    }).join('');
+    document.querySelectorAll('#dash-boxes .dash-box-card').forEach(function(el) { el.remove(); });
+    var tabsEl = document.querySelector('#dash-boxes .tabs');
+    if (tabsEl) tabsEl.insertAdjacentHTML('afterend', html);
+    var tabs = document.querySelectorAll('#dash-boxes .tabs .tab');
+    if (tabs[0]) tabs[0].textContent = 'All (' + vouchers.length + ')';
+    if (tabs[1]) tabs[1].textContent = 'Active (' + vouchers.filter(function(v){return v.status==='active';}).length + ')';
+    if (tabs[2]) tabs[2].textContent = 'Used (' + vouchers.filter(function(v){return v.status==='used';}).length + ')';
+    if (tabs[3]) tabs[3].textContent = 'Expired (' + vouchers.filter(function(v){return v.status==='expired';}).length + ')';
+  } catch(e) {
+    console.warn('loadUserBoxes:', e.message);
+    if (subtitle) subtitle.textContent = 'Manage all your WowBox experiences in one place.';
+  }
+}
+
+db_client.auth.onAuthStateChange(function(event, session) {
+  if (event === 'SIGNED_IN' && session && session.user && !currentUser) {
+    authOnSignedIn(session.user);
+  }
+  if (event === 'SIGNED_OUT') { currentUser = null; }
+});
+
+(async function() {
+  try {
+    var sessionResult = await db_client.auth.getSession();
+    if (sessionResult.data && sessionResult.data.session && sessionResult.data.session.user) {
+      await authOnSignedIn(sessionResult.data.session.user);
+    }
+  } catch(e) { console.warn('Session check:', e.message); }
+})();
 </script>
 
 <!-- Paystack -->
