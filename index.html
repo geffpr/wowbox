@@ -271,13 +271,8 @@ function buildPrintCards(codes) {
 
 function printGenCodes() {
   if (!generatedCodes.length) { admToast('No codes to print.'); return; }
-  const w = window.open('','_blank');
-  w.document.write('<html><body>
-<div id="app-loader" style="position:fixed;inset:0;background:#fff;z-index:99999;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:16px">
-  <div style="font-family:'Cormorant Garamond',Georgia,serif;font-size:2rem;font-weight:700;color:#1e3a5f;letter-spacing:.02em">WowBox</div>
-  <div style="width:32px;height:32px;border:3px solid #e2e8f0;border-top-color:#2563eb;border-radius:50%;animation:spin .7s linear infinite"></div>
-</div>
-<style>@keyframes spin{to{transform:rotate(360deg)}}</style>'+buildPrintCards(generatedCodes)+'</body></html>');
+  var w = window.open('','_blank');
+  w.document.write('<html><body>'+buildPrintCards(generatedCodes)+'</body></html>');
   w.document.close(); w.print(); w.close();
 }
 
