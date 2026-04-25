@@ -518,18 +518,21 @@ async function loadUserOrders(email) {
 
     listEl.innerHTML = data.map(function(o) {
       var date = o.created_at ? new Date(o.created_at).toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'}) : '-';
-      var type = typeTag[o.delivery_type] || o.delivery_type || 'E-Box';
-      var status = statusBadge[o.status] || '<span class="sbadge sb-p">' + (o.status||'Active') + '</span>';
+      var rawType = o.delivery_type || o.order_type || '';
+      var type = typeTag[rawType] || 'E-Box';
+      var status = statusBadge[o.status] || '<span class="sbadge sb-p">' + (o.status||'Pending') + '</span>';
       var title = o._from_vouchers ? (o._box_name || 'WowBox') : (o.id || '-');
+      var amount = o.total_amount ? ' · R' + Number(o.total_amount).toLocaleString() : '';
       var subline = o._from_vouchers
         ? date + ' · ' + type + ' · Code: ' + (o._code||'')
-        : date + ' · ' + type + (o.total_amount ? ' · R' + Number(o.total_amount).toLocaleString() : '');
-      return '<div class="order-card" style="padding:16px">'
+        : date + amount;
+      return '<div class="order-card" style="padding:16px;cursor:default">'
         + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">'
-        + '<strong style="font-size:.88rem;color:var(--navy)">' + title + '</strong>'
+        + '<strong style="font-size:.88rem;color:var(--navy)">' + (o.id||title) + '</strong>'
         + status
         + '</div>'
-        + '<div style="font-size:.78rem;color:var(--muted)">' + subline + '</div>'
+        + '<div style="font-size:.78rem;color:var(--muted);margin-bottom:8px">' + subline + '</div>'
+        + (!o._from_vouchers && type ? '<span style="font-size:.7rem;background:var(--b50);border:1px solid var(--b200);color:var(--b600);padding:2px 8px;border-radius:99px">' + type + '</span>' : '')
         + '</div>';
     }).join('');
   } catch(e) {
@@ -674,7 +677,10 @@ async function loadUserBoxes(email) {
       var box    = boxDB[v.box_id] || {};
       var imgSrc = box.img || 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?q=80&w=100&auto=format&fit=crop';
       var st     = v.status || 'inactive';
-      var browseBtn = st === 'active' ? '<button class="btn bp bsm" onclick="openBrowsePage(\'' + v.box_id + '\')">Browse <i class="fa fa-arrow-right"></i></button>' : '';
+      var browseBtn = st === 'active' ? '<button class="btn bp bsm" onclick="openBrowsePage(\'' + v.box_id + '\')">' + 'Browse <i class="fa fa-arrow-right"></i></button>' : '';
+      var safeCode = v.code;
+      var safeName = (v.box_name||'WowBox').replace(/'/g,'');
+      var voucherBtn = '<button class="btn bg bsm" style="margin-left:4px" onclick="showBoxVoucher(\'' + safeCode + '\',\'' + safeName + '\')">' + '<i class="fa fa-ticket"></i> Voucher</button>';
       var createdDate = v.created_at ? new Date(v.created_at).toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'}) : '';
       var expiryDate  = v.expires_at  ? new Date(v.expires_at).toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'})
         : v.created_at ? new Date(new Date(v.created_at).setFullYear(new Date(v.created_at).getFullYear()+1)).toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'})
@@ -687,7 +693,8 @@ async function loadUserBoxes(email) {
         + '</div>'
         + '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:7px">'
         + '<span class="sbadge ' + (statusMap[st] || 'sb-p') + '">' + (statusLabel[st] || st) + '</span>'
-        + browseBtn + '</div></div>';
+        + '<div style="display:flex;gap:4px">' + browseBtn + voucherBtn + '</div>'
+        + '</div></div>';
     }).join('');
     document.querySelectorAll('#dash-boxes .dash-box-card').forEach(function(el) { el.remove(); });
     var tabsEl = document.querySelector('#dash-boxes .tabs');
@@ -6628,6 +6635,70 @@ function nextStep(step, quiet) {
 }
 
 function goBrowse(){go("allboxes");}
+
+function showBoxVoucher(code, boxName) {
+  var modal = document.createElement('div');
+  modal.id = 'box-voucher-modal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  // Store code/name on modal for button access
+  modal.dataset.code    = code;
+  modal.dataset.boxname = boxName || 'WowBox';
+  modal.innerHTML = '<div style="background:#fff;border-radius:16px;padding:32px;max-width:440px;width:100%;text-align:center">'
+    + '<div style="font-size:1.2rem;font-weight:700;color:var(--navy);margin-bottom:6px">Your WowBox Voucher</div>'
+    + '<div style="font-size:.85rem;color:var(--muted);margin-bottom:24px">' + (boxName||'WowBox') + '</div>'
+    + '<div style="background:var(--b50);border:2px dashed var(--b300);border-radius:12px;padding:24px;margin-bottom:20px">'
+    + '<div style="font-size:.7rem;font-weight:700;text-transform:uppercase;color:var(--b500);margin-bottom:8px">Your voucher code</div>'
+    + '<div style="font-family:monospace;font-size:1.6rem;font-weight:700;color:var(--b700);letter-spacing:.08em">' + code + '</div>'
+    + '</div>'
+    + '<div style="display:flex;gap:10px;justify-content:center;margin-bottom:16px">'
+    + '<button type="button" class="btn bp bsm" onclick="printBoxVoucher(document.getElementById(\'box-voucher-modal\').dataset.code,document.getElementById(\'box-voucher-modal\').dataset.boxname)"><i class="fa fa-print"></i> Print</button>'
+    + '<button type="button" class="btn bg bsm" onclick="emailBoxVoucher(document.getElementById(\'box-voucher-modal\').dataset.code)"><i class="fa fa-envelope"></i> Send by email</button>'
+    + '</div>'
+    + '<button type="button" class="btn" style="font-size:.8rem;color:var(--muted)" onclick="document.getElementById(\'box-voucher-modal\').remove()">Close</button>'
+    + '</div>';
+  document.body.appendChild(modal);
+}
+
+function printBoxVoucher(code, boxName) {
+  var w = window.open('','_blank','width=500,height=400');
+  w.document.write('<html><head><title>WowBox Voucher</title></head><body style="font-family:Arial;text-align:center;padding:40px">'
+    + '<h2 style="color:#0f172a">WowBox Gift Voucher</h2>'
+    + '<p style="color:#64748b">' + (boxName||'WowBox') + '</p>'
+    + '<div style="border:2px dashed #2563eb;border-radius:12px;padding:24px;margin:24px auto;max-width:300px">'
+    + '<div style="font-size:11px;color:#64748b;margin-bottom:8px;text-transform:uppercase;letter-spacing:.05em">Voucher Code</div>'
+    + '<div style="font-family:monospace;font-size:28px;font-weight:700;color:#2563eb">' + code + '</div>'
+    + '</div>'
+    + '<p style="font-size:12px;color:#94a3b8">Present this code at the venue · wowbox.co.za</p>'
+    + '</body></html>');
+  w.document.close();
+  w.print();
+}
+
+async function emailBoxVoucher(code) {
+  if (!currentUser || !currentUser.email) { admToast('Please sign in first.'); return; }
+  admToast('Sending voucher to ' + currentUser.email + '...');
+  try {
+    var res = await db_client.from('vouchers').select('box_name').eq('code', code).single();
+    var boxName = res.data ? res.data.box_name : 'WowBox';
+    await fetch('/api/send-email', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        type: 'resend',
+        order: {
+          id:    code,
+          name:  currentUser.displayName || currentUser.email,
+          email: currentUser.email,
+          type:  'E-Box',
+          total: '',
+          date:  new Date().toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'}),
+          items: [{ name: boxName, code: code, type: 'E-Box', status: 'active' }]
+        }
+      })
+    });
+    admToast('Voucher sent to ' + currentUser.email);
+  } catch(e) { admToast('Error: ' + e.message); }
+}
 function closeVoucherModal() { var m = document.getElementById("wb-modal"); if(m) m.remove(); }
 
 function showOrderVoucher() {
