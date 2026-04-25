@@ -576,8 +576,17 @@ async function changePassword() {
 async function authSignOut() {
   await db_client.auth.signOut();
   currentUser = null;
-  go('login');
-  setNL('nl-login');
+  // Hide role-specific nav buttons
+  var nlPart = document.getElementById('nl-part');
+  var nlAdm  = document.getElementById('nl-adm');
+  var mobPart = document.getElementById('mob-nl-part');
+  var mobAdm  = document.getElementById('mob-nl-adm');
+  if (nlPart)  nlPart.style.display  = 'none';
+  if (nlAdm)   nlAdm.style.display   = 'none';
+  if (mobPart) mobPart.style.display = 'none';
+  if (mobAdm)  mobAdm.style.display  = 'none';
+  go('home');
+  setNL('nl-home');
 }
 
 async function authOnSignedIn(user) {
@@ -606,6 +615,19 @@ async function authOnSignedIn(user) {
   if (avatar)  avatar.textContent  = name.charAt(0).toUpperCase();
   if (nameEl)  nameEl.textContent  = name;
   if (emailEl) emailEl.textContent = email;
+  // Show nav buttons based on role
+  var nlPart   = document.getElementById('nl-part');
+  var nlAdm    = document.getElementById('nl-adm');
+  var mobPart  = document.getElementById('mob-nl-part');
+  var mobAdm   = document.getElementById('mob-nl-adm');
+  if (role === 'admin') {
+    if (nlAdm)   nlAdm.style.display   = '';
+    if (mobAdm)  mobAdm.style.display  = '';
+  } else if (role === 'partner') {
+    if (nlPart)  nlPart.style.display  = '';
+    if (mobPart) mobPart.style.display = '';
+  }
+
   // Populate settings fields
   var settingsName  = document.getElementById('settings-name');
   var settingsEmail = document.getElementById('settings-email');
@@ -2795,8 +2817,8 @@ tr:hover td{background:var(--b50)}
     <button class="nl" id="nl-home" onclick="go('home');setNL('nl-home')">Home</button>
     <button class="nl" id="nl-boxes" onclick="go('allboxes');setNL('nl-boxes')">Gift Boxes</button>
     <button class="nl" id="nl-dash" onclick="go('dashboard');setNL('nl-dash')">My Account</button>
-    <button class="nl" id="nl-part" onclick="go('partner');setNL('nl-part')">Partners</button>
-    <button class="nl" id="nl-adm" onclick="go('admin');setNL('nl-adm')">Admin</button>
+    <button class="nl" id="nl-part" onclick="go('partner');setNL('nl-part')" style="display:none">Partners</button>
+    <button class="nl" id="nl-adm" onclick="go('admin');setNL('nl-adm')" style="display:none">Admin</button>
   </div>
   <div class="nav-right">
     <button class="bg" onclick="go('login')" style="font-size:.8rem;padding:8px 16px"><i class="fa fa-user"></i> Login</button>
@@ -2850,14 +2872,14 @@ tr:hover td{background:var(--b50)}
       <i class="fa fa-key"></i><span>Redeem a Box</span>
     </button>
     <div class="mob-nav-divider"></div>
-    <button class="mob-nav-item" onclick="closeMobMenu();go('partner');setNL('nl-part')">
+    <button class="mob-nav-item" id="mob-nl-part" style="display:none" onclick="closeMobMenu();go('partner');setNL('nl-part')">
       <i class="fa fa-building"></i><span>Partner Portal</span>
     </button>
     <button class="mob-nav-item" onclick="closeMobMenu();go('login')">
       <i class="fa fa-user"></i><span>—</span>
     </button>
     <div class="mob-nav-divider"></div>
-    <button class="mob-nav-item" onclick="closeMobMenu();go('admin');setNL('nl-adm')">
+    <button class="mob-nav-item" id="mob-nl-adm" style="display:none" onclick="closeMobMenu();go('admin');setNL('nl-adm')">
       <i class="fa fa-shield-halved"></i><span>Admin</span>
     </button>
   </nav>
@@ -3647,10 +3669,10 @@ tr:hover td{background:var(--b50)}
         <h2 style="font-size:1.8rem;color:var(--navy);margin-bottom:5px">My Gift Boxes</h2>
         <p style="color:var(--muted);font-size:.85rem;margin-bottom:22px" id="dash-boxes-subtitle">Manage all your WowBox experiences in one place.</p>
         <div class="tabs" style="margin-bottom:22px">
-          <button class="tab on" onclick="filterDashBoxes('all',this)">All (3)</button>
-          <button class="tab" onclick="filterDashBoxes('active',this)">Active (1)</button>
-          <button class="tab" onclick="filterDashBoxes('used',this)">Used (1)</button>
-          <button class="tab" onclick="filterDashBoxes('expired',this)">Expired (1)</button>
+          <button class="tab on" onclick="filterDashBoxes('all',this)">All</button>
+          <button class="tab" onclick="filterDashBoxes('active',this)">Active</button>
+          <button class="tab" onclick="filterDashBoxes('used',this)">Used</button>
+          <button class="tab" onclick="filterDashBoxes('expired',this)">Expired</button>
         </div>
                 <div id="dash-boxes-list"><!-- Loaded dynamically from Supabase --></div>
         <div style="margin-top:26px;padding-top:22px;border-top:1px solid var(--border)">
