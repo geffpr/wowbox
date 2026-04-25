@@ -7044,11 +7044,10 @@ function browseActivatedBox() {
   var v = appState.activatedVoucher;
   if (!v) { go('browse'); return; }
   var boxId = v.box_id || 'couples-retreat';
-  // Set the current box context for browsing
   appState.currentBoxId   = boxId;
   appState.currentBoxCode = v.code;
-  // Go to browse page filtered for this box
-  go('browse');
+  // Use openBrowsePage which correctly sets browseBoxId
+  openBrowsePage(boxId);
 }
 
 async function activateBox() {
