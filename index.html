@@ -19,7 +19,7 @@
 
 /* ── Box Usage ── */
 const usageDB = [
-  { code:'WB-2025-COUP', box:'Couples Retreat',    customer:'Amahle Dlamini',    email:'amahle@demo.co.za',   experience:'The Vineyard Retreat',    partner:'Vineyard Hotels',    date:'2025-05-10' },
+  { code:'WB-2025-COUP', box:'Couples Retreat',    customer:'My Account',    email:'amahle@demo.co.za',   experience:'The Vineyard Retreat',    partner:'Vineyard Hotels',    date:'2025-05-10' },
   { code:'WB-2025-RSET', box:'WowBox Reset',        customer:'Zanele Mokoena',    email:'zanele@wowbox.co.za', experience:'Ananda Couples Spa',      partner:'Ananda Wellness',    date:'2024-11-03' },
   { code:'WB-2025-SURP', box:'Surprise Experience', customer:'David Pieterse',    email:'david.p@mail.co.za',  experience:'Magalies Hot Air Balloon', partner:'AirTrack Adventures',date:'2025-03-21' },
   { code:'WB-2025-PADV', box:'Premium Adventure',   customer:'Sipho Khumalo',     email:'sipho@demo.co.za',    experience:'Kruger Game Drive',       partner:'Wild Horizons',      date:'2025-02-15' },
@@ -418,6 +418,13 @@ async function authOnSignedIn(user) {
   if (avatar)  avatar.textContent  = name.charAt(0).toUpperCase();
   if (nameEl)  nameEl.textContent  = name;
   if (emailEl) emailEl.textContent = email;
+  // Update sidebar too
+  var sbAvatar = document.getElementById('dash-sb-avatar');
+  var sbName   = document.getElementById('dash-sb-name');
+  var sbRole   = document.getElementById('dash-sb-role');
+  if (sbAvatar) sbAvatar.textContent = name.charAt(0).toUpperCase();
+  if (sbName)   sbName.textContent   = name;
+  if (sbRole)   sbRole.textContent   = role.charAt(0).toUpperCase() + role.slice(1);
 
   // Route by role
   if (role === 'admin') {
@@ -2569,7 +2576,7 @@ tr:hover td{background:var(--b50)}
 
   <div class="mob-menu-user">
     <div style="width:38px;height:38px;border-radius:50%;background:var(--b600);display:flex;align-items:center;justify-content:center;color:#fff;font-size:.9rem;font-weight:700;flex-shrink:0">AD</div>
-    <div><div style="font-size:.88rem;font-weight:600;color:var(--navy)">Amahle Dlamini</div><div style="font-size:.72rem;color:var(--muted)">Demo User</div></div>
+    <div><div style="font-size:.88rem;font-weight:600;color:var(--navy)">My Account</div><div style="font-size:.72rem;color:var(--muted)">Customer</div></div>
   </div>
 
   <nav class="mob-menu-nav">
@@ -3223,7 +3230,7 @@ tr:hover td{background:var(--b50)}
       </div>
       <div class="vouch-body">
         <div class="vg">
-          <div class="vf"><label>Guest 1</label><span id="v-g1">Amahle Dlamini</span></div>
+          <div class="vf"><label>Guest 1</label><span id="v-g1">My Account</span></div>
           <div class="vf"><label>Guest 2</label><span id="v-g2">Sipho Khumalo</span></div>
           <div class="vf"><label id="v-lbl1">Check-in</label><span id="v-d1">Sat, 10 May 2025</span></div>
           <div class="vf"><label id="v-lbl2">Check-out</label><span id="v-d2">Sun, 11 May 2025</span></div>
@@ -3301,8 +3308,8 @@ tr:hover td{background:var(--b50)}
   <div class="dash-layout">
     <div class="sb">
       <div class="sb-user">
-        <div class="av">AD</div>
-        <div><strong style="font-size:.85rem;color:var(--navy);display:block">Amahle Dlamini</strong><small style="font-size:.7rem;color:var(--muted)">Demo User</small></div>
+        <div class="av" id="dash-sb-avatar">?</div>
+        <div><strong style="font-size:.85rem;color:var(--navy);display:block" id="dash-sb-name">My Account</strong><small style="font-size:.7rem;color:var(--muted)" id="dash-sb-role">Customer</small></div>
       </div>
       <button class="sbl on"><i class="fa fa-gift"></i> My Boxes</button>
       <button class="sbl" onclick="showDash('orders')"><i class="fa fa-box"></i> My Orders</button>
@@ -3369,38 +3376,16 @@ tr:hover td{background:var(--b50)}
       <div id="dash-orders" style="display:none">
         <h2 style="font-size:1.8rem;color:var(--navy);margin-bottom:5px">My Orders</h2>
         <p style="color:var(--muted);font-size:.85rem;margin-bottom:22px">Track and manage your purchases.</p>
-        <!-- Physical order with tracking -->
-        <div class="order-card" onclick="showDash('tracking')">
-          <div style="display:flex;align-items:center;gap:14px;margin-bottom:14px">
-            <img src="https://images.unsplash.com/photo-1571896349842-33c89424de2d?q=80&w=100&auto=format&fit=crop" style="width:58px;height:48px;border-radius:var(--rs);object-fit:cover;flex-shrink:0" alt="">
-            <div style="flex:1"><div style="font-size:.9rem;font-weight:600;color:var(--navy)">WowBox Luxury Escape — Physical Box</div><div style="font-size:.73rem;color:var(--muted)">Order #WB-ORD-2025-0038 · 10 Apr 2025 · R8,999</div></div>
-            <span class="sbadge sb-p">In transit</span>
-          </div>
-          <div style="padding:14px;background:var(--b50);border-radius:var(--rs);border:1px solid var(--b100)">
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-              <span style="font-size:.78rem;font-weight:600;color:var(--navy)">Delivery tracking</span>
-              <span style="font-size:.7rem;color:var(--muted)">Expected: 14–16 Apr 2025</span>
-            </div>
-            <div style="display:flex;align-items:center;gap:0">
-              <div style="text-align:center;flex:1"><div style="width:24px;height:24px;background:var(--green);border-radius:50%;margin:0 auto;display:flex;align-items:center;justify-content:center;font-size:.6rem;color:#fff"><i class="fa fa-check"></i></div><div style="font-size:.62rem;color:var(--muted);margin-top:4px">Order placed</div></div>
-              <div style="flex:1;height:2px;background:var(--green)"></div>
-              <div style="text-align:center;flex:1"><div style="width:24px;height:24px;background:var(--green);border-radius:50%;margin:0 auto;display:flex;align-items:center;justify-content:center;font-size:.6rem;color:#fff"><i class="fa fa-check"></i></div><div style="font-size:.62rem;color:var(--muted);margin-top:4px">Processed</div></div>
-              <div style="flex:1;height:2px;background:var(--green)"></div>
-              <div style="text-align:center;flex:1"><div style="width:24px;height:24px;background:var(--b500);border-radius:50%;margin:0 auto;display:flex;align-items:center;justify-content:center;font-size:.6rem;color:#fff;animation:pulse 1.5s infinite"><i class="fa fa-truck"></i></div><div style="font-size:.62rem;color:var(--b600);margin-top:4px;font-weight:600">In transit</div></div>
-              <div style="flex:1;height:2px;background:var(--border)"></div>
-              <div style="text-align:center;flex:1"><div style="width:24px;height:24px;background:var(--border);border-radius:50%;margin:0 auto"></div><div style="font-size:.62rem;color:var(--muted);margin-top:4px">Delivered</div></div>
-            </div>
-          </div>
-        </div>
-        <div class="order-card" style="display:flex;align-items:center;gap:14px">
-          <img src="https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?q=80&w=100&auto=format&fit=crop" style="width:58px;height:48px;border-radius:var(--rs);object-fit:cover;flex-shrink:0" alt="">
-          <div style="flex:1"><div style="font-size:.9rem;font-weight:600;color:var(--navy)">WowBox Couples Retreat — E-Box</div><div style="font-size:.73rem;color:var(--muted)">Order #WB-ORD-2025-0039 · 10 Apr 2025 · R1,499 · Sent to amahle@demo.co.za</div></div>
-          <span class="sbadge sb-a">Delivered</span>
+        <div id="dash-orders-list" style="text-align:center;padding:40px 20px;color:var(--muted)">
+          <i class="fa fa-bag-shopping" style="font-size:2rem;margin-bottom:12px;opacity:.3;display:block"></i>
+          <p style="font-size:.9rem">No orders yet. Your purchases will appear here.</p>
+          <button class="btn bp bsm" style="margin-top:16px" onclick="go('allboxes')">Browse gift boxes</button>
         </div>
       </div>
     </div>
   </div>
 </div>
+
 
 <!-- ═══════════════════════ PAGE: ACTIVATION ═════════════════════ -->
 <div id="page-activation" class="page">
@@ -3536,7 +3521,7 @@ tr:hover td{background:var(--b50)}
           <table>
             <thead><tr><th>Booking ref</th><th>Guest</th><th>Experience</th><th>Date</th><th>Payout</th><th>Status</th></tr></thead>
             <tbody>
-              <tr><td><code style="font-size:.75rem">BK-7F4D-92XP</code></td><td>Amahle Dlamini</td><td>Vineyard Retreat</td><td>10 May 2025</td><td style="color:var(--green);font-weight:600">R971.35</td><td><span class="ps-active">Paid</span></td></tr>
+              <tr><td><code style="font-size:.75rem">BK-7F4D-92XP</code></td><td>My Account</td><td>Vineyard Retreat</td><td>10 May 2025</td><td style="color:var(--green);font-weight:600">R971.35</td><td><span class="ps-active">Paid</span></td></tr>
               <tr><td><code style="font-size:.75rem">BK-2A1C-88KQ</code></td><td>Sipho Khumalo</td><td>Vineyard Retreat</td><td>8 May 2025</td><td style="color:var(--green);font-weight:600">R971.35</td><td><span class="ps-active">Paid</span></td></tr>
               <tr><td><code style="font-size:.75rem">BK-9F3D-41WM</code></td><td>Fatima Naidoo</td><td>Vineyard Retreat</td><td>5 May 2025</td><td style="color:#d97706;font-weight:600">R971.35</td><td><span class="ps-pending">Pending</span></td></tr>
               <tr><td><code style="font-size:.75rem">BK-6C2E-73BV</code></td><td>James Kotze</td><td>Vineyard Retreat</td><td>2 May 2025</td><td style="color:var(--green);font-weight:600">R971.35</td><td><span class="ps-active">Paid</span></td></tr>
@@ -5860,7 +5845,7 @@ const rtConfig = {
     icon:'🏨', label:'Accommodation',  cls:'rt-accommodation',
     form: () => `
       <div class="fg-row">
-        <div class="fg"><label>Guest 1 — Full name *</label><input class="fi" id="bk-g1" placeholder="e.g. Amahle Dlamini"></div>
+        <div class="fg"><label>Guest 1 — Full name *</label><input class="fi" id="bk-g1" placeholder="e.g. My Account"></div>
         <div class="fg"><label>Guest 2 (optional)</label><input class="fi" id="bk-g2" placeholder="e.g. Sipho Khumalo"></div>
       </div>
       <div class="fg-row">
@@ -6755,9 +6740,9 @@ function admPrintCode(code, boxName) {
 /* ── ORDER DETAIL ── */
 const orderDetailDB = {
   'WB-ORD-2025-0042': {
-    name:'Amahle Dlamini', email:'amahle@demo.co.za', phone:'+27 82 555 1234', date:'10 Apr 2025',
+    name:'My Account', email:'amahle@demo.co.za', phone:'+27 82 555 1234', date:'10 Apr 2025',
     type:'Mixed', total:'R10,498', boost:true,
-    delivery:{ recipient:'Amahle Dlamini', street:'14 Clifton Road', city:'Cape Town', province:'Western Cape', postal:'8001' },
+    delivery:{ recipient:'My Account', street:'14 Clifton Road', city:'Cape Town', province:'Western Cape', postal:'8001' },
     items:[
       { name:'WowBox Couples Retreat', type:'Physical', code:'WB-2025-COUP', status:'active' },
       { name:'WowBox Surprise Experience', type:'E-Box', code:'WB-2025-SURP', status:'active' },
