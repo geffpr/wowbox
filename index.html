@@ -3070,7 +3070,7 @@ tr:hover td{background:var(--b50)}
         </div>
         <div style="display:flex;gap:12px">
           <button class="btn bg" onclick="nextStep(1)"><i class="fa fa-arrow-left"></i> Back</button>
-          <button class="btn bp" style="flex:1;justify-content:center;padding:13px" onclick="nextStep(3)">Continue to payment <i class="fa fa-arrow-right"></i></button>
+          <button class="btn bp" style="flex:1;justify-content:center;padding:13px" onclick="validateDetailsAndContinue()">Continue to payment <i class="fa fa-arrow-right"></i></button>
         </div>
       </div>
 
@@ -6276,6 +6276,43 @@ function nextStep(step, quiet) {
   });
   appState.ckStep = step;
   if (!quiet) window.scrollTo({top:0,behavior:'smooth'});
+}
+
+function validateDetailsAndContinue() {
+  const ct = getCartType();
+  const emailEl = document.getElementById('ck-email');
+  const nameEl  = document.getElementById('ck-full-name');
+  const email   = emailEl ? emailEl.value.trim() : '';
+  const name    = nameEl  ? nameEl.value.trim()  : '';
+
+  // Show or hide error
+  var errEl = document.getElementById('ck-details-error');
+  if (!errEl) {
+    errEl = document.createElement('div');
+    errEl.id = 'ck-details-error';
+    errEl.style.cssText = 'background:#fee2e2;border:1px solid #fca5a5;border-radius:8px;padding:10px 14px;font-size:.8rem;color:#991b1b;margin:0 0 14px 0;display:none';
+    var card = document.getElementById('ck-details-card');
+    if (card) card.insertBefore(errEl, card.firstChild);
+  }
+
+  if (!name) {
+    if (nameEl) { nameEl.style.borderColor = '#ef4444'; nameEl.focus(); nameEl.scrollIntoView({behavior:'smooth',block:'center'}); }
+    errEl.textContent = 'Please enter your full name.';
+    errEl.style.display = 'block';
+    return;
+  }
+  if (!email || !email.includes('@')) {
+    if (emailEl) { emailEl.style.borderColor = '#ef4444'; emailEl.focus(); emailEl.scrollIntoView({behavior:'smooth',block:'center'}); }
+    errEl.textContent = 'Please enter a valid email address to receive your voucher.';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  // All good - clear errors and proceed
+  errEl.style.display = 'none';
+  if (nameEl)  nameEl.style.borderColor  = '';
+  if (emailEl) emailEl.style.borderColor = '';
+  nextStep(3);
 }
 
 function completeOrder() {
