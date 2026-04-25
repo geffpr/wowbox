@@ -3241,7 +3241,7 @@ tr:hover td{background:var(--b50)}
         </div>
         <div style="display:flex;gap:12px">
           <button class="btn bg" onclick="nextStep(1)"><i class="fa fa-arrow-left"></i> Back</button>
-          <button class="btn bp" style="flex:1;justify-content:center;padding:13px" onclick="nextStep(3)">Continue to payment <i class="fa fa-arrow-right"></i></button>
+          <button class="btn bp" style="flex:1;justify-content:center;padding:13px" onclick="validateDetailsAndContinue()">Continue to payment <i class="fa fa-arrow-right"></i></button>
         </div>
       </div>
 
@@ -3349,7 +3349,7 @@ tr:hover td{background:var(--b50)}
         </div>
         <div class="vc-box">
           <small>Unique Booking Reference</small>
-          <span class="vc-val">BK-7F4D-92XP</span>
+          <span class="vc-val" id="v-bref-display">—</span>
           <p style="font-size:.68rem;color:var(--muted);margin-top:7px">Present this code at the venue to redeem your experience</p>
         </div>
         <div style="display:flex;gap:10px;margin-bottom:16px">
@@ -6485,7 +6485,7 @@ function renderCheckout() {
   const typeBadge = {ebox:'<span class="ck-type-badge ck-ebox">📧 E-Box delivery</span>',physical:'<span class="ck-type-badge ck-phys">📦 Physical delivery</span>',mixed:'<span class="ck-type-badge ck-mixed">📧📦 Mixed order</span>'};
   let fields = '';
   if (ct === 'ebox') {
-    fields = `<div class="fg"><label>Full name *</label><input class="fi" placeholder="Your full name"></div><div class="fg"><label>Email address *</label><input class="fi" type="email" placeholder="where to send your vouchers"></div><p style="font-size:.75rem;color:var(--muted);margin-top:4px"><i class="fa fa-info-circle" style="color:var(--b400)"></i> Your PDF voucher(s) will be generated and sent immediately after payment.</p>`;
+    fields = `<div class="fg"><label>Full name *</label><input class="fi" id="ck-full-name" placeholder="Your full name" onkeydown="if(event.key==='Enter'){event.preventDefault();}"></div><div class="fg"><label>Email address *</label><input class="fi" id="ck-email" type="email" placeholder="where to send your vouchers" onkeydown="if(event.key==='Enter'){event.preventDefault();}"></div><p style="font-size:.75rem;color:var(--muted);margin-top:4px"><i class="fa fa-info-circle" style="color:var(--b400)"></i> Your PDF voucher(s) will be generated and sent immediately after payment.</p>`;
   } else if (ct === 'physical') {
     fields = `<div class="fg"><label>Full name *</label><input class="fi" placeholder="Recipient full name"></div><div class="fg"><label>Email</label><input class="fi" type="email" placeholder="Order confirmation email"></div><h4 style="font-size:.9rem;margin:16px 0 12px">Delivery address</h4><div class="fg"><label>Street address *</label><input class="fi" placeholder="123 Main Street"></div><div class="fg-row"><div class="fg"><label>City *</label><input class="fi" placeholder="Cape Town"></div><div class="fg"><label>Province *</label><select class="fi"><option>Western Cape</option><option>Gauteng</option><option>KwaZulu-Natal</option><option>Eastern Cape</option></select></div></div><div class="fg-row"><div class="fg"><label>Postal code *</label><input class="fi" placeholder="8001"></div><div class="fg"><label>Country</label><input class="fi" value="South Africa" readonly></div></div><div class="fg"><label>Billing same as delivery?</label><label style="display:flex;align-items:center;gap:8px;font-size:.82rem;cursor:pointer"><input type="checkbox" checked style="accent-color:var(--b600)"> Yes, same address</label></div>`;
   } else {
@@ -6515,6 +6515,42 @@ function nextStep(step, quiet) {
   });
   appState.ckStep = step;
   if (!quiet) window.scrollTo({top:0,behavior:'smooth'});
+}
+
+function validateDetailsAndContinue() {
+  var emailEl = document.getElementById('ck-email');
+  var nameEl  = document.getElementById('ck-full-name');
+  var email   = emailEl ? emailEl.value.trim() : '';
+  var name    = nameEl  ? nameEl.value.trim()  : '';
+
+  var errEl = document.getElementById('ck-details-error');
+  if (!errEl) {
+    errEl = document.createElement('div');
+    errEl.id = 'ck-details-error';
+    errEl.style.cssText = 'background:#fee2e2;border:1px solid #fca5a5;border-radius:8px;padding:10px 14px;font-size:.8rem;color:#991b1b;margin:0 0 14px;display:none';
+    var card = document.getElementById('ck-details-card');
+    if (card) card.insertBefore(errEl, card.firstChild);
+  }
+
+  if (!name) {
+    if (nameEl) nameEl.style.borderColor = '#ef4444';
+    errEl.textContent = 'Please enter your full name.';
+    errEl.style.display = 'block';
+    if (nameEl) { nameEl.focus(); nameEl.scrollIntoView({behavior:'smooth',block:'center'}); }
+    return;
+  }
+  if (!email || !email.includes('@')) {
+    if (emailEl) emailEl.style.borderColor = '#ef4444';
+    errEl.textContent = 'Please enter a valid email address.';
+    errEl.style.display = 'block';
+    if (emailEl) { emailEl.focus(); emailEl.scrollIntoView({behavior:'smooth',block:'center'}); }
+    return;
+  }
+
+  errEl.style.display = 'none';
+  if (nameEl)  nameEl.style.borderColor  = '';
+  if (emailEl) emailEl.style.borderColor = '';
+  nextStep(3);
 }
 
 function completeOrder() {
@@ -6564,16 +6600,20 @@ function completeOrder() {
   handler.openIframe();
 }
 
-function completeOrderConfirm(paystackRef, total, discount) {
-  const ct  = getCartType();
-  const ref = paystackRef || ('WB-ORD-2025-' + String(Math.floor(1000+Math.random()*9000)));
+async function completeOrderConfirm(paystackRef, total, discount) {
+  const ct       = getCartType();
+  const ref      = paystackRef || ('WB-ORD-' + Date.now());
+  const dateStr  = new Date().toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'});
+  const dateISO  = new Date().toISOString().slice(0,10);
+  const custEmail = document.getElementById('ck-email')    ? document.getElementById('ck-email').value.trim()    : '';
+  const custName  = document.getElementById('ck-full-name')? document.getElementById('ck-full-name').value.trim() : 'Customer';
 
   document.getElementById('ck-order-ref').textContent = ref;
 
   const msgs = {
-    ebox:     'Your PDF vouchers have been generated and sent to your email. Present them at the venue to enjoy your experiences.',
-    physical: 'Your physical box(es) have been dispatched! Track delivery in your account. Expected arrival: 2-3 business days.',
-    mixed:    'Your E-Box vouchers have been emailed. Physical boxes dispatched — track in your account.'
+    ebox:     'Your e-vouchers have been generated and sent to your email.',
+    physical: 'Your physical box has been dispatched. Expected delivery: 2-3 business days.',
+    mixed:    'Your e-vouchers have been emailed. Physical boxes dispatched.'
   };
   document.getElementById('ck-conf-msg').textContent = msgs[ct] || '';
 
@@ -6583,24 +6623,106 @@ function completeOrderConfirm(paystackRef, total, discount) {
   const subs = { ebox:'Vouchers sent to your email', physical:'Delivery in 2-3 business days', mixed:'Vouchers emailed · Physical boxes shipped' };
   document.getElementById('ck-conf-sub').textContent = subs[ct] || '';
 
+  // Generate WB codes for each box
+  const wbCodes = appState.cart.map(function() {
+    return 'WB-' + Math.random().toString(36).toUpperCase().slice(2,6) + '-' + Math.random().toString(36).toUpperCase().slice(2,6);
+  });
+
+  // Build order items
+  const orderItems = appState.cart.map(function(item, i) {
+    const box = boxDB[item.boxId] || {};
+    return { name: box.name || item.boxId, code: wbCodes[i], type: ct === 'ebox' ? 'E-Box' : 'Physical', status: 'active' };
+  });
+
   const couponLine = discount > 0 && activeCoupon
-    ? `<div class="cf"><label>Coupon</label><span style="color:var(--green)">-R${discount.toLocaleString()} (${activeCoupon.code})</span></div>`
+    ? '<div class="cf"><label>Coupon</label><span style="color:var(--green)">-R' + discount.toLocaleString() + ' (' + activeCoupon.code + ')</span></div>'
     : '';
-  const msgLine   = appState.lastOrderMsg   ? `<div class="cf"><label>Gift message</label><span style="font-style:italic">${appState.lastOrderMsg.substring(0,60)}...</span></div>` : '';
-  const videoLine = appState.lastOrderVideo ? `<div class="cf"><label>Video link</label><span style="color:var(--b600)">Included</span></div>` : '';
 
   document.getElementById('ck-conf-grid').innerHTML =
-    `<div class="cf"><label>Order #</label><span>${ref}</span></div>
-     <div class="cf"><label>Date</label><span>${new Date().toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'})}</span></div>
-     <div class="cf"><label>Items</label><span>${appState.cart.length} box${appState.cart.length>1?'es':''}</span></div>
-     ${couponLine}${msgLine}${videoLine}
-     <div class="cf"><label>Total paid</label><span style="color:var(--b700);font-weight:700">R${total.toLocaleString()}</span></div>
-     <div class="cf"><label>Payment ref</label><span style="font-size:.75rem;color:var(--muted)">${ref}</span></div>`;
+    '<div class="cf"><label>Order #</label><span>' + ref + '</span></div>'
+    + '<div class="cf"><label>Date</label><span>' + dateStr + '</span></div>'
+    + '<div class="cf"><label>Items</label><span>' + appState.cart.length + ' box' + (appState.cart.length > 1 ? 'es' : '') + '</span></div>'
+    + couponLine
+    + '<div class="cf"><label>Total paid</label><span style="color:var(--b700);font-weight:700">R' + total.toLocaleString() + '</span></div>'
+    + '<div class="cf"><label>Payment ref</label><span style="font-size:.75rem;color:var(--muted)">' + ref + '</span></div>';
 
-  if (ct==='ebox'||ct==='mixed') document.getElementById('ck-voucher-btn').style.display='flex';
+  if (ct === 'ebox' || ct === 'mixed') document.getElementById('ck-voucher-btn').style.display = 'flex';
+
+  // Save order locally for admin Orders table
+  orderDetailDB[ref] = {
+    name:  custName,
+    email: custEmail || 'customer@wowbox.co.za',
+    phone: '',
+    date:  dateStr,
+    type:  ct === 'ebox' ? 'E-Box' : ct === 'physical' ? 'Physical' : 'Mixed',
+    total: 'R' + total.toLocaleString(),
+    boost: false,
+    items: orderItems,
+    delivery: null,
+  };
+  if (typeof ordersState !== 'undefined') ordersState.statuses[ref] = 'Pending';
+  if (typeof renderOrdersTable === 'function') renderOrdersTable();
+
+  // Supabase + email (non-blocking)
+  (async function() {
+    try {
+      // Insert vouchers
+      var voucherRows = appState.cart.map(function(item, i) {
+        var box = boxDB[item.boxId] || {};
+        return {
+          code:       wbCodes[i],
+          box_id:     item.boxId,
+          box_name:   box.name || item.boxId,
+          user_email: custEmail || null,
+          status:     'active',
+          order_id:   ref,
+          is_physical_box: ct !== 'ebox',
+        };
+      });
+      if (voucherRows.length) {
+        await db_client.from('vouchers').insert(voucherRows);
+      }
+
+      // Insert order
+      await db_client.from('orders').insert({
+        id:             ref,
+        customer_name:  custName,
+        customer_email: custEmail || null,
+        total_amount:   total,
+        order_type:     ct,
+        status:         'pending',
+        paystack_ref:   paystackRef || ref,
+      });
+
+      // Send email
+      if (custEmail) {
+        var emailType = (ct === 'ebox' || ct === 'mixed') ? 'status_delivered' : 'status_pending';
+        await fetch('/api/send-email', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            type: emailType,
+            order: {
+              id:    ref,
+              name:  custName,
+              email: custEmail,
+              type:  ct === 'ebox' ? 'E-Box' : ct === 'physical' ? 'Physical' : 'Mixed',
+              total: 'R' + total.toLocaleString(),
+              date:  dateStr,
+              items: orderItems,
+            }
+          })
+        });
+      }
+    } catch(err) {
+      console.warn('completeOrderConfirm Supabase/email:', err.message);
+    }
+  })();
+
   nextStep(4);
   appState.cart = []; activeCoupon = null; updateCartBadge();
 }
+
 
 
 /* ══════════════════════════════════════════════════════════════
