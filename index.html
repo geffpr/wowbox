@@ -600,14 +600,7 @@ db_client.auth.onAuthStateChange(function(event, session) {
   if (event === 'SIGNED_OUT') { currentUser = null; }
 });
 
-(async function() {
-  try {
-    var sessionResult = await db_client.auth.getSession();
-    if (sessionResult.data && sessionResult.data.session && sessionResult.data.session.user) {
-      await authOnSignedIn(sessionResult.data.session.user);
-    }
-  } catch(e) { console.warn('Session check:', e.message); }
-})();
+// Session check now in DOMContentLoaded
 </script>
 
 <!-- Paystack -->
@@ -8573,13 +8566,32 @@ function admDeleteCoupon(id) {
    INIT
 ══════════════════════════════════════════════════════════════ */
 window.addEventListener('DOMContentLoaded', async () => {
+  appState.priceBase = 1499;
+
+  // 1. Check auth session FIRST (before showing anything)
+  var hasSession = false;
+  try {
+    var sessionResult = await db_client.auth.getSession();
+    if (sessionResult.data && sessionResult.data.session && sessionResult.data.session.user) {
+      hasSession = true;
+      // Start loading boxes in background
+      renderBoxGrids();
+      loadProduct('couples-retreat');
+      await authOnSignedIn(sessionResult.data.session.user);
+      return; // authOnSignedIn calls go() which shows body
+    }
+  } catch(e) { console.warn('Session check:', e.message); }
+
+  // 2. No session - load page normally
   await renderBoxGrids();
   loadProduct('couples-retreat');
-  appState.priceBase = 1499;
   var hash = window.location.hash.replace('#','') || '/';
-  if (hash === '/' || hash === '') {
-    go('home');
-    setNL('nl-home');
+  // Protected pages → redirect to login
+  var protectedPages = ['/my-account', '/admin', '/partner'];
+  if (protectedPages.indexOf(hash) >= 0) {
+    go('login'); setNL('nl-login');
+  } else if (hash === '/' || hash === '') {
+    go('home'); setNL('nl-home');
   } else {
     goFromHash();
   }
