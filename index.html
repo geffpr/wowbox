@@ -5194,11 +5194,26 @@ const appState = {
 /* ══════════════════════════════════════════════════════════════
    NAVIGATION
 ══════════════════════════════════════════════════════════════ */
+/* ── Hash routing map ── */
+const PAGE_HASH = {
+  home:'/',allboxes:'/boxes',product:'/box',expdetail:'/experience',
+  reviews:'/reviews',cart:'/cart',checkout:'/checkout',voucher:'/confirmation',
+  login:'/login',dashboard:'/my-account',activation:'/activate',
+  partner:'/partner',admin:'/admin',browse:'/browse',roulette:'/surprise'
+};
+const HASH_PAGE = {};
+Object.entries(PAGE_HASH).forEach(function(e){ HASH_PAGE[e[1]] = e[0]; });
+
 function go(page) {
-  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  const el = document.getElementById('page-' + page);
+  document.querySelectorAll('.page').forEach(function(p){ p.classList.remove('active'); });
+  var el = document.getElementById('page-' + page);
   if (el) el.classList.add('active');
   window.scrollTo({top:0,behavior:'smooth'});
+  // Update URL hash without triggering hashchange
+  var hash = PAGE_HASH[page] || ('/' + page);
+  if (window.location.hash !== '#' + hash) {
+    history.pushState(null, '', '#' + hash);
+  }
   if (page === 'allboxes' || page === 'home') renderBoxGrids();
   if (page === 'cart') renderCart();
   if (page === 'checkout') renderCheckout();
@@ -5208,6 +5223,25 @@ function go(page) {
   if (page === 'roulette') initRoulettePage();
   if (page === 'partner') initPartnerPage();
 }
+
+function goFromHash() {
+  var hash = window.location.hash.replace('#','') || '/';
+  var page = HASH_PAGE[hash] || 'home';
+  // Protected pages - redirect to login if not authenticated
+  if ((page === 'admin' || page === 'dashboard') && !currentUser && page !== 'admin') {
+    go('login'); return;
+  }
+  go(page);
+  // Update nav
+  var navMap = {
+    home:'nl-home',allboxes:'nl-allboxes',login:'nl-login',
+    dashboard:'nl-dash',partner:'nl-partner',admin:'nl-admin'
+  };
+  if (navMap[page]) setNL(navMap[page]);
+}
+
+// Handle browser back/forward
+window.addEventListener('popstate', function() { goFromHash(); });
 function setNL(id) {
   document.querySelectorAll('.nl').forEach(n => n.classList.remove('on'));
   const el = document.getElementById(id);
@@ -8529,11 +8563,17 @@ function admDeleteCoupon(id) {
    INIT
 ══════════════════════════════════════════════════════════════ */
 window.addEventListener('DOMContentLoaded', async () => {
-  await renderBoxGrids();          // attend que les images Supabase soient chargées
-  loadProduct('couples-retreat');  // ensuite charge le produit par défaut
-  setNL('nl-home');
-  document.getElementById('nl-home').classList.add('on');
+  await renderBoxGrids();
+  loadProduct('couples-retreat');
   appState.priceBase = 1499;
+  // Navigate to page from URL hash (or home if no hash)
+  var hash = window.location.hash.replace('#','') || '/';
+  if (hash === '/') {
+    setNL('nl-home');
+    document.getElementById('nl-home').classList.add('on');
+  } else {
+    goFromHash();
+  }
 });
 </script>
 <!-- Hidden print area for box codes -->
