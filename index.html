@@ -91,18 +91,40 @@ async function authSignOut() {
 
 async function authOnSignedIn(user) {
   currentUser = user;
-  var name     = (user.user_metadata && user.user_metadata.full_name) ? user.user_metadata.full_name : (user.email ? user.email.split('@')[0] : 'User');
-  var email    = user.email || '';
-  var initials = name.charAt(0).toUpperCase();
-  var avatar   = document.getElementById('dash-avatar');
-  var nameEl   = document.getElementById('dash-user-name');
-  var emailEl  = document.getElementById('dash-user-email');
-  if (avatar)  avatar.textContent  = initials;
+  var name  = (user.user_metadata && user.user_metadata.full_name) ? user.user_metadata.full_name : (user.email ? user.email.split('@')[0] : 'User');
+  var email = user.email || '';
+
+  // Fetch or create profile with role
+  var role = 'customer';
+  try {
+    var profRes = await db_client.from('user_profiles').select('role,full_name').eq('id', user.id).single();
+    if (profRes.data) {
+      role = profRes.data.role || 'customer';
+      if (profRes.data.full_name) name = profRes.data.full_name;
+    } else {
+      await db_client.from('user_profiles').insert({ id: user.id, email: email, full_name: name, role: 'customer' });
+    }
+  } catch(e) { console.warn('Profile fetch:', e.message); }
+
+  currentUser.role = role;
+  currentUser.displayName = name;
+
+  var avatar  = document.getElementById('dash-avatar');
+  var nameEl  = document.getElementById('dash-user-name');
+  var emailEl = document.getElementById('dash-user-email');
+  if (avatar)  avatar.textContent  = name.charAt(0).toUpperCase();
   if (nameEl)  nameEl.textContent  = name;
   if (emailEl) emailEl.textContent = email;
-  await loadUserBoxes(email);
-  go('dashboard');
-  setNL('nl-dash');
+
+  // Route by role
+  if (role === 'admin') {
+    go('admin'); setNL('nl-admin');
+  } else if (role === 'partner') {
+    go('partner'); setNL('nl-partner');
+  } else {
+    await loadUserBoxes(email);
+    go('dashboard'); setNL('nl-dash');
+  }
 }
 
 async function loadUserBoxes(email) {
@@ -167,252 +189,301 @@ db_client.auth.onAuthStateChange(function(event, session) {
   const SUPABASE_KEY  = 'sb_publishable_NNDH11RkDff2KHghf_k-8g_wL2NtUIL';
   const db_client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-  db_client.from('boxes').select('id').limit(1).then(function(r) {
-    if (r.error) console.error('Supabase erreur:', r.error.message);
-    else console.log('Supabase connecte!', r.data ? r.data.length : 0, 'box trouvee');
+  // Test de connexion
+  db_client.from('boxes').select('id').limit(1).then(({ data, error }) => {
+    if (error) console.error('Supabase erreur:', error.message);
+    else console.log('Supabase connecté !', data?.length, 'box trouvée');
   });
+/* ══════════════════════════════════════════════════════════════
+   ALL DYNAMIC ADMIN FUNCTIONS
+══════════════════════════════════════════════════════════════ */
 
+/* ── Box Usage ── */
 const usageDB = [
   { code:'WB-2025-COUP', box:'Couples Retreat',    customer:'Amahle Dlamini',    email:'amahle@demo.co.za',   experience:'The Vineyard Retreat',    partner:'Vineyard Hotels',    date:'2025-05-10' },
   { code:'WB-2025-RSET', box:'WowBox Reset',        customer:'Zanele Mokoena',    email:'zanele@wowbox.co.za', experience:'Ananda Couples Spa',      partner:'Ananda Wellness',    date:'2024-11-03' },
   { code:'WB-2025-SURP', box:'Surprise Experience', customer:'David Pieterse',    email:'david.p@mail.co.za',  experience:'Magalies Hot Air Balloon', partner:'AirTrack Adventures',date:'2025-03-21' },
   { code:'WB-2025-PADV', box:'Premium Adventure',   customer:'Sipho Khumalo',     email:'sipho@demo.co.za',    experience:'Kruger Game Drive',       partner:'Wild Horizons',      date:'2025-02-15' },
   { code:'WB-2024-SIGN', box:'Signature Experience',customer:'Claudette Ferreira',email:'claudette@wbtest.com',experience:'The Test Kitchen',        partner:'Test Kitchen Group', date:'2025-01-18' },
-  { code:'WB-2024-CITY', box:'City Break',           customer:'Fatima Naidoo',     email:'fatima@wbtest.com',   experience:'Clifton Ocean Suites',    partner:'Atlantic Hotels',    date:'2024-12-05' }
+  { code:'WB-2024-CITY', box:'City Break',           customer:'Fatima Naidoo',     email:'fatima@wbtest.com',   experience:'Clifton Ocean Suites',    partner:'Atlantic Hotels',    date:'2024-12-05' },
 ];
 
 async function loadUsageFromSupabase() {
   try {
-    var r = await db_client.from('vouchers').select('code,box_name,user_email,experience_used,partner_name,used_at').eq('status','used').not('used_at','is',null).order('used_at',{ascending:false});
-    if (r.error || !r.data) return;
-    r.data.forEach(function(v) {
-      if (!usageDB.find(function(u){return u.code===v.code;}))
-        usageDB.push({code:v.code,box:v.box_name||'-',customer:v.user_email||'-',email:v.user_email||'-',experience:v.experience_used||'-',partner:v.partner_name||'-',date:v.used_at||''});
+    const { data, error } = await db_client
+      .from('vouchers')
+      .select('code, box_name, user_email, experience_used, partner_name, used_at')
+      .eq('status', 'used')
+      .not('used_at', 'is', null)
+      .order('used_at', { ascending: false });
+    if (error || !data) return;
+    data.forEach(v => {
+      if (!usageDB.find(u => u.code === v.code))
+        usageDB.push({ code:v.code, box:v.box_name||'—', customer:v.user_email||'—', email:v.user_email||'—', experience:v.experience_used||'—', partner:v.partner_name||'—', date:v.used_at||'' });
     });
     renderUsageTable();
   } catch(e) { console.warn('loadUsageFromSupabase:', e.message); }
 }
 
 function renderUsageTable() {
-  var tbody = document.getElementById('adm-usage-tbody');
-  var lbl   = document.getElementById('usage-count-label');
+  const tbody = document.getElementById('adm-usage-tbody');
+  const lbl   = document.getElementById('usage-count-label');
   if (!tbody) return;
-  var fBox     = (document.getElementById('usage-filter-box')     || {value:''}).value;
-  var fPartner = (document.getElementById('usage-filter-partner') || {value:''}).value;
-  var fFrom    = (document.getElementById('usage-date-from')      || {value:''}).value;
-  var fTo      = (document.getElementById('usage-date-to')        || {value:''}).value;
-  var filtered = usageDB.filter(function(r) {
-    return (!fBox||r.box.indexOf(fBox)>=0)&&(!fPartner||r.partner===fPartner)&&(!fFrom||r.date>=fFrom)&&(!fTo||r.date<=fTo);
-  });
-  var fmt = function(d){return d?new Date(d+'T00:00:00').toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'}):'-';};
-  tbody.innerHTML = filtered.map(function(r){
-    return '<tr>'
-      +'<td><code style="font-size:.75rem;color:var(--b700)">'+r.code+'</code></td>'
-      +'<td>'+r.box+'</td><td>'+r.customer+'</td>'
-      +'<td style="font-size:.78rem;color:var(--muted)">'+r.email+'</td>'
-      +'<td>'+r.experience+'</td><td>'+r.partner+'</td>'
-      +'<td style="font-size:.8rem;color:var(--muted)">'+fmt(r.date)+'</td>'
-      +'</tr>';
-  }).join('')||'<tr><td colspan="7" style="text-align:center;padding:28px;color:var(--muted)">No records match your filters.</td></tr>';
-  var month=new Date().toISOString().slice(0,7);
-  var thisMonth=filtered.filter(function(r){return r.date.indexOf(month)===0;}).length;
-  if(lbl)lbl.textContent=filtered.length+' redemption'+(filtered.length!==1?'s':'')+' matching - '+thisMonth+' this month';
+  const fBox     = document.getElementById('usage-filter-box')?.value    || '';
+  const fPartner = document.getElementById('usage-filter-partner')?.value || '';
+  const fFrom    = document.getElementById('usage-date-from')?.value      || '';
+  const fTo      = document.getElementById('usage-date-to')?.value        || '';
+  const filtered = usageDB.filter(r =>
+    (!fBox||r.box.includes(fBox)) && (!fPartner||r.partner===fPartner) && (!fFrom||r.date>=fFrom) && (!fTo||r.date<=fTo)
+  );
+  const fmt = d => d ? new Date(d+'T00:00:00').toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'}) : '—';
+  tbody.innerHTML = filtered.map(r => `<tr>
+    <td><code style="font-size:.75rem;color:var(--b700)">${r.code}</code></td>
+    <td>${r.box}</td><td>${r.customer}</td>
+    <td style="font-size:.78rem;color:var(--muted)">${r.email}</td>
+    <td>${r.experience}</td><td>${r.partner}</td>
+    <td style="font-size:.8rem;color:var(--muted)">${fmt(r.date)}</td>
+  </tr>`).join('') || '<tr><td colspan="7" style="text-align:center;padding:28px;color:var(--muted)">No records match your filters.</td></tr>';
+  const month = new Date().toISOString().slice(0,7);
+  const thisMonth = filtered.filter(r => r.date.startsWith(month)).length;
+  if (lbl) lbl.textContent = `${filtered.length} redemption${filtered.length!==1?'s':''} · ${thisMonth} this month`;
 }
 
 function exportUsageCSV() {
-  var fBox     = (document.getElementById('usage-filter-box')     || {value:''}).value;
-  var fPartner = (document.getElementById('usage-filter-partner') || {value:''}).value;
-  var fFrom    = (document.getElementById('usage-date-from')      || {value:''}).value;
-  var fTo      = (document.getElementById('usage-date-to')        || {value:''}).value;
-  var filtered = usageDB.filter(function(r){return(!fBox||r.box.indexOf(fBox)>=0)&&(!fPartner||r.partner===fPartner)&&(!fFrom||r.date>=fFrom)&&(!fTo||r.date<=fTo);});
-  if(!filtered.length){admToast('No data to export.');return;}
-  var headers=['Box Code','Box Type','Customer','Email','Experience Used','Partner','Date Used'];
-  var rows=filtered.map(function(r){return[r.code,r.box,r.customer,r.email,r.experience,r.partner,r.date].map(function(v){return'"'+String(v).replace(/"/g,'""')+'"';}).join(',');});
-  var a=document.createElement('a');
-  a.href=URL.createObjectURL(new Blob([[headers.join(',')].concat(rows).join('\n')],{type:'text/csv'}));
-  a.download='wowbox-usage-'+new Date().toISOString().slice(0,10)+'.csv';
+  const fBox     = document.getElementById('usage-filter-box')?.value    || '';
+  const fPartner = document.getElementById('usage-filter-partner')?.value || '';
+  const fFrom    = document.getElementById('usage-date-from')?.value      || '';
+  const fTo      = document.getElementById('usage-date-to')?.value        || '';
+  const filtered = usageDB.filter(r =>
+    (!fBox||r.box.includes(fBox)) && (!fPartner||r.partner===fPartner) && (!fFrom||r.date>=fFrom) && (!fTo||r.date<=fTo)
+  );
+  if (!filtered.length) { admToast('No data to export.'); return; }
+  const headers = ['Box Code','Box Type','Customer','Email','Experience Used','Partner','Date Used'];
+  const rows = filtered.map(r => [r.code,r.box,r.customer,r.email,r.experience,r.partner,r.date].map(v => `"${String(v).replace(/"/g,'""')}"`).join(','));
+  const csv = [headers.join(','), ...rows].join('\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
+  a.download = `wowbox-usage-${new Date().toISOString().slice(0,10)}.csv`;
   a.click();
-  admToast('Exported '+filtered.length+' records');
+  admToast(`Exported ${filtered.length} records`);
 }
 
+/* ── Orders ── */
 const ordersState = {
-  statuses:{'WB-ORD-2025-0042':'In transit','WB-ORD-2025-0041':'Delivered','WB-ORD-2025-0040':'Delivered','WB-ORD-2025-0039':'Pending'}
+  statuses: {
+    'WB-ORD-2025-0042': 'In transit',
+    'WB-ORD-2025-0041': 'Delivered',
+    'WB-ORD-2025-0040': 'Delivered',
+    'WB-ORD-2025-0039': 'Pending',
+  }
 };
 
 function renderOrdersTable() {
-  var tbody=document.getElementById('adm-orders-tbody');
-  if(!tbody)return;
-  var fSt=(document.getElementById('ord-filter-status')||{value:''}).value;
-  var fTy=(document.getElementById('ord-filter-type')||{value:''}).value;
-  var q  =((document.getElementById('ord-search')||{value:''}).value).toLowerCase();
-  var tag={'E-Box':'<span class="tag t-act" style="font-size:.7rem">E-Box</span>','Physical':'<span class="tag t-hotel" style="font-size:.7rem">Physical</span>','Mixed':'<span class="tag" style="background:#fef3c7;color:#92400e;font-size:.7rem">Mixed</span>'};
-  var sts=['Pending','In process','In transit','Delivered'];
-  var rows=Object.entries(orderDetailDB).filter(function(e){
-    var id=e[0],o=e[1],st=ordersState.statuses[id]||'Pending';
-    return(!fSt||st===fSt)&&(!fTy||o.type===fTy)&&(!q||id.toLowerCase().indexOf(q)>=0||o.name.toLowerCase().indexOf(q)>=0||o.email.toLowerCase().indexOf(q)>=0);
-  }).map(function(e){
-    var id=e[0],o=e[1],st=ordersState.statuses[id]||'Pending';
-    var codes=o.items.filter(function(i){return i.code!=='--';}).map(function(i){return i.code;}).join('<br>');
-    var first=o.items.find(function(i){return i.code!=='--';});
-    var opts=sts.map(function(s){return '<option'+(s===st?' selected':'')+'>'+s+'</option>';}).join('');
-    var pBtn=first?'<button class="btn bg bsm" style="margin-left:4px" onclick="admPrintCode(\''+first.code+'\',\''+first.name+'\')"><i class="fa fa-print"></i></button>':'';
-    return '<tr style="cursor:pointer" onclick="admOrderDetail(\''+id+'\')">'
-      +'<td><strong>'+id+'</strong></td>'
-      +'<td>'+o.name+'<div style="font-size:.7rem;color:var(--muted)">'+o.email+'</div></td>'
-      +'<td style="font-size:.8rem">'+o.items.length+' box'+(o.items.length>1?'es':'')+'</td>'
-      +'<td>'+(tag[o.type]||o.type)+'</td>'
-      +'<td><code style="font-size:.72rem;color:var(--b700)">'+codes+'</code></td>'
-      +'<td style="font-weight:600;color:var(--b700)">'+o.total+'</td>'
-      +'<td style="font-size:.8rem;color:var(--muted)">'+o.date+'</td>'
-      +'<td><select class="fi" data-order-id="'+id+'" style="padding:5px 9px;font-size:.75rem;width:auto" onchange="admUpdateOrderStatus(this)" onclick="event.stopPropagation()">'+opts+'</select></td>'
-      +'<td onclick="event.stopPropagation()" style="white-space:nowrap"><button class="btn bg bsm" onclick="admOrderDetail(\''+id+'\')"><i class="fa fa-eye"></i></button>'+pBtn+'</td>'
-      +'</tr>';
-  }).join('');
-  tbody.innerHTML=rows||'<tr><td colspan="9" style="text-align:center;padding:28px;color:var(--muted)">No orders match your filters.</td></tr>';
+  const tbody   = document.getElementById('adm-orders-tbody');
+  if (!tbody) return;
+  const fStatus = document.getElementById('ord-filter-status')?.value || '';
+  const fType   = document.getElementById('ord-filter-type')?.value   || '';
+  const search  = (document.getElementById('ord-search')?.value || '').toLowerCase();
+  const typeTag = {
+    'E-Box':    '<span class="tag t-act" style="font-size:.7rem">E-Box</span>',
+    'Physical': '<span class="tag t-hotel" style="font-size:.7rem">Physical</span>',
+    'Mixed':    '<span class="tag" style="background:#fef3c7;color:#92400e;font-size:.7rem">Mixed</span>',
+  };
+  const allStatuses = ['Pending','In process','In transit','Delivered'];
+  const rows = Object.entries(orderDetailDB)
+    .filter(([id, o]) => {
+      const st = ordersState.statuses[id] || 'Pending';
+      return (!fStatus || st === fStatus) && (!fType || o.type === fType)
+          && (!search || id.toLowerCase().includes(search) || o.name.toLowerCase().includes(search) || o.email.toLowerCase().includes(search));
+    })
+    .map(([id, o]) => {
+      const st    = ordersState.statuses[id] || 'Pending';
+      const codes = o.items.filter(i => i.code !== '—').map(i => i.code).join('<br>');
+      const first = o.items.find(i => i.code !== '—');
+      const opts  = allStatuses.map(s => `<option${s===st?' selected':''}>${s}</option>`).join('');
+      return `<tr style="cursor:pointer" onclick="admOrderDetail('${id}')">
+        <td><strong>${id}</strong></td>
+        <td>${o.name}<div style="font-size:.7rem;color:var(--muted)">${o.email}</div></td>
+        <td style="font-size:.8rem">${o.items.length} box${o.items.length>1?'es':''}</td>
+        <td>${typeTag[o.type]||o.type}</td>
+        <td><code style="font-size:.72rem;color:var(--b700)">${codes}</code></td>
+        <td style="font-weight:600;color:var(--b700)">${o.total}</td>
+        <td style="font-size:.8rem;color:var(--muted)">${o.date}</td>
+        <td><select class="fi" data-order-id="${id}" style="padding:5px 9px;font-size:.75rem;width:auto"
+          onchange="admUpdateOrderStatus(this)" onclick="event.stopPropagation()">${opts}</select></td>
+        <td onclick="event.stopPropagation()" style="white-space:nowrap">
+          <button class="btn bg bsm" onclick="admOrderDetail('${id}')"><i class="fa fa-eye"></i></button>
+          ${first?`<button class="btn bg bsm" style="margin-left:4px" onclick="admPrintCode('${first.code}','${first.name}')"><i class="fa fa-print"></i></button>`:''}
+        </td>
+      </tr>`;
+    }).join('');
+  tbody.innerHTML = rows || '<tr><td colspan="9" style="text-align:center;padding:28px;color:var(--muted)">No orders match your filters.</td></tr>';
 }
 
-async function sendOrderEmail(type,order){
-  try{var r=await fetch('/api/send-email',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({type:type,order:order})});return await r.json();}
-  catch(e){return{success:false,error:e.message};}
-}
-function admResendEmail(){
-  var title=(document.getElementById('ord-detail-title')||{textContent:''}).textContent;
-  var id=title.replace('Order ','').trim(),o=orderDetailDB[id];
-  if(!o){admToast('Open an order first.');return;}
-  sendOrderEmail('resend',{id:id,name:o.name,email:o.email,type:o.type,total:o.total,date:o.date,items:o.items}).then(function(r){admToast(r.success?'Email sent to '+o.email:'Failed: '+r.error);});
-}
-function admReissueCode(){
-  var title=(document.getElementById('ord-detail-title')||{textContent:''}).textContent;
-  var id=title.replace('Order ','').trim(),o=orderDetailDB[id];
-  if(!o){admToast('Open an order first.');return;}
-  if(!confirm('Reissue a new code for order '+id+'?'))return;
-  o.items.forEach(function(item){if(item.code&&item.code!=='--'){var old=item.code;item.code='WB-'+Date.now().toString(36).toUpperCase().slice(-6);if(codeDB[old])codeDB[old].status='used';}});
-  sendOrderEmail('reissue',{id:id,name:o.name,email:o.email,type:o.type,total:o.total,date:o.date,items:o.items}).then(function(r){admToast(r.success?'New code sent':'Email failed');});
-  admOrderDetail(id);
+async function sendOrderEmail(type, order) {
+  try {
+    const resp = await fetch('/api/send-email', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({type,order}) });
+    return await resp.json();
+  } catch(e) { return {success:false,error:e.message}; }
 }
 
-var generatedCodes=[];
-
-function genWBCode(){
-  return 'WB-'+Math.random().toString(36).toUpperCase().slice(2,6)+'-'+Math.random().toString(36).toUpperCase().slice(2,6);
+function admResendEmail() {
+  const title = document.getElementById('ord-detail-title')?.textContent || '';
+  const orderId = title.replace('Order ','').trim();
+  const order = orderDetailDB[orderId];
+  if (!order) { admToast('Open an order first.'); return; }
+  sendOrderEmail('resend',{id:orderId,...order}).then(r => admToast(r.success ? '✅ Email sent to ' + order.email : '⚠️ Failed: ' + r.error));
 }
 
-async function generateRetailCodes(){
-  var sel=document.getElementById('gen-box-type');
-  var boxId=sel?sel.value:'',boxName=sel?sel.options[sel.selectedIndex].text:'',prefix=sel?sel.options[sel.selectedIndex].dataset.prefix||'XX':'XX';
-  var qty=parseInt((document.getElementById('gen-quantity')||{value:'0'}).value)||0;
-  var batch=((document.getElementById('gen-batch')||{value:''}).value).trim().toUpperCase();
-  var btn=document.getElementById('gen-btn');
-  if(!qty||qty<1||qty>500){admToast('Enter a quantity between 1 and 500.');return;}
-  if(!batch){admToast('Please enter a batch name.');return;}
-  if(btn){btn.disabled=true;btn.textContent='Generating…';}
-  generatedCodes=[];
-  var now=new Date().toISOString().slice(0,10);
-  var existing=Object.keys(codeDB).filter(function(k){return k.indexOf('PHYS-'+prefix+'-')===0;}).map(function(k){return parseInt(k.split('-')[2])||0;});
-  var start=existing.length?Math.max.apply(null,existing)+1:1;
-  for(var i=0;i<qty;i++){
-    var physCode='PHYS-'+prefix+'-'+String(start+i).padStart(5,'0');
-    var wbCode=genWBCode();
-    generatedCodes.push({code:physCode,wbCode:wbCode,boxId:boxId,boxName:boxName,batch:batch,createdAt:now});
-    codeDB[physCode]={boxId:boxId,boxName:boxName,status:'inactive',physicalBox:true,retailBatch:batch,linkedWbCode:wbCode,activationLog:[]};
-  }
-  try{
-    // Insert PHYS codes (on box exterior — for vendor scan)
-    var physRows=generatedCodes.map(function(e){
-      return{code:e.code,box_id:e.boxId,box_name:e.boxName,status:'inactive',
-             is_physical_box:true,retail_batch:e.batch,linked_wb_code:e.wbCode};
-    });
-    // Insert WB codes (inside box — for recipient)
-    var wbRows=generatedCodes.map(function(e){
-      return{code:e.wbCode,box_id:e.boxId,box_name:e.boxName,status:'inactive',
-             is_physical_box:false,retail_batch:e.batch,linked_phys_code:e.code};
-    });
-    for(var j=0;j<physRows.length;j+=50){
-      var r1=await db_client.from('vouchers').insert(physRows.slice(j,j+50));
-      if(r1.error)throw r1.error;
-      var r2=await db_client.from('vouchers').insert(wbRows.slice(j,j+50));
-      if(r2.error)throw r2.error;
+function admReissueCode() {
+  const title = document.getElementById('ord-detail-title')?.textContent || '';
+  const orderId = title.replace('Order ','').trim();
+  const order = orderDetailDB[orderId];
+  if (!order) { admToast('Open an order first.'); return; }
+  if (!confirm('Reissue a new code for order ' + orderId + '?')) return;
+  order.items.forEach(item => {
+    if (item.code && item.code !== '—') {
+      const old = item.code;
+      item.code = 'WB-' + Date.now().toString(36).toUpperCase().slice(-6);
+      if (codeDB[old]) codeDB[old].status = 'used';
     }
-    admToast(qty + ' PHYS+WB pairs saved to Supabase!');
-  }catch(e){admToast('Generated locally. Supabase: ' + e.message.substring(0,40));}
-  if(btn){btn.disabled=false;btn.innerHTML='<i class="fa fa-barcode"></i> Generate codes';}
+  });
+  sendOrderEmail('reissue',{id:orderId,...order}).then(r => admToast(r.success ? '✅ New code sent' : '⚠️ Code issued but email failed'));
+  admOrderDetail(orderId);
+}
+
+/* ── Generate Retail Codes ── */
+let generatedCodes = [];
+
+async function generateRetailCodes() {
+  const sel   = document.getElementById('gen-box-type');
+  const boxId = sel.value;
+  const boxName = sel.options[sel.selectedIndex].text;
+  const prefix  = sel.options[sel.selectedIndex].dataset.prefix || 'XX';
+  const qty     = parseInt(document.getElementById('gen-quantity')?.value) || 0;
+  const batch   = (document.getElementById('gen-batch')?.value || '').trim().toUpperCase();
+  const btn     = document.getElementById('gen-btn');
+  if (!qty || qty < 1 || qty > 500) { admToast('Enter a quantity between 1 and 500.'); return; }
+  if (!batch) { admToast('Please enter a batch name.'); return; }
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fa fa-circle-notch fa-spin"></i> Generating…';
+  generatedCodes = [];
+  const now = new Date().toISOString().slice(0,10);
+  const existingNums = Object.keys(codeDB).filter(k => k.startsWith('PHYS-'+prefix+'-')).map(k => parseInt(k.split('-')[2])||0);
+  let startNum = existingNums.length ? Math.max(...existingNums)+1 : 1;
+  for (let i = 0; i < qty; i++) {
+    const code = 'PHYS-'+prefix+'-'+String(startNum+i).padStart(5,'0');
+    generatedCodes.push({ code, boxId, boxName, batch, createdAt: now });
+    codeDB[code] = { boxId, boxName, userId:null, status:'inactive', activatedAt:null, activatedBy:null, usedAt:null, experience:null, partner:null, orderId:null, hasBoost:false, physicalBox:true, retailBatch:batch, activationLog:[] };
+  }
+  try {
+    const rows = generatedCodes.map(e => ({ code:e.code, box_id:e.boxId, box_name:e.boxName, status:'inactive', is_physical_box:true, retail_batch:e.batch }));
+    for (let i=0;i<rows.length;i+=50) {
+      const {error} = await db_client.from('vouchers').insert(rows.slice(i,i+50));
+      if (error) throw error;
+    }
+    admToast('✅ '+qty+' codes saved to Supabase!');
+  } catch(e) { admToast('⚠️ Generated locally — Supabase error: '+e.message); }
+  btn.disabled = false;
+  btn.innerHTML = '<i class="fa fa-barcode"></i> Generate codes';
   renderGenCodes();
 }
 
-function renderGenCodes(){
-  var result=document.getElementById('gen-result'),listEl=document.getElementById('gen-codes-list'),title=document.getElementById('gen-result-title');
-  if(!result||!listEl)return;
-  result.style.display='block';
+function renderGenCodes() {
+  const result = document.getElementById('gen-result');
+  const listEl = document.getElementById('gen-codes-list');
+  const title  = document.getElementById('gen-result-title');
+  if (!result||!listEl) return;
+  result.style.display = 'block';
   result.scrollIntoView({behavior:'smooth',block:'nearest'});
-  if(title)title.innerHTML='<i class="fa fa-check-circle" style="color:var(--green)"></i> '+generatedCodes.length+' PHYS+WB pairs — '+(generatedCodes[0]?generatedCodes[0].batch:'');
-  var sa=document.getElementById('gen-select-all'),sc=document.getElementById('gen-selected-count');
-  if(sa)sa.checked=false;
-  if(sc)sc.textContent='0 selected';
-  listEl.innerHTML=generatedCodes.map(function(e,i){
-    return '<div class="gen-code-row">'
-      +'<input type="checkbox" class="gen-code-check gen-cb" data-idx="'+i+'" onchange="genUpdateCount()">'
-      +'<div style="flex:1">'
-      +'<div style="display:flex;align-items:center;gap:10px;margin-bottom:3px">'
-      +'<span style="font-size:.65rem;font-weight:700;background:#e0f2fe;color:#0369a1;padding:1px 6px;border-radius:4px">PHYS</span>'
-      +'<span class="gen-code-text" style="font-size:.82rem">'+e.code+'</span>'
-      +'<span style="font-size:.7rem;color:var(--muted)">sur la boîte</span>'
-      +'</div>'
-      +'<div style="display:flex;align-items:center;gap:10px">'
-      +'<span style="font-size:.65rem;font-weight:700;background:#f0fdf4;color:#166534;padding:1px 6px;border-radius:4px">WB</span>'
-      +'<span class="gen-code-text" style="font-size:.82rem;color:var(--green)">'+e.wbCode+'</span>'
-      +'<span style="font-size:.7rem;color:var(--muted)">inside box</span>'
-      +'</div>'
-      +'</div>'
-      +'<div class="gen-code-batch">'+e.batch+'</div>'
-      +'<button class="btn bg bsm" onclick="printSingleCode('+i+')"><i class="fa fa-print"></i></button>'
-      +'</div>';
-  }).join('');
+  if (title) title.innerHTML = '<i class="fa fa-check-circle" style="color:var(--green)"></i> '+generatedCodes.length+' codes — '+(generatedCodes[0]?.batch||'');
+  document.getElementById('gen-select-all').checked = false;
+  document.getElementById('gen-selected-count').textContent = '0 selected';
+  listEl.innerHTML = generatedCodes.map((e,i) => `
+    <div class="gen-code-row">
+      <input type="checkbox" class="gen-code-check gen-cb" data-idx="${i}" onchange="genUpdateCount()">
+      <div class="gen-code-text">${e.code}</div>
+      <div class="gen-code-box">${e.boxName}</div>
+      <div class="gen-code-batch">${e.batch}</div>
+      <button class="btn bg bsm" onclick="printSingleCode(${i})"><i class="fa fa-print"></i></button>
+    </div>`).join('');
 }
 
-function genToggleAll(c){document.querySelectorAll('.gen-cb').forEach(function(cb){cb.checked=c;});genUpdateCount();}
-function genUpdateCount(){
-  var n=document.querySelectorAll('.gen-cb:checked').length;
-  var sc=document.getElementById('gen-selected-count'),sa=document.getElementById('gen-select-all');
-  if(sc)sc.textContent=n+' selected';
-  if(sa)sa.checked=n===generatedCodes.length;
+function genToggleAll(checked) {
+  document.querySelectorAll('.gen-cb').forEach(cb => cb.checked = checked);
+  genUpdateCount();
 }
-function exportGenCSV(){
-  if(!generatedCodes.length){admToast('No codes to export.');return;}
-  var h=['Code','Box Type','Box ID','Batch','Status','Created'];
-  var rows=generatedCodes.map(function(e){return[e.code,e.boxName,e.boxId,e.batch,'inactive',e.createdAt].map(function(v){return'"'+String(v).replace(/"/g,'""')+'"';}).join(',');});
-  var a=document.createElement('a');
-  a.href=URL.createObjectURL(new Blob([[h.join(',')].concat(rows).join('\n')],{type:'text/csv'}));
-  a.download='wowbox-codes-'+(generatedCodes[0]?generatedCodes[0].batch:'batch')+'.csv';
-  a.click();admToast('Exported '+generatedCodes.length+' codes');
+function genUpdateCount() {
+  const count = document.querySelectorAll('.gen-cb:checked').length;
+  document.getElementById('gen-selected-count').textContent = count+' selected';
+  document.getElementById('gen-select-all').checked = count === generatedCodes.length;
 }
 
-function buildPrintCards(codes){
-  var pages='';
-  for(var p=0;p<codes.length;p+=9){
-    var slice=codes.slice(p,p+9);
-    var cards=slice.map(function(e){
-      return '<div style="border:1.5px solid #0f172a;border-radius:8px;padding:12px;text-align:center">'
-        +'<div style="font-size:13px;font-weight:700;margin-bottom:4px">WowBox</div>'
-        +'<div style="font-size:9px;color:#64748b;margin-bottom:6px">'+e.boxName+'</div>'
-        +'<div style="font-size:8px;color:#0369a1;font-weight:700;margin-bottom:2px">ON THE BOX</div>'
-        +'<div style="font-family:monospace;font-size:11px;font-weight:700;color:#2563eb;word-break:break-all;margin-bottom:6px">'+e.code+'</div>'
-        +'<div style="border-top:1px dashed #e2e8f0;padding-top:6px;margin-top:2px">'
-        +'<div style="font-size:8px;color:#166534;font-weight:700;margin-bottom:2px">INSIDE BOX</div>'
-        +'<div style="font-family:monospace;font-size:11px;font-weight:700;color:#16a34a;word-break:break-all;margin-bottom:4px">'+(e.wbCode||'WB-XXXX')+'</div>'
-        +'</div>'
-        +'<div style="font-size:8px;color:#94a3b8">'+e.batch+'</div></div>';
-    }).join('');
-    pages+='<div style="page-break-after:always;padding:20mm;font-family:Arial,sans-serif">'
-      +'<div style="text-align:center;margin-bottom:8mm"><div style="font-size:18px;font-weight:700">WowBox</div>'
-      +'<div style="font-size:10px;color:#64748b">'+(slice[0]?slice[0].batch:'')+'</div></div>'
-      +'<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10mm">'+cards+'</div></div>';
+function exportGenCSV() {
+  if (!generatedCodes.length) { admToast('No codes to export.'); return; }
+  const headers = ['Code','Box Type','Box ID','Batch','Status','Created'];
+  const rows = generatedCodes.map(e => [e.code,e.boxName,e.boxId,e.batch,'inactive',e.createdAt].map(v => `"${String(v).replace(/"/g,'""')}"`).join(','));
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([[headers.join(','),...rows].join('\n')],{type:'text/csv'}));
+  a.download = `wowbox-codes-${generatedCodes[0]?.batch||'batch'}.csv`;
+  a.click();
+  admToast('Exported '+generatedCodes.length+' codes');
+}
+
+function buildPrintCards(codes) {
+  const perPage = 9;
+  let pages = '';
+  for (let p=0;p<codes.length;p+=perPage) {
+    const slice = codes.slice(p,p+perPage);
+    pages += `<div style="page-break-after:always;padding:20mm;font-family:Arial,sans-serif">
+      <div style="text-align:center;margin-bottom:8mm"><div style="font-size:18px;font-weight:700">WowBox</div><div style="font-size:10px;color:#64748b">${slice[0]?.batch||''}</div></div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10mm">
+        ${slice.map(e => `<div style="border:1.5px solid #0f172a;border-radius:8px;padding:12px;text-align:center">
+          <div style="font-size:13px;font-weight:700;margin-bottom:4px">WowBox</div>
+          <div style="font-size:9px;color:#64748b;margin-bottom:6px">${e.boxName}</div>
+          <div style="font-family:monospace;font-size:12px;font-weight:700;color:#2563eb;word-break:break-all;margin-bottom:4px">${e.code}</div>
+          <div style="font-size:8px;color:#94a3b8">${e.batch}</div>
+        </div>`).join('')}
+      </div>
+    </div>`;
   }
   return pages;
 }
-function printGenCodes(){if(!generatedCodes.length){admToast('No codes.');return;}var w=window.open('','_blank');w.document.write('<html><body style="visibility:hidden">'+buildPrintCards(generatedCodes)+'</body></html>');w.document.close();w.print();w.close();}
-function printSelectedCodes(){var s=Array.from(document.querySelectorAll('.gen-cb:checked')).map(function(cb){return generatedCodes[parseInt(cb.dataset.idx)];}).filter(Boolean);if(!s.length){admToast('Select at least one.');return;}var w=window.open('','_blank');w.document.write('<html><body>'+buildPrintCards(s)+'</body></html>');w.document.close();w.print();w.close();}
-function printSingleCode(i){var e=generatedCodes[i];if(!e)return;var w=window.open('','_blank');w.document.write('<html><body>'+buildPrintCards([e])+'</body></html>');w.document.close();w.print();w.close();}
-function saveBookingToSupabase(payload){db_client.from('bookings').insert(payload).then(function(r){if(!r.error&&payload.voucher_code)db_client.from('vouchers').update({status:'used',used_at:new Date().toISOString().slice(0,10)}).eq('code',payload.voucher_code);}).catch(function(e){console.warn('saveBooking:',e.message);});}
+
+function printGenCodes() {
+  if (!generatedCodes.length) { admToast('No codes to print.'); return; }
+  const w = window.open('','_blank');
+  w.document.write('<html><body style="visibility:hidden">'+buildPrintCards(generatedCodes)+'</body></html>');
+  w.document.close(); w.print(); w.close();
+}
+
+function printSelectedCodes() {
+  const selected = [...document.querySelectorAll('.gen-cb:checked')].map(cb => generatedCodes[parseInt(cb.dataset.idx)]).filter(Boolean);
+  if (!selected.length) { admToast('Select at least one code.'); return; }
+  const w = window.open('','_blank');
+  w.document.write('<html><body>'+buildPrintCards(selected)+'</body></html>');
+  w.document.close(); w.print(); w.close();
+}
+
+function printSingleCode(idx) {
+  const e = generatedCodes[idx];
+  if (!e) return;
+  const w = window.open('','_blank');
+  w.document.write('<html><body>'+buildPrintCards([e])+'</body></html>');
+  w.document.close(); w.print(); w.close();
+}
+
+/* ── Booking → Supabase ── */
+async function saveBookingToSupabase(payload) {
+  try {
+    await db_client.from('bookings').insert(payload);
+    if (payload.voucher_code) {
+      await db_client.from('vouchers')
+        .update({ status:'used', used_at: new Date().toISOString().slice(0,10), experience_used: payload.experience_id, partner_name: payload.partner_id })
+        .eq('code', payload.voucher_code);
+    }
+  } catch(err) { console.warn('saveBookingToSupabase (non-blocking):', err.message); }
+}
 
 </script>
 
@@ -554,26 +625,25 @@ function renderAnalytics(period) {
     {val:d.bk, lbl:'Bookings', chg:'+8 vs prev period', up:true, bg:'#dbeafe', ico:'fa-calendar-check', c:'#2563eb'},
     {val:d.views.toLocaleString(), lbl:'Profile views', chg:'', up:true, bg:'#ede9fe', ico:'fa-eye', c:'#7c3aed'},
     {val:d.cvr+'%', lbl:'Conversion rate', chg:'', up:true, bg:'#d1fae5', ico:'fa-arrow-trend-up', c:'#059669'},
-  ].map(function(k){
-    return '<div class="an-kpi-card">'
-      +'<div class="pp-kpi-ico" style="background:'+k.bg+';margin-bottom:8px"><i class="fa '+k.ico+'" style="color:'+k.c+'"></i></div>'
-      +'<div class="an-kpi-val">'+k.val+'</div>'
-      +'<div class="an-kpi-lbl">'+k.lbl+'</div>'
-      +(k.chg?'<div class="an-kpi-chg chg-up">&#8593; '+k.chg+'</div>':'')
-      +'</div>';
-  }).join('');
+  ].map(k =>
+    `<div class="an-kpi-card">
+      <div class="pp-kpi-ico" style="background:${k.bg};margin-bottom:8px"><i class="fa ${k.ico}" style="color:${k.c}"></i></div>
+      <div class="an-kpi-val">${k.val}</div>
+      <div class="an-kpi-lbl">${k.lbl}</div>
+      ${k.chg ? `<div class="an-kpi-chg chg-up">&#8593; ${k.chg}</div>` : ''}
+    </div>`).join('');
 
   // Bar chart
   const chartEl  = document.getElementById('an-bar-chart');
   const labelsEl = document.getElementById('an-bar-labels');
   if (chartEl) {
     const max = Math.max(...d.bars);
-    chartEl.innerHTML = d.bars.map(function(v,i){
-      return '<div class="an-bar-col"><div class="an-bar'+(i===d.bars.length-1?' hl':'')+'" style="height:'+Math.round(v/max*100)+'%" title="R'+v.toLocaleString()+'"></div></div>';
-    }).join('');
-    if (labelsEl) labelsEl.innerHTML = d.labels.map(function(l){
-      return '<div class="an-bar-lbl" style="flex:1;text-align:center">'+l+'</div>';
-    }).join('');
+    chartEl.innerHTML = d.bars.map((v,i) =>
+      `<div class="an-bar-col">
+        <div class="an-bar${i===d.bars.length-1?' hl':''}" style="height:${Math.round(v/max*100)}%" title="R${v.toLocaleString()}"></div>
+      </div>`).join('');
+    if (labelsEl) labelsEl.innerHTML = d.labels.map(l =>
+      `<div class="an-bar-lbl" style="flex:1;text-align:center">${l}</div>`).join('');
   }
 
   // By experience
@@ -581,14 +651,16 @@ function renderAnalytics(period) {
   if (bdEl) bdEl.innerHTML = [
     {name:'The Vineyard Retreat', pct:72, rev:'R33,014'},
     {name:'Estate Wine Tasting',  pct:28, rev:'R12,607'},
-  ].map(function(e){
-    return '<div class="an-exp-row"><div style="flex:1">'
-      +'<div style="display:flex;justify-content:space-between;font-size:.78rem;margin-bottom:4px">'
-      +'<span style="font-weight:500;color:var(--navy)">'+e.name+'</span>'
-      +'<span style="color:var(--green);font-weight:600">'+e.rev+'</span></div>'
-      +'<div class="an-exp-bar-track"><div class="an-exp-bar-fill" style="width:'+e.pct+'%"></div></div>'
-      +'</div></div>';
-  }).join('');
+  ].map(e =>
+    `<div class="an-exp-row">
+      <div style="flex:1">
+        <div style="display:flex;justify-content:space-between;font-size:.78rem;margin-bottom:4px">
+          <span style="font-weight:500;color:var(--navy)">${e.name}</span>
+          <span style="color:var(--green);font-weight:600">${e.rev}</span>
+        </div>
+        <div class="an-exp-bar-track"><div class="an-exp-bar-fill" style="width:${e.pct}%"></div></div>
+      </div>
+    </div>`).join('');
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -687,25 +759,26 @@ function renderBoostPage() {
   if (countEl)   countEl.innerHTML  = `<i class="fa fa-bolt"></i> ${activeCount} boost${activeCount!==1?'s':''} active`;
   if (creditsEl) creditsEl.textContent = credits;
 
-  listEl.innerHTML = boostData.map(function(exp,i){
-    var actDiv = exp.boosted
-      ? '<div style="font-size:.72rem;color:var(--muted);margin-bottom:5px">Active boost &middot; <span style="color:var(--green);font-weight:600">+'+exp.boostPct+'% visibility</span></div>'
-      : '<div style="font-size:.72rem;color:var(--muted);margin-bottom:5px">Not currently boosted</div>';
-    var btnHtml = exp.boosted
-      ? '<button class="btn bg bsm" style="color:var(--red)" onclick="toggleBoost('+i+')"><i class="fa fa-stop-circle"></i> Stop</button>'
-      : '<button class="btn bp bsm" onclick="toggleBoost('+i+')"><i class="fa fa-rocket"></i> Boost now</button>';
-    return '<div class="boost-exp-row">'
-      +'<div class="boost-thumb"><img src="'+exp.img+'" alt="" loading="lazy"></div>'
-      +'<div style="flex:1">'
-      +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">'
-      +'<span style="font-size:.88rem;font-weight:600;color:var(--navy)">'+exp.name+'</span>'
-      +'<span class="boost-badge-'+(exp.boosted?'active':'off')+'">'+(exp.boosted?'Boosted':'Inactive')+'</span></div>'
-      +actDiv
-      +'<div style="display:flex;align-items:center;gap:8px">'
-      +'<div class="boost-bar-track"><div class="boost-bar-fill" style="width:'+(exp.boosted?85:0)+'%;background:'+(exp.boosted?'var(--green)':'var(--muted)')+'"></div></div>'
-      +'<span style="font-size:.7rem;color:var(--muted);white-space:nowrap">'+(exp.boosted?'85%':'-')+'</span></div>'
-      +'</div>'+btnHtml+'</div>';
-  }).join('');
+  listEl.innerHTML = boostData.map((exp, i) => `
+    <div class="boost-exp-row">
+      <div class="boost-thumb"><img src="${exp.img}" alt="" loading="lazy"></div>
+      <div style="flex:1">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+          <span style="font-size:.88rem;font-weight:600;color:var(--navy)">${exp.name}</span>
+          <span class="boost-badge-${exp.boosted?'active':'off'}">${exp.boosted?'Boosted':'Inactive'}</span>
+        </div>
+        ${exp.boosted
+          ? `<div style="font-size:.72rem;color:var(--muted);margin-bottom:5px">Active boost &middot; <span style="color:var(--green);font-weight:600">+43% avg bookings</span></div>`
+          : `<div style="font-size:.72rem;color:var(--muted);margin-bottom:5px">Not currently boosted</div>`}
+        <div style="display:flex;align-items:center;gap:8px">
+          <div class="boost-bar-track"><div class="boost-bar-fill" style="width:${exp.boosted?85:0}%;background:${exp.boosted?'linear-gradient(90deg,#f59e0b,#d97706)':'var(--border)'}"></div></div>
+          <span style="font-size:.7rem;color:var(--muted);white-space:nowrap">${exp.boosted?'85%':'—'}</span>
+        </div>
+      </div>
+      <button class="btn ${exp.boosted?'bg':'bp'} bsm" style="${exp.boosted?'color:var(--red)':''}" onclick="toggleBoost(${i})">
+        ${exp.boosted?'<i class="fa fa-stop-circle"></i> Stop':'<i class="fa fa-rocket"></i> Boost now'}
+      </button>
+    </div>`).join('');
 }
 
 function toggleBoost(i) {
@@ -882,57 +955,17 @@ function physDoActivate(code) {
 
   /* ── 4. CRITICAL: Status inactive → activation at POS ── */
   if (entry.status === 'inactive') {
-    // Email is optional for retail activation (WB code is inside the box)
-    const customerEmail = (document.getElementById('phys-customer-email')?.value || '').trim().toLowerCase();
-
-    // Update local state
-    entry.status      = 'active';
-    entry.activatedAt = nowTs.slice(0, 10);
-    entry.activatedBy = adminId;
+    // THIS is the retail activation flow — activate it now
+    entry.status       = 'active';
+    entry.activatedAt  = nowTs.slice(0, 10);
+    entry.activatedBy  = adminId;
     if (!entry.activationLog) entry.activationLog = [];
-    entry.activationLog.push({ ts: nowTs, by: adminId, ip: '(pos)' });
-
-    // Get the linked WB code (pre-generated at box creation)
-    const linkedWB = entry.linkedWbCode || null;
-
-    // Run Supabase async (non-blocking)
-    (async () => {
-      try {
-        // 1. Mark PHYS code as active + log who/when/where
-        await db_client.from('vouchers')
-          .update({
-            status:       'active',
-            activated_at: nowTs.slice(0,10),
-            activated_by: adminId,
-          })
-          .eq('code', code);
-
-        // 2. Activate the linked WB code (the one inside the box)
-        if (linkedWB) {
-          await db_client.from('vouchers')
-            .update({ status: 'active' })
-            .eq('code', linkedWB);
-        }
-
-        // 3. Log full activation trace
-        await db_client.from('activation_logs').insert({
-          voucher_code:  code,
-          outcome:       'activated',
-          activated_by:  adminId,
-          ip_address:    '(pos)',
-        });
-
-        admToast('Box activated! WB code: ' + (linkedWB || 'generated'));
-      } catch(err) {
-        console.warn('physDoActivate Supabase (non-blocking):', err.message);
-        admToast('Box activée localement. Erreur sync: ' + err.message.slice(0,40));
-      }
-    })();
+    entry.activationLog.push({ ts: nowTs, by: adminId, ip: '(session)' });
 
     physLogAction(code, 'activated', adminId, nowTs);
     physShowResult('success',
-      '<i class="fa fa-circle-check"></i> Box activée!',
-      "Box activated! The WB code inside the box: <strong>" + (linkedWB || "WB-XXXX") + "</strong> is now active and ready to use at wowbox.co.za",
+      '<i class="fa fa-circle-check"></i> Box activated!',
+      'The box is now active and ready for the customer to use at wowbox.co.za.',
       {
         code,
         box:         entry.boxName,
@@ -940,7 +973,6 @@ function physDoActivate(code) {
         activatedAt: nowFmt,
         activatedBy: adminId,
         batch:       entry.retailBatch || '—',
-        wbCode:      linkedWB || '—',
       });
     return;
   }
@@ -1031,13 +1063,14 @@ function physRenderLog() {
     const entry = codeDB[e.code];
     const boxName = entry ? entry.boxName : e.code;
     const timeStr = e.ts ? new Date(e.ts).toLocaleTimeString('en-ZA', { hour:'2-digit', minute:'2-digit', second:'2-digit' }) : '—';
-    return '<div class="phys-log-row">'
-      +'<span class="phys-log-code">'+e.code+'</span>'
-      +'<div class="phys-log-box"><div>'+boxName+'</div><div class="phys-log-by">'+e.by+'</div></div>'
-      +'<div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px;flex-shrink:0">'
-      +'<span style="background:'+lbl.bg+';color:'+lbl.color+';padding:2px 9px;border-radius:99px;font-size:.62rem;font-weight:700">'+lbl.label+'</span>'
-      +'<span class="phys-log-time">'+timeStr+'</span>'
-      +'</div></div>'
+    return `<div class="phys-log-row">
+      <span class="phys-log-code">${e.code}</span>
+      <div class="phys-log-box"><div>${boxName}</div><div class="phys-log-by">${e.by}</div></div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px;flex-shrink:0">
+        <span style="background:${lbl.bg};color:${lbl.color};padding:2px 9px;border-radius:99px;font-size:.62rem;font-weight:700">${lbl.badge}</span>
+        <span class="phys-log-time">${timeStr}</span>
+      </div>
+    </div>`;
   }).join('');
 }
 
@@ -2469,6 +2502,28 @@ tr:hover td{background:var(--b50)}
 .user-avatar{width:36px;height:36px;border-radius:50%;background:var(--b600);color:#fff;
   display:flex;align-items:center;justify-content:center;font-size:.85rem;font-weight:700;flex-shrink:0}
 
+/* ═══ AUTH ═══════════════════════════════════════════════════ */
+.auth-divider{display:flex;align-items:center;gap:12px;margin:18px 0;color:var(--muted);font-size:.75rem}
+.auth-divider::before,.auth-divider::after{content:'';flex:1;height:1px;background:var(--border)}
+.google-btn{width:100%;padding:12px;border-radius:var(--r);border:1.5px solid var(--border);
+  background:var(--white);font-family:'DM Sans',sans-serif;font-size:.88rem;font-weight:500;
+  cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;
+  color:var(--navy);transition:all .15s;margin-bottom:9px}
+.google-btn:hover{background:var(--bg);border-color:var(--b300)}
+.google-btn svg{width:18px;height:18px;flex-shrink:0}
+.auth-tab-bar{display:flex;gap:0;margin-bottom:24px;border-radius:var(--r);overflow:hidden;border:1.5px solid var(--border)}
+.auth-tab{flex:1;padding:10px;border:none;background:var(--white);font-family:'DM Sans',sans-serif;
+  font-size:.82rem;font-weight:500;cursor:pointer;color:var(--muted);transition:all .15s}
+.auth-tab.on{background:var(--b600);color:#fff;font-weight:600}
+.auth-error{background:#fee2e2;border:1px solid #fca5a5;border-radius:var(--rs);padding:10px 14px;
+  font-size:.78rem;color:#991b1b;margin-bottom:14px;display:none}
+.auth-error.show{display:block}
+.auth-success{background:#d1fae5;border:1px solid #6ee7b7;border-radius:var(--rs);padding:10px 14px;
+  font-size:.78rem;color:#065f46;margin-bottom:14px;display:none}
+.auth-success.show{display:block}
+.user-avatar{width:36px;height:36px;border-radius:50%;background:var(--b600);color:#fff;
+  display:flex;align-items:center;justify-content:center;font-size:.85rem;font-weight:700;flex-shrink:0}
+
 </style>
 </head>
 <body>
@@ -3070,7 +3125,7 @@ tr:hover td{background:var(--b50)}
         </div>
         <div style="display:flex;gap:12px">
           <button class="btn bg" onclick="nextStep(1)"><i class="fa fa-arrow-left"></i> Back</button>
-          <button class="btn bp" style="flex:1;justify-content:center;padding:13px" onclick="validateDetailsAndContinue()">Continue to payment <i class="fa fa-arrow-right"></i></button>
+          <button class="btn bp" style="flex:1;justify-content:center;padding:13px" onclick="nextStep(3)">Continue to payment <i class="fa fa-arrow-right"></i></button>
         </div>
       </div>
 
@@ -4736,7 +4791,7 @@ tr:hover td{background:var(--b50)}
                 autocapitalize="characters"
                 spellcheck="false"
                 oninput="physOnInput(this)"
-                onkeydown="if(event.key==='Enter'){event.preventDefault();physActivate();}"
+                onkeydown="if(event.key==='Enter')physActivate()"
               >
               <button class="phys-code-clear" id="phys-code-clear" onclick="physClearInput()" title="Clear">
                 <i class="fa fa-xmark"></i>
@@ -4748,14 +4803,8 @@ tr:hover td{background:var(--b50)}
               <i class="fa fa-camera"></i> Scan with camera
             </button>
 
-            <!-- Customer email for WB code generation -->
-            <div class="fg" style="margin-bottom:14px">
-              <label style="font-size:.8rem;font-weight:600;color:var(--navy)">Customer email <span style="font-weight:400;color:var(--muted)">(optional — for direct notification)</span></label>
-              <input class="fi" id="phys-customer-email" type="email" placeholder="customer@email.com" style="font-size:.88rem" onkeydown="if(event.key==='Enter'){event.preventDefault();physActivate();}">
-            </div>
-
             <!-- Activate button -->
-            <button type="button" class="phys-activate-btn" id="phys-activate-btn" onclick="physActivate()">
+            <button class="phys-activate-btn" id="phys-activate-btn" onclick="physActivate()">
               <i class="fa fa-box-open"></i> Activate box
             </button>
           </div>
@@ -5194,7 +5243,7 @@ const appState = {
 /* ══════════════════════════════════════════════════════════════
    NAVIGATION
 ══════════════════════════════════════════════════════════════ */
-/* ── Hash routing map ── */
+/* ── Hash routing ── */
 const PAGE_HASH = {
   home:'/',allboxes:'/boxes',product:'/box',expdetail:'/experience',
   reviews:'/reviews',cart:'/cart',checkout:'/checkout',voucher:'/confirmation',
@@ -5209,7 +5258,6 @@ function go(page) {
   var el = document.getElementById('page-' + page);
   if (el) el.classList.add('active');
   window.scrollTo({top:0,behavior:'smooth'});
-  // Update URL hash without triggering hashchange
   var hash = PAGE_HASH[page] || ('/' + page);
   if (window.location.hash !== '#' + hash) {
     history.pushState(null, '', '#' + hash);
@@ -5218,30 +5266,27 @@ function go(page) {
   if (page === 'cart') renderCart();
   if (page === 'checkout') renderCheckout();
   if (page === 'reviews') renderReviewsPage();
-  if (page === 'admin') renderAdmin();
+  if (page === 'admin') {
+    if (!currentUser || currentUser.role !== 'admin') { go('login'); return; }
+    renderAdmin();
+  }
   if (page === 'browse') renderBrowse();
   if (page === 'roulette') initRoulettePage();
-  if (page === 'partner') initPartnerPage();
+  if (page === 'partner') {
+    if (!currentUser || (currentUser.role !== 'partner' && currentUser.role !== 'admin')) { go('login'); return; }
+    initPartnerPage();
+  }
   document.body.style.visibility = 'visible';
 }
 
 function goFromHash() {
   var hash = window.location.hash.replace('#','') || '/';
   var page = HASH_PAGE[hash] || 'home';
-  // Protected pages - redirect to login if not authenticated
-  if ((page === 'admin' || page === 'dashboard') && !currentUser && page !== 'admin') {
-    go('login'); return;
-  }
   go(page);
-  // Update nav
-  var navMap = {
-    home:'nl-home',allboxes:'nl-allboxes',login:'nl-login',
-    dashboard:'nl-dash',partner:'nl-partner',admin:'nl-admin'
-  };
+  var navMap = {home:'nl-home',allboxes:'nl-allboxes',login:'nl-login',dashboard:'nl-dash',partner:'nl-partner',admin:'nl-admin'};
   if (navMap[page]) setNL(navMap[page]);
 }
 
-// Handle browser back/forward
 window.addEventListener('popstate', function() { goFromHash(); });
 function setNL(id) {
   document.querySelectorAll('.nl').forEach(n => n.classList.remove('on'));
@@ -6281,11 +6326,11 @@ function renderCheckout() {
   const typeBadge = {ebox:'<span class="ck-type-badge ck-ebox">📧 E-Box delivery</span>',physical:'<span class="ck-type-badge ck-phys">📦 Physical delivery</span>',mixed:'<span class="ck-type-badge ck-mixed">📧📦 Mixed order</span>'};
   let fields = '';
   if (ct === 'ebox') {
-    fields = `<div class="fg"><label>Full name *</label><input class="fi" id="ck-full-name" placeholder="Your full name"></div><div class="fg"><label>Email address *</label><input class="fi" id="ck-email" type="email" placeholder="where to send your vouchers"></div><p style="font-size:.75rem;color:var(--muted);margin-top:4px"><i class="fa fa-info-circle" style="color:var(--b400)"></i> Your PDF voucher(s) will be generated and sent immediately after payment.</p>`;
+    fields = `<div class="fg"><label>Full name *</label><input class="fi" placeholder="Your full name"></div><div class="fg"><label>Email address *</label><input class="fi" type="email" placeholder="where to send your vouchers"></div><p style="font-size:.75rem;color:var(--muted);margin-top:4px"><i class="fa fa-info-circle" style="color:var(--b400)"></i> Your PDF voucher(s) will be generated and sent immediately after payment.</p>`;
   } else if (ct === 'physical') {
-    fields = `<div class="fg"><label>Full name *</label><input class="fi" id="ck-full-name" placeholder="Recipient full name"></div><div class="fg"><label>Email address *</label><input class="fi" id="ck-email" type="email" placeholder="Order confirmation email"></div><h4 style="font-size:.9rem;margin:16px 0 12px">Delivery address</h4><div class="fg"><label>Street address *</label><input class="fi" placeholder="123 Main Street"></div><div class="fg-row"><div class="fg"><label>City *</label><input class="fi" placeholder="Cape Town"></div><div class="fg"><label>Province *</label><select class="fi"><option>Western Cape</option><option>Gauteng</option><option>KwaZulu-Natal</option><option>Eastern Cape</option></select></div></div><div class="fg-row"><div class="fg"><label>Postal code *</label><input class="fi" placeholder="8001"></div><div class="fg"><label>Country</label><input class="fi" value="South Africa" readonly></div></div><div class="fg"><label>Billing same as delivery?</label><label style="display:flex;align-items:center;gap:8px;font-size:.82rem;cursor:pointer"><input type="checkbox" checked style="accent-color:var(--b600)"> Yes, same address</label></div>`;
+    fields = `<div class="fg"><label>Full name *</label><input class="fi" placeholder="Recipient full name"></div><div class="fg"><label>Email</label><input class="fi" type="email" placeholder="Order confirmation email"></div><h4 style="font-size:.9rem;margin:16px 0 12px">Delivery address</h4><div class="fg"><label>Street address *</label><input class="fi" placeholder="123 Main Street"></div><div class="fg-row"><div class="fg"><label>City *</label><input class="fi" placeholder="Cape Town"></div><div class="fg"><label>Province *</label><select class="fi"><option>Western Cape</option><option>Gauteng</option><option>KwaZulu-Natal</option><option>Eastern Cape</option></select></div></div><div class="fg-row"><div class="fg"><label>Postal code *</label><input class="fi" placeholder="8001"></div><div class="fg"><label>Country</label><input class="fi" value="South Africa" readonly></div></div><div class="fg"><label>Billing same as delivery?</label><label style="display:flex;align-items:center;gap:8px;font-size:.82rem;cursor:pointer"><input type="checkbox" checked style="accent-color:var(--b600)"> Yes, same address</label></div>`;
   } else {
-    fields = `<div class="fg"><label>Full name *</label><input class="fi" id="ck-full-name" placeholder="Your full name"></div><div class="fg"><label>Email address *</label><input class="fi" id="ck-email" type="email" placeholder="for e-vouchers and order confirmation"></div><h4 style="font-size:.9rem;margin:16px 0 12px">Delivery address (for physical boxes)</h4><div class="fg"><label>Street address *</label><input class="fi" placeholder="123 Main Street"></div><div class="fg-row"><div class="fg"><label>City *</label><input class="fi" placeholder="Cape Town"></div><div class="fg"><label>Province *</label><select class="fi"><option>Western Cape</option><option>Gauteng</option><option>KwaZulu-Natal</option></select></div></div><div class="fg-row"><div class="fg"><label>Postal code *</label><input class="fi" placeholder="8001"></div><div class="fg"><label>Country</label><input class="fi" value="South Africa" readonly></div></div>`;
+    fields = `<div class="fg"><label>Full name *</label><input class="fi" placeholder="Your full name"></div><div class="fg"><label>Email address *</label><input class="fi" type="email" placeholder="for e-vouchers and order confirmation"></div><h4 style="font-size:.9rem;margin:16px 0 12px">Delivery address (for physical boxes)</h4><div class="fg"><label>Street address *</label><input class="fi" placeholder="123 Main Street"></div><div class="fg-row"><div class="fg"><label>City *</label><input class="fi" placeholder="Cape Town"></div><div class="fg"><label>Province *</label><select class="fi"><option>Western Cape</option><option>Gauteng</option><option>KwaZulu-Natal</option></select></div></div><div class="fg-row"><div class="fg"><label>Postal code *</label><input class="fi" placeholder="8001"></div><div class="fg"><label>Country</label><input class="fi" value="South Africa" readonly></div></div>`;
   }
   dc.innerHTML = `<h3>Your details</h3><p>${ct==='ebox'?'E-Box delivery — no shipping required.':ct==='physical'?'Physical box — provide your delivery address.':'Mixed order — provide email and delivery address.'}</p>${typeBadge[ct]||''}<div class="divider"></div>${fields}`;
   // Reset coupon state on fresh checkout render, then sync summary
@@ -6311,43 +6356,6 @@ function nextStep(step, quiet) {
   });
   appState.ckStep = step;
   if (!quiet) window.scrollTo({top:0,behavior:'smooth'});
-}
-
-function validateDetailsAndContinue() {
-  const ct = getCartType();
-  const emailEl = document.getElementById('ck-email');
-  const nameEl  = document.getElementById('ck-full-name');
-  const email   = emailEl ? emailEl.value.trim() : '';
-  const name    = nameEl  ? nameEl.value.trim()  : '';
-
-  // Show or hide error
-  var errEl = document.getElementById('ck-details-error');
-  if (!errEl) {
-    errEl = document.createElement('div');
-    errEl.id = 'ck-details-error';
-    errEl.style.cssText = 'background:#fee2e2;border:1px solid #fca5a5;border-radius:8px;padding:10px 14px;font-size:.8rem;color:#991b1b;margin:0 0 14px 0;display:none';
-    var card = document.getElementById('ck-details-card');
-    if (card) card.insertBefore(errEl, card.firstChild);
-  }
-
-  if (!name) {
-    if (nameEl) { nameEl.style.borderColor = '#ef4444'; nameEl.focus(); nameEl.scrollIntoView({behavior:'smooth',block:'center'}); }
-    errEl.textContent = 'Please enter your full name.';
-    errEl.style.display = 'block';
-    return;
-  }
-  if (!email || !email.includes('@')) {
-    if (emailEl) { emailEl.style.borderColor = '#ef4444'; emailEl.focus(); emailEl.scrollIntoView({behavior:'smooth',block:'center'}); }
-    errEl.textContent = 'Please enter a valid email address to receive your voucher.';
-    errEl.style.display = 'block';
-    return;
-  }
-
-  // All good - clear errors and proceed
-  errEl.style.display = 'none';
-  if (nameEl)  nameEl.style.borderColor  = '';
-  if (emailEl) emailEl.style.borderColor = '';
-  nextStep(3);
 }
 
 function completeOrder() {
@@ -6397,17 +6405,9 @@ function completeOrder() {
   handler.openIframe();
 }
 
-async function completeOrderConfirm(paystackRef, total, discount) {
-  const ct       = getCartType();
-  const ref      = paystackRef || ('WB-ORD-' + Date.now());
-  const dateStr  = new Date().toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'});
-  const dateISO  = new Date().toISOString().slice(0,10);
-  const custEmail = (document.getElementById('ck-email')?.value?.trim())
-                 || (document.getElementById('ck-card-name')?.value?.includes('@') ? document.getElementById('ck-card-name')?.value?.trim() : '')
-                 || '';
-  const custName  = document.getElementById('ck-full-name')?.value?.trim()
-                 || document.getElementById('ck-card-name')?.value?.trim()
-                 || 'Customer';
+function completeOrderConfirm(paystackRef, total, discount) {
+  const ct  = getCartType();
+  const ref = paystackRef || ('WB-ORD-2025-' + String(Math.floor(1000+Math.random()*9000)));
 
   document.getElementById('ck-order-ref').textContent = ref;
 
@@ -6424,115 +6424,21 @@ async function completeOrderConfirm(paystackRef, total, discount) {
   const subs = { ebox:'Vouchers sent to your email', physical:'Delivery in 2-3 business days', mixed:'Vouchers emailed · Physical boxes shipped' };
   document.getElementById('ck-conf-sub').textContent = subs[ct] || '';
 
-  // ── Generate WB codes for each box ──────────────────────────────
-  const wbCodes = appState.cart.map(function(item) {
-    return 'WB-' + Math.random().toString(36).toUpperCase().slice(2,6) + '-' + Math.random().toString(36).toUpperCase().slice(2,6);
-  });
-
-  // ── Build order items ────────────────────────────────────────────
-  const orderItems = appState.cart.map(function(item, i) {
-    var box = boxDB[item.boxId] || {};
-    return {
-      name:   box.name || item.boxId,
-      code:   wbCodes[i],
-      type:   ct === 'ebox' ? 'E-Box' : 'Physical',
-      status: 'active'
-    };
-  });
-
   const couponLine = discount > 0 && activeCoupon
-    ? '<div class="cf"><label>Coupon</label><span style="color:var(--green)">-R' + discount.toLocaleString() + ' (' + activeCoupon.code + ')</span></div>'
+    ? `<div class="cf"><label>Coupon</label><span style="color:var(--green)">-R${discount.toLocaleString()} (${activeCoupon.code})</span></div>`
     : '';
-  const msgLine   = appState.lastOrderMsg   ? '<div class="cf"><label>Gift message</label><span style="font-style:italic">' + appState.lastOrderMsg.substring(0,60) + '...</span></div>' : '';
-  const videoLine = appState.lastOrderVideo ? '<div class="cf"><label>Video link</label><span style="color:var(--b600)">Included</span></div>' : '';
+  const msgLine   = appState.lastOrderMsg   ? `<div class="cf"><label>Gift message</label><span style="font-style:italic">${appState.lastOrderMsg.substring(0,60)}...</span></div>` : '';
+  const videoLine = appState.lastOrderVideo ? `<div class="cf"><label>Video link</label><span style="color:var(--b600)">Included</span></div>` : '';
 
   document.getElementById('ck-conf-grid').innerHTML =
-    '<div class="cf"><label>Order #</label><span>' + ref + '</span></div>'
-    + '<div class="cf"><label>Date</label><span>' + dateStr + '</span></div>'
-    + '<div class="cf"><label>Items</label><span>' + appState.cart.length + ' box' + (appState.cart.length>1?'es':'') + '</span></div>'
-    + couponLine + msgLine + videoLine
-    + '<div class="cf"><label>Total paid</label><span style="color:var(--b700);font-weight:700">R' + total.toLocaleString() + '</span></div>'
-    + '<div class="cf"><label>Payment ref</label><span style="font-size:.75rem;color:var(--muted)">' + ref + '</span></div>';
+    `<div class="cf"><label>Order #</label><span>${ref}</span></div>
+     <div class="cf"><label>Date</label><span>${new Date().toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'})}</span></div>
+     <div class="cf"><label>Items</label><span>${appState.cart.length} box${appState.cart.length>1?'es':''}</span></div>
+     ${couponLine}${msgLine}${videoLine}
+     <div class="cf"><label>Total paid</label><span style="color:var(--b700);font-weight:700">R${total.toLocaleString()}</span></div>
+     <div class="cf"><label>Payment ref</label><span style="font-size:.75rem;color:var(--muted)">${ref}</span></div>`;
 
   if (ct==='ebox'||ct==='mixed') document.getElementById('ck-voucher-btn').style.display='flex';
-
-  // ── Save to Supabase + send email (non-blocking) ──────────────────
-  (async function() {
-    try {
-      var totalStr = 'R' + total.toLocaleString();
-
-      // 1. Save order to orderDetailDB (local — shows in Admin > Orders)
-      orderDetailDB[ref] = {
-        name:     custName,
-        email:    custEmail || 'customer@wowbox.co.za',
-        phone:    '',
-        date:     dateStr,
-        type:     ct === 'ebox' ? 'E-Box' : ct === 'physical' ? 'Physical' : 'Mixed',
-        total:    totalStr,
-        boost:    false,
-        delivery: ct !== 'ebox' ? { recipient: custName, street: '', city: '', province: '', postal: '' } : null,
-        items:    orderItems,
-      };
-      ordersState.statuses[ref] = 'Pending';
-      // Re-render orders table if admin is open
-      if (typeof renderOrdersTable === 'function') renderOrdersTable();
-
-      // 2. Insert vouchers in Supabase for each box
-      var voucherRows = appState.cart.map(function(item, i) {
-        var box = boxDB[item.boxId] || {};
-        return {
-          code:       wbCodes[i],
-          box_id:     item.boxId,
-          box_name:   box.name || item.boxId,
-          user_email: custEmail || null,
-          status:     'active',
-          order_id:   ref,
-          is_physical_box: ct !== 'ebox',
-        };
-      });
-      if (voucherRows.length) {
-        await db_client.from('vouchers').insert(voucherRows);
-      }
-
-      // 3. Insert order record in Supabase orders table
-      await db_client.from('orders').insert({
-        id:           ref,
-        customer_name:  custName,
-        customer_email: custEmail || null,
-        total_amount:   total,
-        order_type:     ct,
-        status:         'pending',
-        paystack_ref:   paystackRef || ref,
-        items:          orderItems,
-      });
-
-      // 4. Send confirmation email to customer
-      if (custEmail) {
-        var emailType = (ct === 'ebox' || ct === 'mixed') ? 'status_delivered' : 'status_pending';
-        await fetch('/api/send-email', {
-          method:  'POST',
-          headers: {'Content-Type':'application/json'},
-          body: JSON.stringify({
-            type:  emailType,
-            order: {
-              id:    ref,
-              name:  custName,
-              email: custEmail,
-              type:  ct === 'ebox' ? 'E-Box' : ct === 'physical' ? 'Physical' : 'Mixed',
-              total: totalStr,
-              date:  dateStr,
-              items: orderItems,
-              delivery: null,
-            }
-          })
-        });
-      }
-
-    } catch(err) {
-      console.warn('completeOrderConfirm Supabase/email:', err.message);
-    }
-  })();
-
   nextStep(4);
   appState.cart = []; activeCoupon = null; updateCartBadge();
 }
@@ -6658,7 +6564,7 @@ function generateBoxCode(boxId) {
 }
 
 /* ── VALIDATION ENGINE ── */
-async function validateVoucher() {
+function validateVoucher() {
   const raw   = (document.getElementById('vi-input')?.value || '').trim().toUpperCase();
   const resEl = document.getElementById('v-result');
   if (!resEl) return;
@@ -6669,109 +6575,51 @@ async function validateVoucher() {
     return;
   }
 
-  // Show loading
-  resEl.style.display = 'block';
-  resEl.innerHTML = '<div style="text-align:center;padding:20px;color:var(--muted)"><i class="fa fa-circle-notch fa-spin"></i> Checking code…</div>';
-
-  // 1. Check local codeDB first
-  let entry = codeDB[raw];
-
-  // 2. If not found locally, query Supabase
+  const entry = codeDB[raw];
   if (!entry) {
-    try {
-      const { data, error } = await db_client
-        .from('vouchers')
-        .select('*')
-        .eq('code', raw)
-        .single();
-
-      if (!error && data) {
-        // Build entry from Supabase data
-        entry = {
-          boxId:      data.box_id,
-          boxName:    data.box_name || data.box_id,
-          userId:     data.user_email,
-          status:     data.status,
-          activatedAt: data.activated_at,
-          usedAt:     data.used_at,
-          experience: data.experience_used,
-          partner:    data.partner_name,
-          hasBoost:   false,
-          activationLog: [],
-        };
-        // Cache it
-        codeDB[raw] = entry;
-      }
-    } catch(err) {
-      console.warn('Supabase lookup failed:', err.message);
-    }
-  }
-
-  // 3. Code not found anywhere
-  if (!entry) {
+    resEl.style.display = 'block';
     resEl.innerHTML = renderValidationResult('not_found', null, raw);
     return;
   }
-
-  // 4. Already used
   if (entry.status === 'used') {
+    resEl.style.display = 'block';
     resEl.innerHTML = renderValidationResult('already_used', entry, raw);
     return;
   }
-
-  // 5. Expired
-  if (entry.status === 'expired') {
-    resEl.innerHTML = renderValidationResult('expired', entry, raw);
-    return;
-  }
-
-  // 6. Inactive (not yet activated by retailer)
   if (entry.status === 'inactive') {
+    resEl.style.display = 'block';
     resEl.innerHTML = renderValidationResult('inactive', entry, raw);
     return;
   }
-
+  // Check expiry (1 year from activation)
+  if (entry.activatedAt) {
+    const activated = new Date(entry.activatedAt);
+    const expiry    = new Date(activated.setFullYear(activated.getFullYear() + 1));
+    if (new Date() > expiry) {
+      resEl.style.display = 'block';
+      resEl.innerHTML = renderValidationResult('expired', entry, raw);
+      return;
+    }
+  }
   // ✅ Valid — mark as used in memory + Supabase
   const usedDate = new Date().toISOString().slice(0,10);
   entry.status  = 'used';
   entry.usedAt  = usedDate;
   entry.partner = appState.partnerName || 'Partner';
-
   (async () => {
     try {
-      await db_client.from('vouchers')
-        .update({ status:'used', used_at: usedDate, partner_name: entry.partner })
-        .eq('code', raw);
-
-      await db_client.from('activation_logs').insert({
-        voucher_code:  raw,
-        outcome:       'validated',
-        activated_by:  entry.partner,
-        ip_address:    '(browser)',
-      });
-
-      // Add to usageDB so Box Usage updates live
-      if (typeof usageDB !== 'undefined' && !usageDB.find(function(u){return u.code===raw;})) {
-        usageDB.unshift({
-          code:       raw,
-          box:        entry.boxName || '',
-          customer:   entry.userId  || 'Customer',
-          email:      entry.userId  || '',
-          experience: entry.experience || '-',
-          partner:    entry.partner,
-          date:       usedDate,
-        });
-        if (typeof renderUsageTable === 'function') renderUsageTable();
+      await db_client.from('vouchers').update({ status:'used', used_at:usedDate, partner_name:entry.partner }).eq('code', raw);
+      await db_client.from('activation_logs').insert({ voucher_code:raw, outcome:'validated', activated_by:entry.partner, ip_address:'(browser)' });
+      if (typeof usageDB !== 'undefined' && !usageDB.find(u => u.code === raw)) {
+        usageDB.unshift({ code:raw, box:entry.boxName||'', customer:entry.userId||'Customer', email:entry.userId||'', experience:entry.experience||'—', partner:entry.partner, date:usedDate });
+        renderUsageTable();
       }
-    } catch(err) {
-      console.warn('validateVoucher Supabase (non-blocking):', err.message);
-    }
+    } catch(err) { console.warn('validateVoucher Supabase (non-blocking):', err.message); }
   })();
-
-  resEl.innerHTML = renderValidationResult('success', entry, raw);
+  resEl.style.display = 'block';
+  resEl.innerHTML  = renderValidationResult('success', entry, raw);
   resEl.scrollIntoView({behavior:'smooth', block:'nearest'});
 }
-
 
 function renderValidationResult(type, entry, code) {
   const txRef = 'TXN-' + Date.now().toString(36).toUpperCase();
@@ -8567,7 +8415,6 @@ window.addEventListener('DOMContentLoaded', async () => {
   await renderBoxGrids();
   loadProduct('couples-retreat');
   appState.priceBase = 1499;
-  // Navigate to page from URL hash (or home if no hash)
   var hash = window.location.hash.replace('#','') || '/';
   if (hash === '/' || hash === '') {
     go('home');
