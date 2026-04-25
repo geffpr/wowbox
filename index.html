@@ -293,6 +293,10 @@ function admReissueCode(){
 
 var generatedCodes=[];
 
+function genWBCode(){
+  return 'WB-'+Math.random().toString(36).toUpperCase().slice(2,6)+'-'+Math.random().toString(36).toUpperCase().slice(2,6);
+}
+
 async function generateRetailCodes(){
   var sel=document.getElementById('gen-box-type');
   var boxId=sel?sel.value:'',boxName=sel?sel.options[sel.selectedIndex].text:'',prefix=sel?sel.options[sel.selectedIndex].dataset.prefix||'XX':'XX';
@@ -307,15 +311,30 @@ async function generateRetailCodes(){
   var existing=Object.keys(codeDB).filter(function(k){return k.indexOf('PHYS-'+prefix+'-')===0;}).map(function(k){return parseInt(k.split('-')[2])||0;});
   var start=existing.length?Math.max.apply(null,existing)+1:1;
   for(var i=0;i<qty;i++){
-    var code='PHYS-'+prefix+'-'+String(start+i).padStart(5,'0');
-    generatedCodes.push({code:code,boxId:boxId,boxName:boxName,batch:batch,createdAt:now});
-    codeDB[code]={boxId:boxId,boxName:boxName,userId:null,status:'inactive',activatedAt:null,activatedBy:null,usedAt:null,experience:null,partner:null,orderId:null,hasBoost:false,physicalBox:true,retailBatch:batch,activationLog:[]};
+    var physCode='PHYS-'+prefix+'-'+String(start+i).padStart(5,'0');
+    var wbCode=genWBCode();
+    generatedCodes.push({code:physCode,wbCode:wbCode,boxId:boxId,boxName:boxName,batch:batch,createdAt:now});
+    codeDB[physCode]={boxId:boxId,boxName:boxName,status:'inactive',physicalBox:true,retailBatch:batch,linkedWbCode:wbCode,activationLog:[]};
   }
   try{
-    var rows=generatedCodes.map(function(e){return{code:e.code,box_id:e.boxId,box_name:e.boxName,status:'inactive',is_physical_box:true,retail_batch:e.batch};});
-    for(var j=0;j<rows.length;j+=50){var res=await db_client.from('vouchers').insert(rows.slice(j,j+50));if(res.error)throw res.error;}
-    admToast(qty+' codes saved to Supabase!');
-  }catch(e){admToast('Generated locally. Supabase: '+e.message.substring(0,40));}
+    // Insert PHYS codes (on box exterior — for vendor scan)
+    var physRows=generatedCodes.map(function(e){
+      return{code:e.code,box_id:e.boxId,box_name:e.boxName,status:'inactive',
+             is_physical_box:true,retail_batch:e.batch,linked_wb_code:e.wbCode};
+    });
+    // Insert WB codes (inside box — for recipient)
+    var wbRows=generatedCodes.map(function(e){
+      return{code:e.wbCode,box_id:e.boxId,box_name:e.boxName,status:'inactive',
+             is_physical_box:false,retail_batch:e.batch,linked_phys_code:e.code};
+    });
+    for(var j=0;j<physRows.length;j+=50){
+      var r1=await db_client.from('vouchers').insert(physRows.slice(j,j+50));
+      if(r1.error)throw r1.error;
+      var r2=await db_client.from('vouchers').insert(wbRows.slice(j,j+50));
+      if(r2.error)throw r2.error;
+    }
+    admToast(qty+' paires PHYS+WB sauvegardées dans Supabase!');
+  }catch(e){admToast('Généré localement. Supabase: '+e.message.substring(0,40));}
   if(btn){btn.disabled=false;btn.innerHTML='<i class="fa fa-barcode"></i> Generate codes';}
   renderGenCodes();
 }
@@ -325,15 +344,25 @@ function renderGenCodes(){
   if(!result||!listEl)return;
   result.style.display='block';
   result.scrollIntoView({behavior:'smooth',block:'nearest'});
-  if(title)title.innerHTML='<i class="fa fa-check-circle" style="color:var(--green)"></i> '+generatedCodes.length+' codes - '+(generatedCodes[0]?generatedCodes[0].batch:'');
+  if(title)title.innerHTML='<i class="fa fa-check-circle" style="color:var(--green)"></i> '+generatedCodes.length+' paires PHYS+WB - '+(generatedCodes[0]?generatedCodes[0].batch:'');
   var sa=document.getElementById('gen-select-all'),sc=document.getElementById('gen-selected-count');
   if(sa)sa.checked=false;
   if(sc)sc.textContent='0 selected';
   listEl.innerHTML=generatedCodes.map(function(e,i){
     return '<div class="gen-code-row">'
       +'<input type="checkbox" class="gen-code-check gen-cb" data-idx="'+i+'" onchange="genUpdateCount()">'
-      +'<div class="gen-code-text">'+e.code+'</div>'
-      +'<div class="gen-code-box">'+e.boxName+'</div>'
+      +'<div style="flex:1">'
+      +'<div style="display:flex;align-items:center;gap:10px;margin-bottom:3px">'
+      +'<span style="font-size:.65rem;font-weight:700;background:#e0f2fe;color:#0369a1;padding:1px 6px;border-radius:4px">PHYS</span>'
+      +'<span class="gen-code-text" style="font-size:.82rem">'+e.code+'</span>'
+      +'<span style="font-size:.7rem;color:var(--muted)">sur la boîte</span>'
+      +'</div>'
+      +'<div style="display:flex;align-items:center;gap:10px">'
+      +'<span style="font-size:.65rem;font-weight:700;background:#f0fdf4;color:#166534;padding:1px 6px;border-radius:4px">WB</span>'
+      +'<span class="gen-code-text" style="font-size:.82rem;color:var(--green)">'+e.wbCode+'</span>'
+      +'<span style="font-size:.7rem;color:var(--muted)">a l interieur</span>'
+      +'</div>'
+      +'</div>'
       +'<div class="gen-code-batch">'+e.batch+'</div>'
       +'<button class="btn bg bsm" onclick="printSingleCode('+i+')"><i class="fa fa-print"></i></button>'
       +'</div>';
@@ -365,7 +394,12 @@ function buildPrintCards(codes){
       return '<div style="border:1.5px solid #0f172a;border-radius:8px;padding:12px;text-align:center">'
         +'<div style="font-size:13px;font-weight:700;margin-bottom:4px">WowBox</div>'
         +'<div style="font-size:9px;color:#64748b;margin-bottom:6px">'+e.boxName+'</div>'
-        +'<div style="font-family:monospace;font-size:12px;font-weight:700;color:#2563eb;word-break:break-all;margin-bottom:4px">'+e.code+'</div>'
+        +'<div style="font-size:8px;color:#0369a1;font-weight:700;margin-bottom:2px">SUR LA BOITE</div>'
+        +'<div style="font-family:monospace;font-size:11px;font-weight:700;color:#2563eb;word-break:break-all;margin-bottom:6px">'+e.code+'</div>'
+        +'<div style="border-top:1px dashed #e2e8f0;padding-top:6px;margin-top:2px">'
+        +'<div style="font-size:8px;color:#166534;font-weight:700;margin-bottom:2px">A L INTERIEUR</div>'
+        +'<div style="font-family:monospace;font-size:11px;font-weight:700;color:#16a34a;word-break:break-all;margin-bottom:4px">'+(e.wbCode||'WB-XXXX')+'</div>'
+        +'</div>'
         +'<div style="font-size:8px;color:#94a3b8">'+e.batch+'</div></div>';
     }).join('');
     pages+='<div style="page-break-after:always;padding:20mm;font-family:Arial,sans-serif">'
@@ -848,46 +882,39 @@ function physDoActivate(code) {
 
   /* ── 4. CRITICAL: Status inactive → activation at POS ── */
   if (entry.status === 'inactive') {
+    // Email is optional for retail activation (WB code is inside the box)
     const customerEmail = (document.getElementById('phys-customer-email')?.value || '').trim().toLowerCase();
-    if (!customerEmail || !customerEmail.includes('@')) {
-      physShowResult('error',
-        '<i class="fa fa-envelope"></i> Email required',
-        'Please enter the customer email address before activating. This is needed to send them their WowBox code.',
-        null);
-      return;
-    }
 
     // Update local state
-    entry.status       = 'active';
-    entry.activatedAt  = nowTs.slice(0, 10);
-    entry.activatedBy  = adminId;
-    entry.userId       = customerEmail;
+    entry.status      = 'active';
+    entry.activatedAt = nowTs.slice(0, 10);
+    entry.activatedBy = adminId;
     if (!entry.activationLog) entry.activationLog = [];
-    entry.activationLog.push({ ts: nowTs, by: adminId, ip: '(session)' });
+    entry.activationLog.push({ ts: nowTs, by: adminId, ip: '(pos)' });
 
-    // Generate WB-XXXX voucher code
-    const wbCode = 'WB-' + Date.now().toString(36).toUpperCase().slice(-4) + '-' + Math.random().toString(36).toUpperCase().slice(2,6);
+    // Get the linked WB code (pre-generated at box creation)
+    const linkedWB = entry.linkedWbCode || null;
 
-    // Run Supabase + email async (non-blocking — show success immediately)
+    // Run Supabase async (non-blocking)
     (async () => {
       try {
-        // 1. Mark physical code as active in Supabase
+        // 1. Mark PHYS code as active + log who/when/where
         await db_client.from('vouchers')
-          .update({ status: 'active', user_email: customerEmail, activated_at: nowTs.slice(0,10), activated_by: adminId })
+          .update({
+            status:       'active',
+            activated_at: nowTs.slice(0,10),
+            activated_by: adminId,
+          })
           .eq('code', code);
 
-        // 2. Create WB-XXXX voucher in Supabase for the customer
-        await db_client.from('vouchers').insert({
-          code:        wbCode,
-          box_id:      entry.boxId,
-          box_name:    entry.boxName,
-          user_email:  customerEmail,
-          status:      'active',
-          retail_batch: entry.retailBatch || null,
-          source_code: code,
-        });
+        // 2. Activate the linked WB code (the one inside the box)
+        if (linkedWB) {
+          await db_client.from('vouchers')
+            .update({ status: 'active' })
+            .eq('code', linkedWB);
+        }
 
-        // 3. Log activation
+        // 3. Log full activation trace
         await db_client.from('activation_logs').insert({
           voucher_code:  code,
           outcome:       'activated',
@@ -895,35 +922,17 @@ function physDoActivate(code) {
           ip_address:    '(pos)',
         });
 
-        // 4. Send email to customer via Resend API
-        await fetch('/api/send-email', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            type: 'box_activated',
-            order: {
-              id:    wbCode,
-              name:  customerEmail.split('@')[0],
-              email: customerEmail,
-              type:  'Physical',
-              total: 'R' + (entry.price || '0'),
-              date:  nowTs.slice(0,10),
-              items: [{ name: entry.boxName, code: wbCode, type: 'Physical', status: 'active' }],
-            }
-          })
-        });
-
-        admToast('Email sent to ' + customerEmail + ' with code ' + wbCode);
+        admToast('Box activée! Code WB: ' + (linkedWB || 'généré'));
       } catch(err) {
-        console.warn('physDoActivate Supabase/email (non-blocking):', err.message);
-        admToast('Box activated locally. Sync error: ' + err.message.slice(0,40));
+        console.warn('physDoActivate Supabase (non-blocking):', err.message);
+        admToast('Box activée localement. Erreur sync: ' + err.message.slice(0,40));
       }
     })();
 
     physLogAction(code, 'activated', adminId, nowTs);
     physShowResult('success',
-      '<i class="fa fa-circle-check"></i> Box activated!',
-      'The box is now active. Customer code <strong>' + wbCode + '</strong> is being emailed to <strong>' + customerEmail + '</strong>.',
+      '<i class="fa fa-circle-check"></i> Box activée!',
+      "Le code PHYS est actif. Le code WB (dans la boite) : <strong>" + (linkedWB || "WB-XXXX") + "</strong> — utilisable sur wowbox.co.za",
       {
         code,
         box:         entry.boxName,
@@ -931,8 +940,7 @@ function physDoActivate(code) {
         activatedAt: nowFmt,
         activatedBy: adminId,
         batch:       entry.retailBatch || '—',
-        wbCode:      wbCode,
-        sentTo:      customerEmail,
+        wbCode:      linkedWB || '—',
       });
     return;
   }
@@ -4742,7 +4750,7 @@ tr:hover td{background:var(--b50)}
 
             <!-- Customer email for WB code generation -->
             <div class="fg" style="margin-bottom:14px">
-              <label style="font-size:.8rem;font-weight:600;color:var(--navy)">Customer email <span style="font-weight:400;color:var(--muted)">(required to send activation code)</span></label>
+              <label style="font-size:.8rem;font-weight:600;color:var(--navy)">Customer email <span style="font-weight:400;color:var(--muted)">(optional — for direct notification)</span></label>
               <input class="fi" id="phys-customer-email" type="email" placeholder="customer@email.com" style="font-size:.88rem">
             </div>
 
