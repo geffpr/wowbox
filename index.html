@@ -3304,7 +3304,7 @@ tr:hover td{background:var(--b50)}
 
 <!-- ═══════════════════════ PAGE: CART ════════════════════════════ -->
 <div id="page-cart" class="page">
-  <div class="phdr"><h1>Your cart</h1><p id="cart-hdr-sub">Review your selected boxes before checkout.</p></div>
+  <div class="phdr"><h1>Your cart</h1><p id="cart-hdr-sub">Review your selected boxes before checkout.</p><button class="btn bg bsm" style="margin-top:10px" onclick="go('allboxes')"><i class="fa fa-plus"></i> Add more boxes</button></div>
   <div class="cart-layout">
     <div>
       <div id="cart-items-wrap">
@@ -6766,6 +6766,7 @@ function addToCart(boxId, type) {
   if (existing) { existing.qty++; }
   else appState.cart.push({ id, boxId, name: b.name, type, price: b.price + (type==='physical'?99:0), qty: 1, img: b.img });
   updateCartBadge();
+  go('cart');
 }
 function addCurrentToCart() {
   addToCart(appState.currentBoxId, appState.deliveryType);
