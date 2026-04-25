@@ -615,16 +615,17 @@ async function authOnSignedIn(user) {
   if (sbName)   sbName.textContent   = name;
   if (sbRole)   sbRole.textContent   = role.charAt(0).toUpperCase() + role.slice(1);
 
-  // Check if user came from redeem flow
-  if (appState.pendingRedeemCode) {
-    var pendingCode = appState.pendingRedeemCode;
-    appState.pendingRedeemCode = null;
+  // Check if user came from redeem flow (survives Google OAuth redirect)
+  var pendingCode = sessionStorage.getItem('pendingRedeemCode');
+  if (pendingCode) {
+    sessionStorage.removeItem('pendingRedeemCode');
     // Pre-fill the code and go to activation page
     go('activation'); setNL('nl-activation');
+    sessionStorage.setItem('autoRedirectBrowse', '1');
     setTimeout(function() {
       var inp = document.getElementById('act-code');
       if (inp) { inp.value = pendingCode; activateBox(); }
-    }, 300);
+    }, 400);
     return;
   }
 
@@ -7063,8 +7064,8 @@ async function activateBox() {
 
   // Check if logged in
   if (!currentUser) {
-    // Save code and redirect to login
-    appState.pendingRedeemCode = code;
+    // Save code to sessionStorage (survives Google OAuth redirect)
+    sessionStorage.setItem('pendingRedeemCode', code);
     go('login'); setNL('nl-login');
     return;
   }
@@ -7108,8 +7109,13 @@ async function activateBox() {
     var msgEl   = document.getElementById('act-box-name');
     if (msgEl) msgEl.textContent = boxName;
 
-    // Show success
+    // Show success briefly then auto-browse
     if (okEl) okEl.style.display = 'block';
+    // If came from pending code flow, auto-redirect to browse after 1.5s
+    if (sessionStorage.getItem('autoRedirectBrowse')) {
+      sessionStorage.removeItem('autoRedirectBrowse');
+      setTimeout(function() { browseActivatedBox(); }, 1500);
+    }
 
   } catch(e) {
     if (errEl) { errEl.textContent = 'Error: ' + e.message; errEl.style.display = 'block'; }
