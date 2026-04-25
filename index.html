@@ -6325,9 +6325,13 @@ function completeOrder() {
   handler.openIframe();
 }
 
-function completeOrderConfirm(paystackRef, total, discount) {
-  const ct  = getCartType();
-  const ref = paystackRef || ('WB-ORD-2025-' + String(Math.floor(1000+Math.random()*9000)));
+async function completeOrderConfirm(paystackRef, total, discount) {
+  const ct       = getCartType();
+  const ref      = paystackRef || ('WB-ORD-' + Date.now());
+  const dateStr  = new Date().toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'});
+  const dateISO  = new Date().toISOString().slice(0,10);
+  const custEmail = document.getElementById('ck-email')?.value?.trim() || '';
+  const custName  = document.getElementById('ck-card-name')?.value?.trim() || 'Customer';
 
   document.getElementById('ck-order-ref').textContent = ref;
 
@@ -6344,21 +6348,115 @@ function completeOrderConfirm(paystackRef, total, discount) {
   const subs = { ebox:'Vouchers sent to your email', physical:'Delivery in 2-3 business days', mixed:'Vouchers emailed · Physical boxes shipped' };
   document.getElementById('ck-conf-sub').textContent = subs[ct] || '';
 
+  // ── Generate WB codes for each box ──────────────────────────────
+  const wbCodes = appState.cart.map(function(item) {
+    return 'WB-' + Math.random().toString(36).toUpperCase().slice(2,6) + '-' + Math.random().toString(36).toUpperCase().slice(2,6);
+  });
+
+  // ── Build order items ────────────────────────────────────────────
+  const orderItems = appState.cart.map(function(item, i) {
+    var box = boxDB[item.boxId] || {};
+    return {
+      name:   box.name || item.boxId,
+      code:   wbCodes[i],
+      type:   ct === 'ebox' ? 'E-Box' : 'Physical',
+      status: 'active'
+    };
+  });
+
   const couponLine = discount > 0 && activeCoupon
-    ? `<div class="cf"><label>Coupon</label><span style="color:var(--green)">-R${discount.toLocaleString()} (${activeCoupon.code})</span></div>`
+    ? '<div class="cf"><label>Coupon</label><span style="color:var(--green)">-R' + discount.toLocaleString() + ' (' + activeCoupon.code + ')</span></div>'
     : '';
-  const msgLine   = appState.lastOrderMsg   ? `<div class="cf"><label>Gift message</label><span style="font-style:italic">${appState.lastOrderMsg.substring(0,60)}...</span></div>` : '';
-  const videoLine = appState.lastOrderVideo ? `<div class="cf"><label>Video link</label><span style="color:var(--b600)">Included</span></div>` : '';
+  const msgLine   = appState.lastOrderMsg   ? '<div class="cf"><label>Gift message</label><span style="font-style:italic">' + appState.lastOrderMsg.substring(0,60) + '...</span></div>' : '';
+  const videoLine = appState.lastOrderVideo ? '<div class="cf"><label>Video link</label><span style="color:var(--b600)">Included</span></div>' : '';
 
   document.getElementById('ck-conf-grid').innerHTML =
-    `<div class="cf"><label>Order #</label><span>${ref}</span></div>
-     <div class="cf"><label>Date</label><span>${new Date().toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'})}</span></div>
-     <div class="cf"><label>Items</label><span>${appState.cart.length} box${appState.cart.length>1?'es':''}</span></div>
-     ${couponLine}${msgLine}${videoLine}
-     <div class="cf"><label>Total paid</label><span style="color:var(--b700);font-weight:700">R${total.toLocaleString()}</span></div>
-     <div class="cf"><label>Payment ref</label><span style="font-size:.75rem;color:var(--muted)">${ref}</span></div>`;
+    '<div class="cf"><label>Order #</label><span>' + ref + '</span></div>'
+    + '<div class="cf"><label>Date</label><span>' + dateStr + '</span></div>'
+    + '<div class="cf"><label>Items</label><span>' + appState.cart.length + ' box' + (appState.cart.length>1?'es':'') + '</span></div>'
+    + couponLine + msgLine + videoLine
+    + '<div class="cf"><label>Total paid</label><span style="color:var(--b700);font-weight:700">R' + total.toLocaleString() + '</span></div>'
+    + '<div class="cf"><label>Payment ref</label><span style="font-size:.75rem;color:var(--muted)">' + ref + '</span></div>';
 
   if (ct==='ebox'||ct==='mixed') document.getElementById('ck-voucher-btn').style.display='flex';
+
+  // ── Save to Supabase + send email (non-blocking) ──────────────────
+  (async function() {
+    try {
+      var totalStr = 'R' + total.toLocaleString();
+
+      // 1. Save order to orderDetailDB (local — shows in Admin > Orders)
+      orderDetailDB[ref] = {
+        name:     custName,
+        email:    custEmail || 'customer@wowbox.co.za',
+        phone:    '',
+        date:     dateStr,
+        type:     ct === 'ebox' ? 'E-Box' : ct === 'physical' ? 'Physical' : 'Mixed',
+        total:    totalStr,
+        boost:    false,
+        delivery: ct !== 'ebox' ? { recipient: custName, street: '', city: '', province: '', postal: '' } : null,
+        items:    orderItems,
+      };
+      ordersState.statuses[ref] = 'Pending';
+      // Re-render orders table if admin is open
+      if (typeof renderOrdersTable === 'function') renderOrdersTable();
+
+      // 2. Insert vouchers in Supabase for each box
+      var voucherRows = appState.cart.map(function(item, i) {
+        var box = boxDB[item.boxId] || {};
+        return {
+          code:       wbCodes[i],
+          box_id:     item.boxId,
+          box_name:   box.name || item.boxId,
+          user_email: custEmail || null,
+          status:     'active',
+          order_id:   ref,
+          is_physical_box: ct !== 'ebox',
+        };
+      });
+      if (voucherRows.length) {
+        await db_client.from('vouchers').insert(voucherRows);
+      }
+
+      // 3. Insert order record in Supabase orders table
+      await db_client.from('orders').insert({
+        id:           ref,
+        customer_name:  custName,
+        customer_email: custEmail || null,
+        total_amount:   total,
+        order_type:     ct,
+        status:         'pending',
+        paystack_ref:   paystackRef || ref,
+        items:          orderItems,
+      });
+
+      // 4. Send confirmation email to customer
+      if (custEmail) {
+        var emailType = (ct === 'ebox' || ct === 'mixed') ? 'status_delivered' : 'status_pending';
+        await fetch('/api/send-email', {
+          method:  'POST',
+          headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({
+            type:  emailType,
+            order: {
+              id:    ref,
+              name:  custName,
+              email: custEmail,
+              type:  ct === 'ebox' ? 'E-Box' : ct === 'physical' ? 'Physical' : 'Mixed',
+              total: totalStr,
+              date:  dateStr,
+              items: orderItems,
+              delivery: null,
+            }
+          })
+        });
+      }
+
+    } catch(err) {
+      console.warn('completeOrderConfirm Supabase/email:', err.message);
+    }
+  })();
+
   nextStep(4);
   appState.cart = []; activeCoupon = null; updateCartBadge();
 }
