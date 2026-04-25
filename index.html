@@ -615,6 +615,19 @@ async function authOnSignedIn(user) {
   if (sbName)   sbName.textContent   = name;
   if (sbRole)   sbRole.textContent   = role.charAt(0).toUpperCase() + role.slice(1);
 
+  // Check if user came from redeem flow
+  if (appState.pendingRedeemCode) {
+    var pendingCode = appState.pendingRedeemCode;
+    appState.pendingRedeemCode = null;
+    // Pre-fill the code and go to activation page
+    go('activation'); setNL('nl-activation');
+    setTimeout(function() {
+      var inp = document.getElementById('act-code');
+      if (inp) { inp.value = pendingCode; activateBox(); }
+    }, 300);
+    return;
+  }
+
   // Route by role
   if (role === 'admin') {
     go('admin'); setNL('nl-admin');
@@ -3682,19 +3695,32 @@ tr:hover td{background:var(--b50)}
   <div class="act-wrap">
     <div class="act-card">
       <div style="width:64px;height:64px;background:var(--b100);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.9rem;margin:0 auto 20px">🎁</div>
-      <h2 style="font-size:1.7rem;color:var(--navy);margin-bottom:9px">Activate Your Box</h2>
-      <p style="color:var(--muted);font-size:.82rem;margin-bottom:24px">Enter the unique code from your WowBox gift to unlock your included experiences.</p>
-      <input class="code-in" id="act-code" type="text" placeholder="WB-XXXX-XXXXX" maxlength="14">
-      <button class="btn bp block" onclick="activateBox()"><i class="fa fa-unlock"></i> Activate my box</button>
-      <div id="act-ok" style="display:none">
+      <h2 style="font-size:1.7rem;color:var(--navy);margin-bottom:9px">Redeem Your Box</h2>
+      <p style="color:var(--muted);font-size:.82rem;margin-bottom:24px">Enter your WB code to access your included experiences.</p>
+      <input class="code-in" id="act-code" type="text" placeholder="WB-XXXX-XXXX" maxlength="14"
+        style="text-transform:uppercase;font-family:'Courier New',monospace;letter-spacing:.05em"
+        oninput="this.value=this.value.toUpperCase()"
+        onkeydown="if(event.key==='Enter'){event.preventDefault();activateBox();}">
+      <div id="act-err" style="display:none;background:#fee2e2;border:1px solid #fca5a5;border-radius:8px;padding:10px 14px;font-size:.78rem;color:#991b1b;margin:10px 0"></div>
+      <button type="button" class="btn bp block" style="margin-top:12px" onclick="activateBox()">
+        <i class="fa fa-unlock"></i> Redeem my box
+      </button>
+      <div id="act-ok" style="display:none;margin-top:16px">
         <div class="success-box">
-          <div style="display:flex;align-items:center;gap:9px;margin-bottom:7px"><i class="fa fa-circle-check" style="color:var(--green);font-size:1rem"></i><strong style="color:#065f46;font-size:.9rem">Box activated successfully!</strong></div>
-          <p style="font-size:.78rem;color:#065f46;margin-bottom:11px">Your <strong>WowBox Couples Retreat</strong> is now active. Browse and book from <strong>847 experiences</strong> across South Africa.</p>
-          <button class="btn bp bsm" onclick="appState.boxActivated=true;go('product')">Browse experiences <i class="fa fa-arrow-right"></i></button>
+          <div style="display:flex;align-items:center;gap:9px;margin-bottom:7px">
+            <i class="fa fa-circle-check" style="color:var(--green);font-size:1rem"></i>
+            <strong style="color:#065f46;font-size:.9rem">Box redeemed successfully!</strong>
+          </div>
+          <p style="font-size:.78rem;color:#065f46;margin-bottom:11px">
+            Your <strong id="act-box-name">WowBox</strong> is ready. Browse and book your experience.
+          </p>
+          <button type="button" class="btn bp bsm" onclick="browseActivatedBox()">
+            Browse experiences <i class="fa fa-arrow-right"></i>
+          </button>
         </div>
       </div>
       <div class="divider"></div>
-      <p style="font-size:.72rem;color:var(--muted)">The box code is on the inside cover of your physical box or in your activation email. Codes begin with "WB-".</p>
+      <p style="font-size:.72rem;color:var(--muted)">Your WB code was sent to your email after purchase, or find it on your voucher card. Codes begin with "WB-".</p>
     </div>
   </div>
 </div>
@@ -7013,10 +7039,81 @@ function renderBoxGrid() {
   const cnt = document.getElementById('boxes-count');
   if (cnt) cnt.textContent = keys.length + ' box' + (keys.length !== 1 ? 'es' : '');
 }
-function activateBox() {
-  const code = document.getElementById('act-code').value.trim();
-  if (code.length >= 5) { appState.boxActivated = true; document.getElementById('act-ok').style.display = 'block'; }
-  else alert('Please enter a valid box code (e.g. WB-2025-COUP).');
+function browseActivatedBox() {
+  var v = appState.activatedVoucher;
+  if (!v) { go('browse'); return; }
+  var boxId = v.box_id || 'couples-retreat';
+  // Set the current box context for browsing
+  appState.currentBoxId   = boxId;
+  appState.currentBoxCode = v.code;
+  // Go to browse page filtered for this box
+  go('browse');
+}
+
+async function activateBox() {
+  var code = (document.getElementById('act-code') ? document.getElementById('act-code').value.trim().toUpperCase() : '');
+  var okEl  = document.getElementById('act-ok');
+  var errEl = document.getElementById('act-err');
+
+  if (!code || code.length < 5) {
+    if (errEl) { errEl.textContent = 'Please enter a valid WB code (e.g. WB-XXXX-XXXX).'; errEl.style.display = 'block'; }
+    return;
+  }
+  if (errEl) errEl.style.display = 'none';
+
+  // Check if logged in
+  if (!currentUser) {
+    // Save code and redirect to login
+    appState.pendingRedeemCode = code;
+    go('login'); setNL('nl-login');
+    return;
+  }
+
+  // Lookup code in Supabase
+  try {
+    var res = await db_client.from('vouchers').select('*').eq('code', code).single();
+
+    if (res.error || !res.data) {
+      if (errEl) { errEl.textContent = 'Code not found. Please check and try again.'; errEl.style.display = 'block'; }
+      return;
+    }
+
+    var v = res.data;
+
+    if (v.status === 'inactive') {
+      if (errEl) { errEl.textContent = 'This box has not been activated yet. Please ensure it was purchased at an authorised retailer.'; errEl.style.display = 'block'; }
+      return;
+    }
+    if (v.status === 'used') {
+      if (errEl) { errEl.textContent = 'This code has already been redeemed.'; errEl.style.display = 'block'; }
+      return;
+    }
+    if (v.user_email && v.user_email !== currentUser.email) {
+      if (errEl) { errEl.textContent = 'This code belongs to a different account.'; errEl.style.display = 'block'; }
+      return;
+    }
+
+    // Assign to user if not already
+    if (!v.user_email) {
+      await db_client.from('vouchers').update({ user_email: currentUser.email }).eq('code', code);
+    }
+
+    // Store activated box info
+    appState.activatedVoucher = v;
+    appState.boxActivated = true;
+
+    // Update success message
+    var boxName = v.box_name || 'WowBox';
+    var boxId   = v.box_id   || 'couples-retreat';
+    var msgEl   = document.getElementById('act-box-name');
+    if (msgEl) msgEl.textContent = boxName;
+
+    // Show success
+    if (okEl) okEl.style.display = 'block';
+
+  } catch(e) {
+    if (errEl) { errEl.textContent = 'Error: ' + e.message; errEl.style.display = 'block'; }
+  }
 }
 /* ══════════════════════════════════════════════════════════════
    CODE SYSTEM
