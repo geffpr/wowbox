@@ -3578,7 +3578,7 @@ tr:hover td{background:var(--b50)}
 </div>
 
 <!-- ═══════════════════════ PAGE: DASHBOARD ══════════════════════ -->
-<div id="page-dashboard" class="page" style="display:none">
+<div id="page-dashboard" class="page">
   <div class="dash-layout">
     <div class="sb">
       <div class="sb-user">
@@ -5590,7 +5590,7 @@ function go(page) {
 
   document.querySelectorAll('.page').forEach(function(p){ p.classList.remove('active'); });
   var el = document.getElementById('page-' + page);
-  if (el) el.classList.add('active');
+  if (el) { el.classList.add('active'); el.style.display = ''; }
   window.scrollTo({top:0,behavior:'smooth'});
   var hash = PAGE_HASH[page] || ('/' + page);
   if (window.location.hash !== '#' + hash) {
