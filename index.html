@@ -386,27 +386,19 @@ async function authForgot() {
 }
 
 function showDash(tab) {
-  // Hide all dash tabs
-  var tabs = ['dash-boxes', 'dash-orders', 'dash-redeem'];
-  tabs.forEach(function(t) {
+  var allTabs = ['dash-boxes','dash-orders','dash-redeem','dash-wishlist','dash-settings'];
+  allTabs.forEach(function(t) {
     var el = document.getElementById(t);
     if (el) el.style.display = 'none';
   });
-  // Show requested tab
   var target = document.getElementById('dash-' + tab);
   if (target) target.style.display = 'block';
-  // Update sidebar active state
   document.querySelectorAll('.sbl').forEach(function(b) { b.classList.remove('on'); });
-  var tabBtnMap = {
-    boxes:  function(b) { return b.textContent.includes('My Boxes'); },
-    orders: function(b) { return b.textContent.includes('My Orders'); },
-    redeem: function(b) { return b.textContent.includes('Redeem'); },
-  };
-  if (tabBtnMap[tab]) {
-    document.querySelectorAll('.sbl').forEach(function(b) {
-      if (tabBtnMap[tab](b)) b.classList.add('on');
-    });
-  }
+  var labels = {boxes:'My Boxes',orders:'My Orders',redeem:'Redeem',wishlist:'Wishlist',settings:'Settings'};
+  var label = labels[tab] || '';
+  document.querySelectorAll('.sbl').forEach(function(b) {
+    if (label && b.textContent.trim().includes(label)) b.classList.add('on');
+  });
 }
 
 async function dashRedeemCode() {
@@ -474,6 +466,34 @@ async function dashRedeemCode() {
   }
 }
 
+async function saveSettings() {
+  var name = (document.getElementById('settings-name') || {value:''}).value.trim();
+  if (!name) { admToast('Please enter your name.'); return; }
+  try {
+    await db_client.from('user_profiles').update({ full_name: name }).eq('id', currentUser.id);
+    currentUser.displayName = name;
+    var sbName = document.getElementById('dash-sb-name');
+    var sbAv   = document.getElementById('dash-sb-avatar');
+    if (sbName) sbName.textContent = name;
+    if (sbAv)   sbAv.textContent   = name.charAt(0).toUpperCase();
+    admToast('Profile updated!');
+  } catch(e) { admToast('Error: ' + e.message); }
+}
+
+async function changePassword() {
+  var pw  = (document.getElementById('settings-pw')  || {value:''}).value;
+  var pw2 = (document.getElementById('settings-pw2') || {value:''}).value;
+  if (!pw || pw.length < 6) { admToast('Password must be at least 6 characters.'); return; }
+  if (pw !== pw2) { admToast('Passwords do not match.'); return; }
+  try {
+    var res = await db_client.auth.updateUser({ password: pw });
+    if (res.error) throw res.error;
+    admToast('Password updated successfully!');
+    if (document.getElementById('settings-pw'))  document.getElementById('settings-pw').value  = '';
+    if (document.getElementById('settings-pw2')) document.getElementById('settings-pw2').value = '';
+  } catch(e) { admToast('Error: ' + e.message); }
+}
+
 async function authSignOut() {
   await db_client.auth.signOut();
   currentUser = null;
@@ -507,6 +527,12 @@ async function authOnSignedIn(user) {
   if (avatar)  avatar.textContent  = name.charAt(0).toUpperCase();
   if (nameEl)  nameEl.textContent  = name;
   if (emailEl) emailEl.textContent = email;
+  // Populate settings fields
+  var settingsName  = document.getElementById('settings-name');
+  var settingsEmail = document.getElementById('settings-email');
+  if (settingsName)  settingsName.value  = name;
+  if (settingsEmail) settingsEmail.value = email;
+
   // Update sidebar too
   var sbAvatar = document.getElementById('dash-sb-avatar');
   var sbName   = document.getElementById('dash-sb-name');
@@ -3403,6 +3429,8 @@ tr:hover td{background:var(--b50)}
       <button class="sbl on" onclick="showDash('boxes')"><i class="fa fa-gift"></i> My Boxes</button>
       <button class="sbl" onclick="showDash('orders')"><i class="fa fa-box"></i> My Orders</button>
       <button class="sbl" onclick="showDash('redeem')"><i class="fa fa-ticket"></i> Redeem a Box</button>
+      <button class="sbl" onclick="showDash('wishlist')"><i class="fa fa-heart"></i> Wishlist</button>
+      <button class="sbl" onclick="showDash('settings')"><i class="fa fa-gear"></i> Settings</button>
       <div style="margin-top:auto;padding-top:22px"><button class="sbl" onclick="authSignOut()"><i class="fa fa-right-from-bracket"></i> Sign out</button></div>
     </div>
     <div class="dm">
@@ -3425,6 +3453,50 @@ tr:hover td{background:var(--b50)}
           <button type="button" class="btn bp block" onclick="dashRedeemCode()" style="margin-top:4px">
             <i class="fa fa-gift"></i> Redeem my box
           </button>
+        </div>
+      </div>
+
+      <!-- Wishlist tab -->
+      <div id="dash-wishlist" style="display:none">
+        <h2 style="font-size:1.8rem;color:var(--navy);margin-bottom:5px">Wishlist</h2>
+        <p style="color:var(--muted);font-size:.85rem;margin-bottom:22px">Gift boxes you have saved for later.</p>
+        <div id="dash-wishlist-list">
+          <div style="text-align:center;padding:40px 20px;color:var(--muted)">
+            <i class="fa fa-heart" style="font-size:2rem;margin-bottom:12px;opacity:.3;display:block"></i>
+            <p style="font-size:.9rem">No saved boxes yet.<br>Click the heart icon on any box to save it here.</p>
+            <button class="btn bp bsm" style="margin-top:16px" onclick="go('allboxes')">Browse gift boxes</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Settings tab -->
+      <div id="dash-settings" style="display:none">
+        <h2 style="font-size:1.8rem;color:var(--navy);margin-bottom:5px">Settings</h2>
+        <p style="color:var(--muted);font-size:.85rem;margin-bottom:22px">Manage your account details.</p>
+        <div class="ck-card" style="max-width:480px">
+          <h3 style="font-size:1rem;color:var(--navy);margin-bottom:16px">Profile</h3>
+          <div class="fg">
+            <label>Full name</label>
+            <input class="fi" id="settings-name" type="text" placeholder="Your full name">
+          </div>
+          <div class="fg">
+            <label>Email</label>
+            <input class="fi" id="settings-email" type="email" disabled style="background:var(--bg);color:var(--muted)">
+          </div>
+          <button type="button" class="btn bp" onclick="saveSettings()" style="margin-top:8px">
+            <i class="fa fa-check"></i> Save changes
+          </button>
+          <div style="margin-top:24px;padding-top:20px;border-top:1px solid var(--border)">
+            <h3 style="font-size:1rem;color:var(--navy);margin-bottom:12px">Password</h3>
+            <div class="fg"><label>New password</label><input class="fi" id="settings-pw" type="password" placeholder="Min. 6 characters"></div>
+            <div class="fg"><label>Confirm password</label><input class="fi" id="settings-pw2" type="password" placeholder="Repeat new password"></div>
+            <button type="button" class="btn bg" onclick="changePassword()"><i class="fa fa-lock"></i> Update password</button>
+          </div>
+          <div style="margin-top:24px;padding-top:20px;border-top:1px solid var(--border);text-align:center">
+            <button type="button" class="btn" style="color:#ef4444;border:1px solid #fca5a5;padding:8px 20px;border-radius:var(--r);font-size:.82rem" onclick="authSignOut()">
+              <i class="fa fa-right-from-bracket"></i> Sign out
+            </button>
+          </div>
         </div>
       </div>
 
@@ -6932,14 +7004,6 @@ function admOrderDetail(orderId) {
     const vl = document.getElementById('od-vid-link');
     if (vl) { vl.textContent = vid.length > 50 ? vid.substring(0,50) + '...' : vid; vl.href = vid; }
   }
-}
-function showDash(tab) {
-  // Hide redeem tab
-  var redeemEl = document.getElementById('dash-redeem');
-  if (redeemEl) redeemEl.style.display = 'none';
-  document.getElementById('dash-boxes').style.display = tab==='boxes'?'block':'none';
-  document.getElementById('dash-orders').style.display = tab==='orders'?'block':'none';
-  document.querySelectorAll('.sbl').forEach(b=>b.classList.remove('on'));
 }
 
 function filterDashBoxes(status, btn) {
