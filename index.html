@@ -4,9 +4,9 @@
 <!-- Connexion Supabase -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.3/dist/umd/supabase.js"></script>
 <script>
-  const SUPABASE_URL  = 'https://gfqxuygfkzgmotnxrlwb.supabase.co';
-  const SUPABASE_KEY  = 'sb_publishable_NNDH11RkDff2KHghf_k-8g_wL2NtUIL';
-  const db_client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  var SUPABASE_URL = 'https://gfqxuygfkzgmotnxrlwb.supabase.co';
+  var SUPABASE_KEY = 'sb_publishable_NNDH11RkDff2KHghf_k-8g_wL2NtUIL';
+  var db_client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
   // Test de connexion
   db_client.from('boxes').select('id').limit(1).then(({ data, error }) => {
@@ -18,7 +18,7 @@
 ══════════════════════════════════════════════════════════════ */
 
 /* ── Box Usage ── */
-const usageDB = [
+var usageDB = [
   { code:'WB-2025-COUP', box:'Couples Retreat',    customer:'My Account',    email:'amahle@demo.co.za',   experience:'The Vineyard Retreat',    partner:'Vineyard Hotels',    date:'2025-05-10' },
   { code:'WB-2025-RSET', box:'WowBox Reset',        customer:'Zanele Mokoena',    email:'zanele@wowbox.co.za', experience:'Ananda Couples Spa',      partner:'Ananda Wellness',    date:'2024-11-03' },
   { code:'WB-2025-SURP', box:'Surprise Experience', customer:'David Pieterse',    email:'david.p@mail.co.za',  experience:'Magalies Hot Air Balloon', partner:'AirTrack Adventures',date:'2025-03-21' },
@@ -88,7 +88,7 @@ function exportUsageCSV() {
 }
 
 /* ── Orders ── */
-const ordersState = {
+var ordersState = {
   statuses: {
     'WB-ORD-2025-0042': 'In transit',
     'WB-ORD-2025-0041': 'Delivered',
@@ -316,7 +316,7 @@ async function saveBookingToSupabase(payload) {
 /* ══════════════════════════════════════════════════════════════
    SUPABASE AUTH
 ══════════════════════════════════════════════════════════════ */
-let currentUser = null;
+var currentUser = null;
 
 function authSwitchTab(tab) {
   const isUp = tab === 'up';
@@ -8784,7 +8784,7 @@ let couponDB = [
 ];
 
 /* Active coupon state in checkout */
-let activeCoupon = null;
+var activeCoupon = null;
 
 function validateCoupon(code) {
   const now    = new Date();
