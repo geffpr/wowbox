@@ -459,10 +459,49 @@ async function dashRedeemCode() {
 
     // Refresh boxes list
     await loadUserBoxes(currentUser.email);
+    await loadUserOrders(currentUser.email);
     setTimeout(function() { showDash('boxes'); }, 2000);
 
   } catch(e) {
     if (errEl) { errEl.textContent = 'Error: ' + e.message; errEl.style.display = 'block'; }
+  }
+}
+
+async function loadUserOrders(email) {
+  var listEl = document.getElementById('dash-orders-list');
+  if (!listEl) return;
+  try {
+    var res = await db_client.from('orders')
+      .select('*')
+      .eq('customer_email', email)
+      .order('created_at', { ascending: false });
+
+    if (res.error || !res.data || !res.data.length) {
+      listEl.innerHTML = '<div style="text-align:center;padding:40px 20px;color:var(--muted)">'
+        + '<i class="fa fa-bag-shopping" style="font-size:2rem;margin-bottom:12px;opacity:.3;display:block"></i>'
+        + '<p style="font-size:.9rem">No orders yet. Your purchases will appear here.</p>'
+        + '<button class="btn bp bsm" style="margin-top:16px" onclick="go(&quot;allboxes&quot;)">Browse gift boxes</button>'
+        + '</div>';
+      return;
+    }
+
+    var typeTag = {'ebox':'E-Box','physical':'Physical','mixed':'Mixed'};
+    var statusBadge = {'pending':'<span class="sbadge sb-p">Pending</span>','active':'<span class="sbadge sb-a">Active</span>','delivered':'<span class="sbadge sb-u">Delivered</span>'};
+
+    listEl.innerHTML = res.data.map(function(o) {
+      var date = o.created_at ? new Date(o.created_at).toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'}) : '-';
+      var type = typeTag[o.order_type] || o.order_type || '-';
+      var status = statusBadge[o.status] || '<span class="sbadge sb-p">' + (o.status||'Pending') + '</span>';
+      return '<div class="order-card" style="padding:16px">'
+        + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">'
+        + '<strong style="font-size:.88rem;color:var(--navy)">' + (o.id||'-') + '</strong>'
+        + status
+        + '</div>'
+        + '<div style="font-size:.78rem;color:var(--muted)">' + date + ' · ' + type + ' · R' + (o.total_amount||0).toLocaleString() + '</div>'
+        + '</div>';
+    }).join('');
+  } catch(e) {
+    console.warn('loadUserOrders:', e.message);
   }
 }
 
@@ -548,8 +587,41 @@ async function authOnSignedIn(user) {
     go('partner'); setNL('nl-partner');
   } else {
     await loadUserBoxes(email);
+    await loadUserOrders(email);
     go('dashboard'); setNL('nl-dash');
   }
+}
+
+async function loadUserOrders(email) {
+  var listEl = document.getElementById('dash-orders-list');
+  if (!listEl) return;
+  try {
+    var res = await db_client.from('orders')
+      .select('*')
+      .eq('customer_email', email)
+      .order('created_at', { ascending: false });
+    if (res.error || !res.data || !res.data.length) return;
+    var rows = res.data.map(function(o) {
+      var typeTag = o.order_type === 'ebox'
+        ? '<span class="tag t-act" style="font-size:.7rem">E-Box</span>'
+        : o.order_type === 'physical'
+          ? '<span class="tag t-hotel" style="font-size:.7rem">Physical</span>'
+          : '<span class="tag" style="background:#fef3c7;color:#92400e;font-size:.7rem">Mixed</span>';
+      var statusClass = { pending:'sb-p', processing:'sb-p', delivered:'sb-a', shipped:'sb-p' }[o.status] || 'sb-p';
+      var statusLabel = { pending:'Pending', processing:'In process', shipped:'In transit', delivered:'Delivered' }[o.status] || 'Pending';
+      return '<div class="order-card" style="margin-bottom:14px">'
+        + '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">'
+        + '<div><div style="font-weight:600;color:var(--navy);font-size:.9rem">Order #' + o.id + '</div>'
+        + '<div style="font-size:.73rem;color:var(--muted);margin-top:2px">' + new Date(o.created_at).toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'}) + ' · R' + (o.total_amount||0).toLocaleString() + '</div></div>'
+        + '<span class="sbadge ' + statusClass + '">' + statusLabel + '</span>'
+        + '</div>'
+        + '<div style="display:flex;align-items:center;gap:8px">' + typeTag
+        + '<span style="font-size:.75rem;color:var(--muted)">' + (o.order_type === 'ebox' ? 'E-Box' : 'Physical') + '</span>'
+        + '</div>'
+        + '</div>';
+    }).join('');
+    listEl.innerHTML = rows;
+  } catch(e) { console.warn('loadUserOrders:', e.message); }
 }
 
 async function loadUserBoxes(email) {
@@ -571,10 +643,16 @@ async function loadUserBoxes(email) {
       var imgSrc = box.img || 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?q=80&w=100&auto=format&fit=crop';
       var st     = v.status || 'inactive';
       var browseBtn = st === 'active' ? '<button class="btn bp bsm" onclick="openBrowsePage(\'' + v.box_id + '\')">Browse <i class="fa fa-arrow-right"></i></button>' : '';
+      var createdDate = v.created_at ? new Date(v.created_at).toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'}) : '';
+      var expiryDate  = v.expires_at  ? new Date(v.expires_at).toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'})
+        : v.created_at ? new Date(new Date(v.created_at).setFullYear(new Date(v.created_at).getFullYear()+1)).toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'})
+        : '';
       return '<div class="order-card dash-box-card" data-status="' + st + '" style="display:flex;align-items:center;gap:14px">'
         + '<img src="' + imgSrc + '" style="width:58px;height:48px;border-radius:var(--rs);object-fit:cover;flex-shrink:0" alt="">'
         + '<div style="flex:1"><div style="font-size:.9rem;font-weight:600;color:var(--navy);margin-bottom:2px">' + (v.box_name || box.name || 'WowBox') + '</div>'
-        + '<div style="font-size:.73rem;color:var(--muted)">Code: ' + v.code + '</div></div>'
+        + '<div style="font-size:.73rem;color:var(--muted)">Code: ' + v.code + (createdDate ? ' · Purchased ' + createdDate : '') + '</div>'
+        + (expiryDate ? '<div style="font-size:.7rem;color:var(--muted)">Expires: ' + expiryDate + '</div>' : '')
+        + '</div>'
         + '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:7px">'
         + '<span class="sbadge ' + (statusMap[st] || 'sb-p') + '">' + (statusLabel[st] || st) + '</span>'
         + browseBtn + '</div></div>';
@@ -2710,7 +2788,7 @@ tr:hover td{background:var(--b50)}
       <i class="fa fa-building"></i><span>Partner Portal</span>
     </button>
     <button class="mob-nav-item" onclick="closeMobMenu();go('login')">
-      <i class="fa fa-user"></i><span>My Account</span>
+      <i class="fa fa-user"></i><span>—</span>
     </button>
     <div class="mob-nav-divider"></div>
     <button class="mob-nav-item" onclick="closeMobMenu();go('admin');setNL('nl-adm')">
@@ -3296,7 +3374,7 @@ tr:hover td{background:var(--b50)}
               </div>
               <div id="ck-conf-actions" style="display:flex;gap:10px">
                 <button class="btn bp" style="flex:1;justify-content:center;padding:12px" onclick="go('dashboard')"><i class="fa fa-user"></i> View my account</button>
-                <button class="btn bg" style="flex:1;justify-content:center;padding:12px" id="ck-voucher-btn" onclick="go('voucher')" style="display:none"><i class="fa fa-ticket"></i> View voucher</button>
+                <button class="btn bg" style="flex:1;justify-content:center;padding:12px" id="ck-voucher-btn" onclick="showOrderVoucher()" style="display:none"><i class="fa fa-ticket"></i> View my WB code</button>
               </div>
             </div>
           </div>
@@ -3329,8 +3407,8 @@ tr:hover td{background:var(--b50)}
         <div style="display:flex;justify-content:space-between;align-items:flex-start;position:relative;z-index:1">
           <div>
             <div style="font-size:.65rem;text-transform:uppercase;letter-spacing:.1em;color:rgba(255,255,255,.55);margin-bottom:5px">WowBox Gift Voucher</div>
-            <h2 id="v-exp">The Vineyard Retreat</h2>
-            <p id="v-box">WowBox Couples Retreat · Stellenbosch</p>
+            <h2 id="v-exp">—</h2>
+            <p id="v-box">—</p>
             <div style="display:inline-flex;align-items:center;gap:5px;margin-top:12px;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.28);border-radius:99px;padding:5px 13px;font-size:.7rem;color:#fff;font-weight:700;position:relative;z-index:1"><i class="fa fa-circle-check" style="color:#4ade80"></i> Confirmed</div>
           </div>
           <div style="font-size:2.6rem;opacity:.8">🏡</div>
@@ -3339,13 +3417,13 @@ tr:hover td{background:var(--b50)}
       <div class="vouch-body">
         <div class="vg">
           <div class="vf"><label>Guest 1</label><span id="v-g1">My Account</span></div>
-          <div class="vf"><label>Guest 2</label><span id="v-g2">Sipho Khumalo</span></div>
-          <div class="vf"><label id="v-lbl1">Check-in</label><span id="v-d1">Sat, 10 May 2025</span></div>
+          <div class="vf"><label>Guest 2</label><span id="v-g2">—</span></div>
+          <div class="vf"><label id="v-lbl1">Check-in</label><span id="v-d1">—</span></div>
           <div class="vf"><label id="v-lbl2">Check-out</label><span id="v-d2">Sun, 11 May 2025</span></div>
           <div class="vf"><label>Details</label><span id="v-det">1 night · 2 guests</span></div>
           <div class="vf"><label>Location</label><span id="v-loc">Stellenbosch, W. Cape</span></div>
-          <div class="vf"><label>Valid Until</label><span>10 May 2026</span></div>
-          <div class="vf"><label>Box Code</label><span id="v-bcode" style="font-family:'Courier New',monospace;color:var(--b700)">WB-2025-COUP</span></div>
+          <div class="vf"><label>Valid Until</label><span id="v-valid-until">—</span></div>
+          <div class="vf"><label>Box Code</label><span id="v-bcode" style="font-family:'Courier New',monospace;color:var(--b700)">—</span></div>
         </div>
         <div class="vc-box">
           <small>Unique Booking Reference</small>
@@ -6517,6 +6595,29 @@ function nextStep(step, quiet) {
   if (!quiet) window.scrollTo({top:0,behavior:'smooth'});
 }
 
+function closeVoucherModal() { var m = document.getElementById("wb-modal"); if(m) m.remove(); }
+
+function showOrderVoucher() {
+  // Show a simple modal with the WB codes from the last order
+  var ref = document.getElementById('ck-order-ref') ? document.getElementById('ck-order-ref').textContent : '';
+  var order = ref ? orderDetailDB[ref] : null;
+  var codes = order ? order.items.map(function(i){ return i.code; }).join(', ') : 'Check your email';
+
+  var modal = document.createElement('div');
+  modal.id = 'wb-modal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  modal.innerHTML = '<div style="background:#fff;border-radius:16px;padding:32px;max-width:420px;width:100%;text-align:center">'
+    + '<div style="font-size:1.5rem;font-weight:700;color:var(--navy);margin-bottom:8px">Your WowBox Code</div>'
+    + '<p style="color:var(--muted);font-size:.85rem;margin-bottom:24px">Present this code at the venue or use it on wowbox.co.za to browse experiences.</p>'
+    + '<div style="background:var(--b50);border:2px dashed var(--b300);border-radius:12px;padding:20px;margin-bottom:20px">'
+    + '<div style="font-family:monospace;font-size:1.4rem;font-weight:700;color:var(--b700);letter-spacing:.05em">' + codes + '</div>'
+    + '</div>'
+    + '<p style="font-size:.75rem;color:var(--muted);margin-bottom:20px">A copy has been sent to your email address.</p>'
+    + '<button type="button" class="btn bp block" onclick="closeVoucherModal()">Close</button>'
+    + '</div>';
+  document.body.appendChild(modal);
+}
+
 function validateDetailsAndContinue() {
   var emailEl = document.getElementById('ck-email');
   var nameEl  = document.getElementById('ck-full-name');
@@ -6550,6 +6651,9 @@ function validateDetailsAndContinue() {
   errEl.style.display = 'none';
   if (nameEl)  nameEl.style.borderColor  = '';
   if (emailEl) emailEl.style.borderColor = '';
+  // Save to appState as backup
+  appState.lastOrderEmail = email;
+  appState.lastOrderName  = name;
   nextStep(3);
 }
 
@@ -6605,8 +6709,10 @@ async function completeOrderConfirm(paystackRef, total, discount) {
   const ref      = paystackRef || ('WB-ORD-' + Date.now());
   const dateStr  = new Date().toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'});
   const dateISO  = new Date().toISOString().slice(0,10);
-  const custEmail = document.getElementById('ck-email')    ? document.getElementById('ck-email').value.trim()    : '';
-  const custName  = document.getElementById('ck-full-name')? document.getElementById('ck-full-name').value.trim() : 'Customer';
+  const custEmail = (document.getElementById('ck-email') ? document.getElementById('ck-email').value.trim() : '')
+               || appState.lastOrderEmail || '';
+  const custName  = (document.getElementById('ck-full-name') ? document.getElementById('ck-full-name').value.trim() : '')
+               || appState.lastOrderName || 'Customer';
 
   document.getElementById('ck-order-ref').textContent = ref;
 
