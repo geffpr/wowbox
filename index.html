@@ -6246,7 +6246,7 @@ function renderCheckout() {
   const typeBadge = {ebox:'<span class="ck-type-badge ck-ebox">📧 E-Box delivery</span>',physical:'<span class="ck-type-badge ck-phys">📦 Physical delivery</span>',mixed:'<span class="ck-type-badge ck-mixed">📧📦 Mixed order</span>'};
   let fields = '';
   if (ct === 'ebox') {
-    fields = `<div class="fg"><label>Full name *</label><input class="fi" placeholder="Your full name"></div><div class="fg"><label>Email address *</label><input class="fi" type="email" placeholder="where to send your vouchers"></div><p style="font-size:.75rem;color:var(--muted);margin-top:4px"><i class="fa fa-info-circle" style="color:var(--b400)"></i> Your PDF voucher(s) will be generated and sent immediately after payment.</p>`;
+    fields = `<div class="fg"><label>Full name *</label><input class="fi" id="ck-full-name" placeholder="Your full name"></div><div class="fg"><label>Email address *</label><input class="fi" id="ck-email" type="email" placeholder="where to send your vouchers"></div><p style="font-size:.75rem;color:var(--muted);margin-top:4px"><i class="fa fa-info-circle" style="color:var(--b400)"></i> Your PDF voucher(s) will be generated and sent immediately after payment.</p>`;
   } else if (ct === 'physical') {
     fields = `<div class="fg"><label>Full name *</label><input class="fi" placeholder="Recipient full name"></div><div class="fg"><label>Email</label><input class="fi" type="email" placeholder="Order confirmation email"></div><h4 style="font-size:.9rem;margin:16px 0 12px">Delivery address</h4><div class="fg"><label>Street address *</label><input class="fi" placeholder="123 Main Street"></div><div class="fg-row"><div class="fg"><label>City *</label><input class="fi" placeholder="Cape Town"></div><div class="fg"><label>Province *</label><select class="fi"><option>Western Cape</option><option>Gauteng</option><option>KwaZulu-Natal</option><option>Eastern Cape</option></select></div></div><div class="fg-row"><div class="fg"><label>Postal code *</label><input class="fi" placeholder="8001"></div><div class="fg"><label>Country</label><input class="fi" value="South Africa" readonly></div></div><div class="fg"><label>Billing same as delivery?</label><label style="display:flex;align-items:center;gap:8px;font-size:.82rem;cursor:pointer"><input type="checkbox" checked style="accent-color:var(--b600)"> Yes, same address</label></div>`;
   } else {
@@ -6330,8 +6330,12 @@ async function completeOrderConfirm(paystackRef, total, discount) {
   const ref      = paystackRef || ('WB-ORD-' + Date.now());
   const dateStr  = new Date().toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'});
   const dateISO  = new Date().toISOString().slice(0,10);
-  const custEmail = document.getElementById('ck-email')?.value?.trim() || '';
-  const custName  = document.getElementById('ck-card-name')?.value?.trim() || 'Customer';
+  const custEmail = (document.getElementById('ck-email')?.value?.trim())
+                 || (document.getElementById('ck-card-name')?.value?.includes('@') ? document.getElementById('ck-card-name')?.value?.trim() : '')
+                 || '';
+  const custName  = document.getElementById('ck-full-name')?.value?.trim()
+                 || document.getElementById('ck-card-name')?.value?.trim()
+                 || 'Customer';
 
   document.getElementById('ck-order-ref').textContent = ref;
 
