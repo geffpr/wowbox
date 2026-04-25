@@ -6674,13 +6674,13 @@ async function validateVoucher() {
 
   // 3. Code not found anywhere
   if (!entry) {
-    resEl.innerHTML = renderValidationResult('not-found', null, raw);
+    resEl.innerHTML = renderValidationResult('not_found', null, raw);
     return;
   }
 
   // 4. Already used
   if (entry.status === 'used') {
-    resEl.innerHTML = renderValidationResult('used', entry, raw);
+    resEl.innerHTML = renderValidationResult('already_used', entry, raw);
     return;
   }
 
