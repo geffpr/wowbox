@@ -651,16 +651,10 @@ async function authOnSignedIn(user) {
     return;
   }
 
-  // Route by role
-  if (role === 'admin') {
-    go('admin'); setNL('nl-admin');
-  } else if (role === 'partner') {
-    go('partner'); setNL('nl-partner');
-  } else {
-    await loadUserBoxes(email);
-    await loadUserOrders(email);
-    go('dashboard'); setNL('nl-dash');
-  }
+  // Route by role — always go to dashboard, admin/partner see extra nav buttons
+  await loadUserBoxes(email);
+  await loadUserOrders(email);
+  go('dashboard'); setNL('nl-dash');
 }
 
 
