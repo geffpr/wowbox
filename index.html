@@ -305,7 +305,7 @@ async function generateRetailCodes(){
   var btn=document.getElementById('gen-btn');
   if(!qty||qty<1||qty>500){admToast('Enter a quantity between 1 and 500.');return;}
   if(!batch){admToast('Please enter a batch name.');return;}
-  if(btn){btn.disabled=true;btn.textContent='Generating...';}
+  if(btn){btn.disabled=true;btn.textContent='Generating…';}
   generatedCodes=[];
   var now=new Date().toISOString().slice(0,10);
   var existing=Object.keys(codeDB).filter(function(k){return k.indexOf('PHYS-'+prefix+'-')===0;}).map(function(k){return parseInt(k.split('-')[2])||0;});
@@ -333,8 +333,8 @@ async function generateRetailCodes(){
       var r2=await db_client.from('vouchers').insert(wbRows.slice(j,j+50));
       if(r2.error)throw r2.error;
     }
-    admToast(qty+' paires PHYS+WB sauvegardées dans Supabase!');
-  }catch(e){admToast('Généré localement. Supabase: '+e.message.substring(0,40));}
+    admToast(qty + ' PHYS+WB pairs saved to Supabase!');
+  }catch(e){admToast('Generated locally. Supabase: ' + e.message.substring(0,40));}
   if(btn){btn.disabled=false;btn.innerHTML='<i class="fa fa-barcode"></i> Generate codes';}
   renderGenCodes();
 }
@@ -344,7 +344,7 @@ function renderGenCodes(){
   if(!result||!listEl)return;
   result.style.display='block';
   result.scrollIntoView({behavior:'smooth',block:'nearest'});
-  if(title)title.innerHTML='<i class="fa fa-check-circle" style="color:var(--green)"></i> '+generatedCodes.length+' paires PHYS+WB - '+(generatedCodes[0]?generatedCodes[0].batch:'');
+  if(title)title.innerHTML='<i class="fa fa-check-circle" style="color:var(--green)"></i> '+generatedCodes.length+' PHYS+WB pairs — '+(generatedCodes[0]?generatedCodes[0].batch:'');
   var sa=document.getElementById('gen-select-all'),sc=document.getElementById('gen-selected-count');
   if(sa)sa.checked=false;
   if(sc)sc.textContent='0 selected';
@@ -360,7 +360,7 @@ function renderGenCodes(){
       +'<div style="display:flex;align-items:center;gap:10px">'
       +'<span style="font-size:.65rem;font-weight:700;background:#f0fdf4;color:#166534;padding:1px 6px;border-radius:4px">WB</span>'
       +'<span class="gen-code-text" style="font-size:.82rem;color:var(--green)">'+e.wbCode+'</span>'
-      +'<span style="font-size:.7rem;color:var(--muted)">a l interieur</span>'
+      +'<span style="font-size:.7rem;color:var(--muted)">inside box</span>'
       +'</div>'
       +'</div>'
       +'<div class="gen-code-batch">'+e.batch+'</div>'
@@ -394,10 +394,10 @@ function buildPrintCards(codes){
       return '<div style="border:1.5px solid #0f172a;border-radius:8px;padding:12px;text-align:center">'
         +'<div style="font-size:13px;font-weight:700;margin-bottom:4px">WowBox</div>'
         +'<div style="font-size:9px;color:#64748b;margin-bottom:6px">'+e.boxName+'</div>'
-        +'<div style="font-size:8px;color:#0369a1;font-weight:700;margin-bottom:2px">SUR LA BOITE</div>'
+        +'<div style="font-size:8px;color:#0369a1;font-weight:700;margin-bottom:2px">ON THE BOX</div>'
         +'<div style="font-family:monospace;font-size:11px;font-weight:700;color:#2563eb;word-break:break-all;margin-bottom:6px">'+e.code+'</div>'
         +'<div style="border-top:1px dashed #e2e8f0;padding-top:6px;margin-top:2px">'
-        +'<div style="font-size:8px;color:#166534;font-weight:700;margin-bottom:2px">A L INTERIEUR</div>'
+        +'<div style="font-size:8px;color:#166534;font-weight:700;margin-bottom:2px">INSIDE BOX</div>'
         +'<div style="font-family:monospace;font-size:11px;font-weight:700;color:#16a34a;word-break:break-all;margin-bottom:4px">'+(e.wbCode||'WB-XXXX')+'</div>'
         +'</div>'
         +'<div style="font-size:8px;color:#94a3b8">'+e.batch+'</div></div>';
@@ -922,7 +922,7 @@ function physDoActivate(code) {
           ip_address:    '(pos)',
         });
 
-        admToast('Box activée! Code WB: ' + (linkedWB || 'généré'));
+        admToast('Box activated! WB code: ' + (linkedWB || 'generated'));
       } catch(err) {
         console.warn('physDoActivate Supabase (non-blocking):', err.message);
         admToast('Box activée localement. Erreur sync: ' + err.message.slice(0,40));
@@ -932,7 +932,7 @@ function physDoActivate(code) {
     physLogAction(code, 'activated', adminId, nowTs);
     physShowResult('success',
       '<i class="fa fa-circle-check"></i> Box activée!',
-      "Le code PHYS est actif. Le code WB (dans la boite) : <strong>" + (linkedWB || "WB-XXXX") + "</strong> — utilisable sur wowbox.co.za",
+      "Box activated! The WB code inside the box: <strong>" + (linkedWB || "WB-XXXX") + "</strong> is now active and ready to use at wowbox.co.za",
       {
         code,
         box:         entry.boxName,
