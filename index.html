@@ -681,7 +681,9 @@ async function loadUserBoxes(email) {
     var vouchers = result.data || [];
     if (!vouchers.length) {
       if (subtitle) subtitle.textContent = 'You have no gift boxes yet. Browse our collection!';
-      document.querySelectorAll('#dash-boxes .dash-box-card').forEach(function(el) { el.remove(); });
+      var listDiv = document.getElementById('dash-boxes-list');
+    if (listDiv) listDiv.innerHTML = '';
+    document.querySelectorAll('#dash-boxes .dash-box-card').forEach(function(el) { el.remove(); });
       return;
     }
     if (subtitle) subtitle.textContent = vouchers.length + ' gift box' + (vouchers.length !== 1 ? 'es' : '') + ' in your account.';
@@ -710,9 +712,15 @@ async function loadUserBoxes(email) {
         + '<div style="display:flex;gap:4px">' + browseBtn + voucherBtn + '</div>'
         + '</div></div>';
     }).join('');
+    var listDiv = document.getElementById('dash-boxes-list');
+    if (listDiv) listDiv.innerHTML = '';
     document.querySelectorAll('#dash-boxes .dash-box-card').forEach(function(el) { el.remove(); });
-    var tabsEl = document.querySelector('#dash-boxes .tabs');
-    if (tabsEl) tabsEl.insertAdjacentHTML('afterend', html);
+    var listDiv = document.getElementById('dash-boxes-list');
+    if (listDiv) { listDiv.innerHTML = html; }
+    else {
+      var tabsEl = document.querySelector('#dash-boxes .tabs');
+      if (tabsEl) tabsEl.insertAdjacentHTML('afterend', html);
+    }
     var tabs = document.querySelectorAll('#dash-boxes .tabs .tab');
     if (tabs[0]) tabs[0].textContent = 'All (' + vouchers.length + ')';
     if (tabs[1]) tabs[1].textContent = 'Active (' + vouchers.filter(function(v){return v.status==='active';}).length + ')';
@@ -3639,36 +3647,7 @@ tr:hover td{background:var(--b50)}
           <button class="tab" onclick="filterDashBoxes('used',this)">Used (1)</button>
           <button class="tab" onclick="filterDashBoxes('expired',this)">Expired (1)</button>
         </div>
-        <div class="order-card dash-box-card" data-status="active" style="border-color:var(--b300);background:var(--b50);display:flex;align-items:center;gap:14px" onclick="go('product')">
-          <img src="https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?q=80&w=100&auto=format&fit=crop" style="width:58px;height:48px;border-radius:var(--rs);object-fit:cover;flex-shrink:0" alt="">
-          <div style="flex:1"><div style="font-size:.9rem;font-weight:600;color:var(--navy);margin-bottom:2px">WowBox Couples Retreat</div><div style="font-size:.73rem;color:var(--muted)">Code: WB-2025-COUP · 847 experiences · Expires 14 Jan 2026</div></div>
-          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:7px">
-            <span class="sbadge sb-a">Active</span>
-            <button class="btn bp bsm" onclick="event.stopPropagation();openBrowsePage('couples-retreat')">Browse experiences <i class="fa fa-arrow-right"></i></button>
-          </div>
-        </div>
-        <!-- Surprise box with roulette CTA -->
-        <div class="order-card dash-box-card" data-status="active" style="border-color:#f59e0b;background:#fffbeb;display:flex;align-items:center;gap:14px" onclick="openRoulettePage()">
-          <img src="https://images.unsplash.com/photo-1492684223066-81342ee5ff30?q=80&w=100&auto=format&fit=crop" style="width:58px;height:48px;border-radius:var(--rs);object-fit:cover;flex-shrink:0" alt="">
-          <div style="flex:1">
-            <div style="font-size:.9rem;font-weight:600;color:var(--navy);margin-bottom:2px">WowBox Surprise Experience</div>
-            <div style="font-size:.73rem;color:var(--muted)">Code: WB-2025-SURP · 3 spins available · 🚀 Boost active</div>
-          </div>
-          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:7px">
-            <span class="sbadge sb-a">Active</span>
-            <button class="btn bsm" style="background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;border:none" onclick="event.stopPropagation();openRoulettePage()">🎰 Spin the wheel</button>
-          </div>
-        </div>
-        <div class="order-card dash-box-card" data-status="used" style="display:flex;align-items:center;gap:14px">
-          <img src="https://images.unsplash.com/photo-1544161515-4ab6ce6db874?q=80&w=100&auto=format&fit=crop" style="width:58px;height:48px;border-radius:var(--rs);object-fit:cover;flex-shrink:0" alt="">
-          <div style="flex:1"><div style="font-size:.9rem;font-weight:600;color:var(--navy);margin-bottom:2px">WowBox Reset</div><div style="font-size:.73rem;color:var(--muted)">Code: WB-2024-RSET · Used 3 Nov 2024 · Ananda Spa, Sandton</div></div>
-          <span class="sbadge sb-u">Used</span>
-        </div>
-        <div class="order-card dash-box-card" data-status="expired" style="display:flex;align-items:center;gap:14px">
-          <img src="https://images.unsplash.com/photo-1551632811-561732d1e306?q=80&w=100&auto=format&fit=crop" style="width:58px;height:48px;border-radius:var(--rs);object-fit:cover;flex-shrink:0" alt="">
-          <div style="flex:1"><div style="font-size:.9rem;font-weight:600;color:var(--navy);margin-bottom:2px">WowBox Premium Adventure</div><div style="font-size:.73rem;color:var(--muted)">Code: WB-2023-PADV · Expired 22 Dec 2024</div></div>
-          <span class="sbadge sb-e">Expired</span>
-        </div>
+                <div id="dash-boxes-list"><!-- Loaded dynamically from Supabase --></div>
         <div style="margin-top:26px;padding-top:22px;border-top:1px solid var(--border)">
           <div style="display:flex;gap:10px;flex-wrap:wrap">
             <button class="btn bp bsm" onclick="go('activation')"><i class="fa fa-key"></i> Activate a box</button>
@@ -5578,6 +5557,15 @@ function go(page) {
   if (page === 'partner') {
     if (!currentUser || (currentUser.role !== 'partner' && currentUser.role !== 'admin')) { go('login'); return; }
     initPartnerPage();
+  }
+  // Reload user data when navigating to dashboard
+  if (page === 'dashboard' && currentUser) {
+    loadUserBoxes(currentUser.email);
+    loadUserOrders(currentUser.email);
+  }
+  // Redirect to login if hitting protected pages without auth
+  if ((page === 'dashboard') && !currentUser) {
+    go('login'); return;
   }
   document.body.style.visibility = 'visible';
 }
