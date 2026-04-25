@@ -4736,7 +4736,7 @@ tr:hover td{background:var(--b50)}
                 autocapitalize="characters"
                 spellcheck="false"
                 oninput="physOnInput(this)"
-                onkeydown="if(event.key==='Enter')physActivate()"
+                onkeydown="if(event.key==='Enter'){event.preventDefault();physActivate();}"
               >
               <button class="phys-code-clear" id="phys-code-clear" onclick="physClearInput()" title="Clear">
                 <i class="fa fa-xmark"></i>
@@ -4751,11 +4751,11 @@ tr:hover td{background:var(--b50)}
             <!-- Customer email for WB code generation -->
             <div class="fg" style="margin-bottom:14px">
               <label style="font-size:.8rem;font-weight:600;color:var(--navy)">Customer email <span style="font-weight:400;color:var(--muted)">(optional — for direct notification)</span></label>
-              <input class="fi" id="phys-customer-email" type="email" placeholder="customer@email.com" style="font-size:.88rem">
+              <input class="fi" id="phys-customer-email" type="email" placeholder="customer@email.com" style="font-size:.88rem" onkeydown="if(event.key==='Enter'){event.preventDefault();physActivate();}">
             </div>
 
             <!-- Activate button -->
-            <button class="phys-activate-btn" id="phys-activate-btn" onclick="physActivate()">
+            <button type="button" class="phys-activate-btn" id="phys-activate-btn" onclick="physActivate()">
               <i class="fa fa-box-open"></i> Activate box
             </button>
           </div>
