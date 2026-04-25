@@ -2816,7 +2816,7 @@ tr:hover td{background:var(--b50)}
   <div class="nav-links">
     <button class="nl" id="nl-home" onclick="go('home');setNL('nl-home')">Home</button>
     <button class="nl" id="nl-boxes" onclick="go('allboxes');setNL('nl-boxes')">Gift Boxes</button>
-    <button class="nl" id="nl-dash" onclick="go('dashboard');setNL('nl-dash')">My Account</button>
+    <button class="nl" id="nl-dash" onclick="goMyAccount()">My Account</button>
     <button class="nl" id="nl-part" onclick="go('partner');setNL('nl-part')" style="display:none">Partners</button>
     <button class="nl" id="nl-adm" onclick="go('admin');setNL('nl-adm')" style="display:none">Admin</button>
   </div>
@@ -2860,7 +2860,7 @@ tr:hover td{background:var(--b50)}
     <button class="mob-nav-item" onclick="closeMobMenu();go('allboxes');setNL('nl-boxes')">
       <i class="fa fa-gift"></i><span>Browse Boxes</span>
     </button>
-    <button class="mob-nav-item" onclick="closeMobMenu();go('dashboard');setNL('nl-dash')">
+    <button class="mob-nav-item" onclick="closeMobMenu();goMyAccount()">
       <i class="fa fa-layer-group"></i><span>My Boxes</span>
     </button>
     <button class="mob-nav-item" onclick="closeMobMenu();go('cart')">
@@ -3578,7 +3578,7 @@ tr:hover td{background:var(--b50)}
 </div>
 
 <!-- ═══════════════════════ PAGE: DASHBOARD ══════════════════════ -->
-<div id="page-dashboard" class="page">
+<div id="page-dashboard" class="page" style="display:none">
   <div class="dash-layout">
     <div class="sb">
       <div class="sb-user">
@@ -6692,6 +6692,10 @@ function nextStep(step, quiet) {
 }
 
 function goBrowse(){go("allboxes");}
+function goMyAccount(){
+  if (currentUser) { go('dashboard'); setNL('nl-dash'); }
+  else { go('login'); setNL('nl-login'); }
+}
 
 function showBoxVoucher(code, boxName) {
   var modal = document.createElement('div');
