@@ -6623,7 +6623,7 @@ function generateBoxCode(boxId) {
 }
 
 /* ── VALIDATION ENGINE ── */
-function validateVoucher() {
+async function validateVoucher() {
   const raw   = (document.getElementById('vi-input')?.value || '').trim().toUpperCase();
   const resEl = document.getElementById('v-result');
   if (!resEl) return;
@@ -6634,51 +6634,109 @@ function validateVoucher() {
     return;
   }
 
-  const entry = codeDB[raw];
+  // Show loading
+  resEl.style.display = 'block';
+  resEl.innerHTML = '<div style="text-align:center;padding:20px;color:var(--muted)"><i class="fa fa-circle-notch fa-spin"></i> Checking code…</div>';
+
+  // 1. Check local codeDB first
+  let entry = codeDB[raw];
+
+  // 2. If not found locally, query Supabase
   if (!entry) {
-    resEl.style.display = 'block';
-    resEl.innerHTML = renderValidationResult('not_found', null, raw);
+    try {
+      const { data, error } = await db_client
+        .from('vouchers')
+        .select('*')
+        .eq('code', raw)
+        .single();
+
+      if (!error && data) {
+        // Build entry from Supabase data
+        entry = {
+          boxId:      data.box_id,
+          boxName:    data.box_name || data.box_id,
+          userId:     data.user_email,
+          status:     data.status,
+          activatedAt: data.activated_at,
+          usedAt:     data.used_at,
+          experience: data.experience_used,
+          partner:    data.partner_name,
+          hasBoost:   false,
+          activationLog: [],
+        };
+        // Cache it
+        codeDB[raw] = entry;
+      }
+    } catch(err) {
+      console.warn('Supabase lookup failed:', err.message);
+    }
+  }
+
+  // 3. Code not found anywhere
+  if (!entry) {
+    resEl.innerHTML = renderValidationResult('not-found', null, raw);
     return;
   }
+
+  // 4. Already used
   if (entry.status === 'used') {
-    resEl.style.display = 'block';
-    resEl.innerHTML = renderValidationResult('already_used', entry, raw);
+    resEl.innerHTML = renderValidationResult('used', entry, raw);
     return;
   }
+
+  // 5. Expired
+  if (entry.status === 'expired') {
+    resEl.innerHTML = renderValidationResult('expired', entry, raw);
+    return;
+  }
+
+  // 6. Inactive (not yet activated by retailer)
   if (entry.status === 'inactive') {
-    resEl.style.display = 'block';
     resEl.innerHTML = renderValidationResult('inactive', entry, raw);
     return;
   }
-  // Check expiry (1 year from activation)
-  if (entry.activatedAt) {
-    const activated = new Date(entry.activatedAt);
-    const expiry    = new Date(activated.setFullYear(activated.getFullYear() + 1));
-    if (new Date() > expiry) {
-      resEl.style.display = 'block';
-      resEl.innerHTML = renderValidationResult('expired', entry, raw);
-      return;
-    }
-  }
+
   // ✅ Valid — mark as used in memory + Supabase
   const usedDate = new Date().toISOString().slice(0,10);
   entry.status  = 'used';
   entry.usedAt  = usedDate;
   entry.partner = appState.partnerName || 'Partner';
+
   (async () => {
     try {
-      await db_client.from('vouchers').update({ status:'used', used_at:usedDate, partner_name:entry.partner }).eq('code', raw);
-      await db_client.from('activation_logs').insert({ voucher_code:raw, outcome:'validated', activated_by:entry.partner, ip_address:'(browser)' });
-      if (typeof usageDB !== 'undefined' && !usageDB.find(u => u.code === raw)) {
-        usageDB.unshift({ code:raw, box:entry.boxName||'', customer:entry.userId||'Customer', email:entry.userId||'', experience:entry.experience||'—', partner:entry.partner, date:usedDate });
-        renderUsageTable();
+      await db_client.from('vouchers')
+        .update({ status:'used', used_at: usedDate, partner_name: entry.partner })
+        .eq('code', raw);
+
+      await db_client.from('activation_logs').insert({
+        voucher_code:  raw,
+        outcome:       'validated',
+        activated_by:  entry.partner,
+        ip_address:    '(browser)',
+      });
+
+      // Add to usageDB so Box Usage updates live
+      if (typeof usageDB !== 'undefined' && !usageDB.find(function(u){return u.code===raw;})) {
+        usageDB.unshift({
+          code:       raw,
+          box:        entry.boxName || '',
+          customer:   entry.userId  || 'Customer',
+          email:      entry.userId  || '',
+          experience: entry.experience || '-',
+          partner:    entry.partner,
+          date:       usedDate,
+        });
+        if (typeof renderUsageTable === 'function') renderUsageTable();
       }
-    } catch(err) { console.warn('validateVoucher Supabase (non-blocking):', err.message); }
+    } catch(err) {
+      console.warn('validateVoucher Supabase (non-blocking):', err.message);
+    }
   })();
-  resEl.style.display = 'block';
-  resEl.innerHTML  = renderValidationResult('success', entry, raw);
+
+  resEl.innerHTML = renderValidationResult('success', entry, raw);
   resEl.scrollIntoView({behavior:'smooth', block:'nearest'});
 }
+
 
 function renderValidationResult(type, entry, code) {
   const txRef = 'TXN-' + Date.now().toString(36).toUpperCase();
