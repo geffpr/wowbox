@@ -5563,6 +5563,31 @@ const HASH_PAGE = {};
 Object.entries(PAGE_HASH).forEach(function(e){ HASH_PAGE[e[1]] = e[0]; });
 
 function go(page) {
+  // ── Auth guard — check BEFORE showing anything ──
+  var protectedRoles = {
+    'dashboard': 'any',
+    'admin':     'admin',
+    'partner':   'partner',
+  };
+  if (protectedRoles[page]) {
+    if (!currentUser) {
+      history.pushState(null, '', '#/login');
+      document.querySelectorAll('.page').forEach(function(p){ p.classList.remove('active'); });
+      var loginEl = document.getElementById('page-login');
+      if (loginEl) loginEl.classList.add('active');
+      var loader = document.getElementById('app-loader');
+      if (loader) loader.style.display = 'none';
+      setNL('nl-login');
+      return;
+    }
+    if (protectedRoles[page] === 'admin' && currentUser.role !== 'admin') {
+      go('login'); return;
+    }
+    if (protectedRoles[page] === 'partner' && currentUser.role !== 'partner' && currentUser.role !== 'admin') {
+      go('login'); return;
+    }
+  }
+
   document.querySelectorAll('.page').forEach(function(p){ p.classList.remove('active'); });
   var el = document.getElementById('page-' + page);
   if (el) el.classList.add('active');
@@ -5575,24 +5600,13 @@ function go(page) {
   if (page === 'cart') renderCart();
   if (page === 'checkout') renderCheckout();
   if (page === 'reviews') renderReviewsPage();
-  if (page === 'admin') {
-    if (!currentUser || currentUser.role !== 'admin') { go('login'); return; }
-    renderAdmin();
-  }
+  if (page === 'admin') renderAdmin();
   if (page === 'browse') renderBrowse();
   if (page === 'roulette') initRoulettePage();
-  if (page === 'partner') {
-    if (!currentUser || (currentUser.role !== 'partner' && currentUser.role !== 'admin')) { go('login'); return; }
-    initPartnerPage();
-  }
-  // Reload user data when navigating to dashboard
-  if (page === 'dashboard' && currentUser) {
+  if (page === 'partner') initPartnerPage();
+  if (page === 'dashboard') {
     loadUserBoxes(currentUser.email);
     loadUserOrders(currentUser.email);
-  }
-  // Redirect to login if hitting protected pages without auth
-  if ((page === 'dashboard') && !currentUser) {
-    go('login'); return;
   }
   var loader = document.getElementById('app-loader');
   if (loader) loader.style.display = 'none';
