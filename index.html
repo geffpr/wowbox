@@ -272,7 +272,12 @@ function buildPrintCards(codes) {
 function printGenCodes() {
   if (!generatedCodes.length) { admToast('No codes to print.'); return; }
   const w = window.open('','_blank');
-  w.document.write('<html><body style="visibility:hidden">'+buildPrintCards(generatedCodes)+'</body></html>');
+  w.document.write('<html><body>
+<div id="app-loader" style="position:fixed;inset:0;background:#fff;z-index:99999;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:16px">
+  <div style="font-family:'Cormorant Garamond',Georgia,serif;font-size:2rem;font-weight:700;color:#1e3a5f;letter-spacing:.02em">WowBox</div>
+  <div style="width:32px;height:32px;border:3px solid #e2e8f0;border-top-color:#2563eb;border-radius:50%;animation:spin .7s linear infinite"></div>
+</div>
+<style>@keyframes spin{to{transform:rotate(360deg)}}</style>'+buildPrintCards(generatedCodes)+'</body></html>');
   w.document.close(); w.print(); w.close();
 }
 
@@ -5567,7 +5572,8 @@ function go(page) {
   if ((page === 'dashboard') && !currentUser) {
     go('login'); return;
   }
-  document.body.style.visibility = 'visible';
+  var loader = document.getElementById('app-loader');
+  if (loader) loader.style.display = 'none';
 }
 
 function goFromHash() {
@@ -8994,11 +9000,11 @@ function admDeleteCoupon(id) {
 window.addEventListener('DOMContentLoaded', async () => {
   appState.priceBase = 1499;
 
-  // Check auth session FIRST — body stays hidden until we know where to go
+  // Check auth session FIRST — loader overlay hides everything
   try {
     var sessionResult = await db_client.auth.getSession();
     if (sessionResult.data && sessionResult.data.session && sessionResult.data.session.user) {
-      // Logged in — go directly to correct page, then load data in background
+      // Logged in — go directly to correct page (loader hides the transition)
       await authOnSignedIn(sessionResult.data.session.user);
       // Load box data after page is shown (non-blocking)
       renderBoxGrids();
@@ -9011,18 +9017,15 @@ window.addEventListener('DOMContentLoaded', async () => {
   var hash = window.location.hash.replace('#','') || '/';
   var protectedPages = ['/my-account', '/admin', '/partner'];
 
+  // Load boxes in background for public pages
+  renderBoxGrids();
+  loadProduct('couples-retreat');
+
   if (protectedPages.indexOf(hash) >= 0) {
-    // Protected page without auth → login
-    await renderBoxGrids();
-    loadProduct('couples-retreat');
     go('login'); setNL('nl-login');
   } else if (hash === '/' || hash === '') {
-    await renderBoxGrids();
-    loadProduct('couples-retreat');
     go('home'); setNL('nl-home');
   } else {
-    await renderBoxGrids();
-    loadProduct('couples-retreat');
     goFromHash();
   }
 });
