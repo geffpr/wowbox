@@ -385,6 +385,95 @@ async function authForgot() {
   } catch(e) { authShowError(e.message); }
 }
 
+function showDash(tab) {
+  // Hide all dash tabs
+  var tabs = ['dash-boxes', 'dash-orders', 'dash-redeem'];
+  tabs.forEach(function(t) {
+    var el = document.getElementById(t);
+    if (el) el.style.display = 'none';
+  });
+  // Show requested tab
+  var target = document.getElementById('dash-' + tab);
+  if (target) target.style.display = 'block';
+  // Update sidebar active state
+  document.querySelectorAll('.sbl').forEach(function(b) { b.classList.remove('on'); });
+  var tabBtnMap = {
+    boxes:  function(b) { return b.textContent.includes('My Boxes'); },
+    orders: function(b) { return b.textContent.includes('My Orders'); },
+    redeem: function(b) { return b.textContent.includes('Redeem'); },
+  };
+  if (tabBtnMap[tab]) {
+    document.querySelectorAll('.sbl').forEach(function(b) {
+      if (tabBtnMap[tab](b)) b.classList.add('on');
+    });
+  }
+}
+
+async function dashRedeemCode() {
+  var input = document.getElementById('dash-redeem-input');
+  var errEl = document.getElementById('dash-redeem-error');
+  var sucEl = document.getElementById('dash-redeem-success');
+  var code  = input ? input.value.trim().toUpperCase() : '';
+
+  if (errEl) errEl.style.display = 'none';
+  if (sucEl) sucEl.style.display = 'none';
+
+  if (!code || code.length < 8) {
+    if (errEl) { errEl.textContent = 'Please enter a valid WB code.'; errEl.style.display = 'block'; }
+    return;
+  }
+
+  if (!currentUser) {
+    if (errEl) { errEl.textContent = 'Please sign in first.'; errEl.style.display = 'block'; }
+    return;
+  }
+
+  try {
+    // Look up the code in Supabase
+    var res = await db_client.from('vouchers').select('*').eq('code', code).single();
+
+    if (res.error || !res.data) {
+      if (errEl) { errEl.textContent = 'Code not found. Please check and try again.'; errEl.style.display = 'block'; }
+      return;
+    }
+
+    var voucher = res.data;
+
+    if (voucher.status === 'inactive') {
+      if (errEl) { errEl.textContent = 'This box has not been activated yet. Please ensure it was purchased from an authorised retailer.'; errEl.style.display = 'block'; }
+      return;
+    }
+
+    if (voucher.status === 'used') {
+      if (errEl) { errEl.textContent = 'This code has already been redeemed.'; errEl.style.display = 'block'; }
+      return;
+    }
+
+    if (voucher.user_email && voucher.user_email !== currentUser.email) {
+      if (errEl) { errEl.textContent = 'This code belongs to a different account.'; errEl.style.display = 'block'; }
+      return;
+    }
+
+    // Assign the voucher to this user
+    await db_client.from('vouchers')
+      .update({ user_email: currentUser.email })
+      .eq('code', code);
+
+    if (sucEl) {
+      sucEl.textContent = 'Box redeemed! ' + (voucher.box_name || code) + ' has been added to your account.';
+      sucEl.style.display = 'block';
+    }
+    if (input) input.value = '';
+
+    // Refresh boxes list
+    await loadUserBoxes(currentUser.email);
+    setTimeout(function() { showDash('boxes'); }, 2000);
+
+  } catch(e) {
+    if (errEl) { errEl.textContent = 'Error: ' + e.message; errEl.style.display = 'block'; }
+  }
+}
+
 async function authSignOut() {
   await db_client.auth.signOut();
   currentUser = null;
@@ -3311,15 +3400,34 @@ tr:hover td{background:var(--b50)}
         <div class="av" id="dash-sb-avatar">?</div>
         <div><strong style="font-size:.85rem;color:var(--navy);display:block" id="dash-sb-name">My Account</strong><small style="font-size:.7rem;color:var(--muted)" id="dash-sb-role">Customer</small></div>
       </div>
-      <button class="sbl on"><i class="fa fa-gift"></i> My Boxes</button>
+      <button class="sbl on" onclick="showDash('boxes')"><i class="fa fa-gift"></i> My Boxes</button>
       <button class="sbl" onclick="showDash('orders')"><i class="fa fa-box"></i> My Orders</button>
-      <button class="sbl" onclick="go('activation')"><i class="fa fa-key"></i> Activate a Box</button>
-      <button class="sbl" onclick="go('voucher')"><i class="fa fa-ticket"></i> My Vouchers</button>
-      <button class="sbl"><i class="fa fa-heart"></i> Wishlist</button>
-      <button class="sbl"><i class="fa fa-gear"></i> Settings</button>
-      <div style="margin-top:22px"><button class="sbl" onclick="go('home')"><i class="fa fa-right-from-bracket"></i> Sign out</button></div>
+      <button class="sbl" onclick="showDash('redeem')"><i class="fa fa-ticket"></i> Redeem a Box</button>
+      <div style="margin-top:auto;padding-top:22px"><button class="sbl" onclick="authSignOut()"><i class="fa fa-right-from-bracket"></i> Sign out</button></div>
     </div>
     <div class="dm">
+
+      <!-- Redeem tab -->
+      <div id="dash-redeem" style="display:none">
+        <h2 style="font-size:1.8rem;color:var(--navy);margin-bottom:5px">Redeem a Box</h2>
+        <p style="color:var(--muted);font-size:.85rem;margin-bottom:22px">Enter your WB code to add a gift box to your account.</p>
+        <div class="ck-card" style="max-width:480px">
+          <div class="fg">
+            <label>Your WB code *</label>
+            <input class="fi" id="dash-redeem-input" type="text" placeholder="WB-XXXX-XXXX"
+              style="font-family:'Courier New',monospace;font-size:1rem;text-transform:uppercase;letter-spacing:.05em"
+              oninput="this.value=this.value.toUpperCase()"
+              onkeydown="if(event.key==='Enter'){event.preventDefault();dashRedeemCode();}">
+            <div style="font-size:.72rem;color:var(--muted);margin-top:6px">You can find this code inside your WowBox packaging or in your activation email.</div>
+          </div>
+          <div id="dash-redeem-error" style="display:none;background:#fee2e2;border:1px solid #fca5a5;border-radius:var(--rs);padding:10px 14px;font-size:.78rem;color:#991b1b;margin-bottom:14px"></div>
+          <div id="dash-redeem-success" style="display:none;background:#d1fae5;border:1px solid #6ee7b7;border-radius:var(--rs);padding:10px 14px;font-size:.78rem;color:#065f46;margin-bottom:14px"></div>
+          <button type="button" class="btn bp block" onclick="dashRedeemCode()" style="margin-top:4px">
+            <i class="fa fa-gift"></i> Redeem my box
+          </button>
+        </div>
+      </div>
+
       <!-- Boxes tab -->
       <div id="dash-boxes">
         <div id="dash-user-bar" style="display:flex;align-items:center;gap:12px;margin-bottom:20px;padding:14px 18px;background:var(--b50);border-radius:var(--r);border:1px solid var(--b100)">
@@ -6826,6 +6934,9 @@ function admOrderDetail(orderId) {
   }
 }
 function showDash(tab) {
+  // Hide redeem tab
+  var redeemEl = document.getElementById('dash-redeem');
+  if (redeemEl) redeemEl.style.display = 'none';
   document.getElementById('dash-boxes').style.display = tab==='boxes'?'block':'none';
   document.getElementById('dash-orders').style.display = tab==='orders'?'block':'none';
   document.querySelectorAll('.sbl').forEach(b=>b.classList.remove('on'));
