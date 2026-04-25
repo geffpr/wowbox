@@ -476,28 +476,60 @@ async function loadUserOrders(email) {
       .eq('customer_email', email)
       .order('created_at', { ascending: false });
 
-    if (res.error || !res.data || !res.data.length) {
+    // If orders table fails or empty, show vouchers as orders
+    var data = (res.data && res.data.length) ? res.data : null;
+    
+    if (!data) {
+      // Fallback: build orders from vouchers
+      var vRes = await db_client.from('vouchers')
+        .select('code, box_name, created_at, status, order_id')
+        .eq('user_email', email)
+        .eq('is_physical_box', false)
+        .order('created_at', { ascending: false });
+      
+      if (vRes.data && vRes.data.length) {
+        data = vRes.data.map(function(v) {
+          return {
+            id: v.order_id || v.code,
+            customer_email: email,
+            total_amount: null,
+            order_type: 'ebox',
+            status: v.status,
+            created_at: v.created_at,
+            _from_vouchers: true,
+            _box_name: v.box_name,
+            _code: v.code,
+          };
+        });
+      }
+    }
+
+    if (!data || !data.length) {
       listEl.innerHTML = '<div style="text-align:center;padding:40px 20px;color:var(--muted)">'
         + '<i class="fa fa-bag-shopping" style="font-size:2rem;margin-bottom:12px;opacity:.3;display:block"></i>'
         + '<p style="font-size:.9rem">No orders yet. Your purchases will appear here.</p>'
-        + '<button class="btn bp bsm" style="margin-top:16px" onclick="go(&quot;allboxes&quot;)">Browse gift boxes</button>'
+        + '<button class="btn bp bsm" style="margin-top:16px" onclick="goBrowse()">Browse gift boxes</button>'
         + '</div>';
       return;
     }
 
     var typeTag = {'ebox':'E-Box','physical':'Physical','mixed':'Mixed'};
-    var statusBadge = {'pending':'<span class="sbadge sb-p">Pending</span>','active':'<span class="sbadge sb-a">Active</span>','delivered':'<span class="sbadge sb-u">Delivered</span>'};
+    var statusBadge = {'pending':'<span class="sbadge sb-p">Pending</span>','active':'<span class="sbadge sb-a">Active</span>','used':'<span class="sbadge sb-u">Used</span>','delivered':'<span class="sbadge sb-u">Delivered</span>'};
 
-    listEl.innerHTML = res.data.map(function(o) {
+    listEl.innerHTML = data.map(function(o) {
       var date = o.created_at ? new Date(o.created_at).toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'}) : '-';
-      var type = typeTag[o.order_type] || o.order_type || '-';
-      var status = statusBadge[o.status] || '<span class="sbadge sb-p">' + (o.status||'Pending') + '</span>';
+      var type = typeTag[o.delivery_type] || o.delivery_type || 'E-Box';
+      var status = statusBadge[o.status] || '<span class="sbadge sb-p">' + (o.status||'Active') + '</span>';
+      var title = o._from_vouchers ? (o._box_name || 'WowBox') : (o.id || '-');
+      var subline = o._from_vouchers
+        ? date + ' · ' + type + ' · Code: ' + (o._code||'')
+        : date + ' · ' + type + (o.total_amount ? ' · R' + Number(o.total_amount).toLocaleString() : '');
       return '<div class="order-card" style="padding:16px">'
         + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">'
-        + '<strong style="font-size:.88rem;color:var(--navy)">' + (o.id||'-') + '</strong>'
+        + '<strong style="font-size:.88rem;color:var(--navy)">' + title + '</strong>'
         + status
         + '</div>'
-        + '<div style="font-size:.78rem;color:var(--muted)">' + date + ' · ' + type + ' · R' + (o.total_amount||0).toLocaleString() + '</div>'
+        + '<div style="font-size:.78rem;color:var(--muted)">' + subline + '</div>'
         + '</div>';
     }).join('');
   } catch(e) {
@@ -6595,6 +6627,7 @@ function nextStep(step, quiet) {
   if (!quiet) window.scrollTo({top:0,behavior:'smooth'});
 }
 
+function goBrowse(){go("allboxes");}
 function closeVoucherModal() { var m = document.getElementById("wb-modal"); if(m) m.remove(); }
 
 function showOrderVoucher() {
@@ -6677,6 +6710,10 @@ function completeOrder() {
   const email = document.getElementById('ck-email')?.value?.trim()
              || document.getElementById('ck-card-name')?.value?.trim()
              || 'customer@wowbox.co.za';
+
+  // Save email to appState BEFORE opening Paystack (survives popup)
+  appState.lastOrderEmail = email;
+  appState.lastOrderName  = document.getElementById('ck-full-name')?.value?.trim() || 'Customer';
 
   // Open Paystack popup
   const handler = PaystackPop.setup({
@@ -6795,9 +6832,9 @@ async function completeOrderConfirm(paystackRef, total, discount) {
         customer_name:  custName,
         customer_email: custEmail || null,
         total_amount:   total,
-        order_type:     ct,
+        discount_amount: discount || 0,
+        delivery_type:  ct,
         status:         'pending',
-        paystack_ref:   paystackRef || ref,
       });
 
       // Send email
