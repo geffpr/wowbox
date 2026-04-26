@@ -5937,7 +5937,7 @@ function go(page) {
   };
   if (protectedRoles[page]) {
     if (!currentUser) {
-      history.pushState(null, '', '#/login');
+      history.pushState(null, '', '/login');
       document.querySelectorAll('.page').forEach(function(p){ p.classList.remove('active'); });
       var loginEl = document.getElementById('page-login');
       if (loginEl) { loginEl.classList.add('active'); loginEl.style.display = ''; }
@@ -5958,9 +5958,9 @@ function go(page) {
   var el = document.getElementById('page-' + page);
   if (el) { el.classList.add('active'); el.style.display = ''; }
   window.scrollTo({top:0,behavior:'smooth'});
-  var hash = PAGE_HASH[page] || ('/' + page);
-  if (window.location.hash !== '#' + hash) {
-    history.pushState(null, '', '#' + hash);
+  var cleanPath = PAGE_HASH[page] || ('/' + page);
+  if (window.location.pathname !== cleanPath) {
+    history.pushState(null, '', cleanPath);
   }
   if (page === 'allboxes' || page === 'home') renderBoxGrids();
   if (page === 'cart') renderCart();
@@ -5969,7 +5969,6 @@ function go(page) {
   if (page === 'admin') renderAdmin();
   if (page === 'partner-landing') renderPartnerLanding();
   if (page === 'browse') renderBrowse();
-  if (page === 'partner-landing') renderPartnerLanding();
   if (page === 'roulette') initRoulettePage();
   if (page === 'partner') initPartnerPage();
   if (page === 'dashboard') {
@@ -5981,8 +5980,10 @@ function go(page) {
 }
 
 function goFromHash() {
-  var hash = window.location.hash.replace('#','') || '/';
-  var page = HASH_PAGE[hash] || 'home';
+  var path = window.location.pathname;
+  var hash = window.location.hash.replace('#','');
+  var lookup = (path !== '/' && path !== '') ? path : (hash || '/');
+  var page = HASH_PAGE[lookup] || 'home';
   go(page);
   var navMap = {home:'nl-home',allboxes:'nl-allboxes',login:'nl-login',dashboard:'nl-dash',partner:'nl-partner',admin:'nl-admin'};
   if (navMap[page]) setNL(navMap[page]);
@@ -9700,17 +9701,17 @@ window.addEventListener('DOMContentLoaded', async () => {
     }
   } catch(e) { console.warn('Session check:', e.message); }
 
-  // Not logged in — load public page from hash
-  var hash = window.location.hash.replace('#','') || '/';
+  // Not logged in — load public page from path
   var protectedPages = ['/my-account', '/admin', '/partner'];
 
   // Load boxes in background for public pages
   renderBoxGrids();
   loadProduct('couples-retreat');
 
-  if (protectedPages.indexOf(hash) >= 0) {
+  var currentPath = window.location.pathname;
+  if (protectedPages.indexOf(currentPath) >= 0) {
     go('login'); setNL('nl-login');
-  } else if (hash === '/' || hash === '') {
+  } else if (currentPath === '/' || currentPath === '') {
     go('home'); setNL('nl-home');
   } else {
     goFromHash();
