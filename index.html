@@ -539,7 +539,7 @@ async function loadUserOrders(email) {
         actionBtns += '<a href="/gift-video/' + videoToken + '" target="_blank" class="btn bg bsm" style="font-size:.72rem"><i class="fa fa-play"></i> Watch Video</a> ';
       }
       if (giftMsg) {
-        actionBtns += '<button class="btn bg bsm" style="font-size:.72rem" onclick="userViewMessage(this,decodeURIComponent(this.dataset.msg))" data-msg="' + encodeURIComponent(giftMsg) + '"><i class="fa fa-envelope-open-text"></i> View Message</button>';
+        actionBtns += '<button class="btn bg bsm" style="font-size:.72rem" onclick="userViewMessage(this,this.dataset.msg)" data-msg="' + encodeURIComponent(giftMsg) + '"><i class="fa fa-envelope-open-text"></i> View Message</button>';
       }
       return '<div class="order-card" style="padding:16px;cursor:default">'
         + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">'
@@ -566,15 +566,15 @@ function userViewMessage(btn, encodedMsg) {
   modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9000;display:flex;align-items:center;justify-content:center;padding:20px';
   var inner = document.createElement('div');
   inner.style.cssText = 'background:#fff;border-radius:16px;padding:32px 28px;max-width:420px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.25);text-align:center;position:relative';
-  inner.innerHTML = '<button id="umm-close" style="position:absolute;top:14px;right:14px;background:none;border:none;cursor:pointer;font-size:1.1rem;color:#64748b"><i class="fa fa-xmark"></i></button>'
+  inner.innerHTML = '<button id="umm-x" style="position:absolute;top:14px;right:14px;background:none;border:none;cursor:pointer;font-size:1.1rem;color:#64748b"><i class="fa fa-xmark"></i></button>'
     + '<div style="font-size:1.6rem;margin-bottom:10px">&#128140;</div>'
     + '<h3 style="font-size:1rem;color:#0f172a;margin-bottom:14px">Your gift message</h3>'
     + '<p style="font-family:Georgia,serif;font-size:1.2rem;color:#475569;line-height:1.75;font-style:italic;margin:0 0 20px">' + msg + '</p>'
-    + '<button id="umm-close2" style="background:#1e3a5f;color:#fff;border:none;border-radius:8px;padding:9px 22px;font-size:.85rem;cursor:pointer">Close</button>';
+    + '<button id="umm-close" style="background:#1e3a5f;color:#fff;border:none;border-radius:8px;padding:9px 22px;font-size:.85rem;cursor:pointer">Close</button>';
   modal.appendChild(inner);
   modal.addEventListener('click', function(e){ if (e.target === modal) modal.remove(); });
+  inner.querySelector('#umm-x').addEventListener('click', function(){ modal.remove(); });
   inner.querySelector('#umm-close').addEventListener('click', function(){ modal.remove(); });
-  inner.querySelector('#umm-close2').addEventListener('click', function(){ modal.remove(); });
   document.body.appendChild(modal);
 }
 
@@ -680,11 +680,29 @@ async function authOnSignedIn(user) {
   if (sbName)   sbName.textContent   = name;
   if (sbRole)   sbRole.textContent   = role.charAt(0).toUpperCase() + role.slice(1);
 
+  // Check if user came from checkout flow
+  var pendingCkStep = sessionStorage.getItem('pendingCheckout');
+  if (pendingCkStep) {
+    sessionStorage.removeItem('pendingCheckout');
+    go('checkout'); setNL('');
+    loadCartFromStorage(); // ensure cart is restored
+    updateCartBadge();
+    setTimeout(function() {
+      renderCheckout();
+      nextStep(parseInt(pendingCkStep) || 2, true);
+      // Pre-fill sender name/email from logged-in user
+      var senderName  = document.getElementById('ck-sender-name');
+      var senderEmail = document.getElementById('ck-sender-email');
+      if (senderName)  senderName.value  = name;
+      if (senderEmail) senderEmail.value = email;
+    }, 300);
+    // Still update mobile nav etc below but don't redirect to dashboard
+  }
+
   // Check if user came from redeem flow (survives Google OAuth redirect)
   var pendingCode = sessionStorage.getItem('pendingRedeemCode');
   if (pendingCode) {
     sessionStorage.removeItem('pendingRedeemCode');
-    // Pre-fill the code and go to activation page
     go('activation'); setNL('nl-activation');
     sessionStorage.setItem('autoRedirectBrowse', '1');
     setTimeout(function() {
@@ -693,6 +711,8 @@ async function authOnSignedIn(user) {
     }, 400);
     return;
   }
+
+  if (pendingCkStep) return; // already handled above — skip dashboard redirect
 
   // Route by role — always go to dashboard, admin/partner see extra nav buttons
   await loadUserBoxes(email);
@@ -3482,7 +3502,7 @@ tr:hover td{background:var(--b50)}
           </div>
           <div id="ck-coupon-result"></div>
         </div>
-        <button class="btn bp block" onclick="nextStep(2)">Continue <i class="fa fa-arrow-right"></i></button>
+        <button class="btn bp block" onclick="checkoutContinue()">Continue <i class="fa fa-arrow-right"></i></button>
       </div>
 
       <!-- STEP 2: Details -->
@@ -6007,6 +6027,8 @@ const appState = {
   deliveryType: 'ebox',
   videoFile: null,
   scheduledDate: '',
+  senderName: '',
+  senderEmail: '',
   expPage: 1,
   expPerPage: 5,
   revFilter: 'all',
@@ -6513,25 +6535,18 @@ function togSwitch(id, targetId) {
 
 /* ── Video message helpers ── */
 function togVideoSwitch() {
-  const tog    = document.getElementById('tog-vid');
-  const area   = document.getElementById('area-vid');
-  const isEbox = appState.deliveryType === 'ebox';
+  const tog     = document.getElementById('tog-vid');
+  const area    = document.getElementById('area-vid');
+  const isEbox  = appState.deliveryType === 'ebox';
   tog.classList.toggle('on');
   const on = tog.classList.contains('on');
   area.style.display = on ? 'block' : 'none';
+  if (!on) { vidClearFile(); }
+  const dateRow = document.getElementById('vid-date-row');
+  const qrNote  = document.getElementById('vid-qr-note');
   if (on) {
-    if (!appState.cart.find(c => c.id === 'video-message')) {
-      appState.cart.push({ id:'video-message', boxId:'video-message', name:'🎬 Video message', type:'addon', price:49, qty:1, img:'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=400' });
-      updateCartBadge();
-    }
-    const dateRow = document.getElementById('vid-date-row');
-    const qrNote  = document.getElementById('vid-qr-note');
     if (dateRow) dateRow.style.display = isEbox ? 'block' : 'none';
     if (qrNote)  qrNote.style.display  = isEbox ? 'none'  : 'block';
-  } else {
-    appState.cart = appState.cart.filter(c => c.id !== 'video-message');
-    updateCartBadge();
-    vidClearFile();
   }
 }
 
@@ -7195,7 +7210,18 @@ function addCurrentToCart() {
   if (qty > 1) { const item = appState.cart.find(c=>c.id===appState.currentBoxId+'-'+appState.deliveryType); if(item) item.qty = qty; }
   updateCartBadge();
 }
+function saveCartToStorage() {
+  try { localStorage.setItem('wbCart', JSON.stringify(appState.cart)); } catch(e) {}
+}
+function loadCartFromStorage() {
+  try {
+    var saved = localStorage.getItem('wbCart');
+    if (saved) { appState.cart = JSON.parse(saved); }
+  } catch(e) {}
+}
+
 function updateCartBadge() {
+  saveCartToStorage();
   const total = appState.cart.reduce((s,c) => s+c.qty, 0);
   // Desktop badge
   const badge = document.getElementById('cart-badge');
@@ -7211,11 +7237,6 @@ function updateCartBadge() {
 }
 function removeFromCart(id) {
   appState.cart = appState.cart.filter(c => c.id !== id);
-  if (id === 'video-message') {
-    var tog = document.getElementById('tog-vid'); if (tog) tog.classList.remove('on');
-    var area = document.getElementById('area-vid'); if (area) area.style.display = 'none';
-    vidClearFile();
-  }
   updateCartBadge(); renderCart();
 }
 function updateCartQty(id, d) {
@@ -7223,12 +7244,6 @@ function updateCartQty(id, d) {
   if (item) { item.qty = Math.max(1, item.qty + d); updateCartBadge(); renderCart(); }
 }
 function getCartTotal() { return appState.cart.reduce((s,c)=>s+c.price*c.qty,0); }
-
-function getVideoAddon() {
-  var tog = document.getElementById('tog-vid');
-  return (tog && tog.classList.contains('on') && appState.videoFile) ? 49 : 0;
-}
-function getGrandTotal() { return getCartTotal() + getVideoAddon(); }
 function getCartType() {
   const types = [...new Set(appState.cart.map(c=>c.type))];
   if (types.length===1) return types[0];
@@ -7302,7 +7317,40 @@ function renderCheckout() {
   const typeBadge = {ebox:'<span class="ck-type-badge ck-ebox">📧 E-Box delivery</span>',physical:'<span class="ck-type-badge ck-phys">📦 Physical delivery</span>',mixed:'<span class="ck-type-badge ck-mixed">📧📦 Mixed order</span>'};
   let fields = '';
   if (ct === 'ebox') {
-    fields = `<div class="fg"><label>Full name *</label><input class="fi" id="ck-full-name" placeholder="Your full name" onkeydown="if(event.key==='Enter'){event.preventDefault();}"></div><div class="fg"><label>Email address *</label><input class="fi" id="ck-email" type="email" placeholder="where to send your vouchers" onkeydown="if(event.key==='Enter'){event.preventDefault();}"></div><p style="font-size:.75rem;color:var(--muted);margin-top:4px"><i class="fa fa-info-circle" style="color:var(--b400)"></i> Your PDF voucher(s) will be generated and sent immediately after payment.</p>`;
+    // Pre-fill sender from logged-in user
+    var senderNameVal  = (currentUser && currentUser.displayName) ? currentUser.displayName : '';
+    var senderEmailVal = (currentUser && currentUser.email) ? currentUser.email : '';
+    // Delivery date — use video scheduled date if set
+    var vidDateVal = appState.scheduledDate || (document.getElementById('ck-scheduled-date') ? document.getElementById('ck-scheduled-date').value : '') || '';
+    var hasVideoInCart = !!appState.cart.find(c => c.id === 'video-message');
+    var todayStr = new Date().toISOString().slice(0,10);
+
+    fields = `
+      <div style="margin-bottom:20px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
+          <div style="width:28px;height:28px;border-radius:50%;background:var(--b600);color:#fff;display:flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:700;flex-shrink:0">1</div>
+          <h4 style="margin:0;font-size:.9rem;color:var(--navy)">Your details <span style="font-size:.72rem;font-weight:400;color:var(--muted)">(the buyer)</span></h4>
+        </div>
+        <div class="fg"><label>Your full name *</label><input class="fi" id="ck-sender-name" placeholder="Your name" value="${senderNameVal}" onkeydown="if(event.key==='Enter'){event.preventDefault();}"></div>
+        <div class="fg"><label>Your email *</label><input class="fi" id="ck-sender-email" type="email" placeholder="your@email.com" value="${senderEmailVal}" onkeydown="if(event.key==='Enter'){event.preventDefault();}"></div>
+      </div>
+      <div style="border-top:1px solid var(--border);padding-top:18px;margin-bottom:20px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
+          <div style="width:28px;height:28px;border-radius:50%;background:var(--green);color:#fff;display:flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:700;flex-shrink:0">2</div>
+          <h4 style="margin:0;font-size:.9rem;color:var(--navy)">Recipient details <span style="font-size:.72rem;font-weight:400;color:var(--muted)">(who receives the gift)</span></h4>
+        </div>
+        <div class="fg"><label>Recipient full name *</label><input class="fi" id="ck-full-name" placeholder="Recipient's name" onkeydown="if(event.key==='Enter'){event.preventDefault();}"></div>
+        <div class="fg"><label>Recipient email address *</label><input class="fi" id="ck-email" type="email" placeholder="where to send the gift" onkeydown="if(event.key==='Enter'){event.preventDefault();}"></div>
+      </div>
+      <div style="border-top:1px solid var(--border);padding-top:18px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
+          <div style="width:28px;height:28px;border-radius:50%;background:var(--b400);color:#fff;display:flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:700;flex-shrink:0">3</div>
+          <h4 style="margin:0;font-size:.9rem;color:var(--navy)">Delivery date <span style="font-size:.72rem;font-weight:400;color:var(--muted)">(optional)</span></h4>
+        </div>
+        <p style="font-size:.75rem;color:var(--muted);margin-bottom:10px"><i class="fa fa-info-circle" style="color:var(--b400)"></i> Choose when the recipient receives their gift email. Leave blank to send immediately after payment.</p>
+        <input type="date" class="fi" id="ck-send-date" min="${todayStr}" value="${vidDateVal}" style="font-size:.85rem" onchange="appState.scheduledDate=this.value">
+        ${hasVideoInCart && vidDateVal ? '<div style="font-size:.72rem;color:var(--b600);margin-top:6px"><i class="fa fa-video"></i> Using your video scheduled date.</div>' : ''}
+      </div>`;
   } else if (ct === 'physical') {
     fields = `<div class="fg"><label>Full name *</label><input class="fi" placeholder="Recipient full name"></div><div class="fg"><label>Email</label><input class="fi" type="email" placeholder="Order confirmation email"></div><h4 style="font-size:.9rem;margin:16px 0 12px">Delivery address</h4><div class="fg"><label>Street address *</label><input class="fi" placeholder="123 Main Street"></div><div class="fg-row"><div class="fg"><label>City *</label><input class="fi" placeholder="Cape Town"></div><div class="fg"><label>Province *</label><select class="fi"><option>Western Cape</option><option>Gauteng</option><option>KwaZulu-Natal</option><option>Eastern Cape</option></select></div></div><div class="fg-row"><div class="fg"><label>Postal code *</label><input class="fi" placeholder="8001"></div><div class="fg"><label>Country</label><input class="fi" value="South Africa" readonly></div></div><div class="fg"><label>Billing same as delivery?</label><label style="display:flex;align-items:center;gap:8px;font-size:.82rem;cursor:pointer"><input type="checkbox" checked style="accent-color:var(--b600)"> Yes, same address</label></div>`;
   } else {
@@ -7319,6 +7367,17 @@ function renderCheckout() {
   if (couponRemove) couponRemove.style.display = 'none';
   updateCouponSummary();
   nextStep(1, true);
+}
+
+function checkoutContinue() {
+  if (!currentUser) {
+    // Save intent and go to login
+    sessionStorage.setItem('pendingCheckout', '2');
+    go('login'); setNL('nl-login');
+    admToast('Please sign in to continue with your order.');
+    return;
+  }
+  nextStep(2);
 }
 
 function nextStep(step, quiet) {
@@ -7596,10 +7655,10 @@ function showOrderVoucher() {
 }
 
 function validateDetailsAndContinue() {
-  var emailEl = document.getElementById('ck-email');
-  var nameEl  = document.getElementById('ck-full-name');
-  var email   = emailEl ? emailEl.value.trim() : '';
-  var name    = nameEl  ? nameEl.value.trim()  : '';
+  var senderNameEl  = document.getElementById('ck-sender-name');
+  var senderEmailEl = document.getElementById('ck-sender-email');
+  var recipNameEl   = document.getElementById('ck-full-name');
+  var recipEmailEl  = document.getElementById('ck-email');
 
   var errEl = document.getElementById('ck-details-error');
   if (!errEl) {
@@ -7610,27 +7669,33 @@ function validateDetailsAndContinue() {
     if (card) card.insertBefore(errEl, card.firstChild);
   }
 
-  if (!name) {
-    if (nameEl) nameEl.style.borderColor = '#ef4444';
-    errEl.textContent = 'Please enter your full name.';
-    errEl.style.display = 'block';
-    if (nameEl) { nameEl.focus(); nameEl.scrollIntoView({behavior:'smooth',block:'center'}); }
-    return;
-  }
-  if (!email || !email.includes('@')) {
-    if (emailEl) emailEl.style.borderColor = '#ef4444';
-    errEl.textContent = 'Please enter a valid email address.';
-    errEl.style.display = 'block';
-    if (emailEl) { emailEl.focus(); emailEl.scrollIntoView({behavior:'smooth',block:'center'}); }
-    return;
+  function showErr(msg, el) {
+    errEl.textContent = msg; errEl.style.display = 'block';
+    if (el) { el.style.borderColor = '#ef4444'; el.focus(); el.scrollIntoView({behavior:'smooth',block:'center'}); }
   }
 
+  var sName  = senderNameEl  ? senderNameEl.value.trim()  : '';
+  var sEmail = senderEmailEl ? senderEmailEl.value.trim() : '';
+  var rName  = recipNameEl   ? recipNameEl.value.trim()   : '';
+  var rEmail = recipEmailEl  ? recipEmailEl.value.trim()  : '';
+
+  if (!sName)  { showErr("Please enter your name.", senderNameEl); return; }
+  if (!sEmail || !sEmail.includes('@')) { showErr("Please enter your email address.", senderEmailEl); return; }
+  if (!rName)  { showErr("Please enter the recipient's name.", recipNameEl); return; }
+  if (!rEmail || !rEmail.includes('@')) { showErr("Please enter the recipient's email address.", recipEmailEl); return; }
+
   errEl.style.display = 'none';
-  if (nameEl)  nameEl.style.borderColor  = '';
-  if (emailEl) emailEl.style.borderColor = '';
-  // Save to appState as backup
-  appState.lastOrderEmail = email;
-  appState.lastOrderName  = name;
+  [senderNameEl, senderEmailEl, recipNameEl, recipEmailEl].forEach(function(el){ if(el) el.style.borderColor = ''; });
+
+  // Save scheduled date from the inline date picker
+  var sendDateEl = document.getElementById('ck-send-date');
+  if (sendDateEl && sendDateEl.value) appState.scheduledDate = sendDateEl.value;
+
+  // Save all to appState
+  appState.senderName    = sName;
+  appState.senderEmail   = sEmail;
+  appState.lastOrderName  = rName;
+  appState.lastOrderEmail = rEmail;
   nextStep(3);
 }
 
@@ -7652,25 +7717,30 @@ function completeOrder() {
   appState.lastOrderVideo     = hasVideo;
   appState.lastScheduledDate  = scheduledDate;
 
-  // Get customer email from checkout form
-  const email = document.getElementById('ck-email')?.value?.trim()
-             || document.getElementById('ck-card-name')?.value?.trim()
-             || 'customer@wowbox.co.za';
+  // Recipient info (who receives the gift)
+  const email     = appState.lastOrderEmail || document.getElementById('ck-email')?.value?.trim() || 'customer@wowbox.co.za';
+  const recipName = appState.lastOrderName  || document.getElementById('ck-full-name')?.value?.trim() || 'Customer';
+  // Sender info (the buyer — used for Paystack billing)
+  const senderEmail = appState.senderEmail  || document.getElementById('ck-sender-email')?.value?.trim() || email;
+  const senderName  = appState.senderName   || document.getElementById('ck-sender-name')?.value?.trim()  || recipName;
 
-  // Save email to appState BEFORE opening Paystack (survives popup)
   appState.lastOrderEmail = email;
-  appState.lastOrderName  = document.getElementById('ck-full-name')?.value?.trim() || 'Customer';
+  appState.lastOrderName  = recipName;
 
   // Open Paystack popup
   const handler = PaystackPop.setup({
     key:       'pk_test_4bf191b7b3f10da349ac729e9a50812459548889',
-    email:     email,
-    amount:    total * 100,   // Paystack works in cents
+    email:     senderEmail,   // Billing identity = buyer
+    amount:    total * 100,
     currency:  'ZAR',
     ref:       'WB-' + Date.now(),
-    label:     'WowBox — ' + appState.cart.map(i => boxDB[i.boxId]?.name || i.boxId).join(', '),
+    label:     'WowBox — ' + appState.cart.filter(c=>c.id!=='video-message').map(i => boxDB[i.boxId]?.name || i.boxId).join(', '),
     metadata: {
       custom_fields: [
+        { display_name: 'Buyer name',        variable_name: 'sender_name',      value: senderName },
+        { display_name: 'Buyer email',       variable_name: 'sender_email',     value: senderEmail },
+        { display_name: 'Recipient name',    variable_name: 'recipient_name',   value: recipName },
+        { display_name: 'Recipient email',   variable_name: 'recipient_email',  value: email },
         { display_name: 'Delivery type',     variable_name: 'delivery_type',    value: getCartType() },
         { display_name: 'Gift message',      variable_name: 'personal_message', value: personalMsg },
         { display_name: 'Has video',         variable_name: 'has_video',        value: hasVideo ? 'yes' : 'no' },
@@ -7693,10 +7763,10 @@ async function completeOrderConfirm(paystackRef, total, discount) {
   const ref      = paystackRef || ('WB-ORD-' + Date.now());
   const dateStr  = new Date().toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'});
   const dateISO  = new Date().toISOString().slice(0,10);
-  const custEmail = (document.getElementById('ck-email') ? document.getElementById('ck-email').value.trim() : '')
-               || appState.lastOrderEmail || '';
-  const custName  = (document.getElementById('ck-full-name') ? document.getElementById('ck-full-name').value.trim() : '')
-               || appState.lastOrderName || 'Customer';
+  const custEmail  = appState.lastOrderEmail  || (document.getElementById('ck-email') ? document.getElementById('ck-email').value.trim() : '') || '';
+  const custName   = appState.lastOrderName   || (document.getElementById('ck-full-name') ? document.getElementById('ck-full-name').value.trim() : '') || 'Customer';
+  const buyerEmail = appState.senderEmail || custEmail;
+  const buyerName  = appState.senderName  || custName;
 
   document.getElementById('ck-order-ref').textContent = ref;
 
@@ -7814,8 +7884,8 @@ async function completeOrderConfirm(paystackRef, total, discount) {
       // Insert order
       await db_client.from('orders').insert({
         id:                ref,
-        customer_name:     custName,
-        customer_email:    custEmail || null,
+        customer_name:     buyerName,
+        customer_email:    buyerEmail || null,
         total_amount:      total,
         discount_amount:   discount || 0,
         delivery_type:     ct,
@@ -7862,7 +7932,7 @@ async function completeOrderConfirm(paystackRef, total, discount) {
   })();
 
   nextStep(4);
-  appState.cart = []; activeCoupon = null; updateCartBadge();
+  appState.cart = []; activeCoupon = null; updateCartBadge(); saveCartToStorage();
   // Reset personalisation state
   appState.videoFile = null; appState.scheduledDate = ''; appState.lastScheduledDate = null;
   vidClearFile(); const tog = document.getElementById('tog-vid'); if (tog) tog.classList.remove('on');
@@ -10095,6 +10165,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   var protectedPages = ['/my-account', '/admin', '/partner'];
 
   // Load boxes in background for public pages
+  loadCartFromStorage();
   renderBoxGrids();
   loadProduct('couples-retreat');
 
