@@ -686,14 +686,20 @@ async function authOnSignedIn(user, navigate) {
   // Fetch or create profile with role
   var role = 'customer';
   try {
-    var profRes = await db_client.from('user_profiles').select('role,full_name').eq('id', user.id).single();
-    if (profRes.data) {
+    var profRes = await db_client.from('user_profiles').select('role,full_name,partner_name,status').eq('id', user.id).maybeSingle();
+    if (profRes.error) {
+      console.error('Profile fetch ERROR:', profRes.error.message, profRes.error.code);
+    } else if (profRes.data) {
       role = profRes.data.role || 'customer';
       if (profRes.data.full_name) name = profRes.data.full_name;
+      if (profRes.data.partner_name) currentUser.partnerName = profRes.data.partner_name;
     } else {
-      await db_client.from('user_profiles').insert({ id: user.id, email: email, full_name: name, role: 'customer' });
+      // No profile found — create one
+      var ins = await db_client.from('user_profiles').insert({ id: user.id, email: email, full_name: name, role: 'customer' });
+      if (ins.error) console.warn('Profile insert error:', ins.error.message);
     }
-  } catch(e) { console.warn('Profile fetch:', e.message); }
+  } catch(e) { console.error('Profile fetch EXCEPTION:', e.message); }
+  console.log('[WowBox] authOnSignedIn — role:', role, 'email:', email);
 
   currentUser.role = role;
   currentUser.displayName = name;
@@ -720,11 +726,11 @@ async function authOnSignedIn(user, navigate) {
   var mobPart  = document.getElementById('mob-nl-part');
   var mobAdm   = document.getElementById('mob-nl-adm');
   if (role === 'admin') {
-    if (nlAdm)   nlAdm.style.display   = '';
-    if (mobAdm)  mobAdm.style.display  = '';
+    if (nlAdm)   nlAdm.style.display   = 'inline-flex';
+    if (mobAdm)  mobAdm.style.display  = 'flex';
   } else if (role === 'partner') {
-    if (nlPart)  nlPart.style.display  = '';
-    if (mobPart) mobPart.style.display = '';
+    if (nlPart)  nlPart.style.display  = 'inline-flex';
+    if (mobPart) mobPart.style.display = 'flex';
   }
 
   // Populate settings fields
@@ -10794,6 +10800,7 @@ window.addEventListener('DOMContentLoaded', async () => {
         else if (currentUser && currentUser.role === 'pending_partner') { go('partner'); }
         else { go('login'); setNL('nl-login'); }
       } else if (currentPath === '/' || currentPath === '') {
+        localStorage.removeItem('pendingCheckout');
         go('home'); setNL('nl-home');
       } else {
         goFromHash();
