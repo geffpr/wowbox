@@ -312,6 +312,48 @@ async function saveBookingToSupabase(payload) {
    SUPABASE AUTH
 ══════════════════════════════════════════════════════════════ */
 var currentUser = null;
+
+// ── Global pricing (loaded from Supabase app_settings) ──
+var APP_PRICES = {
+  video_message: 49,
+  chance_boost:  149,
+  partner_pro:   499,
+};
+
+async function loadAppPrices() {
+  try {
+    var res = await db_client.from('app_settings')
+      .select('key,value')
+      .in('key', ['price_video_message','price_chance_boost','price_partner_pro']);
+    if (res.error || !res.data) return;
+    res.data.forEach(function(row) {
+      var v = parseInt(row.value) || 0;
+      if (row.key === 'price_video_message') APP_PRICES.video_message = v;
+      if (row.key === 'price_chance_boost')  APP_PRICES.chance_boost  = v;
+      if (row.key === 'price_partner_pro')   APP_PRICES.partner_pro   = v;
+    });
+    applyPricesToUI();
+  } catch(e) { console.warn('loadAppPrices:', e.message); }
+}
+
+function applyPricesToUI() {
+  // Video label on product page
+  var vidLabel = document.getElementById('vid-price-label');
+  if (vidLabel) vidLabel.textContent = '+R' + APP_PRICES.video_message + ' — record or upload your video';
+
+  // Boost price display
+  var boostPrice = document.getElementById('boost-price-display');
+  if (boostPrice) boostPrice.textContent = 'R' + APP_PRICES.chance_boost;
+
+  // Pro plan buttons/labels
+  ['pro-plan-price','sub-amount'].forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) el.textContent = 'R' + APP_PRICES.partner_pro + '/month';
+  });
+  document.querySelectorAll('.pro-price-label').forEach(function(el) {
+    el.textContent = 'R' + APP_PRICES.partner_pro + '/month';
+  });
+}
 // Canonical production URL — OAuth always redirects here
 var APP_URL = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
   ? window.location.origin
@@ -4603,13 +4645,13 @@ tr:hover td{background:var(--b50)}
           <div class="sub-card-body">
             <div id="sub-free-content">
               <p style="font-size:.82rem;color:var(--slate);margin-bottom:18px">You're currently on the Free Plan. Upgrade to Pro to unlock advanced analytics, calendar management, boost visibility, and performance insights.</p>
-              <button class="upgrade-btn" onclick="showProPaymentForm()"><i class="fa fa-crown"></i> Upgrade to Pro — R499/month</button>
+              <button class="upgrade-btn" onclick="showProPaymentForm()"><i class="fa fa-crown"></i> Upgrade to Pro — <span class="pro-price-label">R499/month</span></button>
             </div>
             <div id="sub-pro-content" style="display:none">
               <dl style="margin-bottom:18px">
                 <div class="sub-billing-row"><dt>Subscription started</dt><dd id="sub-start-date">—</dd></div>
                 <div class="sub-billing-row"><dt>Current period ends</dt><dd id="sub-end-date">—</dd></div>
-                <div class="sub-billing-row"><dt>Amount paid</dt><dd id="sub-amount">R499/month</dd></div>
+                <div class="sub-billing-row"><dt>Amount paid</dt><dd id="sub-amount"><span class="pro-price-label">R499/month</span></dd></div>
                 <div class="sub-billing-row"><dt>Next billing</dt><dd id="sub-next-billing">—</dd></div>
               </dl>
               <!-- Grace period notice (shown after cancellation) -->
@@ -4659,7 +4701,7 @@ tr:hover td{background:var(--b50)}
             <div style="background:var(--b50);border:1px solid var(--b200);border-radius:var(--rs);padding:11px 14px;font-size:.75rem;color:var(--muted);margin-bottom:16px">
               <i class="fa fa-shield-halved" style="color:var(--b400)"></i> You'll be billed R499/month. Cancel anytime — access continues until end of billing period.
             </div>
-            <button class="btn bgreen block" onclick="processProSubscription()"><i class="fa fa-lock"></i> Pay R499 &amp; activate Pro</button>
+            <button class="btn bgreen block" onclick="processProSubscription()"><i class="fa fa-lock"></i> Pay <span class="pro-price-label">R499/month</span> &amp; activate Pro</button>
           </div>
         </div>
       </div>
@@ -4975,6 +5017,7 @@ tr:hover td{background:var(--b50)}
       <button class="anl"     onclick="switchAdm(this,'adm-orders')"><i class="fa fa-box"></i> Orders</button>
       <button class="anl"     onclick="switchAdm(this,'adm-usage')"><i class="fa fa-ticket"></i> Box Usage</button>
       <button class="anl"     onclick="switchAdm(this,'adm-comm')"><i class="fa fa-percent"></i> Commissions</button>
+      <button class="anl"     onclick="switchAdm(this,'adm-pricing');renderAdmPricing()"><i class="fa fa-circle-dollar-sign"></i> Pricing</button>
       <button class="anl"     onclick="switchAdm(this,'adm-coupons')"><i class="fa fa-tag"></i> Coupons</button>
       <button class="anl"     onclick="switchAdm(this,'adm-activate')"><i class="fa fa-box-open"></i> Activate Boxes <span style="background:linear-gradient(135deg,#10b981,#059669);color:#fff;border-radius:99px;padding:1px 7px;font-size:.58rem;font-weight:700;margin-left:auto">RETAIL</span></button>
       <div style="position:absolute;bottom:18px;left:13px;right:13px">
@@ -5415,6 +5458,64 @@ tr:hover td{background:var(--b50)}
               <tr><td><strong>Wild Horizons</strong></td><td>76</td><td>R684,000</td><td><span style="color:var(--b600);font-weight:600">25% <small style="color:var(--muted)">(partner override)</small></span></td><td style="color:var(--b600)">R171,000</td><td style="color:var(--green);font-weight:600">R513,000</td><td><span class="sbadge sb-a">Paid</span></td></tr>
             </tbody>
           </table>
+        </div>
+      </div>
+
+      <!-- ══ PRICING ══ -->
+      <div id="adm-pricing" style="display:none">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:22px">
+          <div>
+            <h2 style="font-size:1.7rem;color:var(--navy)">Pricing</h2>
+            <p style="color:var(--muted);font-size:.8rem">Manage add-on and subscription prices. Changes apply site-wide immediately.</p>
+          </div>
+          <button class="btn bp bsm" onclick="admSavePricing()"><i class="fa fa-floppy-disk"></i> Save all prices</button>
+        </div>
+        <div id="adm-pricing-status" style="display:none;margin-bottom:16px"></div>
+
+        <!-- Add-ons (one-time) -->
+        <div class="atbl" style="margin-bottom:20px">
+          <div class="atbl-hdr"><span style="font-weight:700;color:var(--navy)">One-time add-ons</span></div>
+          <div style="padding:20px">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+
+              <div>
+                <label style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);display:block;margin-bottom:6px">🎬 Video message</label>
+                <div style="display:flex;align-items:center;gap:8px">
+                  <span style="font-size:.9rem;color:var(--navy);font-weight:600">R</span>
+                  <input type="number" class="fi" id="price-video" min="0" step="1" style="width:100px;font-size:1rem;font-weight:700;color:var(--b700)">
+                  <span style="font-size:.75rem;color:var(--muted)">per order · one-time</span>
+                </div>
+                <div style="font-size:.72rem;color:var(--muted);margin-top:5px">Charged when customer adds a video message to their gift box.</div>
+              </div>
+
+              <div>
+                <label style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);display:block;margin-bottom:6px">🚀 Chance Boost (Surprise Box)</label>
+                <div style="display:flex;align-items:center;gap:8px">
+                  <span style="font-size:.9rem;color:var(--navy);font-weight:600">R</span>
+                  <input type="number" class="fi" id="price-boost" min="0" step="1" style="width:100px;font-size:1rem;font-weight:700;color:var(--b700)">
+                  <span style="font-size:.75rem;color:var(--muted)">per order · one-time</span>
+                </div>
+                <div style="font-size:.72rem;color:var(--muted);margin-top:5px">Charged when customer adds the Chance Boost on the Surprise Experience box.</div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+
+        <!-- Partner Pro Plan (recurring) -->
+        <div class="atbl">
+          <div class="atbl-hdr"><span style="font-weight:700;color:var(--navy)">Partner subscription</span></div>
+          <div style="padding:20px">
+            <div style="max-width:340px">
+              <label style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);display:block;margin-bottom:6px">👑 Pro Plan — monthly</label>
+              <div style="display:flex;align-items:center;gap:8px">
+                <span style="font-size:.9rem;color:var(--navy);font-weight:600">R</span>
+                <input type="number" class="fi" id="price-pro" min="0" step="1" style="width:100px;font-size:1rem;font-weight:700;color:var(--b700)">
+                <span style="font-size:.75rem;color:var(--muted)">/month · recurring</span>
+              </div>
+              <div style="font-size:.72rem;color:var(--muted);margin-top:5px">Monthly subscription charged to partners who upgrade to the Pro plan.</div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -6508,18 +6609,25 @@ function togSwitch(id, targetId) {
 
 /* ── Video message helpers ── */
 function togVideoSwitch() {
-  const tog     = document.getElementById('tog-vid');
-  const area    = document.getElementById('area-vid');
-  const isEbox  = appState.deliveryType === 'ebox';
+  const tog    = document.getElementById('tog-vid');
+  const area   = document.getElementById('area-vid');
+  const isEbox = appState.deliveryType === 'ebox';
   tog.classList.toggle('on');
   const on = tog.classList.contains('on');
   area.style.display = on ? 'block' : 'none';
-  if (!on) { vidClearFile(); }
-  const dateRow = document.getElementById('vid-date-row');
-  const qrNote  = document.getElementById('vid-qr-note');
   if (on) {
+    if (!appState.cart.find(c => c.id === 'video-message')) {
+      appState.cart.push({ id:'video-message', boxId:'video-message', name:'🎬 Video message', type:'addon', price:APP_PRICES.video_message, qty:1, img:'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=400' });
+      updateCartBadge();
+    }
+    const dateRow = document.getElementById('vid-date-row');
+    const qrNote  = document.getElementById('vid-qr-note');
     if (dateRow) dateRow.style.display = isEbox ? 'block' : 'none';
     if (qrNote)  qrNote.style.display  = isEbox ? 'none'  : 'block';
+  } else {
+    appState.cart = appState.cart.filter(c => c.id !== 'video-message');
+    updateCartBadge();
+    vidClearFile();
   }
 }
 
@@ -7210,6 +7318,11 @@ function updateCartBadge() {
 }
 function removeFromCart(id) {
   appState.cart = appState.cart.filter(c => c.id !== id);
+  if (id === 'video-message') {
+    var tog  = document.getElementById('tog-vid'); if (tog) tog.classList.remove('on');
+    var area = document.getElementById('area-vid'); if (area) area.style.display = 'none';
+    vidClearFile();
+  }
   updateCartBadge(); renderCart();
 }
 function updateCartQty(id, d) {
@@ -8625,7 +8738,7 @@ function filterDashBoxes(status, btn) {
 }
 
 /* ── ADMIN ── */
-const admTabs = ['adm-dash','adm-boxes','adm-db','adm-exp','adm-requests','adm-orders','adm-usage','adm-comm','adm-coupons','adm-activate'];
+const admTabs = ['adm-dash','adm-boxes','adm-db','adm-exp','adm-requests','adm-orders','adm-usage','adm-comm','adm-pricing','adm-coupons','adm-activate'];
 
 function switchAdm(btn, tab) {
   admTabs.forEach(t => { const el = document.getElementById(t); if (el) el.style.display = t===tab?'block':'none'; });
@@ -9246,6 +9359,53 @@ async function admSaveEditAndApprove(id) {
   await renderAdmRequests();
 }
 
+/* ── Pricing ── */
+async function renderAdmPricing() {
+  document.getElementById('price-video').value = APP_PRICES.video_message;
+  document.getElementById('price-boost').value = APP_PRICES.chance_boost;
+  document.getElementById('price-pro').value   = APP_PRICES.partner_pro;
+}
+
+async function admSavePricing() {
+  var video = parseInt(document.getElementById('price-video')?.value) || 0;
+  var boost = parseInt(document.getElementById('price-boost')?.value) || 0;
+  var pro   = parseInt(document.getElementById('price-pro')?.value)   || 0;
+  var statusEl = document.getElementById('adm-pricing-status');
+
+  if (statusEl) { statusEl.style.display='block'; statusEl.style.cssText='display:block;padding:10px 14px;border-radius:8px;font-size:.8rem;background:#fef9c3;border:1px solid #fde047;color:#854d0e;margin-bottom:16px'; statusEl.innerHTML='<i class="fa fa-spinner fa-spin"></i> Saving…'; }
+
+  try {
+    var updates = [
+      { key: 'price_video_message', value: String(video) },
+      { key: 'price_chance_boost',  value: String(boost) },
+      { key: 'price_partner_pro',   value: String(pro)   },
+    ];
+    for (var i = 0; i < updates.length; i++) {
+      var r = await db_client.from('app_settings')
+        .upsert({ key: updates[i].key, value: updates[i].value }, { onConflict: 'key' });
+      if (r.error) throw r.error;
+    }
+
+    // Update in-memory prices
+    APP_PRICES.video_message = video;
+    APP_PRICES.chance_boost  = boost;
+    APP_PRICES.partner_pro   = pro;
+    applyPricesToUI();
+
+    // Update cart items that are already in cart
+    var videoItem = appState.cart.find(function(c){ return c.id === 'video-message'; });
+    if (videoItem) videoItem.price = video;
+    var boostItem = appState.cart.find(function(c){ return c.id === 'chance-boost'; });
+    if (boostItem) boostItem.price = boost;
+
+    if (statusEl) { statusEl.style.background='#dcfce7'; statusEl.style.border='1px solid #86efac'; statusEl.style.color='#166534'; statusEl.innerHTML='<i class="fa fa-circle-check"></i> Prices saved and live on the site.'; }
+    admToast('✅ Prices updated site-wide');
+  } catch(e) {
+    if (statusEl) { statusEl.style.background='#fee2e2'; statusEl.style.border='1px solid #fca5a5'; statusEl.style.color='#991b1b'; statusEl.innerHTML='<i class="fa fa-triangle-exclamation"></i> Error: ' + (e.message||'unknown'); }
+    admToast('Error saving prices: ' + (e.message||'unknown'));
+  }
+}
+
 /* ── Orders ── */
 function admUpdateOrderStatus(sel) {
   const newStatus = sel.value;
@@ -9489,7 +9649,7 @@ function toggleBoostUpsell() {
         boxId: 'surprise',
         name: 'Chance Boost',
         type: 'ebox',
-        price: 149,
+        price: APP_PRICES.chance_boost,
         qty: 1,
         img: 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?q=80&w=200&auto=format&fit=crop',
       });
@@ -9961,7 +10121,7 @@ function processProSubscription() {
   const handler = PaystackPop.setup({
     key:      'pk_test_4bf191b7b3f10da349ac729e9a50812459548889',
     email:    email,
-    amount:   49900,   // R499 in cents
+    amount:   APP_PRICES.partner_pro * 100,  // in cents, from app_settings
     currency: 'ZAR',
     ref:      'PRO-' + Date.now(),
     label:    'WowBox Pro Plan — Monthly Subscription',
@@ -10364,6 +10524,7 @@ window.addEventListener('DOMContentLoaded', async () => {
 
   // Load boxes in background for public pages
   loadCartFromStorage();
+  loadAppPrices();
   renderBoxGrids();
   loadProduct('couples-retreat');
 
