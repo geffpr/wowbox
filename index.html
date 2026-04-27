@@ -613,6 +613,10 @@ async function changePassword() {
 async function authSignOut() {
   await db_client.auth.signOut();
   currentUser = null;
+  var navSignin = document.getElementById('nav-signin-btn');
+  var navPill   = document.getElementById('nav-user-pill');
+  if (navSignin) navSignin.style.display = '';
+  if (navPill)   navPill.style.display   = 'none';
   // Hide role-specific nav buttons
   var nlPart = document.getElementById('nl-part');
   var nlAdm  = document.getElementById('nl-adm');
@@ -657,6 +661,16 @@ async function authOnSignedIn(user) {
   if (avatar)  avatar.textContent  = name.charAt(0).toUpperCase();
   if (nameEl)  nameEl.textContent  = name;
   if (emailEl) emailEl.textContent = email;
+  // Nav: swap Sign in → user pill
+  var navSignin = document.getElementById('nav-signin-btn');
+  var navPill   = document.getElementById('nav-user-pill');
+  var navAvatar = document.getElementById('nav-user-avatar');
+  var navName   = document.getElementById('nav-user-name');
+  if (navSignin) navSignin.style.display = 'none';
+  if (navPill)   navPill.style.display   = 'flex';
+  if (navAvatar) navAvatar.textContent   = name.charAt(0).toUpperCase();
+  if (navName)   navName.textContent     = name.split(' ')[0]; // first name only
+
   // Show nav buttons based on role
   var nlPart   = document.getElementById('nl-part');
   var nlAdm    = document.getElementById('nl-adm');
@@ -2891,7 +2905,16 @@ tr:hover td{background:var(--b50)}
   </div>
   <div class="nav-right">
     <button class="nl-cta" id="nl-list-exp" onclick="go('partner-landing');setNL('nl-list-exp')">List your experience ✦</button>
-    <button class="bg" onclick="goMyAccount()" style="font-size:.8rem;padding:8px 16px"><i class="fa fa-user"></i> Sign in</button>
+    <!-- Logged OUT -->
+    <button class="bg" id="nav-signin-btn" onclick="goMyAccount()" style="font-size:.8rem;padding:8px 16px"><i class="fa fa-user"></i> Sign in</button>
+    <!-- Logged IN (hidden until session loads) -->
+    <div id="nav-user-pill" style="display:none;align-items:center;gap:6px">
+      <button onclick="go('dashboard');setNL('nl-dash')" style="display:flex;align-items:center;gap:8px;background:var(--b50);border:1px solid var(--b200);border-radius:99px;padding:5px 14px 5px 6px;cursor:pointer;font-size:.8rem;color:var(--navy);font-weight:600">
+        <span id="nav-user-avatar" style="width:26px;height:26px;border-radius:50%;background:var(--b600);color:#fff;display:flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:700;flex-shrink:0">?</span>
+        <span id="nav-user-name" style="max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Account</span>
+      </button>
+      <button onclick="authSignOut()" title="Sign out" style="background:none;border:1px solid var(--border);border-radius:99px;width:30px;height:30px;cursor:pointer;color:var(--muted);font-size:.8rem;display:flex;align-items:center;justify-content:center" onmouseenter="this.style.borderColor='#ef4444';this.style.color='#ef4444'" onmouseleave="this.style.borderColor='var(--border)';this.style.color='var(--muted)'"><i class="fa fa-arrow-right-from-bracket"></i></button>
+    </div>
     <div class="cart-btn" onclick="go('cart')" title="Your cart">
       <i class="fa fa-shopping-bag"></i>
       <span class="cart-badge" id="cart-badge">0</span>
