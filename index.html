@@ -6526,18 +6526,33 @@ function togSwitch(id, targetId) {
 
 /* ── Video message helpers ── */
 function togVideoSwitch() {
-  const tog     = document.getElementById('tog-vid');
-  const area    = document.getElementById('area-vid');
-  const isEbox  = appState.deliveryType === 'ebox';
+  const tog    = document.getElementById('tog-vid');
+  const area   = document.getElementById('area-vid');
+  const isEbox = appState.deliveryType === 'ebox';
   tog.classList.toggle('on');
   const on = tog.classList.contains('on');
   area.style.display = on ? 'block' : 'none';
-  if (!on) { vidClearFile(); }
-  const dateRow = document.getElementById('vid-date-row');
-  const qrNote  = document.getElementById('vid-qr-note');
+
   if (on) {
+    // Add R49 video item to cart if not already there
+    if (!appState.cart.find(c => c.id === 'video-message')) {
+      appState.cart.push({
+        id: 'video-message', boxId: 'video-message',
+        name: '🎬 Video message', type: 'addon',
+        price: 49, qty: 1,
+        img: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=400'
+      });
+      updateCartBadge();
+    }
+    const dateRow = document.getElementById('vid-date-row');
+    const qrNote  = document.getElementById('vid-qr-note');
     if (dateRow) dateRow.style.display = isEbox ? 'block' : 'none';
     if (qrNote)  qrNote.style.display  = isEbox ? 'none'  : 'block';
+  } else {
+    // Remove from cart and clear file
+    appState.cart = appState.cart.filter(c => c.id !== 'video-message');
+    updateCartBadge();
+    vidClearFile();
   }
 }
 
@@ -7217,6 +7232,13 @@ function updateCartBadge() {
 }
 function removeFromCart(id) {
   appState.cart = appState.cart.filter(c => c.id !== id);
+  if (id === 'video-message') {
+    const tog  = document.getElementById('tog-vid');
+    if (tog) tog.classList.remove('on');
+    const area = document.getElementById('area-vid');
+    if (area) area.style.display = 'none';
+    vidClearFile();
+  }
   updateCartBadge(); renderCart();
 }
 function updateCartQty(id, d) {
@@ -7253,51 +7275,65 @@ function renderCart() {
   if (ckBtn) ckBtn.disabled = false;
   wrap.innerHTML = appState.cart.map(c => {
     const isBoost = c.id === 'chance-boost';
-    return `<div class="cart-item" ${isBoost?'style="border-color:#fcd34d;background:#fffbeb"':''}>
-      <div class="cart-item-img"><img src="${c.img}&h=140&auto=format&fit=crop" loading="lazy"></div>
+    const isVideo = c.id === 'video-message';
+    const isAddon = isBoost || isVideo;
+    const addonStyle = isBoost ? 'style="border-color:#fcd34d;background:#fffbeb"'
+                     : isVideo ? 'style="border-color:var(--b200);background:var(--b50)"' : '';
+    const typeLabel = isBoost ? '🚀 Chance Boost add-on'
+                   : isVideo  ? '🎬 Video add-on'
+                   : c.type === 'ebox' ? '📧 E-Box (Instant)' : '📦 Physical Box';
+    const typeClass = isBoost ? 'ci-boost' : isVideo ? 'ci-ebox' : c.type === 'ebox' ? 'ci-ebox' : 'ci-phys';
+    const subNote   = isBoost ? '<div style="font-size:.75rem;color:#92400e;margin-bottom:4px">+2 spins · better premium & jackpot odds</div>'
+                    : isVideo  ? '<div style="font-size:.75rem;color:var(--b600);margin-bottom:4px">Upload your video on the product page</div>' : '';
+    const qtyOrNote = isAddon
+      ? '<span style="font-size:.75rem;color:var(--muted)">'+(isVideo?'R49 add-on · 30-day access':'Linked to WowBox Surprise Experience')+'</span>'
+      : '<div class="qty-mini"><button class="qmb" onclick="updateCartQty(''+c.id+'',-1)">−</button><span class="qmv">'+c.qty+'</span><button class="qmb" onclick="updateCartQty(''+c.id+'',1)">+</button></div>';
+    const priceColor = isBoost ? '#d97706' : isVideo ? 'var(--b600)' : 'var(--b700)';
+    const imgSrc = isVideo
+      ? 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=400&h=140&auto=format&fit=crop'
+      : c.img + '&h=140&auto=format&fit=crop';
+    return `<div class="cart-item" ${addonStyle}>
+      <div class="cart-item-img"><img src="${imgSrc}" loading="lazy"></div>
       <div class="cart-item-info">
         <h4>${c.name}</h4>
-        <span class="ci-type ${isBoost?'ci-boost':c.type==='ebox'?'ci-ebox':'ci-phys'}">${isBoost?'🚀 Chance Boost add-on':c.type==='ebox'?'📧 E-Box (Instant)':'📦 Physical Box'}</span>
-        ${isBoost?'<div style="font-size:.75rem;color:#92400e;margin-bottom:4px">+2 spins · better premium & jackpot odds</div>':''}
+        <span class="ci-type ${typeClass}">${typeLabel}</span>
+        ${subNote}
         <div style="font-size:.78rem;color:var(--muted)">Unit price: R${c.price.toLocaleString()}</div>
         <div class="cart-item-foot">
-          ${isBoost?'<span style="font-size:.75rem;color:var(--muted)">Linked to WowBox Surprise Experience</span>':'<div class="qty-mini"><button class="qmb" onclick="updateCartQty(\''+c.id+'\',-1)">−</button><span class="qmv">'+c.qty+'</span><button class="qmb" onclick="updateCartQty(\''+c.id+'\',1)">+</button></div>'}
+          ${qtyOrNote}
           <button class="remove-btn" onclick="removeFromCart('${c.id}')"><i class="fa fa-trash-can"></i> Remove</button>
-          <div style="margin-left:auto;font-family:'Cormorant Garamond',serif;font-size:1.2rem;font-weight:700;color:${isBoost?'#d97706':'var(--b700)'}">R${(c.price*c.qty).toLocaleString()}</div>
+          <div style="margin-left:auto;font-family:'Cormorant Garamond',serif;font-size:1.2rem;font-weight:700;color:${priceColor}">R${(c.price*c.qty).toLocaleString()}</div>
         </div>
       </div>
     </div>`;
   }).join('');
   const total = getCartTotal();
   const ct = getCartType();
+  const hasBoxes = appState.cart.some(c => c.id !== 'video-message' && c.id !== 'chance-boost');
+  const realType = hasBoxes ? [...new Set(appState.cart.filter(c=>c.type!=='addon').map(c=>c.type))].join(',') : 'ebox';
   const typeNotes = {ebox:'All items are E-Boxes — instant delivery by email. No shipping address required.',physical:'All items are Physical Boxes — shipping address and billing details required.',mixed:'Mixed cart: E-Boxes will be sent instantly by email; Physical Boxes will be shipped to your address.'};
-  document.getElementById('cart-type-note').textContent = typeNotes[ct]||'';
-  var videoFeeCart = getVideoAddon();
-  var hasGiftMsg   = !!(document.getElementById('tog-msg')?.classList.contains('on') && document.getElementById('ck-personal-msg')?.value?.trim());
-  var schedDate    = document.getElementById('ck-scheduled-date')?.value || '';
-  var addOnRows    = '';
-  if (hasGiftMsg)    addOnRows += '<div class="sum-row" style="color:var(--green)"><span>🖊️ Gift message</span><span>Free</span></div>';
-  if (videoFeeCart)  addOnRows += '<div class="sum-row" style="color:var(--b600)"><span>🎬 Video message</span><span>+R49</span></div>';
-  if (schedDate)     addOnRows += '<div class="sum-row" style="font-size:.72rem;color:var(--muted)"><span>📅 Deliver on ' + new Date(schedDate+'T00:00:00').toLocaleDateString('en-ZA',{day:'numeric',month:'short'}) + '</span><span></span></div>';
-  document.getElementById('cart-summary-rows').innerHTML = appState.cart.map(c=>`<div class="sum-row"><span>${c.name} ×${c.qty}</span><span>R${(c.price*c.qty).toLocaleString()}</span></div>`).join('') + addOnRows + `<div class="sum-row total"><span>Total</span><span>R${(total + videoFeeCart).toLocaleString()}</span></div>`;
+  document.getElementById('cart-type-note').textContent = typeNotes[realType]||typeNotes['ebox']||'';
+  const hasGiftMsg = !!(document.getElementById('tog-msg')?.classList.contains('on') && document.getElementById('ck-personal-msg')?.value?.trim());
+  const schedDate  = document.getElementById('ck-scheduled-date')?.value || '';
+  let addOnRows = '';
+  if (hasGiftMsg) addOnRows += '<div class="sum-row" style="color:var(--green)"><span>🖊️ Gift message</span><span>Free</span></div>';
+  if (schedDate)  addOnRows += '<div class="sum-row" style="font-size:.72rem;color:var(--muted)"><span>📅 Deliver on ' + new Date(schedDate+'T00:00:00').toLocaleDateString('en-ZA',{day:'numeric',month:'short'}) + '</span><span></span></div>';
+  document.getElementById('cart-summary-rows').innerHTML = appState.cart.map(c=>`<div class="sum-row"><span>${c.name} ×${c.qty}</span><span>R${(c.price*c.qty).toLocaleString()}</span></div>`).join('') + addOnRows + `<div class="sum-row total"><span>Total</span><span>R${total.toLocaleString()}</span></div>`;
 }
 
 /* ══════════════════════════════════════════════════════════════
    CHECKOUT
 ══════════════════════════════════════════════════════════════ */
 function renderCheckout() {
-  const ct        = getCartType();
-  const subtotal  = getCartTotal();
-  const videoFee  = getVideoAddon();
-  const total     = subtotal + videoFee;
-  document.getElementById('ck-pay-total').textContent = 'R' + total.toLocaleString();
+  const ct    = getCartType();
+  const total = getCartTotal();  // already includes R49 if video in cart
+  document.getElementById('ck-pay-total').textContent  = 'R' + total.toLocaleString();
   document.getElementById('ck-total-disp').textContent = 'R' + total.toLocaleString();
-  const videoRow = videoFee ? `<div class="sum-row" style="color:var(--b600)"><span>🎬 Video message</span><span>+R${videoFee}</span></div>` : '';
-  const schedDate = document.getElementById('ck-scheduled-date')?.value || '';
-  const schedRow  = schedDate ? `<div class="sum-row" style="font-size:.72rem;color:var(--muted)"><span>📅 Send on ${new Date(schedDate+'T00:00:00').toLocaleDateString('en-ZA',{day:'numeric',month:'short'})}</span><span></span></div>` : '';
+  const schedDate  = document.getElementById('ck-scheduled-date')?.value || '';
+  const schedRow   = schedDate ? `<div class="sum-row" style="font-size:.72rem;color:var(--muted)"><span>📅 Send on ${new Date(schedDate+'T00:00:00').toLocaleDateString('en-ZA',{day:'numeric',month:'short'})}</span><span></span></div>` : '';
   const giftActive = document.getElementById('tog-msg')?.classList.contains('on') && document.getElementById('ck-personal-msg')?.value?.trim();
-  const giftRow = giftActive ? `<div class="sum-row" style="color:var(--green)"><span>🖊️ Gift message</span><span>Free</span></div>` : '';
-  document.getElementById('ck-summary-rows').innerHTML = appState.cart.map(c=>`<div class="sum-row"><span>${c.name} ×${c.qty}</span><span>R${(c.price*c.qty).toLocaleString()}</span></div>`).join('') + giftRow + videoRow + schedRow;
+  const giftRow    = giftActive ? `<div class="sum-row" style="color:var(--green)"><span>🖊️ Gift message</span><span>Free</span></div>` : '';
+  document.getElementById('ck-summary-rows').innerHTML = appState.cart.map(c=>`<div class="sum-row"><span>${c.name} ×${c.qty}</span><span>R${(c.price*c.qty).toLocaleString()}</span></div>`).join('') + giftRow + schedRow;
   const typeInfos = {ebox:'📧 E-Box: Your voucher codes will be sent instantly to your email after payment.',physical:'📦 Physical: Your boxes will be shipped 2–3 days after payment.',mixed:'📧📦 Mixed: E-Box vouchers sent by email immediately. Physical boxes shipped within 2–3 days.'};
   document.getElementById('ck-type-info').textContent = typeInfos[ct]||'';
   document.getElementById('ck-items-preview').innerHTML = appState.cart.map(c=>`
@@ -7652,8 +7688,7 @@ function completeOrder() {
         ? Math.round(subtotal * activeCoupon.value / 100)
         : Math.min(activeCoupon.value, subtotal))
     : 0;
-  const videoFee = getVideoAddon();
-  const total    = subtotal + videoFee - discount;
+  const total = subtotal - discount;
 
   // Capture personalisation
   const personalMsg   = document.getElementById('ck-personal-msg')?.value?.trim() || '';
