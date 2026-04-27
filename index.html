@@ -3631,8 +3631,7 @@ tr:hover td{background:var(--b50)}
 
 
 <!-- ═══════════════════════ PAGE: GIFT VIDEO ══════════════════════ -->
-<div id="page-giftvideo" class="page">
-<div style="min-height:100vh;background:linear-gradient(135deg,#0f172a 0%,#1e3a5f 100%);display:flex;align-items:center;justify-content:center;padding:40px 20px">
+<div id="page-giftvideo" class="page"><div style="min-height:100vh;background:linear-gradient(135deg,#0f172a 0%,#1e3a5f 100%);display:flex;align-items:center;justify-content:center;padding:40px 20px">
   <div style="max-width:520px;width:100%;text-align:center">
     <!-- Logo -->
     <div style="font-family:'Cormorant Garamond',Georgia,serif;font-size:2rem;font-weight:700;color:#fff;letter-spacing:.04em;margin-bottom:6px">WowBox</div>
@@ -7225,6 +7224,14 @@ function updateCartQty(id, d) {
   if (item) { item.qty = Math.max(1, item.qty + d); updateCartBadge(); renderCart(); }
 }
 function getCartTotal() { return appState.cart.reduce((s,c)=>s+c.price*c.qty,0); }
+
+// Returns 49 if video add-on is active, else 0 — single source of truth
+function getVideoAddon() {
+  var tog = document.getElementById('tog-vid');
+  return (tog && tog.classList.contains('on') && appState.videoFile) ? 49 : 0;
+}
+// Grand total including video add-on
+function getGrandTotal() { return getCartTotal() + getVideoAddon(); }
 function getCartType() {
   const types = [...new Set(appState.cart.map(c=>c.type))];
   if (types.length===1) return types[0];
@@ -7265,25 +7272,32 @@ function renderCart() {
   const ct = getCartType();
   const typeNotes = {ebox:'All items are E-Boxes — instant delivery by email. No shipping address required.',physical:'All items are Physical Boxes — shipping address and billing details required.',mixed:'Mixed cart: E-Boxes will be sent instantly by email; Physical Boxes will be shipped to your address.'};
   document.getElementById('cart-type-note').textContent = typeNotes[ct]||'';
-  var hasGiftMsg = !!(document.getElementById('tog-msg')?.classList.contains('on') && document.getElementById('ck-personal-msg')?.value?.trim());
-  var hasVideoMsg = !!(document.getElementById('tog-vid')?.classList.contains('on') && appState.videoFile);
-  var schedDate  = document.getElementById('ck-scheduled-date')?.value || '';
-  var addOnRows  = '';
-  if (hasGiftMsg) addOnRows += '<div class="sum-row" style="color:var(--green)"><span>🖊️ Gift message</span><span>Free</span></div>';
-  if (hasVideoMsg) addOnRows += '<div class="sum-row" style="color:var(--b600)"><span>🎬 Video message</span><span>+R49</span></div>';
-  if (schedDate)   addOnRows += '<div class="sum-row" style="font-size:.72rem;color:var(--muted)"><span>📅 Deliver on ' + new Date(schedDate+'T00:00:00').toLocaleDateString('en-ZA',{day:'numeric',month:'short'}) + '</span><span></span></div>';
-  document.getElementById('cart-summary-rows').innerHTML = appState.cart.map(c=>`<div class="sum-row"><span>${c.name} ×${c.qty}</span><span>R${(c.price*c.qty).toLocaleString()}</span></div>`).join('') + addOnRows + `<div class="sum-row total"><span>Total</span><span>R${(total + (hasVideoMsg ? 49 : 0)).toLocaleString()}</span></div>`;
+  var videoFeeCart = getVideoAddon();
+  var hasGiftMsg   = !!(document.getElementById('tog-msg')?.classList.contains('on') && document.getElementById('ck-personal-msg')?.value?.trim());
+  var schedDate    = document.getElementById('ck-scheduled-date')?.value || '';
+  var addOnRows    = '';
+  if (hasGiftMsg)    addOnRows += '<div class="sum-row" style="color:var(--green)"><span>🖊️ Gift message</span><span>Free</span></div>';
+  if (videoFeeCart)  addOnRows += '<div class="sum-row" style="color:var(--b600)"><span>🎬 Video message</span><span>+R49</span></div>';
+  if (schedDate)     addOnRows += '<div class="sum-row" style="font-size:.72rem;color:var(--muted)"><span>📅 Deliver on ' + new Date(schedDate+'T00:00:00').toLocaleDateString('en-ZA',{day:'numeric',month:'short'}) + '</span><span></span></div>';
+  document.getElementById('cart-summary-rows').innerHTML = appState.cart.map(c=>`<div class="sum-row"><span>${c.name} ×${c.qty}</span><span>R${(c.price*c.qty).toLocaleString()}</span></div>`).join('') + addOnRows + `<div class="sum-row total"><span>Total</span><span>R${(total + videoFeeCart).toLocaleString()}</span></div>`;
 }
 
 /* ══════════════════════════════════════════════════════════════
    CHECKOUT
 ══════════════════════════════════════════════════════════════ */
 function renderCheckout() {
-  const ct = getCartType();
-  const total = getCartTotal();
+  const ct        = getCartType();
+  const subtotal  = getCartTotal();
+  const videoFee  = getVideoAddon();
+  const total     = subtotal + videoFee;
   document.getElementById('ck-pay-total').textContent = 'R' + total.toLocaleString();
   document.getElementById('ck-total-disp').textContent = 'R' + total.toLocaleString();
-  document.getElementById('ck-summary-rows').innerHTML = appState.cart.map(c=>`<div class="sum-row"><span>${c.name} ×${c.qty}</span><span>R${(c.price*c.qty).toLocaleString()}</span></div>`).join('');
+  const videoRow = videoFee ? `<div class="sum-row" style="color:var(--b600)"><span>🎬 Video message</span><span>+R${videoFee}</span></div>` : '';
+  const schedDate = document.getElementById('ck-scheduled-date')?.value || '';
+  const schedRow  = schedDate ? `<div class="sum-row" style="font-size:.72rem;color:var(--muted)"><span>📅 Send on ${new Date(schedDate+'T00:00:00').toLocaleDateString('en-ZA',{day:'numeric',month:'short'})}</span><span></span></div>` : '';
+  const giftActive = document.getElementById('tog-msg')?.classList.contains('on') && document.getElementById('ck-personal-msg')?.value?.trim();
+  const giftRow = giftActive ? `<div class="sum-row" style="color:var(--green)"><span>🖊️ Gift message</span><span>Free</span></div>` : '';
+  document.getElementById('ck-summary-rows').innerHTML = appState.cart.map(c=>`<div class="sum-row"><span>${c.name} ×${c.qty}</span><span>R${(c.price*c.qty).toLocaleString()}</span></div>`).join('') + giftRow + videoRow + schedRow;
   const typeInfos = {ebox:'📧 E-Box: Your voucher codes will be sent instantly to your email after payment.',physical:'📦 Physical: Your boxes will be shipped 2–3 days after payment.',mixed:'📧📦 Mixed: E-Box vouchers sent by email immediately. Physical boxes shipped within 2–3 days.'};
   document.getElementById('ck-type-info').textContent = typeInfos[ct]||'';
   document.getElementById('ck-items-preview').innerHTML = appState.cart.map(c=>`
@@ -7638,7 +7652,8 @@ function completeOrder() {
         ? Math.round(subtotal * activeCoupon.value / 100)
         : Math.min(activeCoupon.value, subtotal))
     : 0;
-  const total = subtotal - discount;
+  const videoFee = getVideoAddon();
+  const total    = subtotal + videoFee - discount;
 
   // Capture personalisation
   const personalMsg   = document.getElementById('ck-personal-msg')?.value?.trim() || '';
@@ -7724,10 +7739,17 @@ async function completeOrderConfirm(paystackRef, total, discount) {
     ? '<div class="cf"><label>Coupon</label><span style="color:var(--green)">-R' + discount.toLocaleString() + ' (' + activeCoupon.code + ')</span></div>'
     : '';
 
+  var videoFeeConf = appState.lastOrderVideo ? 49 : 0;
+  var videoLine    = videoFeeConf ? '<div class="cf"><label>🎬 Video message</label><span style="color:var(--b600)">+R' + videoFeeConf + '</span></div>' : '';
+  var giftLine     = appState.lastOrderMsg ? '<div class="cf"><label>🖊️ Gift message</label><span style="color:var(--green)">Included</span></div>' : '';
+  var schedLine    = appState.lastScheduledDate ? '<div class="cf"><label>📅 Delivery date</label><span>' + new Date(appState.lastScheduledDate+'T00:00:00').toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'}) + '</span></div>' : '';
   document.getElementById('ck-conf-grid').innerHTML =
     '<div class="cf"><label>Order #</label><span>' + ref + '</span></div>'
     + '<div class="cf"><label>Date</label><span>' + dateStr + '</span></div>'
     + '<div class="cf"><label>Items</label><span>' + appState.cart.length + ' box' + (appState.cart.length > 1 ? 'es' : '') + '</span></div>'
+    + giftLine
+    + videoLine
+    + schedLine
     + couponLine
     + '<div class="cf"><label>Total paid</label><span style="color:var(--b700);font-weight:700">R' + total.toLocaleString() + '</span></div>'
     + '<div class="cf"><label>Payment ref</label><span style="font-size:.75rem;color:var(--muted)">' + ref + '</span></div>';
