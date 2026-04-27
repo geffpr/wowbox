@@ -677,7 +677,8 @@ async function authSignOut() {
   if (mso)  mso.style.display  = 'none';
 }
 
-async function authOnSignedIn(user) {
+async function authOnSignedIn(user, navigate) {
+  if (navigate === undefined) navigate = true;
   currentUser = user;
   var name  = (user.user_metadata && user.user_metadata.full_name) ? user.user_metadata.full_name : (user.email ? user.email.split('@')[0] : 'User');
   var email = user.email || '';
