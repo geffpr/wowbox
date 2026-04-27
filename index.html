@@ -312,6 +312,10 @@ async function saveBookingToSupabase(payload) {
    SUPABASE AUTH
 ══════════════════════════════════════════════════════════════ */
 var currentUser = null;
+// Canonical production URL — OAuth always redirects here
+var APP_URL = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+  ? window.location.origin
+  : 'https://wowbox.co.za';
 
 function authSwitchTab(tab) {
   const isUp = tab === 'up';
@@ -368,7 +372,7 @@ async function authSubmit() {
 async function authGoogle() {
   authClearMessages();
   try {
-    var result = await db_client.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.origin + window.location.pathname } });
+    var result = await db_client.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: APP_URL } });
     if (result.error) throw result.error;
   } catch(e) {
     authShowError('Google sign-in failed: ' + e.message);
@@ -379,7 +383,7 @@ async function authForgot() {
   var email = document.getElementById('auth-email') ? document.getElementById('auth-email').value.trim() : '';
   if (!email) { authShowError('Enter your email address first.'); return; }
   try {
-    var result = await db_client.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin });
+    var result = await db_client.auth.resetPasswordForEmail(email, { redirectTo: APP_URL });
     if (result.error) throw result.error;
     authShowSuccess('Password reset email sent! Check your inbox.');
   } catch(e) { authShowError(e.message); }
