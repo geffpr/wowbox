@@ -272,7 +272,23 @@ function buildPrintCards(codes) {
 function printGenCodes() {
   if (!generatedCodes.length) { admToast('No codes to print.'); return; }
   var w = window.open('','_blank');
-  w.document.write('<html><body>'+buildPrintCards(generatedCodes)+'</body></html>');
+  w.document.write('<html><body>'+buildPrintCards(generatedCodes)+'
+<!-- Video QR Code Modal -->
+<div id="vid-qr-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9000;align-items:center;justify-content:center">
+  <div style="background:#fff;border-radius:var(--rl);padding:32px 28px;max-width:380px;width:90%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.25);position:relative">
+    <button onclick="admHideVideoQR()" style="position:absolute;top:14px;right:14px;background:none;border:none;cursor:pointer;font-size:1.1rem;color:var(--muted)"><i class="fa fa-xmark"></i></button>
+    <div style="font-size:1.4rem;margin-bottom:4px">🎬</div>
+    <h3 style="font-size:1.05rem;color:var(--navy);margin-bottom:4px">Video message QR code</h3>
+    <p style="font-size:.75rem;color:var(--muted);margin-bottom:18px">Print and place inside the physical box for the recipient to scan.</p>
+    <div id="vid-qr-canvas" style="display:inline-block;padding:12px;border:1.5px solid var(--border);border-radius:var(--r);margin-bottom:16px"></div>
+    <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
+      <a id="vid-qr-link" href="#" target="_blank" class="btn bg bsm"><i class="fa fa-external-link"></i> Open page</a>
+      <button class="btn bp bsm" onclick="admPrintVideoQR(document.getElementById('vid-qr-link').href.split('/gift-video/')[1])"><i class="fa fa-print"></i> Print QR</button>
+    </div>
+  </div>
+</div>
+
+</body></html>');
   w.document.close(); w.print(); w.close();
 }
 
@@ -526,18 +542,53 @@ async function loadUserOrders(email) {
       var subline = o._from_vouchers
         ? date + ' · ' + type + ' · Code: ' + (o._code||'')
         : date + amount;
+      var videoToken    = o.video_token    || '';
+      var hasVideoMsg   = o.has_video_message || false;
+      var giftMsg       = o.gift_message   || '';
+      var schedDate     = o.scheduled_send_date || '';
+      var schedLine     = (schedDate && !o.email_sent_at)
+        ? '<div style="font-size:.7rem;color:var(--b600);margin-top:4px"><i class="fa fa-calendar-days"></i> Scheduled: '
+          + new Date(schedDate+'T00:00:00').toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'}) + '</div>'
+        : '';
+      var actionBtns = '';
+      if (hasVideoMsg && videoToken) {
+        actionBtns += '<a href="/gift-video/' + videoToken + '" target="_blank" class="btn bg bsm" style="font-size:.72rem"><i class="fa fa-play"></i> Watch Video</a> ';
+      }
+      if (giftMsg) {
+        actionBtns += '<button class="btn bg bsm" style="font-size:.72rem" onclick="userViewMessage(this,'' + encodeURIComponent(giftMsg).replace(/'/g,"\'") + '')"><i class="fa fa-envelope-open-text"></i> View Message</button>';
+      }
       return '<div class="order-card" style="padding:16px;cursor:default">'
         + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">'
         + '<strong style="font-size:.88rem;color:var(--navy)">' + (o.id||title) + '</strong>'
         + status
         + '</div>'
         + '<div style="font-size:.78rem;color:var(--muted);margin-bottom:8px">' + subline + '</div>'
+        + schedLine
         + (!o._from_vouchers && type ? '<span style="font-size:.7rem;background:var(--b50);border:1px solid var(--b200);color:var(--b600);padding:2px 8px;border-radius:99px">' + type + '</span>' : '')
+        + (actionBtns ? '<div style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap">' + actionBtns + '</div>' : '')
         + '</div>';
     }).join('');
   } catch(e) {
     console.warn('loadUserOrders:', e.message);
   }
+}
+
+function userViewMessage(btn, encodedMsg) {
+  var msg = decodeURIComponent(encodedMsg);
+  var existing = document.getElementById('user-msg-modal');
+  if (existing) existing.remove();
+  var modal = document.createElement('div');
+  modal.id = 'user-msg-modal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9000;display:flex;align-items:center;justify-content:center;padding:20px';
+  modal.innerHTML = '<div style="background:#fff;border-radius:var(--rl);padding:32px 28px;max-width:420px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.25);text-align:center;position:relative">'
+    + '<button onclick="document.getElementById('user-msg-modal').remove()" style="position:absolute;top:14px;right:14px;background:none;border:none;cursor:pointer;font-size:1.1rem;color:var(--muted)"><i class="fa fa-xmark"></i></button>'
+    + '<div style="font-size:1.6rem;margin-bottom:10px">💌</div>'
+    + '<h3 style="font-size:1rem;color:var(--navy);margin-bottom:14px">Your gift message</h3>'
+    + '<p style="font-family:'Cormorant Garamond',Georgia,serif;font-size:1.2rem;color:var(--slate);line-height:1.75;font-style:italic;margin:0 0 20px">' + msg + '</p>'
+    + '<button class="btn bp bsm" onclick="document.getElementById('user-msg-modal').remove()">Close</button>'
+    + '</div>';
+  modal.addEventListener('click', function(e){ if (e.target === modal) modal.remove(); });
+  document.body.appendChild(modal);
 }
 
 async function saveSettings() {
@@ -3150,13 +3201,43 @@ tr:hover td{background:var(--b50)}
           <div class="tog-row" id="video-option-row" style="border:none">
             <div>
               <div style="font-size:.8rem;font-weight:500;color:var(--navy)">🎬 Video message</div>
-              <div style="font-size:.7rem;color:var(--muted)" id="vid-price-label">R49 &mdash; E-Box only</div>
+              <div style="font-size:.7rem;color:var(--muted)" id="vid-price-label">+R49 — record or upload your video</div>
             </div>
-            <div class="tog" id="tog-vid" onclick="togSwitch('tog-vid','area-vid')"></div>
+            <div class="tog" id="tog-vid" onclick="togVideoSwitch()"></div>
           </div>
           <div id="area-vid" style="display:none;padding:10px 0 4px">
-            <input class="fi" id="ck-video-url" type="url" placeholder="Paste video link (YouTube, Vimeo, Google Drive...)" style="font-size:.82rem">
-            <div style="font-size:.68rem;color:var(--muted);margin-top:5px"><i class="fa fa-circle-info" style="color:var(--b400)"></i> Link will be included in the recipient's E-Box email.</div>
+            <!-- File upload zone -->
+            <div id="vid-upload-zone" onclick="document.getElementById('ck-video-file').click()"
+              style="border:2px dashed var(--b300);border-radius:var(--r);padding:18px 12px;text-align:center;cursor:pointer;transition:background .15s;background:var(--b50)"
+              ondragover="event.preventDefault();this.style.background='var(--b100)'"
+              ondragleave="this.style.background='var(--b50)'"
+              ondrop="vidHandleDrop(event)">
+              <i class="fa fa-video" style="font-size:1.4rem;color:var(--b400);margin-bottom:6px;display:block"></i>
+              <div style="font-size:.8rem;font-weight:600;color:var(--navy)">Click or drag to upload</div>
+              <div style="font-size:.68rem;color:var(--muted);margin-top:3px">MP4, MOV or WebM · Max 100 MB · Max 30 sec</div>
+            </div>
+            <input type="file" id="ck-video-file" accept="video/mp4,video/quicktime,video/webm" style="display:none" onchange="vidHandleFile(this.files[0])">
+            <!-- Preview / status -->
+            <div id="vid-file-preview" style="display:none;margin-top:8px;padding:9px 12px;background:var(--b50);border:1px solid var(--b200);border-radius:var(--rs);align-items:center;gap:10px">
+              <i class="fa fa-circle-check" style="color:var(--green);font-size:1rem"></i>
+              <div style="flex:1;min-width:0">
+                <div id="vid-file-name" style="font-size:.78rem;font-weight:600;color:var(--navy);white-space:nowrap;overflow:hidden;text-overflow:ellipsis"></div>
+                <div id="vid-file-meta" style="font-size:.68rem;color:var(--muted)"></div>
+              </div>
+              <button class="btn bg bsm" style="flex-shrink:0" onclick="vidClearFile()"><i class="fa fa-xmark"></i></button>
+            </div>
+            <div id="vid-file-err" style="display:none;font-size:.72rem;color:#dc2626;margin-top:6px;padding:7px 10px;background:#fef2f2;border:1px solid #fecaca;border-radius:var(--rs)"></div>
+            <!-- Scheduled delivery date (E-Box only) -->
+            <div id="vid-date-row" style="display:none;margin-top:10px">
+              <label style="font-size:.75rem;font-weight:600;color:var(--navy);display:block;margin-bottom:4px"><i class="fa fa-calendar-days" style="color:var(--b500)"></i> Choose delivery date for your gift</label>
+              <input type="date" class="fi" id="ck-scheduled-date" style="font-size:.82rem"
+                min="" onchange="vidUpdateDateLabel()">
+              <div style="font-size:.67rem;color:var(--muted);margin-top:4px"><i class="fa fa-circle-info" style="color:var(--b400)"></i> Leave blank to send immediately after purchase.</div>
+            </div>
+            <!-- Physical box QR note -->
+            <div id="vid-qr-note" style="display:none;margin-top:8px;font-size:.68rem;color:var(--muted);background:var(--b50);padding:7px 10px;border-radius:var(--rs)">
+              <i class="fa fa-qrcode" style="color:var(--b400)"></i> A QR code will be printed inside your physical box for the recipient to scan and watch.
+            </div>
           </div>
         </div>
 
@@ -3546,6 +3627,50 @@ tr:hover td{background:var(--b50)}
     </div>
     <div style="text-align:center;margin-top:22px"><button class="btn bg" onclick="go('dashboard')"><i class="fa fa-arrow-left"></i> Back to My Account</button></div>
   </div>
+</div>
+
+
+<!-- ═══════════════════════ PAGE: GIFT VIDEO ══════════════════════ -->
+<div id="page-giftvideo" class="page">
+<div style="min-height:100vh;background:linear-gradient(135deg,#0f172a 0%,#1e3a5f 100%);display:flex;align-items:center;justify-content:center;padding:40px 20px">
+  <div style="max-width:520px;width:100%;text-align:center">
+    <!-- Logo -->
+    <div style="font-family:'Cormorant Garamond',Georgia,serif;font-size:2rem;font-weight:700;color:#fff;letter-spacing:.04em;margin-bottom:6px">WowBox</div>
+    <div style="font-size:.75rem;color:rgba(255,255,255,.45);letter-spacing:.15em;text-transform:uppercase;margin-bottom:36px">A personal gift, just for you</div>
+
+    <!-- Card -->
+    <div style="background:#fff;border-radius:20px;overflow:hidden;box-shadow:0 32px 80px rgba(0,0,0,.4)">
+      <!-- Video player -->
+      <div id="gv-video-wrap" style="background:#0f172a;position:relative;aspect-ratio:16/9;display:flex;align-items:center;justify-content:center">
+        <video id="gv-video" controls style="width:100%;height:100%;object-fit:contain;display:none"></video>
+        <div id="gv-video-placeholder" style="text-align:center;color:rgba(255,255,255,.5)">
+          <i class="fa fa-video" style="font-size:2.5rem;margin-bottom:8px;display:block"></i>
+          <div style="font-size:.8rem">Loading your video…</div>
+        </div>
+      </div>
+      <!-- Message -->
+      <div style="padding:28px 32px">
+        <div id="gv-message-wrap" style="display:none;margin-bottom:22px">
+          <div style="font-size:.65rem;text-transform:uppercase;letter-spacing:.12em;color:var(--muted);margin-bottom:8px">A message for you</div>
+          <p id="gv-message-text" style="font-family:'Cormorant Garamond',Georgia,serif;font-size:1.25rem;color:var(--navy);line-height:1.7;font-style:italic;margin:0"></p>
+        </div>
+        <div id="gv-expired" style="display:none;text-align:center;padding:20px 0">
+          <i class="fa fa-clock" style="font-size:2rem;color:var(--muted);margin-bottom:10px;display:block"></i>
+          <div style="font-size:.9rem;color:var(--muted)">This video message has expired or is no longer available.</div>
+        </div>
+        <div id="gv-error" style="display:none;text-align:center;padding:20px 0">
+          <i class="fa fa-triangle-exclamation" style="font-size:2rem;color:#dc2626;margin-bottom:10px;display:block"></i>
+          <div style="font-size:.9rem;color:var(--muted)">Video not found. Please check the link and try again.</div>
+        </div>
+        <!-- Footer -->
+        <div style="padding-top:20px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:center;gap:6px">
+          <span style="font-size:.7rem;color:var(--muted)">Delivered with love via</span>
+          <strong style="font-size:.75rem;color:var(--navy)">WowBox</strong>
+        </div>
+      </div>
+    </div>
+  </div>
+</div><!-- /inner wrapper -->
 </div>
 
 <!-- ═══════════════════════ PAGE: LOGIN ══════════════════════════ -->
@@ -5161,7 +5286,9 @@ tr:hover td{background:var(--b50)}
                 <div class="ord-kv"><dt>Delivery type</dt><dd id="od-type"></dd></div>
                 <div class="ord-kv"><dt>Boost</dt><dd id="od-boost"></dd></div>
                 <div class="ord-kv" id="od-msg-row" style="display:none"><dt>Gift message</dt><dd id="od-msg" style="font-style:italic;color:var(--slate)"></dd></div>
-                <div class="ord-kv" id="od-vid-row" style="display:none"><dt>Video link</dt><dd><a id="od-vid-link" href="#" target="_blank" style="color:var(--b600);word-break:break-all"></a></dd></div>
+                <div class="ord-kv" id="od-vid-row" style="display:none"><dt>Video message</dt><dd id="od-vid-status"></dd></div>
+                <div class="ord-kv" id="od-sched-row" style="display:none"><dt>Scheduled send</dt><dd id="od-sched-date" style="color:var(--b700);font-weight:600"></dd></div>
+                <div class="ord-kv" id="od-qr-row" style="display:none"><dt>QR code</dt><dd><button class="btn bg bsm" id="od-qr-btn"><i class="fa fa-qrcode"></i> View QR code</button></dd></div>
               </div>
               <div class="ord-section">
                 <h4><i class="fa fa-print" style="color:var(--b400)"></i> Actions</h4>
@@ -5892,6 +6019,8 @@ const appState = {
   currentExpId: null,
   ckStep: 1,
   deliveryType: 'ebox',
+  videoFile: null,
+  scheduledDate: '',
   expPage: 1,
   expPerPage: 5,
   revFilter: 'all',
@@ -5923,7 +6052,8 @@ const PAGE_HASH = {
   home:'/',allboxes:'/boxes',product:'/box',expdetail:'/experience',
   reviews:'/reviews',cart:'/cart',checkout:'/checkout',voucher:'/confirmation',
   login:'/login',dashboard:'/my-account',activation:'/activate',
-  'partner-landing':'/partner-landing','partner-landing':'/partners',partner:'/partner',admin:'/admin',browse:'/browse',roulette:'/surprise'
+  'partner-landing':'/partner-landing','partner-landing':'/partners',partner:'/partner',admin:'/admin',browse:'/browse',roulette:'/surprise',
+  giftvideo:'/gift-video'
 };
 const HASH_PAGE = {};
 Object.entries(PAGE_HASH).forEach(function(e){ HASH_PAGE[e[1]] = e[0]; });
@@ -5989,6 +6119,70 @@ function goFromHash() {
   if (navMap[page]) setNL(navMap[page]);
 }
 
+
+/* ── Gift Video Page ── */
+async function loadGiftVideoPage(token) {
+  var videoEl  = document.getElementById('gv-video');
+  var placeholder = document.getElementById('gv-video-placeholder');
+  var msgWrap  = document.getElementById('gv-message-wrap');
+  var msgText  = document.getElementById('gv-message-text');
+  var expiredEl = document.getElementById('gv-expired');
+  var errorEl   = document.getElementById('gv-error');
+
+  if (!token) {
+    if (errorEl) errorEl.style.display = 'block';
+    if (placeholder) placeholder.style.display = 'none';
+    return;
+  }
+
+  try {
+    var res = await db_client
+      .from('video_messages')
+      .select('video_url,gift_message,status,expires_at,token')
+      .eq('token', token)
+      .single();
+
+    if (res.error || !res.data) {
+      if (errorEl) errorEl.style.display = 'block';
+      if (placeholder) placeholder.style.display = 'none';
+      return;
+    }
+
+    var vm = res.data;
+
+    // Check expiry
+    if (vm.status === 'expired' || (vm.expires_at && new Date(vm.expires_at) < new Date())) {
+      if (expiredEl) expiredEl.style.display = 'block';
+      if (placeholder) placeholder.style.display = 'none';
+      return;
+    }
+
+    // Show video
+    if (vm.video_url && videoEl) {
+      videoEl.src = vm.video_url;
+      videoEl.style.display = 'block';
+      if (placeholder) placeholder.style.display = 'none';
+    } else {
+      if (placeholder) { placeholder.innerHTML = '<i class="fa fa-circle-exclamation" style="font-size:2rem;color:rgba(255,255,255,.4);margin-bottom:8px;display:block"></i><div style="font-size:.8rem">Video processing…<br>Please check back shortly.</div>'; }
+    }
+
+    // Show gift message
+    if (vm.gift_message && msgWrap && msgText) {
+      msgText.textContent = vm.gift_message;
+      msgWrap.style.display = 'block';
+    }
+
+    // Track access (non-blocking)
+    db_client.from('video_messages')
+      .update({ accessed_at: new Date().toISOString(), access_count: (res.data.access_count || 0) + 1 })
+      .eq('token', token)
+      .then(function(){}).catch(function(){});
+
+  } catch(e) {
+    if (errorEl) errorEl.style.display = 'block';
+    if (placeholder) placeholder.style.display = 'none';
+  }
+}
 window.addEventListener('popstate', function() { goFromHash(); });
 function setNL(id) {
   document.querySelectorAll('.nl').forEach(n => n.classList.remove('on'));
@@ -6315,25 +6509,99 @@ function selType(el) {
   document.querySelectorAll('.dtype').forEach(o => o.classList.remove('on'));
   el.classList.add('on');
   appState.deliveryType = el.dataset.type;
-  // Video message only for E-Box
+  // Update date picker / QR note visibility based on delivery type
+  const isEbox = el.dataset.type === 'ebox';
+  const dateRow = document.getElementById('vid-date-row');
+  const qrNote  = document.getElementById('vid-qr-note');
+  if (dateRow) dateRow.style.display = isEbox ? 'block' : 'none';
+  if (qrNote)  qrNote.style.display  = isEbox ? 'none'  : 'block';
+  // Video row is always enabled for both types
   const vidRow = document.getElementById('video-option-row');
-  const vidArea = document.getElementById('area-vid');
-  const vidTog  = document.getElementById('tog-vid');
-  if (vidRow) {
-    const isEbox = el.dataset.type === 'ebox';
-    vidRow.style.opacity  = isEbox ? '1' : '.4';
-    vidRow.style.pointerEvents = isEbox ? 'auto' : 'none';
-    if (!isEbox && vidTog?.classList.contains('on')) {
-      vidTog.classList.remove('on');
-      if (vidArea) vidArea.style.display = 'none';
-    }
-  }
+  if (vidRow) { vidRow.style.opacity = '1'; vidRow.style.pointerEvents = 'auto'; }
 }
 function togSwitch(id, targetId) {
   const el = document.getElementById(id);
   el.classList.toggle('on');
   if (targetId) document.getElementById(targetId).style.display = el.classList.contains('on') ? 'block' : 'none';
 }
+
+/* ── Video message helpers ── */
+function togVideoSwitch() {
+  const tog     = document.getElementById('tog-vid');
+  const area    = document.getElementById('area-vid');
+  const isEbox  = appState.deliveryType === 'ebox';
+  tog.classList.toggle('on');
+  const on = tog.classList.contains('on');
+  area.style.display = on ? 'block' : 'none';
+  if (!on) { vidClearFile(); }
+  const dateRow = document.getElementById('vid-date-row');
+  const qrNote  = document.getElementById('vid-qr-note');
+  if (on) {
+    if (dateRow) dateRow.style.display = isEbox ? 'block' : 'none';
+    if (qrNote)  qrNote.style.display  = isEbox ? 'none'  : 'block';
+  }
+}
+
+function vidHandleFile(file) {
+  const errEl  = document.getElementById('vid-file-err');
+  const zone   = document.getElementById('vid-upload-zone');
+  const prev   = document.getElementById('vid-file-preview');
+  if (errEl) errEl.style.display = 'none';
+  if (!file) return;
+  const allowed = ['video/mp4','video/quicktime','video/webm'];
+  if (!allowed.includes(file.type)) {
+    if (errEl) { errEl.textContent = 'Invalid file type. Please upload an MP4, MOV, or WebM video.'; errEl.style.display = 'block'; } return;
+  }
+  if (file.size > 100 * 1024 * 1024) {
+    if (errEl) { errEl.textContent = 'File is too large. Maximum size is 100 MB.'; errEl.style.display = 'block'; } return;
+  }
+  const url = URL.createObjectURL(file);
+  const vid = document.createElement('video');
+  vid.src = url;
+  vid.onloadedmetadata = () => {
+    URL.revokeObjectURL(url);
+    if (vid.duration > 30) {
+      if (errEl) { errEl.textContent = 'Video is too long. Maximum duration is 30 seconds.'; errEl.style.display = 'block'; }
+      appState.videoFile = null; return;
+    }
+    appState.videoFile = file;
+    const sizeMB = (file.size / 1024 / 1024).toFixed(1);
+    const secs   = Math.round(vid.duration);
+    const nameEl = document.getElementById('vid-file-name');
+    const metaEl = document.getElementById('vid-file-meta');
+    if (nameEl) nameEl.textContent = file.name;
+    if (metaEl) metaEl.textContent = sizeMB + ' MB \u00b7 ' + secs + 's';
+    if (zone) zone.style.display = 'none';
+    if (prev) prev.style.display = 'flex';
+  };
+  vid.onerror = () => { URL.revokeObjectURL(url); if (errEl) { errEl.textContent = 'Could not read video file.'; errEl.style.display = 'block'; } };
+}
+
+function vidHandleDrop(e) {
+  e.preventDefault();
+  const z = document.getElementById('vid-upload-zone');
+  if (z) z.style.background = 'var(--b50)';
+  const file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+  if (file) vidHandleFile(file);
+}
+
+function vidClearFile() {
+  appState.videoFile = null;
+  const inp = document.getElementById('ck-video-file');
+  if (inp) inp.value = '';
+  const zone = document.getElementById('vid-upload-zone');
+  const prev = document.getElementById('vid-file-preview');
+  const err  = document.getElementById('vid-file-err');
+  if (zone) zone.style.display = '';
+  if (prev) prev.style.display = 'none';
+  if (err)  err.style.display  = 'none';
+}
+
+function vidUpdateDateLabel() {
+  const val = (document.getElementById('ck-scheduled-date') || {value:''}).value || '';
+  appState.scheduledDate = val;
+}
+
 
 /* ══════════════════════════════════════════════════════════════
    EXPERIENCE LIST (Product page)
@@ -6997,7 +7265,14 @@ function renderCart() {
   const ct = getCartType();
   const typeNotes = {ebox:'All items are E-Boxes — instant delivery by email. No shipping address required.',physical:'All items are Physical Boxes — shipping address and billing details required.',mixed:'Mixed cart: E-Boxes will be sent instantly by email; Physical Boxes will be shipped to your address.'};
   document.getElementById('cart-type-note').textContent = typeNotes[ct]||'';
-  document.getElementById('cart-summary-rows').innerHTML = appState.cart.map(c=>`<div class="sum-row"><span>${c.name} ×${c.qty}</span><span>R${(c.price*c.qty).toLocaleString()}</span></div>`).join('') + `<div class="sum-row total"><span>Total</span><span>R${total.toLocaleString()}</span></div>`;
+  var hasGiftMsg = !!(document.getElementById('tog-msg')?.classList.contains('on') && document.getElementById('ck-personal-msg')?.value?.trim());
+  var hasVideoMsg = !!(document.getElementById('tog-vid')?.classList.contains('on') && appState.videoFile);
+  var schedDate  = document.getElementById('ck-scheduled-date')?.value || '';
+  var addOnRows  = '';
+  if (hasGiftMsg) addOnRows += '<div class="sum-row" style="color:var(--green)"><span>🖊️ Gift message</span><span>Free</span></div>';
+  if (hasVideoMsg) addOnRows += '<div class="sum-row" style="color:var(--b600)"><span>🎬 Video message</span><span>+R49</span></div>';
+  if (schedDate)   addOnRows += '<div class="sum-row" style="font-size:.72rem;color:var(--muted)"><span>📅 Deliver on ' + new Date(schedDate+'T00:00:00').toLocaleDateString('en-ZA',{day:'numeric',month:'short'}) + '</span><span></span></div>';
+  document.getElementById('cart-summary-rows').innerHTML = appState.cart.map(c=>`<div class="sum-row"><span>${c.name} ×${c.qty}</span><span>R${(c.price*c.qty).toLocaleString()}</span></div>`).join('') + addOnRows + `<div class="sum-row total"><span>Total</span><span>R${(total + (hasVideoMsg ? 49 : 0)).toLocaleString()}</span></div>`;
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -7366,10 +7641,12 @@ function completeOrder() {
   const total = subtotal - discount;
 
   // Capture personalisation
-  const personalMsg = document.getElementById('ck-personal-msg')?.value?.trim() || '';
-  const videoUrl    = document.getElementById('ck-video-url')?.value?.trim() || '';
-  appState.lastOrderMsg   = personalMsg;
-  appState.lastOrderVideo = videoUrl;
+  const personalMsg   = document.getElementById('ck-personal-msg')?.value?.trim() || '';
+  const scheduledDate = appState.scheduledDate || document.getElementById('ck-scheduled-date')?.value || '';
+  const hasVideo      = !!appState.videoFile;
+  appState.lastOrderMsg       = personalMsg;
+  appState.lastOrderVideo     = hasVideo;
+  appState.lastScheduledDate  = scheduledDate;
 
   // Get customer email from checkout form
   const email = document.getElementById('ck-email')?.value?.trim()
@@ -7392,7 +7669,8 @@ function completeOrder() {
       custom_fields: [
         { display_name: 'Delivery type',     variable_name: 'delivery_type',    value: getCartType() },
         { display_name: 'Gift message',      variable_name: 'personal_message', value: personalMsg },
-        { display_name: 'Video URL',         variable_name: 'video_url',        value: videoUrl },
+        { display_name: 'Has video',         variable_name: 'has_video',        value: hasVideo ? 'yes' : 'no' },
+        { display_name: 'Scheduled date',    variable_name: 'scheduled_date',   value: scheduledDate },
       ]
     },
     onClose: function() {
@@ -7458,15 +7736,19 @@ async function completeOrderConfirm(paystackRef, total, discount) {
 
   // Save order locally for admin Orders table
   orderDetailDB[ref] = {
-    name:  custName,
-    email: custEmail || 'customer@wowbox.co.za',
-    phone: '',
-    date:  dateStr,
-    type:  ct === 'ebox' ? 'E-Box' : ct === 'physical' ? 'Physical' : 'Mixed',
-    total: 'R' + total.toLocaleString(),
-    boost: false,
-    items: orderItems,
-    delivery: null,
+    name:       custName,
+    email:      custEmail || 'customer@wowbox.co.za',
+    phone:      '',
+    date:       dateStr,
+    type:       ct === 'ebox' ? 'E-Box' : ct === 'physical' ? 'Physical' : 'Mixed',
+    total:      'R' + total.toLocaleString(),
+    boost:      false,
+    items:      orderItems,
+    delivery:   null,
+    personalMsg:  appState.lastOrderMsg || '',
+    hasVideo:     appState.lastOrderVideo || false,
+    schedDate:    appState.lastScheduledDate || null,
+    videoToken:   null, // will be updated after Supabase insert
   };
   if (typeof ordersState !== 'undefined') ordersState.statuses[ref] = 'Pending';
   if (typeof renderOrdersTable === 'function') renderOrdersTable();
@@ -7491,16 +7773,60 @@ async function completeOrderConfirm(paystackRef, total, discount) {
         await db_client.from('vouchers').insert(voucherRows);
       }
 
+      // Capture gift/video/schedule from state
+      var giftMsg      = appState.lastOrderMsg  || '';
+      var hasVideoMsg  = !!appState.videoFile;
+      var schedDate    = appState.lastScheduledDate || null;
+      var videoToken   = null;
+      var videoUrlSaved = null;
+
+      // Upload video to Supabase Storage if present
+      if (hasVideoMsg && appState.videoFile) {
+        try {
+          var vidFile     = appState.videoFile;
+          var vidExt      = vidFile.name.split('.').pop();
+          var storagePath = 'videos/' + ref + '_' + Date.now() + '.' + vidExt;
+          var uploadRes   = await db_client.storage.from('gift-videos').upload(storagePath, vidFile, { contentType: vidFile.type, upsert: false });
+          if (!uploadRes.error) {
+            var signedRes = await db_client.storage.from('gift-videos').createSignedUrl(storagePath, 30 * 24 * 3600);
+            videoUrlSaved = signedRes.data?.signedUrl || null;
+            // Insert video_messages record
+            var vmRes = await db_client.from('video_messages').insert({
+              order_id:    ref,
+              storage_path: storagePath,
+              video_url:   videoUrlSaved,
+              gift_message: giftMsg || null,
+              file_size_bytes: vidFile.size,
+              status: 'pending',
+            }).select('token').single();
+            if (vmRes.data) videoToken = vmRes.data.token;
+          }
+        } catch(vidErr) {
+          console.warn('Video upload (non-blocking):', vidErr.message);
+        }
+        appState.videoFile = null;
+      }
+
       // Insert order
       await db_client.from('orders').insert({
-        id:             ref,
-        customer_name:  custName,
-        customer_email: custEmail || null,
-        total_amount:   total,
-        discount_amount: discount || 0,
-        delivery_type:  ct,
-        status:         'pending',
+        id:                ref,
+        customer_name:     custName,
+        customer_email:    custEmail || null,
+        total_amount:      total,
+        discount_amount:   discount || 0,
+        delivery_type:     ct,
+        status:            'pending',
+        gift_message:      giftMsg || null,
+        has_video_message: hasVideoMsg,
+        video_url:         videoUrlSaved,
+        video_token:       videoToken,
+        video_created_at:  hasVideoMsg ? new Date().toISOString() : null,
+        video_expires_at:  hasVideoMsg ? new Date(Date.now() + 30*24*3600*1000).toISOString() : null,
+        scheduled_send_date: schedDate || null,
       });
+      // Cache video token for confirmation screen and update local DB
+      appState.lastVideoToken = videoToken;
+      if (videoToken && orderDetailDB[ref]) orderDetailDB[ref].videoToken = videoToken;
 
       // Send email
       if (custEmail) {
@@ -7511,13 +7837,17 @@ async function completeOrderConfirm(paystackRef, total, discount) {
           body: JSON.stringify({
             type: emailType,
             order: {
-              id:    ref,
-              name:  custName,
-              email: custEmail,
-              type:  ct === 'ebox' ? 'E-Box' : ct === 'physical' ? 'Physical' : 'Mixed',
-              total: 'R' + total.toLocaleString(),
-              date:  dateStr,
-              items: orderItems,
+              id:         ref,
+              name:       custName,
+              email:      custEmail,
+              type:       ct === 'ebox' ? 'E-Box' : ct === 'physical' ? 'Physical' : 'Mixed',
+              total:      'R' + total.toLocaleString(),
+              date:       dateStr,
+              items:      orderItems,
+              giftMsg:    giftMsg || null,
+              videoToken: videoToken || null,
+              videoUrl:   videoUrlSaved || null,
+              schedDate:  schedDate || null,
             }
           })
         });
@@ -7529,6 +7859,14 @@ async function completeOrderConfirm(paystackRef, total, discount) {
 
   nextStep(4);
   appState.cart = []; activeCoupon = null; updateCartBadge();
+  // Reset personalisation state
+  appState.videoFile = null; appState.scheduledDate = ''; appState.lastScheduledDate = null;
+  vidClearFile(); const tog = document.getElementById('tog-vid'); if (tog) tog.classList.remove('on');
+  const av = document.getElementById('area-vid'); if (av) av.style.display = 'none';
+  const togMsg = document.getElementById('tog-msg'); if (togMsg) togMsg.classList.remove('on');
+  const am = document.getElementById('area-msg'); if (am) am.style.display = 'none';
+  const pm = document.getElementById('ck-personal-msg'); if (pm) pm.value = '';
+  const sd = document.getElementById('ck-scheduled-date'); if (sd) sd.value = '';
 }
 
 
@@ -8030,6 +8368,40 @@ function admPrintCode(code, boxName) {
   setTimeout(() => window.print(), 350);
 }
 
+/* ── Video QR Code modal ── */
+function admShowVideoQR(token, orderId) {
+  const url   = window.location.origin + '/gift-video/' + token;
+  const modal = document.getElementById('vid-qr-modal');
+  const wrap  = document.getElementById('vid-qr-canvas');
+  const link  = document.getElementById('vid-qr-link');
+  if (!modal || !wrap) return;
+  wrap.innerHTML = '';
+  if (window.QRCode) {
+    new QRCode(wrap, { text: url, width: 200, height: 200, colorDark: '#0f172a', colorLight: '#ffffff', correctLevel: QRCode.CorrectLevel.M });
+  } else {
+    wrap.innerHTML = '<div style="width:200px;height:200px;background:var(--b50);border:2px dashed var(--b300);border-radius:var(--rs);display:flex;align-items:center;justify-content:center;font-size:.7rem;color:var(--muted);text-align:center;padding:12px">QR library loading…<br>' + url + '</div>';
+  }
+  if (link) link.href = url;
+  modal.style.display = 'flex';
+}
+function admHideVideoQR() {
+  const modal = document.getElementById('vid-qr-modal');
+  if (modal) modal.style.display = 'none';
+}
+function admPrintVideoQR(token) {
+  const url = window.location.origin + '/gift-video/' + token;
+  const w   = window.open('', '_blank');
+  w.document.write('<html><body style="font-family:Arial,sans-serif;text-align:center;padding:40px">'
+    + '<div style="font-size:22px;font-weight:700;margin-bottom:4px">WowBox</div>'
+    + '<div style="font-size:12px;color:#64748b;margin-bottom:20px">Scan to watch your personal video message</div>'
+    + '<div id="pqr"></div>'
+    + '<div style="font-size:11px;color:#94a3b8;margin-top:16px">' + url + '</div>'
+    + '<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"><\/script>'
+    + '<script>new QRCode(document.getElementById("pqr"),{text:"' + url + '",width:220,height:220,colorDark:"#0f172a",colorLight:"#fff"});setTimeout(()=>window.print(),600);<\/script>'
+    + '</body></html>');
+  w.document.close();
+}
+
 /* ── ORDER DETAIL ── */
 const orderDetailDB = {
   'WB-ORD-2025-0042': {
@@ -8106,16 +8478,30 @@ function admOrderDetail(orderId) {
   const firstCode = o.items.find(i => i.code !== '—');
   const btn = document.getElementById('od-print-btn');
   if (btn && firstCode) btn.onclick = () => admPrintCode(firstCode.code, firstCode.name);
-  // Personal message + video URL
-  const msg = o.personalMsg || '';
-  const vid = o.videoUrl    || '';
-  const msgRow = document.getElementById('od-msg-row');
-  const vidRow = document.getElementById('od-vid-row');
+  // Personal message
+  const msg     = o.personalMsg || '';
+  const hasVid  = o.hasVideo    || false;
+  const token   = o.videoToken  || '';
+  const sched   = o.schedDate   || '';
+  const msgRow  = document.getElementById('od-msg-row');
+  const vidRow  = document.getElementById('od-vid-row');
+  const schedRow = document.getElementById('od-sched-row');
+  const qrRow   = document.getElementById('od-qr-row');
   if (msgRow) { msgRow.style.display = msg ? 'grid' : 'none'; const el = document.getElementById('od-msg'); if (el) el.textContent = msg; }
   if (vidRow) {
-    vidRow.style.display = vid ? 'grid' : 'none';
-    const vl = document.getElementById('od-vid-link');
-    if (vl) { vl.textContent = vid.length > 50 ? vid.substring(0,50) + '...' : vid; vl.href = vid; }
+    vidRow.style.display = hasVid ? 'grid' : 'none';
+    const vl = document.getElementById('od-vid-status');
+    if (vl) vl.innerHTML = token
+      ? '<span style="color:var(--green);font-weight:600"><i class="fa fa-circle-check"></i> Uploaded</span> &mdash; <a href="/gift-video/' + token + '" target="_blank" style="color:var(--b600);font-size:.78rem">View page</a>'
+      : '<span style="color:#d97706"><i class="fa fa-clock"></i> Processing…</span>';
+  }
+  if (schedRow) { schedRow.style.display = sched ? 'grid' : 'none'; const el = document.getElementById('od-sched-date'); if (el) el.textContent = sched ? new Date(sched+'T00:00:00').toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'}) : ''; }
+  // QR code button (physical box)
+  const isPhys = (o.type === 'Physical' || o.type === 'Mixed');
+  if (qrRow) {
+    qrRow.style.display = (hasVid && isPhys) ? 'grid' : 'none';
+    const qrBtn = document.getElementById('od-qr-btn');
+    if (qrBtn && token) qrBtn.onclick = () => admShowVideoQR(token, orderId);
   }
 }
 
@@ -9709,7 +10095,11 @@ window.addEventListener('DOMContentLoaded', async () => {
   loadProduct('couples-retreat');
 
   var currentPath = window.location.pathname;
-  if (protectedPages.indexOf(currentPath) >= 0) {
+  if (currentPath.startsWith('/gift-video/')) {
+    var token = currentPath.replace('/gift-video/', '').replace(/\/+$/, '');
+    go('giftvideo');
+    loadGiftVideoPage(token);
+  } else if (protectedPages.indexOf(currentPath) >= 0) {
     go('login'); setNL('nl-login');
   } else if (currentPath === '/' || currentPath === '') {
     go('home'); setNL('nl-home');
