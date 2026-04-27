@@ -10766,33 +10766,46 @@ function admDeleteCoupon(id) {
 window.addEventListener('DOMContentLoaded', async () => {
   appState.priceBase = 1499;
 
-  // Check auth session FIRST — loader overlay hides everything
-  try {
-    var sessionResult = await db_client.auth.getSession();
-    if (sessionResult.data && sessionResult.data.session && sessionResult.data.session.user) {
-      // Logged in — go directly to correct page (loader hides the transition)
-      await authOnSignedIn(sessionResult.data.session.user, false);
-      // Load box data after page is shown (non-blocking)
-      renderBoxGrids();
-      loadProduct('couples-retreat');
-      return;
-    }
-  } catch(e) { console.warn('Session check:', e.message); }
-
-  // Not logged in — load public page from path
-  var protectedPages = ['/my-account', '/admin', '/partner'];
-
-  // Load boxes in background for public pages
   loadCartFromStorage();
   loadAppPrices();
   renderBoxGrids();
   loadProduct('couples-retreat');
 
   var currentPath = window.location.pathname;
+
+  // Check auth session FIRST — needed before routing protected pages
+  try {
+    var sessionResult = await db_client.auth.getSession();
+    if (sessionResult.data && sessionResult.data.session && sessionResult.data.session.user) {
+      await authOnSignedIn(sessionResult.data.session.user, false);
+      // After session restore, route to correct page based on URL
+      if (currentPath.startsWith('/gift-video/')) {
+        var token = currentPath.replace('/gift-video/', '').replace(/\/+$/, '');
+        go('giftvideo'); loadGiftVideoPage(token);
+      } else if (currentPath === '/admin') {
+        if (currentUser && currentUser.role === 'admin') { go('admin'); setNL('nl-adm'); }
+        else { go('home'); setNL('nl-home'); }
+      } else if (currentPath === '/my-account') {
+        if (currentUser) { go('dashboard'); setNL('nl-dash'); }
+        else { go('login'); setNL('nl-login'); }
+      } else if (currentPath === '/partner') {
+        if (currentUser && (currentUser.role === 'partner' || currentUser.role === 'admin')) { go('partner'); }
+        else if (currentUser && currentUser.role === 'pending_partner') { go('partner'); }
+        else { go('login'); setNL('nl-login'); }
+      } else if (currentPath === '/' || currentPath === '') {
+        go('home'); setNL('nl-home');
+      } else {
+        goFromHash();
+      }
+      return;
+    }
+  } catch(e) { console.warn('Session check:', e.message); }
+
+  // Not logged in — route public pages
+  var protectedPages = ['/my-account', '/admin', '/partner'];
   if (currentPath.startsWith('/gift-video/')) {
     var token = currentPath.replace('/gift-video/', '').replace(/\/+$/, '');
-    go('giftvideo');
-    loadGiftVideoPage(token);
+    go('giftvideo'); loadGiftVideoPage(token);
   } else if (protectedPages.indexOf(currentPath) >= 0) {
     go('login'); setNL('nl-login');
   } else if (currentPath === '/' || currentPath === '') {
