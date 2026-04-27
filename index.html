@@ -722,10 +722,10 @@ async function authOnSignedIn(user) {
     return;
   }
 
-  // Default: go to dashboard
+  // Default: go to dashboard only on active login, not session restore
   await loadUserBoxes(email);
   await loadUserOrders(email);
-  go('dashboard'); setNL('nl-dash');
+  if (navigate) { go('dashboard'); setNL('nl-dash'); }
   // ── Mobile sidebar user info ──
   var mobSection  = document.getElementById('mob-user-section');
   var mobUserName = document.getElementById('mob-user-name');
@@ -803,7 +803,7 @@ async function loadUserBoxes(email) {
 
 db_client.auth.onAuthStateChange(function(event, session) {
   if (event === 'SIGNED_IN' && session && session.user && !currentUser) {
-    authOnSignedIn(session.user);
+    authOnSignedIn(session.user, false);
   }
   if (event === 'SIGNED_OUT') { currentUser = null; }
 });
@@ -10250,7 +10250,7 @@ window.addEventListener('DOMContentLoaded', async () => {
     var sessionResult = await db_client.auth.getSession();
     if (sessionResult.data && sessionResult.data.session && sessionResult.data.session.user) {
       // Logged in — go directly to correct page (loader hides the transition)
-      await authOnSignedIn(sessionResult.data.session.user);
+      await authOnSignedIn(sessionResult.data.session.user, false);
       // Load box data after page is shown (non-blocking)
       renderBoxGrids();
       loadProduct('couples-retreat');
