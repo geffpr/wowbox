@@ -4307,7 +4307,7 @@ tr:hover td{background:var(--b50)}
 
         <!-- Sign in form -->
         <div id="pl-signin-form">
-          <div class="fg"><label>Email *</label><input class="fi" id="pl-email" type="email" placeholder="your@company.com" onkeydown="if(event.key==='Enter'){event.preventDefault();partnerSignIn();}"></div>
+          <div class="fg"><label>Email *</label><input class="fi" id="pl-signin2-email" type="email" placeholder="your@company.com" onkeydown="if(event.key==='Enter'){event.preventDefault();partnerSignIn();}"></div>
           <div class="fg"><label>Password *</label><input class="fi" id="pl-password" type="password" placeholder="••••••••" onkeydown="if(event.key==='Enter'){event.preventDefault();partnerSignIn();}"></div>
           <button type="button" class="btn bp block" onclick="partnerSignIn()" style="margin-top:4px"><i class="fa fa-arrow-right-to-bracket"></i> Sign in</button>
           <p style="text-align:right;margin-top:10px"><span style="font-size:.73rem;color:var(--b600);cursor:pointer" onclick="authForgot()">Forgot password?</span></p>
@@ -4546,26 +4546,26 @@ tr:hover td{background:var(--b50)}
         <div class="pp-add-form" id="pp-add-form">
           <h4 style="font-size:1rem;color:var(--navy);margin-bottom:16px"><i class="fa fa-plus-circle" style="color:var(--b500)"></i> New experience — pending admin review</h4>
           <div class="fg-row">
-            <div class="fg"><label>Experience name *</label><input class="fi" placeholder="e.g. Vineyard Sunset Dinner"></div>
+            <div class="fg"><label>Experience name *</label><input class="fi" id="pp-new-name" placeholder="e.g. Vineyard Sunset Dinner"></div>
             <div class="fg">
               <label>Type *</label>
-              <select class="fi">
-                <option>— Select —</option>
-                <option>🏨 Accommodation</option>
-                <option>🍽️ Dining</option>
-                <option>🧖 Wellness</option>
-                <option>🏄 Activity</option>
-                <option>🚗 Rental</option>
-                <option>🎉 Event</option>
+              <select class="fi" id="pp-new-type">
+                <option value="">— Select —</option>
+                <option value="accommodation">🏨 Accommodation</option>
+                <option value="dining">🍽️ Dining</option>
+                <option value="wellness">🧖 Wellness</option>
+                <option value="activity">🏄 Activity</option>
+                <option value="rental">🚗 Rental</option>
+                <option value="event">🎉 Event</option>
               </select>
             </div>
           </div>
-          <div class="fg"><label>Description</label><textarea class="fi" rows="3" style="resize:vertical" placeholder="Describe what guests will experience…"></textarea></div>
+          <div class="fg"><label>Description</label><textarea class="fi" id="pp-new-desc" rows="3" style="resize:vertical" placeholder="Describe what guests will experience…"></textarea></div>
           <div class="fg-row">
-            <div class="fg"><label>Capacity (guests)</label><input class="fi" type="number" placeholder="2"></div>
-            <div class="fg"><label>Duration</label><input class="fi" placeholder="e.g. 2 hours, full day"></div>
+            <div class="fg"><label>Capacity (guests)</label><input class="fi" id="pp-new-capacity" type="number" placeholder="2"></div>
+            <div class="fg"><label>City / Location</label><input class="fi" id="pp-new-city" placeholder="Cape Town, Stellenbosch…"></div>
           </div>
-          <div class="fg"><label>Image URL (optional)</label><input class="fi" placeholder="https://…"></div>
+          <div class="fg"><label>Image URL (optional)</label><input class="fi" id="pp-new-img" placeholder="https://…"></div>
           <div style="background:#fef3c7;border:1px solid #fcd34d;border-radius:var(--rs);padding:10px 14px;font-size:.75rem;color:#92400e;margin-bottom:16px">
             <i class="fa fa-triangle-exclamation"></i> New experiences are submitted for WowBox admin review before going live. This usually takes 1–2 business days.
           </div>
@@ -5010,7 +5010,7 @@ tr:hover td{background:var(--b50)}
       <button class="anl"     onclick="switchAdm(this,'adm-boxes')"><i class="fa fa-gift"></i> Gift Boxes</button>
       <button class="anl"     onclick="switchAdm(this,'adm-db')"><i class="fa fa-database"></i> Exp. Databases</button>
       <button class="anl"     onclick="switchAdm(this,'adm-exp')"><i class="fa fa-compass"></i> Experiences</button>
-      <button class="anl"     onclick="switchAdm(this,'adm-requests');renderAdmRequests()">
+      <button class="anl"     onclick="switchAdm(this,'adm-requests');renderAdmRequests();renderAdmPartnerApps()">
         <i class="fa fa-inbox"></i> Partner Requests
         <span id="adm-req-badge" style="margin-left:auto;background:#ef4444;color:#fff;border-radius:99px;padding:1px 7px;font-size:.6rem;font-weight:700">3</span>
       </button>
@@ -5236,15 +5236,32 @@ tr:hover td{background:var(--b50)}
 
       <!-- ══ PARTNER REQUESTS ══ -->
       <div id="adm-requests" style="display:none">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:22px">
-          <div>
-            <h2 style="font-size:1.7rem;color:var(--navy)">Partner Experience Requests</h2>
-            <p style="color:var(--muted);font-size:.8rem">Review, edit, and approve or reject partner-submitted experiences before they go live.</p>
+
+        <!-- Partner Applications -->
+        <div style="margin-bottom:32px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+            <div>
+              <h2 style="font-size:1.4rem;color:var(--navy)">Partner Applications</h2>
+              <p style="color:var(--muted);font-size:.78rem">New partners awaiting approval. Approve to grant portal access.</p>
+            </div>
+            <span id="adm-partner-apps-badge" style="background:#ef4444;color:#fff;padding:3px 10px;border-radius:99px;font-size:.7rem;font-weight:700;display:none"></span>
           </div>
-          <span id="adm-req-count-badge" style="background:#fef3c7;color:#92400e;padding:5px 14px;border-radius:99px;font-size:.75rem;font-weight:700;display:none"></span>
+          <div id="adm-partner-apps-list">
+            <div style="text-align:center;padding:24px;color:var(--muted)"><i class="fa fa-spinner fa-spin"></i></div>
+          </div>
         </div>
-        <div id="adm-req-list">
-          <div style="text-align:center;padding:40px;color:var(--muted)"><i class="fa fa-spinner fa-spin" style="font-size:1.5rem"></i><div style="margin-top:10px;font-size:.85rem">Loading requests…</div></div>
+
+        <div style="border-top:2px solid var(--border);padding-top:28px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+            <div>
+              <h2 style="font-size:1.4rem;color:var(--navy)">Experience Requests</h2>
+              <p style="color:var(--muted);font-size:.78rem">Partner-submitted experiences pending review before going live.</p>
+            </div>
+            <span id="adm-req-count-badge" style="background:#fef3c7;color:#92400e;padding:5px 14px;border-radius:99px;font-size:.75rem;font-weight:700;display:none"></span>
+          </div>
+          <div id="adm-req-list">
+            <div style="text-align:center;padding:40px;color:var(--muted)"><i class="fa fa-spinner fa-spin" style="font-size:1.5rem"></i><div style="margin-top:10px;font-size:.85rem">Loading…</div></div>
+          </div>
         </div>
       </div>
 
@@ -6161,8 +6178,18 @@ function go(page) {
     if (protectedRoles[page] === 'admin' && currentUser.role !== 'admin') {
       go('login'); return;
     }
-    if (protectedRoles[page] === 'partner' && currentUser.role !== 'partner' && currentUser.role !== 'admin') {
-      go('login'); return;
+    if (protectedRoles[page] === 'partner') {
+      if (currentUser.role === 'pending_partner') {
+        // Show pending approval message instead of login
+        document.querySelectorAll('.page').forEach(function(p){ p.classList.remove('active'); });
+        var pp = document.getElementById('page-partner');
+        if (pp) { pp.classList.add('active'); pp.style.display = ''; }
+        admToast('Your partner application is pending approval. We will notify you by email.');
+        return;
+      }
+      if (currentUser.role !== 'partner' && currentUser.role !== 'admin') {
+        go('login'); return;
+      }
     }
   }
 
@@ -7187,23 +7214,29 @@ function calcNights() {
   }
 }
 
-function confirmExpBooking() {
+async function confirmExpBooking() {
   const e = expDB.find(x => x.id === appState.currentExpId);
   if (!e) return;
   const b = boxDB[e.box];
   const rt = e.reservation_type || 'activity';
   const data = collectBookingData(rt);
 
-  // Populate voucher
+  // Use real voucher code from activated voucher
+  const voucherCode = (appState.activatedVoucher && appState.activatedVoucher.code)
+    ? appState.activatedVoucher.code
+    : (appState.currentBoxCode || '');
+
+  // Populate voucher display
   document.getElementById('v-exp').textContent = e.name;
-  document.getElementById('v-box').textContent = (b?.name || 'WowBox') + ' · ' + e.loc;
+  document.getElementById('v-box').textContent = (b ? b.name : 'WowBox') + ' · ' + e.loc;
   document.getElementById('v-g1').textContent = data.guest1 || 'Guest';
-  document.getElementById('v-g2').textContent = data.guest2 || (data.guest2 === '' ? '—' : '—');
+  document.getElementById('v-g2').textContent = data.guest2 || '—';
   document.getElementById('v-loc').textContent = e.loc;
-  document.getElementById('v-bcode').textContent = 'WB-2025-' + (e.box.substring(0,4).toUpperCase());
+  document.getElementById('v-bcode').textContent = voucherCode || ('WB-' + e.box.substring(0,4).toUpperCase());
 
   // Voucher details per reservation_type
-  const fmt = d => d ? new Date(d).toLocaleDateString('en-ZA',{weekday:'short',day:'numeric',month:'short',year:'numeric'}) : 'TBD';
+  const fmt = function(d) { return d ? new Date(d).toLocaleDateString('en-ZA',{weekday:'short',day:'numeric',month:'short',year:'numeric'}) : 'TBD'; };
+  var bookingDate = null, bookingTime = null;
   if (rt === 'accommodation' || rt === 'rental') {
     const isRental = rt === 'rental';
     document.getElementById('v-lbl1').textContent = isRental ? 'Start date' : 'Check-in';
@@ -7213,19 +7246,62 @@ function confirmExpBooking() {
     const n = (data.checkin||data.start) && (data.checkout||data.end)
       ? Math.round((new Date(data.checkout||data.end) - new Date(data.checkin||data.start)) / 86400000) : 1;
     const unit = isRental ? 'day' : 'night';
-    document.getElementById('v-det').textContent = `${n} ${unit}${n>1?'s':''} · ${data.guests||'2'} guest${(data.guests||'2')!='1'?'s':''}`;
+    document.getElementById('v-det').textContent = n + ' ' + unit + (n>1?'s':'') + ' · ' + (data.guests||'2') + ' guest' + ((data.guests||'2')!='1'?'s':'');
+    bookingDate = data.checkin || data.start || null;
   } else {
     const dateVal = data.date || '';
     const timeVal = data.time || data.session || '';
     document.getElementById('v-lbl1').textContent = 'Date';
     document.getElementById('v-lbl2').textContent = rt === 'wellness' ? 'Treatment' : rt === 'dining' ? 'Time' : 'Session';
     document.getElementById('v-d1').textContent = fmt(dateVal);
-    document.getElementById('v-d2').textContent = rt === 'wellness' ? (data.treatment || 'Therapist\'s choice') : (timeVal || 'Confirmed');
-    document.getElementById('v-det').textContent = `${data.guests||'2'} guest${(data.guests||'2')!='1'?'s':''} · ${rtConfig[rt]?.label || rt}`;
+    document.getElementById('v-d2').textContent = rt === 'wellness' ? (data.treatment || "Therapist's choice") : (timeVal || 'Confirmed');
+    document.getElementById('v-det').textContent = (data.guests||'2') + ' guest' + ((data.guests||'2')!='1'?'s':'') + ' · ' + ((rtConfig[rt] && rtConfig[rt].label) || rt);
+    bookingDate = dateVal || null;
+    bookingTime = timeVal || null;
   }
 
   go('voucher');
+
+  // ── Save to Supabase (non-blocking) ──
+  (async function() {
+    try {
+      var custEmail = (currentUser && currentUser.email) ? currentUser.email : (appState.lastOrderEmail || '');
+      var custName  = (currentUser && currentUser.displayName) ? currentUser.displayName : (appState.lastOrderName || 'Guest');
+
+      // INSERT booking
+      var bkRes = await db_client.from('bookings').insert({
+        voucher_code:     voucherCode || null,
+        experience_id:    e.id,
+        experience_name:  e.name,
+        partner_name:     e.partner || '',
+        customer_email:   custEmail,
+        customer_name:    custName,
+        guests:           parseInt(data.guests) || 2,
+        booking_date:     bookingDate || null,
+        booking_time:     bookingTime || null,
+        reservation_type: rt,
+        booking_details:  data,
+        status:           'pending_confirmation',
+      }).select('id').single();
+
+      var bookingId = bkRes.data ? bkRes.data.id : null;
+
+      // UPDATE voucher status → booked
+      if (voucherCode) {
+        await db_client.from('vouchers').update({
+          status:     'booked',
+          booked_at:  new Date().toISOString(),
+          booking_id: bookingId,
+        }).eq('code', voucherCode);
+      }
+
+      if (bkRes.error) console.warn('Booking insert:', bkRes.error.message);
+    } catch(err) {
+      console.warn('confirmExpBooking Supabase:', err.message);
+    }
+  })();
 }
+
 
 function addBoxFromExp() {
   const e = expDB.find(x => x.id === appState.currentExpId);
@@ -7601,7 +7677,8 @@ async function plSubmitPartner() {
         id:           userId,
         email:        email,
         full_name:    contact,
-        role:         'partner',
+        role:         'pending_partner',
+        status:       'pending',
         partner_name: bizName,
       });
     }
@@ -8180,7 +8257,7 @@ function partnerAuthSwitchTab(tab) {
 }
 
 async function partnerSignIn() {
-  var email = (document.getElementById('pl-email') || {value:''}).value.trim();
+  var email = (document.getElementById('pl-signin2-email') || document.getElementById('pl-email') || {value:''}).value.trim();
   var pass  = (document.getElementById('pl-password') || {value:''}).value;
   var errEl = document.getElementById('pl-error');
   if (!email || !pass) {
@@ -8746,6 +8823,7 @@ function switchAdm(btn, tab) {
   if (btn) btn.classList.add('on');
   if (tab === 'adm-exp')    renderAdmExpTable();
   renderAdmRequests();
+  renderAdmPartnerApps();
   if (tab === 'adm-orders') renderOrdersTable();
   if (tab === 'adm-usage')  { renderUsageTable(); loadUsageFromSupabase(); }
 }
@@ -9149,6 +9227,59 @@ async function admSaveExp() {
 /* ── Partner Requests — fully connected to Supabase ── */
 
 var admReqDB = []; // cache of loaded requests
+
+async function renderAdmPartnerApps() {
+  var listEl = document.getElementById('adm-partner-apps-list');
+  if (!listEl) return;
+  try {
+    var res = await db_client.from('user_profiles')
+      .select('id,email,full_name,partner_name,created_at,status,role')
+      .eq('role', 'pending_partner')
+      .order('created_at', { ascending: false });
+    if (res.error) throw res.error;
+    var apps = res.data || [];
+    if (!apps.length) {
+      listEl.innerHTML = '<div style="padding:24px;text-align:center;color:var(--muted);font-size:.85rem"><i class="fa fa-inbox" style="font-size:1.5rem;opacity:.3;display:block;margin-bottom:8px"></i>No pending applications.</div>';
+      return;
+    }
+    listEl.innerHTML = apps.map(function(a) {
+      var date = a.created_at ? new Date(a.created_at).toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'}) : '—';
+      return '<div class="atbl" style="margin-bottom:12px">'
+        + '<div class="atbl-hdr" style="background:linear-gradient(135deg,#fffbeb,#fef3c7)">'
+        + '<span style="font-weight:600;font-size:.85rem;color:var(--navy)">' + (a.partner_name||a.full_name||'Unknown') + '</span>'
+        + '<span class="sbadge sb-p" style="margin-left:8px">Pending</span>'
+        + '<span style="font-size:.72rem;color:var(--muted);margin-left:auto">' + date + '</span>'
+        + '</div>'
+        + '<div style="padding:12px 18px;display:flex;align-items:center;gap:16px;flex-wrap:wrap">'
+        + '<div style="font-size:.82rem;color:var(--navy)">' + (a.email||'—') + '</div>'
+        + '<div style="margin-left:auto;display:flex;gap:8px">'
+        + '<button class="btn bgreen bsm" onclick="admApprovePartner(\'' + a.id + '\')"><i class="fa fa-check"></i> Approve</button>'
+        + '<button class="btn bg bsm" style="color:var(--red);border-color:#fca5a5" onclick="admRejectPartner(\'' + a.id + '\')"><i class="fa fa-xmark"></i> Reject</button>'
+        + '</div></div></div>';
+    }).join('');
+    // Update badge
+    var b = document.getElementById('adm-partner-apps-badge');
+    if (b) { b.textContent = apps.length; b.style.display = apps.length ? '' : 'none'; }
+  } catch(e) {
+    if (listEl) listEl.innerHTML = '<div style="padding:16px;color:#dc2626;font-size:.82rem">Error: ' + (e.message||'unknown') + '</div>';
+  }
+}
+
+async function admApprovePartner(userId) {
+  try {
+    await db_client.from('user_profiles').update({ role: 'partner', status: 'active' }).eq('id', userId);
+    admToast('✅ Partner approved — they can now access the Partner Portal');
+    renderAdmPartnerApps();
+  } catch(e) { admToast('Error: ' + (e.message||'unknown')); }
+}
+
+async function admRejectPartner(userId) {
+  try {
+    await db_client.from('user_profiles').update({ role: 'customer', status: 'rejected' }).eq('id', userId);
+    admToast('Partner application rejected.');
+    renderAdmPartnerApps();
+  } catch(e) { admToast('Error: ' + (e.message||'unknown')); }
+}
 
 async function renderAdmRequests() {
   var listEl = document.getElementById('adm-req-list');
@@ -9963,6 +10094,8 @@ function initPartnerPage() {
   // Show Test Pro FAB on partner page
   const fab = document.getElementById('test-pro-fab');
   if (fab) fab.style.display = 'flex';
+  // Load real bookings
+  loadPartnerBookings();
 }
 
 function toggleAddForm() {
@@ -9972,20 +10105,12 @@ function toggleAddForm() {
 
 async function submitNewExp() {
   // Gather fields from pp-add-form
-  const form      = document.getElementById('pp-add-form');
-  const allInputs = form.querySelectorAll('input, textarea, select');
-  const name      = allInputs[0]?.value?.trim() || '';
-  const typeRaw   = allInputs[1]?.value || '';
-  const desc      = form.querySelector('textarea')?.value?.trim() || '';
-  const imgUrl    = [...allInputs].find(i => i.placeholder?.includes('https'))?.value?.trim() || '';
-
-  // Map display type to DB value
-  const typeMap = {
-    '🏨 Accommodation':'accommodation','🍽️ Dining':'dining',
-    '🧖 Wellness':'wellness','🏄 Activity':'activity',
-    '🚗 Rental':'rental','🎉 Event':'event'
-  };
-  const rt = typeMap[typeRaw] || 'activity';
+  const name    = (document.getElementById('pp-new-name')     ||{value:''}).value.trim();
+  const rt      = (document.getElementById('pp-new-type')     ||{value:''}).value || 'activity';
+  const desc    = (document.getElementById('pp-new-desc')     ||{value:''}).value.trim();
+  const imgUrl  = (document.getElementById('pp-new-img')      ||{value:''}).value.trim();
+  const city    = (document.getElementById('pp-new-city')     ||{value:''}).value.trim();
+  const capacity = parseInt((document.getElementById('pp-new-capacity')||{value:''}).value) || null;
 
   if (!name) { admToast('Please enter an experience name.'); return; }
 
@@ -9999,12 +10124,18 @@ async function submitNewExp() {
       partner_name:    (currentUser && currentUser.displayName) ? currentUser.displayName : '',
       partner_email:   (currentUser && currentUser.email)       ? currentUser.email       : '',
       image_url:       imgUrl || '',
+      city:            city   || '',
+      capacity:        capacity,
     });
     if (error) throw error;
   } catch(e) {
     console.error('submitNewExp error:', e);
     // Continue anyway — show success even if Supabase had issue
   }
+
+  // Clear form fields
+  ['pp-new-name','pp-new-desc','pp-new-img','pp-new-city','pp-new-capacity'].forEach(function(id){ var el=document.getElementById(id); if(el) el.value=''; });
+  var typeEl = document.getElementById('pp-new-type'); if(typeEl) typeEl.value='';
 
   form.innerHTML = `
     <div style="text-align:center;padding:24px 0">
@@ -10013,6 +10144,66 @@ async function submitNewExp() {
       <p style="font-size:.78rem;color:var(--muted)">WowBox admin will review your submission within 1–2 business days. You'll receive an email notification when it's approved.</p>
       <button class="btn bg bsm" style="margin-top:14px" onclick="toggleAddForm()">Close</button>
     </div>`;
+}
+
+async function loadPartnerBookings() {
+  var listEl = document.getElementById('pp-bookings-list');
+  if (!listEl) return;
+  listEl.innerHTML = '<div style="text-align:center;padding:24px;color:var(--muted)"><i class="fa fa-spinner fa-spin"></i></div>';
+  try {
+    var email = currentUser && currentUser.email ? currentUser.email : '';
+    // Get bookings for this partner's experiences
+    var res = await db_client.from('bookings')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(50);
+    if (res.error) throw res.error;
+    var bookings = (res.data || []).filter(function(b){
+      return b.partner_name && currentUser && (
+        b.partner_name === currentUser.displayName ||
+        b.partner_name === (currentUser.user_metadata && currentUser.user_metadata.full_name)
+      );
+    });
+    if (!bookings.length) {
+      listEl.innerHTML = '<div style="text-align:center;padding:32px;color:var(--muted);font-size:.85rem"><i class="fa fa-calendar-days" style="font-size:2rem;opacity:.3;display:block;margin-bottom:10px"></i>No bookings yet.</div>';
+      return;
+    }
+    var statusColors = { pending_confirmation:'#d97706', confirmed:'#16a34a', used:'#64748b', cancelled:'#dc2626' };
+    listEl.innerHTML = bookings.map(function(b) {
+      var date = b.created_at ? new Date(b.created_at).toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'}) : '—';
+      var bDate = b.booking_date ? new Date(b.booking_date).toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'}) : '—';
+      var sColor = statusColors[b.status] || '#64748b';
+      var canValidate = b.status === 'pending_confirmation' || b.status === 'confirmed';
+      return '<div style="background:#fff;border:1px solid var(--border);border-radius:var(--r);padding:16px;margin-bottom:10px">'
+        + '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">'
+        + '<div><div style="font-weight:700;font-size:.88rem;color:var(--navy)">' + (b.experience_name||'—') + '</div>'
+        + '<div style="font-size:.75rem;color:var(--muted)">Booked ' + date + ' · ' + (b.guests||'2') + ' guests · For ' + bDate + '</div></div>'
+        + '<span style="font-size:.7rem;font-weight:700;color:' + sColor + ';background:' + sColor + '18;padding:3px 10px;border-radius:99px;flex-shrink:0">' + (b.status||'').replace('_',' ') + '</span>'
+        + '</div>'
+        + '<div style="font-size:.78rem;color:var(--slate);margin-bottom:10px">' + (b.customer_name||'') + (b.customer_email ? ' · ' + b.customer_email : '') + '</div>'
+        + (canValidate ? '<button class="btn bgreen bsm" onclick="ppValidateBooking(\'' + b.id + '\',\'' + (b.voucher_code||'') + '\',this)"><i class="fa fa-qrcode"></i> Mark as used</button>' : '')
+        + '</div>';
+    }).join('');
+  } catch(e) {
+    listEl.innerHTML = '<div style="padding:16px;color:#dc2626;font-size:.82rem">Error: ' + (e.message||'unknown') + '</div>';
+  }
+}
+
+async function ppValidateBooking(bookingId, voucherCode, btn) {
+  btn.disabled = true; btn.textContent = 'Validating…';
+  try {
+    // UPDATE booking → used
+    await db_client.from('bookings').update({ status: 'used', validated_at: new Date().toISOString() }).eq('id', bookingId);
+    // UPDATE voucher → used
+    if (voucherCode) {
+      await db_client.from('vouchers').update({ status: 'used', used_at: new Date().toISOString() }).eq('code', voucherCode);
+    }
+    admToast('✅ Booking validated — voucher marked as used');
+    loadPartnerBookings();
+  } catch(e) {
+    btn.disabled = false; btn.innerHTML = '<i class="fa fa-qrcode"></i> Mark as used';
+    admToast('Error: ' + (e.message||'unknown'));
+  }
 }
 
 function showEditExpModal() {
