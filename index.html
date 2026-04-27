@@ -4968,7 +4968,7 @@ tr:hover td{background:var(--b50)}
       <button class="anl"     onclick="switchAdm(this,'adm-boxes')"><i class="fa fa-gift"></i> Gift Boxes</button>
       <button class="anl"     onclick="switchAdm(this,'adm-db')"><i class="fa fa-database"></i> Exp. Databases</button>
       <button class="anl"     onclick="switchAdm(this,'adm-exp')"><i class="fa fa-compass"></i> Experiences</button>
-      <button class="anl"     onclick="switchAdm(this,'adm-requests')">
+      <button class="anl"     onclick="switchAdm(this,'adm-requests');renderAdmRequests()">
         <i class="fa fa-inbox"></i> Partner Requests
         <span id="adm-req-badge" style="margin-left:auto;background:#ef4444;color:#fff;border-radius:99px;padding:1px 7px;font-size:.6rem;font-weight:700">3</span>
       </button>
@@ -5198,108 +5198,10 @@ tr:hover td{background:var(--b50)}
             <h2 style="font-size:1.7rem;color:var(--navy)">Partner Experience Requests</h2>
             <p style="color:var(--muted);font-size:.8rem">Review, edit, and approve or reject partner-submitted experiences before they go live.</p>
           </div>
-          <span style="background:#fef3c7;color:#92400e;padding:5px 14px;border-radius:99px;font-size:.75rem;font-weight:700">3 pending review</span>
+          <span id="adm-req-count-badge" style="background:#fef3c7;color:#92400e;padding:5px 14px;border-radius:99px;font-size:.75rem;font-weight:700;display:none"></span>
         </div>
         <div id="adm-req-list">
-          <!-- Request 1 -->
-          <div class="atbl" style="margin-bottom:16px">
-            <div class="atbl-hdr" style="background:linear-gradient(135deg,#fffbeb,#fef3c7)">
-              <div style="display:flex;align-items:center;gap:10px">
-                <span style="font-size:.82rem;font-weight:600;color:var(--navy)">Cellar Dinner for Two</span>
-                <span class="sbadge sb-p">Pending</span>
-              </div>
-              <div style="font-size:.73rem;color:var(--muted)">The Vineyard Retreat · Submitted 12 Apr 2025</div>
-            </div>
-            <div style="padding:18px 20px;display:grid;grid-template-columns:1fr 1fr;gap:16px">
-              <div>
-                <div class="fg"><label style="font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)">Experience name</label><div style="font-size:.85rem;color:var(--navy)">Cellar Dinner for Two</div></div>
-                <div class="fg"><label style="font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)">Type</label><div style="font-size:.85rem;color:var(--navy)">🍽️ Dining</div></div>
-                <div class="fg" style="margin-bottom:0"><label style="font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)">Description</label><div style="font-size:.82rem;color:var(--slate);line-height:1.6">A candlelit 5-course dinner in the original 1870s wine cellar at The Vineyard Retreat, with wines from the estate. For 2 guests.</div></div>
-              </div>
-              <div>
-                <div class="fg"><label style="font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)">Partner</label><div style="font-size:.85rem;color:var(--navy)">The Vineyard Retreat · Stellenbosch</div></div>
-                <div class="fg"><label style="font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)">Capacity</label><div style="font-size:.85rem;color:var(--navy)">2 guests</div></div>
-                <div class="fg"><label style="font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)">Assign to database</label>
-                  <select class="fi" style="font-size:.78rem;padding:7px 10px">
-                    <option selected>🍽️ Food & Gastronomy</option>
-                    <option>💑 Romantic Getaways</option>
-                    <option>👑 Ultra-Premium</option>
-                  </select>
-                </div>
-              </div>
-            </div>
-            <div style="padding:0 20px 16px;display:flex;gap:9px">
-              <button class="btn bgreen bsm" onclick="admApproveRequest(this)"><i class="fa fa-check-circle"></i> Approve & add to DB</button>
-              <button class="btn bg bsm" onclick="admEditRequest(this)"><i class="fa fa-pen"></i> Edit before approving</button>
-              <button class="btn bg bsm" style="color:var(--red);border-color:#fca5a5" onclick="admRejectRequest(this)"><i class="fa fa-xmark-circle"></i> Reject</button>
-            </div>
-          </div>
-
-          <!-- Request 2 -->
-          <div class="atbl" style="margin-bottom:16px">
-            <div class="atbl-hdr" style="background:linear-gradient(135deg,#fffbeb,#fef3c7)">
-              <div style="display:flex;align-items:center;gap:10px">
-                <span style="font-size:.82rem;font-weight:600;color:var(--navy)">Sunrise Paddle Board Session</span>
-                <span class="sbadge sb-p">Pending</span>
-              </div>
-              <div style="font-size:.73rem;color:var(--muted)">Knysna Ocean Adventures · Submitted 10 Apr 2025</div>
-            </div>
-            <div style="padding:18px 20px;display:grid;grid-template-columns:1fr 1fr;gap:16px">
-              <div>
-                <div class="fg"><label style="font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)">Experience name</label><div style="font-size:.85rem;color:var(--navy)">Sunrise Paddle Board Session</div></div>
-                <div class="fg"><label style="font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)">Type</label><div style="font-size:.85rem;color:var(--navy)">🏄 Activity</div></div>
-                <div class="fg" style="margin-bottom:0"><label style="font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)">Description</label><div style="font-size:.82rem;color:var(--slate);line-height:1.6">2-hour guided paddle boarding on the Knysna Lagoon at sunrise with equipment provided. Up to 4 participants.</div></div>
-              </div>
-              <div>
-                <div class="fg"><label style="font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)">Partner</label><div style="font-size:.85rem;color:var(--navy)">Knysna Ocean Adventures · Knysna</div></div>
-                <div class="fg"><label style="font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)">Capacity</label><div style="font-size:.85rem;color:var(--navy)">4 guests</div></div>
-                <div class="fg"><label style="font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)">Assign to database</label>
-                  <select class="fi" style="font-size:.78rem;padding:7px 10px">
-                    <option selected>🌊 Ocean & Coastal</option>
-                    <option>🏔️ Adventure & Outdoors</option>
-                  </select>
-                </div>
-              </div>
-            </div>
-            <div style="padding:0 20px 16px;display:flex;gap:9px">
-              <button class="btn bgreen bsm" onclick="admApproveRequest(this)"><i class="fa fa-check-circle"></i> Approve & add to DB</button>
-              <button class="btn bg bsm" onclick="admEditRequest(this)"><i class="fa fa-pen"></i> Edit before approving</button>
-              <button class="btn bg bsm" style="color:var(--red);border-color:#fca5a5" onclick="admRejectRequest(this)"><i class="fa fa-xmark-circle"></i> Reject</button>
-            </div>
-          </div>
-
-          <!-- Request 3 -->
-          <div class="atbl">
-            <div class="atbl-hdr" style="background:linear-gradient(135deg,#fffbeb,#fef3c7)">
-              <div style="display:flex;align-items:center;gap:10px">
-                <span style="font-size:.82rem;font-weight:600;color:var(--navy)">Winelands Yoga Retreat</span>
-                <span class="sbadge sb-p">Pending</span>
-              </div>
-              <div style="font-size:.73rem;color:var(--muted)">Franschhoek Valley Wellness · Submitted 8 Apr 2025</div>
-            </div>
-            <div style="padding:18px 20px;display:grid;grid-template-columns:1fr 1fr;gap:16px">
-              <div>
-                <div class="fg"><label style="font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)">Experience name</label><div style="font-size:.85rem;color:var(--navy)">Winelands Yoga Retreat</div></div>
-                <div class="fg"><label style="font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)">Type</label><div style="font-size:.85rem;color:var(--navy)">🧖 Wellness</div></div>
-                <div class="fg" style="margin-bottom:0"><label style="font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)">Description</label><div style="font-size:.82rem;color:var(--slate);line-height:1.6">Full-day yoga and meditation retreat on a working wine estate in Franschhoek with farm lunch and wine tasting.</div></div>
-              </div>
-              <div>
-                <div class="fg"><label style="font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)">Partner</label><div style="font-size:.85rem;color:var(--navy)">Franschhoek Valley Wellness · Franschhoek</div></div>
-                <div class="fg"><label style="font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)">Capacity</label><div style="font-size:.85rem;color:var(--navy)">8 guests</div></div>
-                <div class="fg"><label style="font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)">Assign to database</label>
-                  <select class="fi" style="font-size:.78rem;padding:7px 10px">
-                    <option selected>🧖 Wellness & Spa</option>
-                    <option>💑 Romantic Getaways</option>
-                  </select>
-                </div>
-              </div>
-            </div>
-            <div style="padding:0 20px 16px;display:flex;gap:9px">
-              <button class="btn bgreen bsm" onclick="admApproveRequest(this)"><i class="fa fa-check-circle"></i> Approve & add to DB</button>
-              <button class="btn bg bsm" onclick="admEditRequest(this)"><i class="fa fa-pen"></i> Edit before approving</button>
-              <button class="btn bg bsm" style="color:var(--red);border-color:#fca5a5" onclick="admRejectRequest(this)"><i class="fa fa-xmark-circle"></i> Reject</button>
-            </div>
-          </div>
+          <div style="text-align:center;padding:40px;color:var(--muted)"><i class="fa fa-spinner fa-spin" style="font-size:1.5rem"></i><div style="margin-top:10px;font-size:.85rem">Loading requests…</div></div>
         </div>
       </div>
 
@@ -8730,6 +8632,7 @@ function switchAdm(btn, tab) {
   document.querySelectorAll('.anl').forEach(n => n.classList.remove('on'));
   if (btn) btn.classList.add('on');
   if (tab === 'adm-exp')    renderAdmExpTable();
+  renderAdmRequests();
   if (tab === 'adm-orders') renderOrdersTable();
   if (tab === 'adm-usage')  { renderUsageTable(); loadUsageFromSupabase(); }
 }
@@ -9130,45 +9033,217 @@ async function admSaveExp() {
   }
 }
 
-/* ── Partner Requests ── */
-function admApproveRequest(btn) {
-  const card = btn.closest('.atbl');
-  const name = card.querySelector('.atbl-hdr span').textContent;
-  card.style.borderColor = 'var(--green)';
-  card.style.background = '#f0fdf4';
-  card.querySelector('.atbl-hdr').style.background = 'linear-gradient(135deg,#d1fae5,#a7f3d0)';
-  card.querySelector('.sbadge').className = 'sbadge sb-a';
-  card.querySelector('.sbadge').textContent = 'Approved';
-  btn.closest('div').innerHTML = `<div style="display:flex;align-items:center;gap:7px;font-size:.78rem;color:var(--green);font-weight:600;padding:0 0 4px"><i class="fa fa-circle-check"></i> Approved and added to database</div>`;
-  // Update badge count
-  const badge = document.getElementById('adm-req-badge');
-  if (badge) badge.textContent = Math.max(0, parseInt(badge.textContent)-1) || '';
-  admToast('✅ "' + name + '" approved and added to the database');
+/* ── Partner Requests — fully connected to Supabase ── */
+
+var admReqDB = []; // cache of loaded requests
+
+async function renderAdmRequests() {
+  var listEl = document.getElementById('adm-req-list');
+  var badge  = document.getElementById('adm-req-badge');
+  var countB = document.getElementById('adm-req-count-badge');
+  if (!listEl) return;
+
+  listEl.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted)"><i class="fa fa-spinner fa-spin" style="font-size:1.5rem"></i><div style="margin-top:10px;font-size:.85rem">Loading…</div></div>';
+
+  try {
+    var res = await db_client.from('partner_requests')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (res.error) throw res.error;
+    admReqDB = res.data || [];
+  } catch(e) {
+    listEl.innerHTML = '<div style="padding:24px;color:#dc2626;font-size:.85rem"><i class="fa fa-triangle-exclamation"></i> Could not load requests: ' + (e.message||'unknown error') + '</div>';
+    return;
+  }
+
+  var pending = admReqDB.filter(function(r){ return r.status === 'pending'; });
+
+  // Update badges
+  var cnt = pending.length;
+  if (badge)  { badge.textContent  = cnt || ''; }
+  if (countB) { countB.textContent = cnt + ' pending review'; countB.style.display = cnt ? '' : 'none'; }
+
+  // Update dashboard stat
+  var statVal = document.querySelector('.astat-val[style*="d97706"]');
+  if (statVal) statVal.textContent = cnt;
+
+  if (!admReqDB.length) {
+    listEl.innerHTML = '<div style="text-align:center;padding:48px;color:var(--muted)"><i class="fa fa-inbox" style="font-size:2rem;opacity:.3;display:block;margin-bottom:12px"></i><div style="font-size:.88rem">No partner requests yet.</div></div>';
+    return;
+  }
+
+  var typeLabels = { dining:'🍽️ Dining', wellness:'🧖 Wellness', activity:'🏄 Activity', accommodation:'🏨 Accommodation', rental:'🚗 Rental', event:'🎉 Event' };
+
+  listEl.innerHTML = admReqDB.map(function(r) {
+    var isPending  = r.status === 'pending';
+    var isApproved = r.status === 'approved';
+    var isRejected = r.status === 'rejected';
+    var dateStr = r.created_at ? new Date(r.created_at).toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'}) : '—';
+    var badgeCls = isPending ? 'sbadge sb-p' : isApproved ? 'sbadge sb-a' : 'sbadge sb-e';
+    var badgeTxt = isPending ? 'Pending' : isApproved ? 'Approved' : 'Rejected';
+    var hdrBg    = isPending ? 'linear-gradient(135deg,#fffbeb,#fef3c7)' : isApproved ? 'linear-gradient(135deg,#d1fae5,#a7f3d0)' : 'linear-gradient(135deg,#fee2e2,#fecaca)';
+    var cardBg   = isApproved ? 'background:#f0fdf4' : isRejected ? 'opacity:.6' : '';
+    var typeLabel = typeLabels[r.category] || r.category || '—';
+
+    var actions = isPending
+      ? '<button class="btn bgreen bsm" onclick="admApproveRequest(this)" data-id="' + r.id + '"><i class="fa fa-check-circle"></i> Approve &amp; add to DB</button>'
+        + '<button class="btn bg bsm" onclick="admEditRequest(this)" data-id="' + r.id + '"><i class="fa fa-pen"></i> Edit before approving</button>'
+        + '<button class="btn bg bsm" style="color:var(--red);border-color:#fca5a5" onclick="admRejectRequest(this)" data-id="' + r.id + '"><i class="fa fa-xmark-circle"></i> Reject</button>'
+      : isApproved
+        ? '<div style="display:flex;align-items:center;gap:7px;font-size:.78rem;color:var(--green);font-weight:600"><i class="fa fa-circle-check"></i> Approved and live in database</div>'
+        : '<div style="font-size:.78rem;color:#dc2626;font-weight:600"><i class="fa fa-xmark-circle"></i> Rejected</div>';
+
+    return '<div class="atbl" style="margin-bottom:16px;' + cardBg + '">'
+      + '<div class="atbl-hdr" style="background:' + hdrBg + '">'
+      + '<div style="display:flex;align-items:center;gap:10px"><span style="font-size:.82rem;font-weight:600;color:var(--navy)">' + (r.experience_name||'Untitled') + '</span>'
+      + '<span class="' + badgeCls + '">' + badgeTxt + '</span></div>'
+      + '<div style="font-size:.73rem;color:var(--muted)">' + (r.partner_name||r.partner_email||'Unknown partner') + ' · Submitted ' + dateStr + '</div>'
+      + '</div>'
+      + '<div style="padding:16px 20px;display:grid;grid-template-columns:1fr 1fr;gap:16px">'
+      + '<div>'
+      + '<div class="fg"><label style="font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)">Experience</label><div style="font-size:.85rem;color:var(--navy)">' + (r.experience_name||'—') + '</div></div>'
+      + '<div class="fg"><label style="font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)">Type</label><div style="font-size:.85rem;color:var(--navy)">' + typeLabel + '</div></div>'
+      + '<div class="fg" style="margin-bottom:0"><label style="font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)">Description</label><div style="font-size:.82rem;color:var(--slate);line-height:1.6">' + (r.description||'—') + '</div></div>'
+      + '</div>'
+      + '<div>'
+      + '<div class="fg"><label style="font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)">Partner</label><div style="font-size:.85rem;color:var(--navy)">' + (r.partner_name||'—') + (r.city ? ' · ' + r.city : '') + '</div></div>'
+      + '<div class="fg"><label style="font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)">Email</label><div style="font-size:.82rem;color:var(--b600)">' + (r.partner_email||'—') + '</div></div>'
+      + (r.capacity ? '<div class="fg"><label style="font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)">Capacity</label><div style="font-size:.85rem;color:var(--navy)">' + r.capacity + ' guests</div></div>' : '')
+      + '</div>'
+      + '</div>'
+      + '<div style="padding:0 20px 16px;display:flex;gap:9px;flex-wrap:wrap">' + actions + '</div>'
+      + '</div>';
+  }).join('');
 }
-function admRejectRequest(btn) {
-  const card = btn.closest('.atbl');
-  card.style.opacity = '.5';
-  card.querySelector('.sbadge').className = 'sbadge sb-e';
-  card.querySelector('.sbadge').textContent = 'Rejected';
-  btn.closest('div').innerHTML = `<div style="font-size:.78rem;color:var(--red);font-weight:600;padding:0 0 4px"><i class="fa fa-xmark-circle"></i> Rejected — partner will be notified</div>`;
-  const badge = document.getElementById('adm-req-badge');
-  if (badge) badge.textContent = Math.max(0, parseInt(badge.textContent)-1) || '';
+
+async function admApproveRequest(btn) {
+  var id   = btn.dataset.id;
+  var card = btn.closest('.atbl');
+  var req  = admReqDB.find(function(r){ return r.id == id; });
+  if (!req) { admToast('Request not found'); return; }
+
+  btn.disabled = true; btn.textContent = 'Approving…';
+
+  try {
+    // 1. Update status in partner_requests
+    var upd = await db_client.from('partner_requests').update({ status: 'approved', reviewed_at: new Date().toISOString() }).eq('id', id);
+    if (upd.error) throw upd.error;
+
+    // 2. Insert into experiences table so it goes live
+    var expId = (req.experience_name||'exp').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'') + '-' + id;
+    var ins = await db_client.from('experiences').insert({
+      id:               expId,
+      name:             req.experience_name,
+      description:      req.description,
+      reservation_type: req.category || 'activity',
+      partner_name:     req.partner_name || '',
+      location:         req.city || '',
+      is_active:        true,
+      image_url:        req.image_url || '',
+    });
+    if (ins.error && !ins.error.message.includes('duplicate')) throw ins.error;
+
+    // 3. Update UI
+    req.status = 'approved';
+    card.style.background = '#f0fdf4';
+    card.querySelector('.atbl-hdr').style.background = 'linear-gradient(135deg,#d1fae5,#a7f3d0)';
+    card.querySelector('.sbadge').className = 'sbadge sb-a';
+    card.querySelector('.sbadge').textContent = 'Approved';
+    card.querySelector('[style*="gap:9px"]').innerHTML = '<div style="display:flex;align-items:center;gap:7px;font-size:.78rem;color:var(--green);font-weight:600"><i class="fa fa-circle-check"></i> Approved and live in database</div>';
+
+    // 4. Update badges
+    var pending = admReqDB.filter(function(r){ return r.status === 'pending'; }).length;
+    var b1 = document.getElementById('adm-req-badge'); if (b1) b1.textContent = pending || '';
+    var b2 = document.getElementById('adm-req-count-badge'); if (b2) { b2.textContent = pending + ' pending review'; b2.style.display = pending ? '' : 'none'; }
+
+    admToast('✅ "' + req.experience_name + '" approved and added to the database');
+  } catch(e) {
+    btn.disabled = false; btn.innerHTML = '<i class="fa fa-check-circle"></i> Approve &amp; add to DB';
+    admToast('Error: ' + (e.message||'unknown'));
+  }
 }
+
+async function admRejectRequest(btn) {
+  var id   = btn.dataset.id;
+  var card = btn.closest('.atbl');
+  var req  = admReqDB.find(function(r){ return r.id == id; });
+  if (!req) return;
+
+  btn.disabled = true; btn.textContent = 'Rejecting…';
+
+  try {
+    await db_client.from('partner_requests').update({ status: 'rejected', reviewed_at: new Date().toISOString() }).eq('id', id);
+    req.status = 'rejected';
+
+    card.style.opacity = '.6';
+    card.querySelector('.sbadge').className = 'sbadge sb-e';
+    card.querySelector('.sbadge').textContent = 'Rejected';
+    card.querySelector('[style*="gap:9px"]').innerHTML = '<div style="font-size:.78rem;color:#dc2626;font-weight:600"><i class="fa fa-xmark-circle"></i> Rejected</div>';
+
+    var pending = admReqDB.filter(function(r){ return r.status === 'pending'; }).length;
+    var b1 = document.getElementById('adm-req-badge'); if (b1) b1.textContent = pending || '';
+    var b2 = document.getElementById('adm-req-count-badge'); if (b2) { b2.textContent = pending + ' pending review'; b2.style.display = pending ? '' : 'none'; }
+
+    admToast('Request rejected.');
+  } catch(e) {
+    btn.disabled = false; btn.innerHTML = '<i class="fa fa-xmark-circle"></i> Reject';
+    admToast('Error: ' + (e.message||'unknown'));
+  }
+}
+
 function admEditRequest(btn) {
-  const card = btn.closest('.atbl');
-  const nameEl = card.querySelector('.atbl-hdr span');
-  const name = nameEl?.textContent || 'experience';
-  const modal = document.getElementById('adm-modal');
-  document.getElementById('adm-modal-body').innerHTML = `
-    <h3 style="font-size:1.2rem;color:var(--navy);margin-bottom:14px">Edit before approving</h3>
-    <div class="fg"><label>Experience name</label><input class="fi" value="${name}"></div>
-    <div class="fg"><label>Reservation type</label><select class="fi"><option>🍽️ Dining</option><option>🏄 Activity</option><option>🧖 Wellness</option></select></div>
-    <div class="fg"><label>Description</label><textarea class="fi" rows="3" style="resize:vertical">Edit description here…</textarea></div>
-    <div style="display:flex;gap:9px;margin-top:6px">
-      <button class="btn bp bsm" onclick="document.getElementById('adm-modal').style.display='none';admApproveRequest(document.createElement('button'))">Save &amp; Approve</button>
-      <button class="btn bg bsm" onclick="document.getElementById('adm-modal').style.display='none'">Cancel</button>
-    </div>`;
+  var id  = btn.dataset.id;
+  var req = admReqDB.find(function(r){ return r.id == id; });
+  if (!req) return;
+  var modal = document.getElementById('adm-modal');
+  var typeOpts = ['dining','wellness','activity','accommodation','rental','event'].map(function(t){
+    return '<option value="' + t + '"' + (req.category===t?' selected':'') + '>' + t.charAt(0).toUpperCase()+t.slice(1) + '</option>';
+  }).join('');
+  document.getElementById('adm-modal-body').innerHTML =
+    '<h3 style="font-size:1.2rem;color:var(--navy);margin-bottom:14px">Edit before approving</h3>'
+    + '<div class="fg"><label>Experience name</label><input class="fi" id="aedit-name" value="' + (req.experience_name||'') + '"></div>'
+    + '<div class="fg"><label>Type</label><select class="fi" id="aedit-type">' + typeOpts + '</select></div>'
+    + '<div class="fg"><label>Description</label><textarea class="fi" id="aedit-desc" rows="3" style="resize:vertical">' + (req.description||'') + '</textarea></div>'
+    + '<div class="fg"><label>Partner name</label><input class="fi" id="aedit-partner" value="' + (req.partner_name||'') + '"></div>'
+    + '<div class="fg"><label>City / Location</label><input class="fi" id="aedit-city" value="' + (req.city||'') + '"></div>'
+    + '<div style="display:flex;gap:9px;margin-top:6px">'
+    + '<button class="btn bp bsm" onclick="admSaveEditAndApprove(\''+ id +'\')">Save &amp; Approve</button>'
+    + '<button class="btn bg bsm" onclick="document.getElementById(\'adm-modal\').style.display=\'none\'">Cancel</button>'
+    + '</div>';
   modal.style.display = 'flex';
+}
+
+async function admSaveEditAndApprove(id) {
+  var req = admReqDB.find(function(r){ return r.id == id; });
+  if (!req) return;
+  req.experience_name = document.getElementById('aedit-name')?.value?.trim() || req.experience_name;
+  req.category        = document.getElementById('aedit-type')?.value        || req.category;
+  req.description     = document.getElementById('aedit-desc')?.value?.trim() || req.description;
+  req.partner_name    = document.getElementById('aedit-partner')?.value?.trim() || req.partner_name;
+  req.city            = document.getElementById('aedit-city')?.value?.trim() || req.city;
+
+  // Update in Supabase before approving
+  await db_client.from('partner_requests').update({
+    experience_name: req.experience_name,
+    category:        req.category,
+    description:     req.description,
+    partner_name:    req.partner_name,
+    city:            req.city,
+  }).eq('id', id);
+
+  document.getElementById('adm-modal').style.display = 'none';
+
+  // Now approve — find the card's approve button
+  var card = [...document.querySelectorAll('.atbl')].find(function(c){
+    var btn = c.querySelector('[data-id="'+id+'"]');
+    return !!btn;
+  });
+  if (card) {
+    var fakeBtn = card.querySelector('[onclick*="admApproveRequest"]');
+    if (fakeBtn) { await admApproveRequest(fakeBtn); return; }
+  }
+  await renderAdmRequests();
 }
 
 /* ── Orders ── */
@@ -9761,6 +9836,9 @@ async function submitNewExp() {
       description:     desc,
       category:        rt,
       status:          'pending',
+      partner_name:    (currentUser && currentUser.displayName) ? currentUser.displayName : '',
+      partner_email:   (currentUser && currentUser.email)       ? currentUser.email       : '',
+      image_url:       imgUrl || '',
     });
     if (error) throw error;
   } catch(e) {
