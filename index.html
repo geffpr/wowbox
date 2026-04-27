@@ -681,22 +681,28 @@ async function authOnSignedIn(user) {
   if (sbRole)   sbRole.textContent   = role.charAt(0).toUpperCase() + role.slice(1);
 
   // Check if user came from checkout flow
-  var pendingCkStep = sessionStorage.getItem('pendingCheckout');
+  // Check if user was in checkout flow (localStorage survives Google OAuth redirect)
+  var pendingCkStep = localStorage.getItem('pendingCheckout');
   if (pendingCkStep) {
-    sessionStorage.removeItem('pendingCheckout');
-    go('checkout'); setNL('');
-    loadCartFromStorage(); // ensure cart is restored
+    localStorage.removeItem('pendingCheckout');
+    loadCartFromStorage();
     updateCartBadge();
+    go('checkout'); setNL('');
     setTimeout(function() {
       renderCheckout();
       nextStep(parseInt(pendingCkStep) || 2, true);
-      // Pre-fill sender name/email from logged-in user
-      var senderName  = document.getElementById('ck-sender-name');
-      var senderEmail = document.getElementById('ck-sender-email');
-      if (senderName)  senderName.value  = name;
-      if (senderEmail) senderEmail.value = email;
-    }, 300);
-    // Still update mobile nav etc below but don't redirect to dashboard
+      // Pre-fill sender fields from logged-in user
+      var senderNameEl  = document.getElementById('ck-sender-name');
+      var senderEmailEl = document.getElementById('ck-sender-email');
+      if (senderNameEl)  senderNameEl.value  = name;
+      if (senderEmailEl) senderEmailEl.value = email;
+    }, 350);
+    // Update mobile nav UI but DO NOT go to dashboard
+    var mobSection  = document.getElementById('mob-user-section');
+    var mobSoBtn    = document.getElementById('mob-signout-btn');
+    if (mobSection) mobSection.style.display = 'flex';
+    if (mobSoBtn)   mobSoBtn.style.display   = 'flex';
+    return; // ← explicit return: never reaches go('dashboard')
   }
 
   // Check if user came from redeem flow (survives Google OAuth redirect)
@@ -712,9 +718,7 @@ async function authOnSignedIn(user) {
     return;
   }
 
-  if (pendingCkStep) return; // already handled above — skip dashboard redirect
-
-  // Route by role — always go to dashboard, admin/partner see extra nav buttons
+  // Default: go to dashboard
   await loadUserBoxes(email);
   await loadUserOrders(email);
   go('dashboard'); setNL('nl-dash');
@@ -7371,8 +7375,8 @@ function renderCheckout() {
 
 function checkoutContinue() {
   if (!currentUser) {
-    // Save intent and go to login
-    sessionStorage.setItem('pendingCheckout', '2');
+    // Use localStorage so it survives Google OAuth full-page redirect
+    localStorage.setItem('pendingCheckout', '2');
     go('login'); setNL('nl-login');
     admToast('Please sign in to continue with your order.');
     return;
