@@ -3526,26 +3526,66 @@ tr:hover td{background:var(--b50)}
 
       <!-- STEP 3: Payment -->
       <div id="ck-step3" style="display:none">
-        <div class="ck-card">
-          <h3>Payment</h3>
-          <p>Your payment is processed securely via our payment partner.</p>
-          <div class="payment-mock">
-            <i class="fa fa-credit-card"></i>
-            <p style="font-size:.82rem;color:var(--muted);margin-bottom:0">Powered by Stripe — SSL encrypted</p>
-          </div>
-          <div class="fg"><label>Cardholder name</label><input class="fi" type="text" placeholder="Name on card" id="ck-card-name"></div>
-          <div class="fg"><label>Card number</label>
-            <div style="position:relative"><input class="fi" type="text" placeholder="4242 4242 4242 4242" maxlength="19">
-            <span style="position:absolute;right:12px;top:50%;transform:translateY(-50%);font-size:1.3rem">💳</span></div>
-          </div>
-          <div class="fg-row">
-            <div class="fg"><label>Expiry</label><input class="fi" placeholder="MM / YY"></div>
-            <div class="fg"><label>CVV</label><input class="fi" placeholder="•••" maxlength="4"></div>
+
+        <!-- Order summary -->
+        <div class="ck-card" style="margin-bottom:16px">
+          <h3 style="margin-bottom:12px">Order summary</h3>
+          <div id="ck-step3-summary" style="font-size:.85rem"></div>
+          <div style="border-top:1px solid var(--border);margin-top:14px;padding-top:12px;display:flex;justify-content:space-between;align-items:center">
+            <span style="font-weight:700;color:var(--navy)">Total to pay</span>
+            <span style="font-family:'Cormorant Garamond',serif;font-size:1.3rem;font-weight:700;color:var(--b700)" id="ck-step3-total"></span>
           </div>
         </div>
+
+        <!-- T&C -->
+        <div class="ck-card" style="margin-bottom:16px">
+          <h3 style="margin-bottom:10px">Terms &amp; Conditions</h3>
+          <div style="height:220px;overflow-y:auto;border:1px solid var(--border);border-radius:var(--rs);padding:14px 16px;font-size:.74rem;color:var(--slate);line-height:1.7;margin-bottom:14px;background:var(--b50)" id="ck-tc-scroll">
+            <p style="font-weight:700;margin-bottom:8px">WowBox Terms and Conditions of Sale — Effective 27 April 2026</p>
+            <p>WowBox is a trading name of <strong>RC Tradeworx Holdings (Pty) Ltd</strong>, reg. 2025/174107/07, 29 North Road, Benoni, Gauteng, 1514. Contact: info@wowbox.co.za</p>
+            <p><strong>1. Eligibility.</strong> You must be at least <strong>18 years old</strong> to purchase a WowBox product. Persons under 18 may only participate when accompanied by a parent or legal guardian. No refund shall be provided if admission is refused due to age.</p>
+            <p><strong>2. About WowBox.</strong> WowBox acts solely as an intermediary between customers and independent third-party experience providers ("Participating Partners"). WowBox does not own, operate, or supervise any experience or venue provided by Participating Partners.</p>
+            <p><strong>3. Orders &amp; Acceptance.</strong> An order is only accepted once payment has been successfully processed and the WowBox product issued. We reserve the right to refuse or cancel any order at our sole discretion.</p>
+            <p><strong>4. Pricing &amp; Payment.</strong> All prices are in ZAR and include VAT where applicable. Payment must be received in full before delivery.</p>
+            <p><strong>5. Delivery.</strong> Digital products are delivered electronically to the email address provided. Physical delivery timeframes are estimates only. WowBox is not liable for courier delays.</p>
+            <p><strong>6. Voucher Activation &amp; Redemption.</strong> Each product contains a unique activation code. Activated vouchers are non-transferable unless expressly permitted.</p>
+            <p><strong>7. Booking &amp; Availability.</strong> All experiences are subject to availability determined solely by the Participating Partner. WowBox does not guarantee availability of any experience, date, or time.</p>
+            <p><strong>8. Experience Changes.</strong> Participating Partners may modify, substitute, or discontinue any experience at any time. WowBox may substitute an equivalent experience where reasonably possible.</p>
+            <p><strong>9. Validity.</strong> Vouchers are valid for the period stated. Expired vouchers may not be redeemed unless required by law.</p>
+            <p><strong>10. Participating Partner Responsibility.</strong> Partners are solely responsible for delivering the experience, maintaining licences, health &amp; safety, insurance, and service quality. Complaints must be addressed directly with the Partner.</p>
+            <p><strong>11. Insurance.</strong> WowBox does not provide any form of insurance. Customers are solely responsible for obtaining any insurance they deem necessary.</p>
+            <p><strong>12. Assumption of Risk.</strong> Certain experiences involve inherent risks including physical injury or death. Participation is voluntary. You assume all risks associated with participation. WowBox shall not be liable for any injury, loss, or death arising from participation.</p>
+            <p><strong>13. Fitness to Participate.</strong> You are solely responsible for ensuring all participants are fit to participate. Partners may refuse participation where unsafe. No refund shall be due in such circumstances.</p>
+            <p><strong>14. Refusal of Admission.</strong> No refund, exchange, or compensation shall be payable where a Participating Partner refuses admission due to: age restrictions; failure to present valid ID; intoxication; inappropriate behaviour; safety concerns; dress code violations; medical concerns; or any other lawful reason.</p>
+            <p><strong>15. Additional Costs.</strong> Unless stated otherwise, the following are excluded: transportation, accommodation, meals, gratuities, insurance, taxes, personal expenses, and optional extras.</p>
+            <p><strong>16. Cancellation &amp; Refunds.</strong> Subject to applicable South African consumer protection laws: activated, redeemed, expired, and partially used vouchers are non-refundable. Digital products may not be refunded once delivered, except where required by law.</p>
+            <p><strong>17. Lost / Stolen Vouchers.</strong> WowBox is not responsible for lost, stolen, or unauthorised use of vouchers. Treat your voucher like cash.</p>
+            <p><strong>18. Fraud &amp; Abuse.</strong> WowBox reserves the right to cancel any order or account where fraud or abuse is suspected.</p>
+            <p><strong>19. Limitation of Liability.</strong> To the fullest extent permitted by law, WowBox shall not be liable for any indirect, incidental, or consequential damages. Our total liability shall never exceed the purchase price paid.</p>
+            <p><strong>20. Force Majeure.</strong> WowBox is not liable for delays caused by circumstances beyond our control including natural disasters, pandemics, government action, or cyberattacks.</p>
+            <p><strong>21. Indemnity.</strong> You agree to indemnify WowBox and its directors, officers, and employees from any claims arising from your breach of these Terms, misuse of any product, or participation in any experience.</p>
+            <p><strong>22. Intellectual Property.</strong> All content on the WowBox website is owned by or licensed to WowBox. No content may be copied or used without prior written consent.</p>
+            <p><strong>23. Privacy.</strong> Your personal information will be processed in accordance with our Privacy Policy and applicable South African data protection laws.</p>
+            <p><strong>24. Governing Law.</strong> These Terms are governed by the laws of the Republic of South Africa. Any dispute shall be subject to the exclusive jurisdiction of the South African courts.</p>
+            <p><strong>25. Amendments.</strong> WowBox may amend these Terms at any time. The version published at the time of purchase shall apply.</p>
+          </div>
+          <!-- Checkbox -->
+          <label style="display:flex;align-items:flex-start;gap:12px;cursor:pointer;font-size:.82rem;color:var(--navy);line-height:1.5">
+            <input type="checkbox" id="ck-terms-check" style="margin-top:3px;width:18px;height:18px;flex-shrink:0;accent-color:var(--b600);cursor:pointer" onchange="ckTermsToggle()">
+            <span>I confirm that I am <strong>18 years of age or older</strong>, I have read and understood the WowBox Terms &amp; Conditions, and I agree to be bound by them. I acknowledge that <strong>no refund</strong> will be issued if a Participating Partner refuses admission for any lawful reason.</span>
+          </label>
+          <div id="ck-terms-error" style="display:none;font-size:.75rem;color:#dc2626;margin-top:8px"><i class="fa fa-triangle-exclamation"></i> You must accept the Terms &amp; Conditions to continue.</div>
+        </div>
+
+        <!-- Secure payment note -->
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;padding:10px 14px;background:var(--b50);border-radius:var(--rs);border:1px solid var(--b200)">
+          <i class="fa fa-shield-halved" style="color:var(--b500);font-size:1.1rem"></i>
+          <span style="font-size:.75rem;color:var(--slate)">Your payment is processed securely by <strong>Paystack</strong>. WowBox never stores your card details.</span>
+        </div>
+
         <div style="display:flex;gap:12px">
           <button class="btn bg" onclick="nextStep(2)"><i class="fa fa-arrow-left"></i> Back</button>
-          <button class="btn bgreen" style="flex:1;justify-content:center;padding:13px;border-radius:var(--r)" onclick="completeOrder()"><i class="fa fa-lock"></i> Pay — <span id="ck-pay-total"></span></button>
+          <button class="btn bgreen" id="ck-pay-btn" style="flex:1;justify-content:center;padding:13px;border-radius:var(--r);opacity:.45;cursor:not-allowed" onclick="completeOrder()" disabled><i class="fa fa-lock"></i> Pay — <span id="ck-pay-total"></span></button>
         </div>
       </div>
 
@@ -7388,6 +7428,38 @@ function checkoutContinue() {
   nextStep(2);
 }
 
+function ckTermsToggle() {
+  var checked = document.getElementById('ck-terms-check')?.checked;
+  var btn = document.getElementById('ck-pay-btn');
+  var err = document.getElementById('ck-terms-error');
+  if (btn) { btn.disabled = !checked; btn.style.opacity = checked ? '1' : '.45'; btn.style.cursor = checked ? 'pointer' : 'not-allowed'; }
+  if (err) err.style.display = 'none';
+}
+
+function ckPopulateStep3Summary() {
+  var summaryEl = document.getElementById('ck-step3-summary');
+  var totalEl   = document.getElementById('ck-step3-total');
+  if (!summaryEl) return;
+  var rows = appState.cart.map(function(c) {
+    return '<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border)">'
+      + '<span style="color:var(--navy)">' + c.name + (c.qty > 1 ? ' &times;' + c.qty : '') + '</span>'
+      + '<span style="font-weight:600">R' + (c.price * c.qty).toLocaleString() + '</span></div>';
+  }).join('');
+  var giftMsg   = document.getElementById('ck-personal-msg')?.value?.trim();
+  var schedDate = appState.scheduledDate || document.getElementById('ck-send-date')?.value || '';
+  var recipName  = document.getElementById('ck-full-name')?.value?.trim() || appState.lastOrderName || '';
+  var recipEmail = document.getElementById('ck-email')?.value?.trim() || appState.lastOrderEmail || '';
+  var details = '';
+  if (recipName)  details += '<div style="font-size:.78rem;color:var(--muted);margin-top:8px"><i class="fa fa-user" style="color:var(--b400);width:14px"></i> ' + recipName + '</div>';
+  if (recipEmail) details += '<div style="font-size:.78rem;color:var(--muted)"><i class="fa fa-envelope" style="color:var(--b400);width:14px"></i> ' + recipEmail + '</div>';
+  if (schedDate)  details += '<div style="font-size:.78rem;color:var(--b600)"><i class="fa fa-calendar-days" style="width:14px"></i> Send on ' + new Date(schedDate + 'T00:00:00').toLocaleDateString('en-ZA', {day:'numeric',month:'short',year:'numeric'}) + '</div>';
+  if (giftMsg)    details += '<div style="font-size:.78rem;color:var(--green)"><i class="fa fa-comment-dots" style="width:14px"></i> Gift message included</div>';
+  summaryEl.innerHTML = rows + details;
+  var total = getCartTotal();
+  var discount = activeCoupon ? (activeCoupon.type === 'percentage' ? Math.round(total * activeCoupon.value / 100) : Math.min(activeCoupon.value, total)) : 0;
+  if (totalEl) totalEl.textContent = 'R' + (total - discount).toLocaleString();
+}
+
 function nextStep(step, quiet) {
   [1,2,3,4].forEach(n => {
     const el = document.getElementById('ck-step'+n);
@@ -7398,6 +7470,7 @@ function nextStep(step, quiet) {
     if (sline) sline.className = 'sline ' + (n<step?'done':'');
   });
   appState.ckStep = step;
+  if (step === 3) { ckPopulateStep3Summary(); }
   if (!quiet) window.scrollTo({top:0,behavior:'smooth'});
 }
 
@@ -7708,6 +7781,16 @@ function validateDetailsAndContinue() {
 }
 
 function completeOrder() {
+  // Guard: T&C must be accepted
+  var termsCheck = document.getElementById('ck-terms-check');
+  if (!termsCheck || !termsCheck.checked) {
+    var err = document.getElementById('ck-terms-error');
+    if (err) { err.style.display = 'block'; err.scrollIntoView({behavior:'smooth',block:'center'}); }
+    return;
+  }
+  var termsAcceptedAt = new Date().toISOString();
+  appState.termsAcceptedAt = termsAcceptedAt;
+
   const ct       = getCartType();
   const subtotal = getCartTotal();
   const discount = activeCoupon
@@ -7753,6 +7836,7 @@ function completeOrder() {
         { display_name: 'Gift message',      variable_name: 'personal_message', value: personalMsg },
         { display_name: 'Has video',         variable_name: 'has_video',        value: hasVideo ? 'yes' : 'no' },
         { display_name: 'Scheduled date',    variable_name: 'scheduled_date',   value: scheduledDate },
+        { display_name: 'T&C accepted at',   variable_name: 'terms_accepted_at', value: termsAcceptedAt },
       ]
     },
     onClose: function() {
@@ -7905,6 +7989,9 @@ async function completeOrderConfirm(paystackRef, total, discount) {
         video_created_at:  hasVideoMsg ? new Date().toISOString() : null,
         video_expires_at:  hasVideoMsg ? new Date(Date.now() + 30*24*3600*1000).toISOString() : null,
         scheduled_send_date: schedDate || null,
+        terms_accepted_at:  appState.termsAcceptedAt || null,
+        recipient_name:    custName  || null,
+        recipient_email:   custEmail || null,
       });
       // Cache video token for confirmation screen and update local DB
       appState.lastVideoToken = videoToken;
@@ -7940,7 +8027,9 @@ async function completeOrderConfirm(paystackRef, total, discount) {
   })();
 
   nextStep(4);
-  appState.cart = []; activeCoupon = null; updateCartBadge(); saveCartToStorage();
+  appState.cart = []; activeCoupon = null; appState.termsAcceptedAt = null; updateCartBadge(); saveCartToStorage();
+  var tc = document.getElementById('ck-terms-check'); if (tc) tc.checked = false;
+  var payBtn = document.getElementById('ck-pay-btn'); if (payBtn) { payBtn.disabled = true; payBtn.style.opacity = '.45'; payBtn.style.cursor = 'not-allowed'; }
   // Reset personalisation state
   appState.videoFile = null; appState.scheduledDate = ''; appState.lastScheduledDate = null;
   vidClearFile(); const tog = document.getElementById('tog-vid'); if (tog) tog.classList.remove('on');
