@@ -7039,7 +7039,7 @@ const rtConfig = {
         <div class="fg"><label>Check-out *</label><input class="fi" type="date" id="bk-co" onchange="calcNights()"></div>
       </div>
       <div class="nights-calc" id="nights-disp"><i class="fa fa-moon" style="color:var(--b400)"></i> Select dates to calculate nights</div>
-      <div class="fg"><label>Number of guests</label><select class="fi" id="bk-guests"><option>1</option><option selected>2</option><option>3</option><option>4</option></select></div>
+      <div class="fg"><label>Number of guests</label><select class="fi" id="bk-guests">${buildGuestOptions(cap,2)}</select></div>
       <div class="opt-section"><h5>Optional</h5>
         <div class="fg"><label>Occasion</label><select class="fi" id="bk-occasion"><option value="">—</option><option>Anniversary</option><option>Birthday</option><option>Honeymoon</option><option>Proposal</option></select></div>
         <div class="fg" style="margin-bottom:0"><label>Special requests</label><textarea class="fi" id="bk-notes" rows="2" style="resize:vertical" placeholder="e.g. high floor, champagne on arrival…"></textarea></div>
@@ -7063,7 +7063,7 @@ const rtConfig = {
         <div class="fg"><label>Preferred time *</label><select class="fi" id="bk-time"><option>12:00 — Lunch</option><option>13:00 — Lunch</option><option>18:00 — Dinner</option><option>19:00 — Dinner</option><option>20:00 — Dinner</option><option>20:30 — Dinner</option></select></div>
       </div>
       <div class="fg-row">
-        <div class="fg"><label>Number of guests *</label><select class="fi" id="bk-guests"><option>1</option><option selected>2</option><option>3</option><option>4</option><option>6</option><option>8</option></select></div>
+        <div class="fg"><label>Number of guests *</label><select class="fi" id="bk-guests">${buildGuestOptions(cap,2)}</select></div>
         <div class="fg"><label>Occasion</label><select class="fi" id="bk-occasion"><option value="">—</option><option>Birthday</option><option>Anniversary</option><option>Proposal</option><option>Business</option></select></div>
       </div>
       <div class="fg"><label>Dietary requirements</label><input class="fi" id="bk-diet" placeholder="Vegetarian, nut allergy, halal…"></div>
@@ -7090,7 +7090,7 @@ const rtConfig = {
         <div class="fg"><label>Preferred time *</label><select class="fi" id="bk-time"><option>09:00</option><option>10:00</option><option>11:00</option><option>14:00</option><option>15:00</option><option>16:00</option></select></div>
       </div>
       <div class="fg-row">
-        <div class="fg"><label>Number of people</label><select class="fi" id="bk-guests"><option selected>1 person</option><option>2 people (couples)</option></select></div>
+        <div class="fg"><label>Number of people</label><select class="fi" id="bk-guests">${buildGuestOptions(Math.min(cap||2,2),1)}</select></div>
         <div class="fg"><label>Treatment type (optional)</label><select class="fi" id="bk-treatment"><option value="">Let the spa decide</option><option>Swedish Massage</option><option>Deep Tissue Massage</option><option>Couples Massage</option><option>Signature Facial</option><option>Hot Stone Therapy</option><option>Full Spa Day Package</option></select></div>
       </div>
       <div class="opt-section"><h5>Health & preferences</h5>
@@ -7114,7 +7114,7 @@ const rtConfig = {
         <div class="fg"><label>Date *</label><input class="fi" type="date" id="bk-date"></div>
         <div class="fg"><label>Session (optional)</label><select class="fi" id="bk-session"><option value="">No preference</option><option>Morning (07:00–12:00)</option><option>Afternoon (13:00–17:00)</option><option>Full day</option><option>Sunrise</option></select></div>
       </div>
-      <div class="fg"><label>Number of participants</label><select class="fi" id="bk-guests"><option>1</option><option selected>2</option><option>3</option><option>4</option><option>5+</option></select></div>
+      <div class="fg"><label>Number of participants</label><select class="fi" id="bk-guests">${buildGuestOptions(cap,2)}</select></div>
       <div class="opt-section"><h5>Optional</h5>
         <div class="fg"><label>Fitness / experience level</label><select class="fi" id="bk-level"><option value="">Not specified</option><option>Beginner</option><option>Intermediate</option><option>Advanced</option></select></div>
         <div class="fg" style="margin-bottom:0"><label>Notes</label><textarea class="fi" id="bk-notes" rows="2" style="resize:vertical" placeholder="Medical conditions, group info, transport needs…"></textarea></div>
@@ -7155,7 +7155,7 @@ const rtConfig = {
       <div class="fg"><label>Name *</label><input class="fi" id="bk-g1" placeholder="Full name"></div>
       <div class="fg-row">
         <div class="fg"><label>Preferred date *</label><input class="fi" type="date" id="bk-date"></div>
-        <div class="fg"><label>Number of guests</label><select class="fi" id="bk-guests"><option>1</option><option selected>2</option><option>3</option><option>4</option><option>6</option><option>8</option><option>10+</option></select></div>
+        <div class="fg"><label>Number of guests</label><select class="fi" id="bk-guests">${buildGuestOptions(cap,2)}</select></div>
       </div>
       <div class="opt-section"><h5>Preferences &amp; special requests</h5>
         <div class="fg" style="margin-bottom:0"><label>Notes</label><textarea class="fi" id="bk-notes" rows="3" style="resize:vertical" placeholder="Dietary needs, accessibility, occasion details, any special requirements…"></textarea></div>
@@ -7172,9 +7172,9 @@ const rtConfig = {
 function buildBookingForm(rt) {
   const cfg = rtConfig[rt] || rtConfig.activity;
   // Get capacity from current experience
-  var cap = 2;
+  var cap = 2; // default: duo
   var exp = expDB.find(function(x){ return x.id === appState.currentExpId; });
-  if (exp && exp.capacity) cap = exp.capacity;
+  if (exp && exp.capacity) cap = parseInt(exp.capacity) || 2;
   return cfg.form(cap);
 }
 function collectBookingData(rt) {
