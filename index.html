@@ -6468,7 +6468,7 @@ function go(page) {
   if (page === 'reviews') renderReviewsPage();
   if (page === 'admin') renderAdmin();
   if (page === 'partner-landing') renderPartnerLanding();
-  if (page === 'browse') renderBrowse();
+  if (page === 'browse') { loadExpFromSupabase().then(() => renderBrowse()); }
   if (page === 'roulette') initRoulettePage();
   if (page === 'partner') initPartnerPage();
   if (page === 'dashboard') {
@@ -7017,6 +7017,47 @@ function getFilteredExps() {
     return searchMatch && typeMatch && locMatch && groupMatch && cityMatch;
   });
 }
+/* ══════════════════════════════════════════════════════════════
+   LOAD PARTNER EXPERIENCES FROM SUPABASE → merge into expDB
+══════════════════════════════════════════════════════════════ */
+async function loadExpFromSupabase() {
+  try {
+    if (typeof db_client === 'undefined') return;
+    var res = await db_client
+      .from('experiences')
+      .select('*')
+      .eq('is_active', true);
+    if (res.error || !res.data || !res.data.length) return;
+
+    res.data.forEach(function(e) {
+      // Skip if already in expDB (hardcoded or already merged)
+      if (expDB.find(function(x){ return x.id === e.id; })) return;
+
+      expDB.push({
+        id:       e.id,
+        name:     e.name             || 'Untitled',
+        type:     e.reservation_type || 'activity',
+        box:      e.box_id           || '',
+        lat:      e.lat              || null,
+        lng:      e.lng              || null,
+        loc:      e.location         || '',
+        rating:   e.rating           || 4.5,
+        rv:       e.review_count     || 0,
+        img:      e.image_url        || 'https://images.unsplash.com/photo-1528360983277-13d401cdc186?w=800&auto=format&fit=crop',
+        img2:     (e.image_urls && e.image_urls[0]) || '',
+        img3:     (e.image_urls && e.image_urls[1]) || '',
+        partner:  e.partner_name     || '',
+        tags:     e.tags             || [],
+        desc:     e.description      || '',
+        capacity: e.capacity         || 2,
+        _fromSupabase: true,
+      });
+    });
+  } catch(err) {
+    console.warn('loadExpFromSupabase:', err.message);
+  }
+}
+
 function renderExpList() {
   const items = getFilteredExps();
   const page = appState.expPage;
