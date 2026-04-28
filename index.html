@@ -6959,8 +6959,8 @@ function renderExpList() {
   const listEl = document.getElementById('exp-list-items');
   if (!listEl) return;
   listEl.innerHTML = pageItems.map(e => `
-    <div class="ecard" style="position:relative" onclick="appState.expContext='preview';loadExp('${e.id}');go('expdetail')">
-      <button class="wl-exp-btn" data-id="${e.id}" onclick="wlToggleExp('${e.id}',event)" style="position:absolute;top:8px;left:8px;background:rgba(0,0,0,.35);border:none;border-radius:50%;width:28px;height:28px;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:5">${wlHasExp(e.id)?'<i class="fa fa-heart" style="color:#ef4444"></i>':'<i class="fa fa-heart" style="color:rgba(255,255,255,.65)"></i>'}</button>
+    <div class="ecard ecard-nav" data-expid="${e.id}" style="position:relative">
+      <button class="wl-exp-btn" data-id="${e.id}" style="position:absolute;top:8px;left:8px;background:rgba(0,0,0,.35);border:none;border-radius:50%;width:28px;height:28px;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:5">${wlHasExp(e.id)?'<i class="fa fa-heart" style="color:#ef4444"></i>':'<i class="fa fa-heart" style="color:rgba(255,255,255,.65)"></i>'}</button>
       <div class="ecard-img">
         <img src="${e.img}&h=160&auto=format&fit=crop" loading="lazy">
       </div>
@@ -6976,10 +6976,18 @@ function renderExpList() {
       <div style="display:flex;flex-direction:column;align-items:flex-end;gap:7px;flex-shrink:0">
         <span style="color:var(--amber);font-size:.82rem">★${e.rating}</span>
         <span class="txt-sm txt-muted">${e.loc}</span>
-        <button class="btn bp bsm" onclick="event.stopPropagation();appState.expContext='preview';loadExp('${e.id}');go('expdetail')">View <i class="fa fa-arrow-right"></i></button>
+        <button class="btn bp bsm ecard-nav" data-expid="${e.id}">View <i class="fa fa-arrow-right"></i></button>
       </div>
     </div>`).join('') || '<p style="color:var(--muted);font-size:.85rem;padding:20px 0">No experiences match your filters.</p>';
   renderPagination(items.length);
+  // Event delegation — avoids inline onclick issues
+  var listEl2 = document.getElementById('exp-list-items');
+  if (listEl2) { listEl2.onclick = function(ev) {
+    var wlBtn = ev.target.closest('.wl-exp-btn');
+    if (wlBtn) { ev.stopPropagation(); wlToggleExp(wlBtn.dataset.id, ev); wlUpdateExpHearts(); return; }
+    var navEl = ev.target.closest('.ecard-nav');
+    if (navEl && navEl.dataset.expid) { appState.expContext='preview'; loadExp(navEl.dataset.expid); go('expdetail'); }
+  }; }
 }
 function renderPagination(total) {
   const el = document.getElementById('exp-pagination');
