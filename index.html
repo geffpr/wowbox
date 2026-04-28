@@ -2403,6 +2403,11 @@ nav{position:sticky;top:0;z-index:300;background:rgba(255,255,255,.95);
   border-radius:99px;transition:width .4s}
 /* Admin coupon form */
 .coupon-type-toggle{display:flex;border:1.5px solid var(--border);border-radius:var(--rs);overflow:hidden;width:fit-content}
+.city-tog-wrap{cursor:pointer;display:inline-flex;align-items:center;flex-shrink:0}
+.city-tog{display:inline-block;width:44px;height:24px;background:#cbd5e1;border-radius:99px;position:relative;transition:background .2s}
+.city-tog::after{content:'';position:absolute;top:3px;left:3px;width:18px;height:18px;background:#fff;border-radius:50%;transition:transform .2s;box-shadow:0 1px 3px rgba(0,0,0,.25)}
+.city-tog.on{background:var(--b600)}
+.city-tog.on::after{transform:translateX(20px)}
 .ctt-btn{padding:7px 16px;border:none;font-family:'DM Sans',sans-serif;font-size:.78rem;
   font-weight:500;cursor:pointer;background:var(--white);color:var(--muted);transition:all .14s}
 .ctt-btn.on{background:var(--b600);color:#fff}
@@ -5218,6 +5223,7 @@ tr:hover td{background:var(--b50)}
       <button class="anl"     onclick="switchAdm(this,'adm-pricing');renderAdmPricing()"><i class="fa fa-circle-dollar-sign"></i> Pricing</button>
       <button class="anl"     onclick="switchAdm(this,'adm-coupons')"><i class="fa fa-tag"></i> Coupons</button>
       <button class="anl"     onclick="switchAdm(this,'adm-activate')"><i class="fa fa-box-open"></i> Activate Boxes <span style="background:linear-gradient(135deg,#10b981,#059669);color:#fff;border-radius:99px;padding:1px 7px;font-size:.58rem;font-weight:700;margin-left:auto">RETAIL</span></button>
+      <button class="anl"     onclick="switchAdm(this,'adm-cities');renderAdmCities()"><i class="fa fa-map-location-dot"></i> Cities <span id="adm-cities-badge" style="display:none;margin-left:auto;background:var(--b600);color:#fff;border-radius:99px;padding:1px 7px;font-size:.6rem;font-weight:700"></span></button>
       <div style="position:absolute;bottom:18px;left:13px;right:13px">
         <button class="anl" onclick="go('home')"><i class="fa fa-right-from-bracket"></i> Exit Admin</button>
       </div>
@@ -5995,6 +6001,49 @@ tr:hover td{background:var(--b50)}
         </div>
       </div>
 
+      <!-- ═══ CITIES ═══ -->
+      <div id="adm-cities" style="display:none">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;flex-wrap:wrap;gap:12px">
+          <div>
+            <h2 style="font-size:1.7rem;color:var(--navy)">City Rollout</h2>
+            <p style="color:var(--muted);font-size:.82rem">Toggle cities ON to make their experiences visible on the site. Adjust the radius to control coverage.</p>
+          </div>
+          <button class="btn bp bsm" onclick="admCityAddPanel()"><i class="fa fa-plus"></i> Add city</button>
+        </div>
+
+        <!-- Add city panel -->
+        <div id="adm-city-add-panel" style="display:none;background:var(--b50);border:1.5px solid var(--b200);border-radius:var(--rx);padding:20px;margin-bottom:22px">
+          <h4 style="font-size:.9rem;color:var(--navy);margin-bottom:14px"><i class="fa fa-map-pin" style="color:var(--b600)"></i> Add a new city zone</h4>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
+            <div style="flex:1;min-width:200px">
+              <label style="font-size:.75rem;color:var(--muted);display:block;margin-bottom:5px">City name</label>
+              <input class="fi" id="adm-city-input" placeholder="e.g. Durban, Garden Route…" style="width:100%;padding:9px 12px">
+            </div>
+            <div style="min-width:130px">
+              <label style="font-size:.75rem;color:var(--muted);display:block;margin-bottom:5px">Initial radius: <strong id="adm-city-radius-val">50</strong> km</label>
+              <input type="range" id="adm-city-radius-input" min="10" max="300" value="50" step="10" style="width:100%" oninput="document.getElementById('adm-city-radius-val').textContent=this.value">
+            </div>
+            <div style="display:flex;gap:8px">
+              <button class="btn bg bsm" onclick="admCityAdd()"><i class="fa fa-check"></i> Add</button>
+              <button class="btn bsm" style="background:var(--border);color:var(--text)" onclick="document.getElementById('adm-city-add-panel').style.display='none'">Cancel</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- City cards grid -->
+        <div id="adm-city-cards" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px;margin-bottom:28px"></div>
+
+        <!-- Map -->
+        <div class="atbl" style="padding:0;overflow:hidden">
+          <div style="padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px">
+            <i class="fa fa-map" style="color:var(--b600)"></i>
+            <span style="font-size:.85rem;font-weight:600;color:var(--navy)">Coverage map</span>
+            <span style="font-size:.75rem;color:var(--muted);margin-left:4px">Green = active · Grey = inactive</span>
+          </div>
+          <div id="adm-city-map" style="height:400px;width:100%"></div>
+        </div>
+      </div>
+
     </div><!-- /adm-main -->
   </div>
 </div>
@@ -6244,7 +6293,7 @@ tr:hover td{background:var(--b50)}
 </div>
 
 <!-- Google Maps -->
-<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCwYc0gYAxn29lpnte38It_HkozV24VXD0&callback=initMap" async defer></script>
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCwYc0gYAxn29lpnte38It_HkozV24VXD0&libraries=places&callback=initMap" async defer></script>
 
 <script>
 /* ══════════════════════════════════════════════════════════════
@@ -6954,9 +7003,9 @@ function getFilteredExps() {
   const typeF = document.getElementById('exp-type-f')?.value||'';
   const locF = document.getElementById('exp-loc-f')?.value||'';
   const groupF = document.getElementById('exp-group-f')?.value||'';
+  const anyActive = (typeof cityDB !== 'undefined') && cityDB.some(c => c.active);
   return expDB.filter(e => {
     const cap = e.capacity || 2;
-    const boxMatch    = !e.box || (appState.currentBoxId === e.box) || true;
     const searchMatch = !search || e.name.toLowerCase().includes(search) || e.loc.toLowerCase().includes(search);
     const typeMatch   = !typeF  || e.type === typeF;
     const locMatch    = !locF   || e.loc.includes(locF);
@@ -6964,7 +7013,8 @@ function getFilteredExps() {
       || (groupF === 'solo'  && cap === 1)
       || (groupF === 'duo'   && cap === 2)
       || (groupF === 'group' && cap >= 3);
-    return searchMatch && typeMatch && locMatch && groupMatch;
+    const cityMatch   = !anyActive || (typeof admCityIsVisible === 'function' && admCityIsVisible(e));
+    return searchMatch && typeMatch && locMatch && groupMatch && cityMatch;
   });
 }
 function renderExpList() {
@@ -9098,7 +9148,215 @@ function filterDashBoxes(status, btn) {
 }
 
 /* ── ADMIN ── */
-const admTabs = ['adm-dash','adm-boxes','adm-db','adm-exp','adm-requests','adm-orders','adm-usage','adm-comm','adm-pricing','adm-coupons','adm-activate'];
+const admTabs = ['adm-dash','adm-boxes','adm-db','adm-exp','adm-requests','adm-orders','adm-usage','adm-comm','adm-pricing','adm-coupons','adm-activate','adm-cities'];
+
+/* ══════════════════════════════════════════════════════════════
+   CITY ROLLOUT — GEOGRAPHIC TOGGLE + RADIUS
+══════════════════════════════════════════════════════════════ */
+var cityDB = [
+  { id:'cape-town',     name:'Cape Town',     lat:-33.9249, lng:18.4241, radius:80,  active:true  },
+  { id:'johannesburg',  name:'Johannesburg',  lat:-26.2041, lng:28.0473, radius:60,  active:true  },
+  { id:'durban',        name:'Durban',         lat:-29.8587, lng:31.0218, radius:50,  active:false },
+  { id:'garden-route',  name:'Garden Route',  lat:-33.9819, lng:22.4597, radius:120, active:false },
+  { id:'winelands',     name:'Winelands',     lat:-33.9326, lng:18.8602, radius:40,  active:false },
+  { id:'kruger',        name:'Kruger',         lat:-24.0057, lng:31.4868, radius:100, active:false },
+];
+
+var _cityMap = null;
+var _cityCircles = [];
+var _cityMarkers = [];
+var _cityAutocomplete = null;
+
+function admCityDistKm(lat1,lng1,lat2,lng2) {
+  const R=6371, dLat=(lat2-lat1)*Math.PI/180, dLng=(lat2-lng1)*Math.PI/180;
+  const a=Math.sin(dLat/2)**2+Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLng/2)**2;
+  return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+}
+
+function admCityIsVisible(exp) {
+  const activeCities = cityDB.filter(c => c.active);
+  if (!activeCities.length) return true; // if no cities configured, show all
+  if (!exp.lat || !exp.lng) return true; // no coords = always show
+  return activeCities.some(c => admCityDistKm(c.lat, c.lng, exp.lat, exp.lng) <= c.radius);
+}
+
+function admCityToggle(id) {
+  const c = cityDB.find(x => x.id === id);
+  if (!c) return;
+  c.active = !c.active;
+  renderAdmCities();
+  admCityUpdateBadge();
+  admToast((c.active ? '🟢 ' : '⚫ ') + c.name + ' → ' + (c.active ? 'ON' : 'OFF'));
+}
+
+function admCitySetRadius(id, km) {
+  const c = cityDB.find(x => x.id === id);
+  if (!c) return;
+  c.radius = parseInt(km);
+  admCityDrawMap();
+}
+
+function admCityDelete(id) {
+  const c = cityDB.find(x => x.id === id);
+  if (!c || !confirm('Remove ' + c.name + ' from your city list?')) return;
+  cityDB = cityDB.filter(x => x.id !== id);
+  renderAdmCities();
+  admToast('City removed.');
+}
+
+function admCityUpdateBadge() {
+  const badge = document.getElementById('adm-cities-badge');
+  if (!badge) return;
+  const on = cityDB.filter(c => c.active).length;
+  badge.textContent = on + ' ON';
+  badge.style.display = on ? 'inline' : 'none';
+}
+
+function admCityAddPanel() {
+  const panel = document.getElementById('adm-city-add-panel');
+  panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+  if (panel.style.display === 'block' && window.google && !_cityAutocomplete) {
+    const input = document.getElementById('adm-city-input');
+    _cityAutocomplete = new google.maps.places.Autocomplete(input, { types: ['(cities)'], componentRestrictions:{ country:'za' } });
+  }
+}
+
+function admCityAdd() {
+  const input = document.getElementById('adm-city-input');
+  const radius = parseInt(document.getElementById('adm-city-radius-input').value) || 50;
+  const name = input.value.trim();
+  if (!name) { admToast('Enter a city name.'); return; }
+
+  // If Places autocomplete gave us a place, use its geometry
+  if (_cityAutocomplete) {
+    const place = _cityAutocomplete.getPlace();
+    if (place && place.geometry) {
+      const lat = place.geometry.location.lat();
+      const lng = place.geometry.location.lng();
+      const id = name.toLowerCase().replace(/\s+/g,'-').replace(/[^a-z0-9-]/g,'');
+      if (cityDB.find(c => c.id === id)) { admToast('City already exists.'); return; }
+      cityDB.push({ id, name, lat, lng, radius, active:true });
+      input.value = '';
+      _cityAutocomplete = null;
+      document.getElementById('adm-city-add-panel').style.display = 'none';
+      renderAdmCities();
+      admCityUpdateBadge();
+      admToast('✅ ' + name + ' added!');
+      return;
+    }
+  }
+
+  // Fallback: geocode the city name
+  const geocoder = new google.maps.Geocoder();
+  geocoder.geocode({ address: name + ', South Africa' }, function(results, status) {
+    if (status !== 'OK' || !results[0]) { admToast('City not found. Try a more specific name.'); return; }
+    const lat = results[0].geometry.location.lat();
+    const lng = results[0].geometry.location.lng();
+    const id = name.toLowerCase().replace(/\s+/g,'-').replace(/[^a-z0-9-]/g,'');
+    if (cityDB.find(c => c.id === id)) { admToast('City already exists.'); return; }
+    cityDB.push({ id, name, lat, lng, radius, active:true });
+    input.value = '';
+    document.getElementById('adm-city-add-panel').style.display = 'none';
+    renderAdmCities();
+    admCityUpdateBadge();
+    admToast('✅ ' + name + ' added!');
+  });
+}
+
+function renderAdmCities() {
+  const container = document.getElementById('adm-city-cards');
+  if (!container) return;
+  container.innerHTML = cityDB.map(c => {
+    const expCount = expDB.filter(e => e.lat && e.lng && admCityDistKm(c.lat, c.lng, e.lat, e.lng) <= c.radius).length;
+    return `
+    <div class="atbl" style="padding:18px 20px;${c.active?'border-color:var(--b400);background:var(--b50)':'opacity:.75'}">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">
+        <div style="width:10px;height:10px;border-radius:50%;background:${c.active?'var(--green)':'#94a3b8'};flex-shrink:0;box-shadow:${c.active?'0 0 0 3px rgba(16,185,129,.2)':'none'}"></div>
+        <div style="flex:1">
+          <div style="font-weight:700;font-size:.95rem;color:var(--navy)">${c.name}</div>
+          <div style="font-size:.73rem;color:var(--muted)">${expCount} experience${expCount!==1?'s':''} in range · ${c.radius}km radius</div>
+        </div>
+        <label class="city-tog-wrap" title="${c.active?'Click to disable':'Click to enable'}">
+          <input type="checkbox" ${c.active?'checked':''} onchange="admCityToggle('${c.id}')" style="display:none">
+          <span class="city-tog ${c.active?'on':''}"></span>
+        </label>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <i class="fa fa-circle-dot" style="color:var(--muted);font-size:.75rem"></i>
+        <input type="range" min="10" max="300" value="${c.radius}" step="10" style="flex:1;accent-color:var(--b600)"
+          oninput="this.nextElementSibling.textContent=this.value+'km';admCitySetRadius('${c.id}',this.value)">
+        <span style="font-size:.75rem;font-weight:600;color:var(--b700);min-width:42px">${c.radius}km</span>
+        <button class="btn bsm" style="background:none;border:none;color:var(--muted);padding:3px 6px" onclick="admCityDelete('${c.id}')" title="Remove city"><i class="fa fa-trash"></i></button>
+      </div>
+    </div>`;
+  }).join('') || '<p style="color:var(--muted);font-size:.85rem">No cities yet. Click "Add city" to get started.</p>';
+
+  admCityDrawMap();
+  admCityUpdateBadge();
+}
+
+function admCityDrawMap() {
+  if (!window.google) return;
+  const mapEl = document.getElementById('adm-city-map');
+  if (!mapEl) return;
+
+  if (!_cityMap) {
+    _cityMap = new google.maps.Map(mapEl, {
+      zoom: 6,
+      center: { lat: -29.0, lng: 25.0 },
+      mapTypeId: 'roadmap',
+      styles: [{ featureType:'poi', elementType:'labels', stylers:[{visibility:'off'}] }],
+      disableDefaultUI: false,
+      zoomControl: true,
+      streetViewControl: false,
+      mapTypeControl: false,
+    });
+  }
+
+  // Clear existing circles and markers
+  _cityCircles.forEach(c => c.setMap(null));
+  _cityMarkers.forEach(m => m.setMap(null));
+  _cityCircles = [];
+  _cityMarkers = [];
+
+  const bounds = new google.maps.LatLngBounds();
+
+  cityDB.forEach(c => {
+    const pos = { lat: c.lat, lng: c.lng };
+    const color = c.active ? '#2563eb' : '#94a3b8';
+
+    const circle = new google.maps.Circle({
+      map: _cityMap,
+      center: pos,
+      radius: c.radius * 1000,
+      fillColor: color,
+      fillOpacity: c.active ? 0.12 : 0.06,
+      strokeColor: color,
+      strokeOpacity: c.active ? 0.7 : 0.3,
+      strokeWeight: 2,
+    });
+    _cityCircles.push(circle);
+
+    const marker = new google.maps.Marker({
+      map: _cityMap,
+      position: pos,
+      title: c.name,
+      icon: {
+        path: google.maps.SymbolPath.CIRCLE,
+        scale: 7,
+        fillColor: color,
+        fillOpacity: 1,
+        strokeColor: '#fff',
+        strokeWeight: 2,
+      },
+      label: { text: c.name, color: '#1e293b', fontSize: '11px', fontWeight: '600' }
+    });
+    _cityMarkers.push(marker);
+    bounds.extend(pos);
+  });
+
+  if (cityDB.length) _cityMap.fitBounds(bounds, 60);
+}
 
 function switchAdm(btn, tab) {
   admTabs.forEach(t => { const el = document.getElementById(t); if (el) el.style.display = t===tab?'block':'none'; });
