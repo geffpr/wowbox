@@ -1809,10 +1809,10 @@ nav{position:sticky;top:0;z-index:300;background:rgba(255,255,255,.95);
   color:var(--muted);transition:all .14s;font-size:.8rem}
 .vbtn.on{background:var(--b600);color:#fff}
 .exp-list{display:flex;flex-direction:column;gap:12px}
-.ecard{background:var(--white);border-radius:var(--r);border:1.5px solid var(--border);
+.ecard{position:relative;background:var(--white);border-radius:var(--r);border:1.5px solid var(--border);
   padding:16px;display:flex;gap:15px;cursor:pointer;transition:all .18s}
 .ecard:hover{border-color:var(--b400);box-shadow:var(--md)}
-.ecard-img{width:105px;height:82px;border-radius:var(--rs);overflow:hidden;flex-shrink:0;position:relative}
+.ecard-img{width:105px;height:82px;border-radius:var(--rs);overflow:hidden;flex-shrink:0}
 .ecard-img img{height:100%}
 .ecard-info{flex:1}
 .ecard-info h4{font-size:.95rem;color:var(--navy);margin-bottom:3px}
@@ -6959,10 +6959,10 @@ function renderExpList() {
   const listEl = document.getElementById('exp-list-items');
   if (!listEl) return;
   listEl.innerHTML = pageItems.map(e => `
-    <div class="ecard" onclick="appState.expContext='preview';loadExp('${e.id}');go('expdetail')">
-      <div class="ecard-img" style="position:relative">
+    <div class="ecard" style="position:relative" onclick="appState.expContext='preview';loadExp('${e.id}');go('expdetail')">
+      <button class="wl-exp-btn" data-id="${e.id}" onclick="wlToggleExp('${e.id}',event)" style="position:absolute;top:8px;left:8px;background:rgba(0,0,0,.35);border:none;border-radius:50%;width:28px;height:28px;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:5">${wlHasExp(e.id)?'<i class="fa fa-heart" style="color:#ef4444"></i>':'<i class="fa fa-heart" style="color:rgba(255,255,255,.65)"></i>'}</button>
+      <div class="ecard-img">
         <img src="${e.img}&h=160&auto=format&fit=crop" loading="lazy">
-        <button class="wl-exp-btn" data-id="${e.id}" onclick="wlToggleExp('${e.id}',event)" style="position:absolute;top:8px;right:8px;background:rgba(0,0,0,.3);border:none;border-radius:50%;width:28px;height:28px;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:2">${wlHasExp(e.id)?'<i class="fa fa-heart" style="color:#ef4444"></i>':'<i class="fa fa-heart" style="color:rgba(255,255,255,.65)"></i>'}</button>
       </div>
       <div class="ecard-info">
         <h4>${e.name}</h4>
