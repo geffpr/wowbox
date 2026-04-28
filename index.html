@@ -10343,13 +10343,13 @@ async function loadPartnerExperiences() {
   listEl.innerHTML = '<div style="text-align:center;padding:32px;color:var(--muted)"><i class="fa fa-spinner fa-spin" style="font-size:1.5rem"></i></div>';
 
   try {
-    // Load approved experiences
+    // Load approved experiences — match by email OR partner_name
     var expRes = await db_client.from('experiences')
       .select('*')
-      .eq('partner_email', partnerEmail)
+      .or('partner_email.eq.' + partnerEmail + ',partner_name.eq.' + encodeURIComponent(partnerName))
       .order('created_at', { ascending: false });
 
-    // Load pending requests
+    // Load all requests by this partner (pending + approved + rejected)
     var reqRes = await db_client.from('partner_requests')
       .select('*')
       .eq('partner_email', partnerEmail)
@@ -10389,19 +10389,30 @@ async function loadPartnerExperiences() {
         + '</div>';
     });
 
-    // Pending requests
-    requests.filter(function(r){ return r.status === 'pending'; }).forEach(function(r) {
-      html += '<div class="pp-exp-card" style="border-color:#fcd34d;background:#fffbeb">'
+    // All requests not yet in approved (show pending + rejected)
+    requests.filter(function(r){ return r.status !== 'approved'; }).forEach(function(r) {
+      var isPend = r.status === 'pending';
+      var isRej  = r.status === 'rejected';
+      var cardStyle = isRej ? 'border-color:#fca5a5;background:#fef2f2' : 'border-color:#fcd34d;background:#fffbeb';
+      var badgeEl   = isRej ? '<span class="sbadge sb-e">Rejected</span>' : '<span class="ps-pending">Pending review</span>';
+      var noteEl    = isRej && r.rejection_note
+        ? '<div style="font-size:.72rem;color:#991b1b;margin-top:4px;padding:6px 8px;background:#fee2e2;border-radius:6px"><i class="fa fa-info-circle"></i> ' + r.rejection_note + '</div>'
+        : '';
+      var subNote   = isPend
+        ? '<div style="font-size:.73rem;color:#92400e"><i class="fa fa-info-circle"></i> Under review by WowBox admin.</div>'
+        : '<div style="font-size:.73rem;color:#dc2626">Please revise and resubmit.</div>';
+      html += '<div class="pp-exp-card" style="' + cardStyle + '">'
         + '<div class="pp-exp-thumb" style="background:var(--border);display:flex;align-items:center;justify-content:center;border-radius:var(--rs)">'
         + (r.image_url ? '<img src="' + r.image_url + '" style="width:100%;height:100%;object-fit:cover;border-radius:var(--rs)">' : '<i class="fa fa-clock" style="color:var(--muted);font-size:1.4rem"></i>')
         + '</div>'
         + '<div style="flex:1">'
         + '<div style="display:flex;align-items:center;gap:9px;margin-bottom:4px">'
         + '<span style="font-size:.92rem;font-weight:600;color:var(--navy)">' + (r.experience_name||'Untitled') + '</span>'
-        + '<span class="ps-pending">Pending review</span>'
+        + badgeEl
         + '</div>'
         + '<div style="font-size:.75rem;color:var(--muted);margin-bottom:4px">' + (typeLabels[r.category]||r.category||'—') + (r.city ? ' · ' + r.city : '') + '</div>'
-        + '<div style="font-size:.73rem;color:#92400e"><i class="fa fa-info-circle"></i> Under review by WowBox admin.</div>'
+        + subNote
+        + noteEl
         + '</div>'
         + '</div>';
     });
