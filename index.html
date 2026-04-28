@@ -313,6 +313,145 @@ async function saveBookingToSupabase(payload) {
 ══════════════════════════════════════════════════════════════ */
 var currentUser = null;
 
+// ── Wishlist ──
+var wishlist = { boxes: {}, experiences: {} }; // { boxId: true } / { expId: true }
+
+function wlLoad() {
+  try {
+    var saved = localStorage.getItem('wbWishlist');
+    if (saved) wishlist = JSON.parse(saved);
+  } catch(e) {}
+}
+function wlSave() {
+  try { localStorage.setItem('wbWishlist', JSON.stringify(wishlist)); } catch(e) {}
+}
+function wlHasBox(id)  { return !!wishlist.boxes[id]; }
+function wlHasExp(id)  { return !!wishlist.experiences[id]; }
+
+function wlToggleBox(id, e) {
+  if (e) e.stopPropagation();
+  wishlist.boxes[id] = !wishlist.boxes[id];
+  if (!wishlist.boxes[id]) delete wishlist.boxes[id];
+  wlSave();
+  wlUpdateBoxHearts();
+  if (Object.keys(wishlist.boxes).length || Object.keys(wishlist.experiences).length) wlRender();
+}
+function wlToggleExp(id, e) {
+  if (e) e.stopPropagation();
+  wishlist.experiences[id] = !wishlist.experiences[id];
+  if (!wishlist.experiences[id]) delete wishlist.experiences[id];
+  wlSave();
+  wlUpdateExpHearts();
+  if (Object.keys(wishlist.boxes).length || Object.keys(wishlist.experiences).length) wlRender();
+}
+
+function wlUpdateBoxHearts() {
+  document.querySelectorAll('.wl-box-btn').forEach(function(btn) {
+    var id = btn.dataset.id;
+    btn.innerHTML = wlHasBox(id)
+      ? '<i class="fa fa-heart" style="color:#ef4444"></i>'
+      : '<i class="fa fa-heart" style="color:rgba(255,255,255,.7)"></i>';
+    btn.title = wlHasBox(id) ? 'Remove from wishlist' : 'Save to wishlist';
+  });
+}
+function wlUpdateExpHearts() {
+  document.querySelectorAll('.wl-exp-btn').forEach(function(btn) {
+    var id = btn.dataset.id;
+    btn.innerHTML = wlHasExp(id)
+      ? '<i class="fa fa-heart" style="color:#ef4444"></i>'
+      : '<i class="fa fa-heart" style="color:rgba(0,0,0,.3)"></i>';
+    btn.title = wlHasExp(id) ? 'Remove from wishlist' : 'Save to wishlist';
+  });
+}
+
+function wlRender() {
+  var listEl = document.getElementById('dash-wishlist-list');
+  if (!listEl) return;
+
+  var boxIds = Object.keys(wishlist.boxes);
+  var expIds = Object.keys(wishlist.experiences);
+
+  if (!boxIds.length && !expIds.length) {
+    listEl.innerHTML = '<div style="text-align:center;padding:40px 20px;color:var(--muted)">'
+      + '<i class="fa fa-heart" style="font-size:2rem;margin-bottom:12px;opacity:.3;display:block"></i>'
+      + '<p style="font-size:.9rem">No saved items yet.<br>Click ❤️ on any box or experience to save it here.</p>'
+      + '<div style="display:flex;gap:10px;justify-content:center;margin-top:16px">'
+      + '<button class="btn bp bsm" onclick="go(\'allboxes\')">Browse boxes</button>'
+      + '<button class="btn bg bsm" onclick="go(\'product\')">Browse experiences</button>'
+      + '</div></div>';
+    return;
+  }
+
+  var html = '';
+
+  // ── Saved Boxes ──
+  if (boxIds.length) {
+    html += '<h3 style="font-size:1rem;color:var(--navy);margin-bottom:14px"><i class="fa fa-gift" style="color:var(--b500)"></i> Gift Boxes</h3>';
+    html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px;margin-bottom:28px">';
+    boxIds.forEach(function(id) {
+      var b = boxDB[id];
+      if (!b) return;
+      html += '<div style="background:#fff;border:1px solid var(--border);border-radius:var(--r);overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.05)">'
+        + '<div style="position:relative;height:130px;overflow:hidden">'
+        + '<img src="' + b.img + '" style="width:100%;height:100%;object-fit:cover">'
+        + '<button class="wl-box-btn" data-id="' + id + '" onclick="wlToggleBox(\'" + id + "\',event)" style="position:absolute;top:8px;right:8px;background:rgba(0,0,0,.3);border:none;border-radius:50%;width:30px;height:30px;cursor:pointer;display:flex;align-items:center;justify-content:center">'
+        + (wlHasBox(id) ? '<i class="fa fa-heart" style="color:#ef4444"></i>' : '<i class="fa fa-heart" style="color:rgba(255,255,255,.7)"></i>')
+        + '</button>'
+        + '</div>'
+        + '<div style="padding:12px 14px">'
+        + '<div style="font-weight:700;font-size:.88rem;color:var(--navy);margin-bottom:2px">' + b.name + '</div>'
+        + '<div style="font-size:.78rem;color:var(--muted);margin-bottom:10px">From R' + b.price.toLocaleString() + '</div>'
+        + '<button class="btn bp bsm" style="width:100%;justify-content:center" onclick="loadProduct(\'" + id + "\');go(\'product\')"><i class="fa fa-gift"></i> Buy now</button>'
+        + '</div></div>';
+    });
+    html += '</div>';
+  }
+
+  // ── Saved Experiences ──
+  if (expIds.length) {
+    html += '<h3 style="font-size:1rem;color:var(--navy);margin-bottom:14px"><i class="fa fa-star" style="color:var(--amber)"></i> Experiences</h3>';
+    html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px">';
+    expIds.forEach(function(id) {
+      var e = expDB.find(function(x){ return x.id === id; });
+      if (!e) return;
+      var box = boxDB[e.box] || {};
+      html += '<div style="background:#fff;border:1px solid var(--border);border-radius:var(--r);overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.05)">'
+        + '<div style="position:relative;height:130px;overflow:hidden">'
+        + '<img src="' + e.img + '" style="width:100%;height:100%;object-fit:cover">'
+        + '<button class="wl-exp-btn" data-id="' + id + '" onclick="wlToggleExp(\'" + id + "\',event)" style="position:absolute;top:8px;right:8px;background:rgba(0,0,0,.3);border:none;border-radius:50%;width:30px;height:30px;cursor:pointer;display:flex;align-items:center;justify-content:center">'
+        + (wlHasExp(id) ? '<i class="fa fa-heart" style="color:#ef4444"></i>' : '<i class="fa fa-heart" style="color:rgba(255,255,255,.7)"></i>')
+        + '</button>'
+        + '</div>'
+        + '<div style="padding:12px 14px">'
+        + '<div style="font-weight:700;font-size:.88rem;color:var(--navy);margin-bottom:2px">' + e.name + '</div>'
+        + '<div style="font-size:.72rem;color:var(--muted);margin-bottom:4px"><i class="fa fa-location-dot" style="color:var(--b400)"></i> ' + e.loc + ' · ★' + e.rating + '</div>'
+        + (box.name ? '<div style="font-size:.72rem;color:var(--b600);margin-bottom:10px"><i class="fa fa-box-open"></i> Included in ' + box.name + '</div>' : '')
+        + '<button class="btn bp bsm pp-wl-getbox" style="width:100%;justify-content:center" data-box="' + (e.box||'couples-retreat') + '">'  
+        + '<i class="fa fa-arrow-right"></i> Get this box</button>'
+        + '<i class="fa fa-arrow-right"></i> Get this box</button>'
+        + '</div></div>';
+    });
+    html += '</div>';
+  }
+
+  listEl.innerHTML = html;
+
+  // Attach get-this-box button listeners
+  listEl.querySelectorAll('.pp-wl-getbox').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      loadProduct(this.dataset.box);
+      go('product');
+    });
+  });
+  // Attach wl-box-btn listeners (from wlRender generated HTML)
+  listEl.querySelectorAll('.wl-box-btn').forEach(function(btn) {
+    btn.addEventListener('click', function(e) { wlToggleBox(this.dataset.id, e); });
+  });
+  listEl.querySelectorAll('.wl-exp-btn').forEach(function(btn) {
+    btn.addEventListener('click', function(e) { wlToggleExp(this.dataset.id, e); });
+  });
+}
+
 // ── Global pricing (loaded from Supabase app_settings) ──
 var APP_PRICES = {
   video_message: 49,
@@ -439,6 +578,7 @@ function showDash(tab) {
   });
   var target = document.getElementById('dash-' + tab);
   if (target) target.style.display = 'block';
+  if (tab === 'wishlist') wlRender();
   document.querySelectorAll('.sbl').forEach(function(b) { b.classList.remove('on'); });
   var labels = {boxes:'My Boxes',orders:'My Orders',redeem:'Redeem',wishlist:'Wishlist',settings:'Settings'};
   var label = labels[tab] || '';
@@ -6421,7 +6561,10 @@ function renderBrowse() {
 
   const cardHTML = (e) => `
     <div class="browse-ecard" onclick="appState.expContext='booking';appState.currentBoxId='${bid}';loadExp('${e.id}');go('expdetail')">
-      <div class="browse-ecard-img"><img src="${e.img}&h=192&auto=format&fit=crop" loading="lazy"></div>
+      <div class="browse-ecard-img" style="position:relative">
+        <img src="${e.img}&h=192&auto=format&fit=crop" loading="lazy">
+        <button class="wl-exp-btn" data-id="${e.id}" onclick="wlToggleExp('${e.id}',event)" style="position:absolute;top:8px;right:8px;background:rgba(0,0,0,.3);border:none;border-radius:50%;width:30px;height:30px;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:2">${wlHasExp(e.id)?'<i class="fa fa-heart" style="color:#ef4444"></i>':'<i class="fa fa-heart" style="color:rgba(255,255,255,.65)"></i>'}</button>
+      </div>
       <div class="browse-ecard-info">
         <h4>${e.name}</h4>
         <p>${e.desc.substring(0,110)}…</p>
@@ -6554,6 +6697,7 @@ async function renderBoxGrids() {
         <div class="bcard-ov"></div>
         <div class="badge${isPremium?' gold':''}">${b.badge}</div>
         <div class="exp-badge"><i class="fa fa-layer-group"></i> ${b.experience_count} experiences</div>
+        <button class="wl-box-btn" data-id="${b.id}" onclick="wlToggleBox('${b.id}',event)" style="position:absolute;top:10px;right:10px;background:rgba(0,0,0,.35);border:none;border-radius:50%;width:32px;height:32px;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:2" title="Save to wishlist">${wlHasBox(b.id)?'<i class="fa fa-heart" style="color:#ef4444"></i>':'<i class="fa fa-heart" style="color:rgba(255,255,255,.7)"></i>'}</button>
       </div>
       <div class="bcard-body">
         <div class="bcard-title">${b.name}</div>
@@ -6570,6 +6714,7 @@ async function renderBoxGrids() {
   const ag = document.getElementById('all-boxes-grid');
   if (hg) hg.innerHTML = html;
   if (ag) ag.innerHTML = html;
+  wlUpdateBoxHearts();
 
   // Sync final boxDB — Supabase image_url takes priority, then local fallback
   boxes.forEach(b => {
@@ -6812,7 +6957,10 @@ function renderExpList() {
   if (!listEl) return;
   listEl.innerHTML = pageItems.map(e => `
     <div class="ecard" onclick="appState.expContext='preview';loadExp('${e.id}');go('expdetail')">
-      <div class="ecard-img"><img src="${e.img}&h=160&auto=format&fit=crop" loading="lazy"></div>
+      <div class="ecard-img" style="position:relative">
+        <img src="${e.img}&h=160&auto=format&fit=crop" loading="lazy">
+        <button class="wl-exp-btn" data-id="${e.id}" onclick="wlToggleExp('${e.id}',event)" style="position:absolute;top:8px;right:8px;background:rgba(0,0,0,.3);border:none;border-radius:50%;width:28px;height:28px;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:2">${wlHasExp(e.id)?'<i class="fa fa-heart" style="color:#ef4444"></i>':'<i class="fa fa-heart" style="color:rgba(255,255,255,.65)"></i>'}</button>
+      </div>
       <div class="ecard-info">
         <h4>${e.name}</h4>
         <p>${e.desc.substring(0,100)}…</p>
