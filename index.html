@@ -3511,10 +3511,13 @@ tr:hover td{background:var(--b50)}
   <div class="exp-detail-layout">
     <!-- LEFT -->
     <div>
-      <div class="exp-gallery" id="exp-gallery">
+      <div class="exp-gallery" id="exp-gallery" style="position:relative">
         <div class="eg-main"><img id="exp-main-img" src="" alt=""></div>
         <div class="eg-side"><img id="exp-img2" src="" alt=""></div>
         <div class="eg-side"><img id="exp-img3" src="" alt=""></div>
+        <button id="exp-wl-btn" onclick="expDetailToggleWl()" style="position:absolute;top:12px;right:12px;background:rgba(0,0,0,.4);border:none;border-radius:50%;width:38px;height:38px;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:5;font-size:1rem" title="Save to wishlist">
+          <i class="fa fa-heart" style="color:rgba(255,255,255,.7)"></i>
+        </button>
       </div>
 
       <!-- TABS -->
@@ -7435,6 +7438,8 @@ function loadExp(expId) {
     document.getElementById('exp-booking-form').style.display = 'none';
     document.getElementById('exp-bk-fields').innerHTML = ''; // wipe any previous form
   }
+  // Update wishlist heart button state
+  expDetailUpdateWlBtn();
 }
 
 function calcNights() {
