@@ -3180,6 +3180,12 @@ tr:hover td{background:var(--b50)}
             <option value="Garden Route">Garden Route</option>
             <option value="Kruger">Kruger</option>
           </select>
+          <select class="efi" id="exp-group-f" onchange="renderExpList()" style="min-width:130px">
+            <option value="">👥 All sizes</option>
+            <option value="solo">👤 Solo (1)</option>
+            <option value="duo">👫 Duo (up to 2)</option>
+            <option value="group">👥 Group (3+)</option>
+          </select>
         </div>
 
         <div id="view-list">
@@ -4603,8 +4609,22 @@ tr:hover td{background:var(--b50)}
           </div>
           <div class="fg"><label>Description</label><textarea class="fi" id="pp-new-desc" rows="3" style="resize:vertical" placeholder="Describe what guests will experience…"></textarea></div>
           <div class="fg-row">
-            <div class="fg"><label>Capacity (guests)</label><input class="fi" id="pp-new-capacity" type="number" placeholder="2"></div>
+            <div class="fg">
+              <label>Maximum guests per booking *</label>
+              <input class="fi" id="pp-new-capacity" type="number" placeholder="e.g. 2" min="1">
+              <div style="font-size:.68rem;color:var(--muted);margin-top:4px">How many guests can attend <strong>per booking</strong>. 1 = Solo only · 2 = up to 2 · 3+ = Group. Guests can always book fewer than the max.</div>
+            </div>
             <div class="fg"><label>City / Location</label><input class="fi" id="pp-new-city" placeholder="Cape Town, Stellenbosch…"></div>
+          </div>
+          <div class="fg-row">
+            <div class="fg">
+              <label>Experience value (ZAR) *</label>
+              <div style="position:relative"><span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:.85rem">R</span><input class="fi" id="pp-new-price" type="number" min="0" step="1" placeholder="e.g. 850" style="padding-left:26px"></div>
+              <div style="font-size:.68rem;color:var(--muted);margin-top:4px">Price per person / session charged by your venue.</div>
+            </div>
+            <div class="fg" style="display:flex;align-items:flex-end">
+              <div style="background:var(--b50);border:1px solid var(--b200);border-radius:var(--rs);padding:9px 12px;font-size:.72rem;color:var(--b700);line-height:1.5;margin-bottom:2px"><i class="fa fa-circle-info" style="color:var(--b500)"></i> Admin will assign this to the right box based on this value.</div>
+            </div>
           </div>
           <div class="fg">
             <label style="display:block;margin-bottom:6px">Experience images <span style="font-weight:400;color:var(--muted)">(up to 3 — first is the main image)</span></label>
@@ -5845,6 +5865,13 @@ tr:hover td{background:var(--b50)}
         <label class="fcheck"><input type="checkbox" value="event" onchange="renderBrowse()" class="brtf"> 🎉 Event</label>
       </div>
 
+      <h4>Group size</h4>
+      <div class="filter-group">
+        <label class="fcheck"><input type="checkbox" value="solo" onchange="renderBrowse()" class="brgf"> 👤 Solo (1 person)</label>
+        <label class="fcheck"><input type="checkbox" value="duo" onchange="renderBrowse()" class="brgf"> 👫 Duo (up to 2)</label>
+        <label class="fcheck"><input type="checkbox" value="group" onchange="renderBrowse()" class="brgf"> 👥 Group (3+)</label>
+      </div>
+
       <h4>Region</h4>
       <div class="filter-group">
         <label class="fcheck"><input type="checkbox" value="Cape Town" onchange="renderBrowse()" class="brlf"> Cape Town</label>
@@ -6339,20 +6366,29 @@ function getBrowseFiltered() {
   const sortV = document.getElementById('browse-sort')?.value || 'rating';
 
   // Type filters
-  const typeChecks = [...document.querySelectorAll('.brtf:checked')].map(c => c.value);
+  const typeChecks  = [...document.querySelectorAll('.brtf:checked')].map(c => c.value);
   // Location filters  
-  const locChecks  = [...document.querySelectorAll('.brlf:checked')].map(c => c.value);
+  const locChecks   = [...document.querySelectorAll('.brlf:checked')].map(c => c.value);
   // Service filters
-  const srvChecks  = [...document.querySelectorAll('.brsf:checked')].map(c => c.value);
+  const srvChecks   = [...document.querySelectorAll('.brsf:checked')].map(c => c.value);
+  // Group size filters
+  const groupChecks = [...document.querySelectorAll('.brgf:checked')].map(c => c.value);
 
   let items = expDB.filter(e => {
-    // For demo: show experiences of the current box + a few from related boxes
-    const boxMatch = !bid || e.box === bid || true; // show all in demo
-    const searchMatch = !search || e.name.toLowerCase().includes(search) || e.loc.toLowerCase().includes(search) || e.partner.toLowerCase().includes(search);
-    const typeMatch  = typeChecks.length === 0 || typeChecks.includes(e.reservation_type);
-    const locMatch   = locChecks.length === 0  || locChecks.some(l => e.loc.includes(l));
-    const srvMatch   = srvChecks.length === 0  || srvChecks.some(s => (e.tags||[]).includes(s));
-    return boxMatch && searchMatch && typeMatch && locMatch && srvMatch;
+    const cap = e.capacity || 2; // default 2 if not set
+    const boxMatch    = !bid || e.box === bid || true;
+    const searchMatch = !search || e.name.toLowerCase().includes(search) || e.loc.toLowerCase().includes(search) || (e.partner||'').toLowerCase().includes(search);
+    const typeMatch   = typeChecks.length === 0  || typeChecks.includes(e.reservation_type);
+    const locMatch    = locChecks.length === 0   || locChecks.some(l => e.loc.includes(l));
+    const srvMatch    = srvChecks.length === 0   || srvChecks.some(s => (e.tags||[]).includes(s));
+    // Group size: solo=1, duo=2, group=3+
+    const groupMatch  = groupChecks.length === 0 || groupChecks.some(function(g) {
+      if (g === 'solo')  return cap === 1;
+      if (g === 'duo')   return cap === 2;
+      if (g === 'group') return cap >= 3;
+      return true;
+    });
+    return boxMatch && searchMatch && typeMatch && locMatch && srvMatch && groupMatch;
   });
 
   // Sort
@@ -6397,6 +6433,7 @@ function renderBrowse() {
           <span style="font-size:.8rem;color:var(--muted)"><i class="fa fa-location-dot" style="color:var(--b400)"></i> ${e.loc}</span>
           <span style="font-size:.8rem;color:var(--amber)">★ ${e.rating}</span>
           <span style="font-size:.75rem;color:var(--muted)">(${e.rv} reviews)</span>
+          ${e.capacity ? '<span style="font-size:.72rem;background:var(--b50);border:1px solid var(--b200);color:var(--b700);padding:2px 7px;border-radius:99px">' + capLabel(e.capacity) + '</span>' : ''}
         </div>
       </div>
       <div style="display:flex;flex-direction:column;align-items:flex-end;justify-content:space-between;flex-shrink:0;min-width:80px">
@@ -6749,12 +6786,18 @@ function getFilteredExps() {
   const search = (document.getElementById('exp-search')?.value||'').toLowerCase();
   const typeF = document.getElementById('exp-type-f')?.value||'';
   const locF = document.getElementById('exp-loc-f')?.value||'';
+  const groupF = document.getElementById('exp-group-f')?.value||'';
   return expDB.filter(e => {
-    const boxMatch = !e.box || (appState.currentBoxId === e.box) || true; // show all for demo
+    const cap = e.capacity || 2;
+    const boxMatch    = !e.box || (appState.currentBoxId === e.box) || true;
     const searchMatch = !search || e.name.toLowerCase().includes(search) || e.loc.toLowerCase().includes(search);
-    const typeMatch = !typeF || e.type === typeF;
-    const locMatch = !locF || e.loc.includes(locF);
-    return searchMatch && typeMatch && locMatch;
+    const typeMatch   = !typeF  || e.type === typeF;
+    const locMatch    = !locF   || e.loc.includes(locF);
+    const groupMatch  = !groupF
+      || (groupF === 'solo'  && cap === 1)
+      || (groupF === 'duo'   && cap === 2)
+      || (groupF === 'group' && cap >= 3);
+    return searchMatch && typeMatch && locMatch && groupMatch;
   });
 }
 function renderExpList() {
@@ -6775,6 +6818,7 @@ function renderExpList() {
         <p>${e.desc.substring(0,100)}…</p>
         <div class="tagrow">
           <span class="tag ${typeClass[e.type]||'t-act'}">${typeLabels[e.type]||e.type}</span>
+          ${e.capacity ? `<span class="tag" style="background:var(--b50);border:1px solid var(--b200);color:var(--b700)">${capLabel(e.capacity)}</span>` : ''}
           ${e.tags.slice(0,2).map(t=>`<span class="tag" style="background:var(--b50);border:1px solid var(--b100);color:var(--b700)">${t}</span>`).join('')}
         </div>
       </div>
@@ -6963,10 +7007,29 @@ function initMap() {
    collectBookingData() collects all field values into an object.
    buildVoucherData()   converts those values into voucher lines.
 ══════════════════════════════════════════════════════════════ */
+// Capacity → group type label
+function capLabel(cap) {
+  if (!cap) return '';
+  if (cap === 1) return '👤 Solo';
+  if (cap === 2) return '👫 Duo';
+  return '👥 Group (up to ' + cap + ')';
+}
+
+// Build guest count options capped by experience capacity
+function buildGuestOptions(cap, defaultVal) {
+  cap = cap || 10;
+  defaultVal = defaultVal || 2;
+  var opts = '';
+  for (var i = 1; i <= cap; i++) {
+    opts += '<option value="'+i+'"' + (i===defaultVal?' selected':'') + '>'+i+'</option>';
+  }
+  return opts;
+}
+
 const rtConfig = {
   accommodation: {
     icon:'🏨', label:'Accommodation',  cls:'rt-accommodation',
-    form: () => `
+    form: (cap) => `
       <div class="fg-row">
         <div class="fg"><label>Guest 1 — Full name *</label><input class="fi" id="bk-g1" placeholder="e.g. My Account"></div>
         <div class="fg"><label>Guest 2 (optional)</label><input class="fi" id="bk-g2" placeholder="e.g. Sipho Khumalo"></div>
@@ -6993,7 +7056,7 @@ const rtConfig = {
   },
   dining: {
     icon:'🍽️', label:'Dining',  cls:'rt-dining',
-    form: () => `
+    form: (cap) => `
       <div class="fg"><label>Name for reservation *</label><input class="fi" id="bk-g1" placeholder="Full name"></div>
       <div class="fg-row">
         <div class="fg"><label>Date *</label><input class="fi" type="date" id="bk-date"></div>
@@ -7019,7 +7082,7 @@ const rtConfig = {
   },
   wellness: {
     icon:'🧖', label:'Wellness',  cls:'rt-wellness',
-    form: () => `
+    form: (cap) => `
       <div class="fg"><label>Name *</label><input class="fi" id="bk-g1" placeholder="Full name"></div>
       <div class="fg"><label>2nd guest (couples treatment)</label><input class="fi" id="bk-g2" placeholder="Optional"></div>
       <div class="fg-row">
@@ -7045,7 +7108,7 @@ const rtConfig = {
   },
   activity: {
     icon:'🏄', label:'Activity',  cls:'rt-activity',
-    form: () => `
+    form: (cap) => `
       <div class="fg"><label>Lead participant *</label><input class="fi" id="bk-g1" placeholder="Full name"></div>
       <div class="fg-row">
         <div class="fg"><label>Date *</label><input class="fi" type="date" id="bk-date"></div>
@@ -7067,7 +7130,7 @@ const rtConfig = {
   },
   rental: {
     icon:'🚗', label:'Rental',  cls:'rt-rental',
-    form: () => `
+    form: (cap) => `
       <div class="fg"><label>Name *</label><input class="fi" id="bk-g1" placeholder="Full name as on ID/licence"></div>
       <div class="fg-row">
         <div class="fg"><label>Start date *</label><input class="fi" type="date" id="bk-ci" onchange="calcNights()"></div>
@@ -7088,7 +7151,7 @@ const rtConfig = {
   },
   event: {
     icon:'🎉', label:'Event',  cls:'rt-event',
-    form: () => `
+    form: (cap) => `
       <div class="fg"><label>Name *</label><input class="fi" id="bk-g1" placeholder="Full name"></div>
       <div class="fg-row">
         <div class="fg"><label>Preferred date *</label><input class="fi" type="date" id="bk-date"></div>
@@ -7108,7 +7171,11 @@ const rtConfig = {
 
 function buildBookingForm(rt) {
   const cfg = rtConfig[rt] || rtConfig.activity;
-  return cfg.form();
+  // Get capacity from current experience
+  var cap = 2;
+  var exp = expDB.find(function(x){ return x.id === appState.currentExpId; });
+  if (exp && exp.capacity) cap = exp.capacity;
+  return cfg.form(cap);
 }
 function collectBookingData(rt) {
   const cfg = rtConfig[rt] || rtConfig.activity;
@@ -9224,6 +9291,7 @@ async function admSaveExp() {
   const desc    = document.getElementById('aef-desc')?.value?.trim() || '';
 
   if (!name) { admToast('Please enter an experience name.'); return; }
+  if (!capacity || capacity < 1) { admToast('Please enter the maximum guests per booking.'); document.getElementById('pp-new-capacity').focus(); return; }
 
   const imgs = [];
   for (let i = 0; i < 4; i++) {
@@ -9418,7 +9486,8 @@ async function renderAdmRequests() {
       + '<div>'
       + '<div class="fg"><label style="font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)">Partner</label><div style="font-size:.85rem;color:var(--navy)">' + (r.partner_name||'—') + (r.city ? ' · ' + r.city : '') + '</div></div>'
       + '<div class="fg"><label style="font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)">Email</label><div style="font-size:.82rem;color:var(--b600)">' + (r.partner_email||'—') + '</div></div>'
-      + (r.capacity ? '<div class="fg"><label style="font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)">Capacity</label><div style="font-size:.85rem;color:var(--navy)">' + r.capacity + ' guests</div></div>' : '')
+      + (r.capacity ? '<div class="fg"><label style="font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)">Capacity</label><div style="font-size:.85rem;color:var(--navy)">' + r.capacity + ' guests max</div></div>' : '')
+      + (r.price ? '<div class="fg"><label style="font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)">Value per session</label><div style="font-size:.9rem;font-weight:700;color:var(--b700)">R' + r.price.toLocaleString() + '</div></div>' : '')
       + '</div>'
       + '</div>'
       + '<div style="padding:0 20px 16px;display:flex;gap:9px;flex-wrap:wrap">' + actions + '</div>'
@@ -9480,12 +9549,55 @@ async function admConfirmReject(id) {
 }
 
 async function admApproveRequest(btn) {
-  var id   = btn.dataset.id;
-  var card = btn.closest('.atbl');
-  var req  = admReqDB.find(function(r){ return r.id == id; });
+  var id  = btn.dataset.id;
+  var req = admReqDB.find(function(r){ return r.id == id; });
   if (!req) { admToast('Request not found'); return; }
 
-  btn.disabled = true; btn.textContent = 'Approving…';
+  // Build box options with suggested box highlighted based on price
+  var price = req.price || 0;
+  var boxes = Object.entries(boxDB).map(function(e){
+    var suggested = '';
+    if (price > 0) {
+      var diff = Math.abs(e[1].price - price);
+      if (diff === Math.min(...Object.values(boxDB).map(b => Math.abs(b.price - price)))) {
+        suggested = ' ⭐ suggested';
+      }
+    }
+    return '<option value="'+e[0]+'"'+suggested.includes('⭐')?'':''+'>' + e[1].name + ' (R'+e[1].price.toLocaleString()+')' + suggested + '</option>';
+  }).join('');
+
+  var modal = document.getElementById('adm-modal');
+  document.getElementById('adm-modal-body').innerHTML =
+    '<h3 style="font-size:1.1rem;color:var(--navy);margin-bottom:6px"><i class="fa fa-check-circle" style="color:var(--green)"></i> Approve experience</h3>'
+    + '<p style="font-size:.8rem;color:var(--muted);margin-bottom:14px">Assign this experience to a box before approving. The suggested box is based on the experience value (R' + price.toLocaleString() + ').</p>'
+    + '<div class="fg"><label>Assign to box *</label><select class="fi" id="approve-box-select">' + boxes + '</select></div>'
+    + (price ? '<div style="font-size:.75rem;color:var(--b700);margin-bottom:14px"><i class="fa fa-circle-dollar-sign"></i> Experience value: <strong>R' + price.toLocaleString() + '</strong></div>' : '')
+    + '<div style="display:flex;gap:9px">'
+    + '<button class="btn bgreen bsm" onclick="admConfirmApprove(\'' + id + '\')"><i class="fa fa-check-circle"></i> Approve &amp; go live</button>'
+    + '<button class="btn bg bsm" onclick="document.getElementById(\'adm-modal\').style.display=\'none\'">Cancel</button>'
+    + '</div>';
+  modal.style.display = 'flex';
+}
+
+async function admConfirmApprove(id) {
+  var req    = admReqDB.find(function(r){ return r.id == id; });
+  var boxId  = (document.getElementById('approve-box-select')||{value:''}).value;
+  document.getElementById('adm-modal').style.display = 'none';
+  if (!req) return;
+
+  var card = [...document.querySelectorAll('.atbl')].find(function(c){
+    return c.querySelector('[data-id="'+id+'"]');
+  });
+  var btn = card ? card.querySelector('[onclick*="admApproveRequest"]') : null;
+
+  // Store box selection on req
+  req.assigned_box = boxId;
+
+  // Temporarily set btn state for UI feedback
+  if (btn) { btn.disabled = true; btn.textContent = 'Approving…'; }
+
+  var card2 = btn ? btn.closest('.atbl') : null;
+  if (!card2 && card) card2 = card;
 
   try {
     // 1. Update status in partner_requests
@@ -9493,7 +9605,8 @@ async function admApproveRequest(btn) {
     if (upd.error) throw upd.error;
 
     // 2. Insert into experiences table so it goes live
-    var expId = (req.experience_name||'exp').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'') + '-' + id;
+    var expId  = (req.experience_name||'exp').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'') + '-' + id;
+    var boxId  = req.assigned_box || 'couples-retreat';
     var isEdit = req.is_edit === true;
     if (isEdit) {
       // Update existing experience
@@ -9518,6 +9631,8 @@ async function admApproveRequest(btn) {
         is_active:        true,
         image_url:        req.image_url || '',
         image_urls:       req.image_urls || [],
+        box_id:           boxId || null,
+        price:            req.price || null,
       });
       if (ins.error && !ins.error.message.includes('duplicate')) throw ins.error;
     }
@@ -9534,11 +9649,12 @@ async function admApproveRequest(btn) {
 
     // 4. Update UI
     req.status = 'approved';
-    card.style.background = '#f0fdf4';
-    card.querySelector('.atbl-hdr').style.background = 'linear-gradient(135deg,#d1fae5,#a7f3d0)';
-    card.querySelector('.sbadge').className = 'sbadge sb-a';
-    card.querySelector('.sbadge').textContent = 'Approved';
-    card.querySelector('[style*="gap:9px"]').innerHTML = '<div style="display:flex;align-items:center;gap:7px;font-size:.78rem;color:var(--green);font-weight:600"><i class="fa fa-circle-check"></i> ' + (isEdit?'Edit approved — experience updated':'Approved and live in database') + '</div>';
+    if (card2) {
+      card2.style.background = '#f0fdf4';
+      var hdr2 = card2.querySelector('.atbl-hdr'); if(hdr2) hdr2.style.background = 'linear-gradient(135deg,#d1fae5,#a7f3d0)';
+      var sb2  = card2.querySelector('.sbadge');   if(sb2)  { sb2.className = 'sbadge sb-a'; sb2.textContent = 'Approved'; }
+      var act2 = card2.querySelector('[style*="gap:9px"]'); if(act2) act2.innerHTML = '<div style="display:flex;align-items:center;gap:7px;font-size:.78rem;color:var(--green);font-weight:600"><i class="fa fa-circle-check"></i> ' + (isEdit?'Edit approved — experience updated':'Approved and live') + ' · ' + (boxDB[boxId]?boxDB[boxId].name:boxId) + '</div>';
+    }
 
     // 5. Update badges
     var pending = admReqDB.filter(function(r){ return r.status === 'pending'; }).length;
@@ -9547,7 +9663,7 @@ async function admApproveRequest(btn) {
 
     admToast('✅ "' + req.experience_name + '" ' + (isEdit?'edit approved':'approved and live'));
   } catch(e) {
-    btn.disabled = false; btn.innerHTML = '<i class="fa fa-check-circle"></i> Approve &amp; add to DB';
+    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa fa-check-circle"></i> Approve &amp; add to DB'; }
     admToast('Error: ' + (e.message||'unknown'));
   }
 }
@@ -10258,6 +10374,7 @@ async function submitNewExp() {
   const imgUrls = [imgUrl, (document.getElementById('pp-new-img-1')||{value:''}).value.trim(), (document.getElementById('pp-new-img-2')||{value:''}).value.trim()].filter(Boolean);
   const city    = (document.getElementById('pp-new-city')     ||{value:''}).value.trim();
   const capacity = parseInt((document.getElementById('pp-new-capacity')||{value:''}).value) || null;
+  const price    = parseInt((document.getElementById('pp-new-price')||{value:''}).value)    || null;
 
   if (!name) { admToast('Please enter an experience name.'); return; }
 
@@ -10274,6 +10391,7 @@ async function submitNewExp() {
       image_urls:      imgUrls,
       city:            city   || '',
       capacity:        capacity,
+      price:           price,
     });
     if (error) throw error;
   } catch(e) {
@@ -10282,7 +10400,7 @@ async function submitNewExp() {
   }
 
   // Clear form fields
-  ['pp-new-name','pp-new-desc','pp-new-img-0','pp-new-img-1','pp-new-img-2','pp-new-city','pp-new-capacity'].forEach(function(id){ var el=document.getElementById(id); if(el) el.value=''; });
+  ['pp-new-name','pp-new-desc','pp-new-img-0','pp-new-img-1','pp-new-img-2','pp-new-city','pp-new-capacity','pp-new-price'].forEach(function(id){ var el=document.getElementById(id); if(el) el.value=''; });
   [0,1,2].forEach(function(i){ var s=document.getElementById('pp-img-slot-'+i); if(s){ s.style.backgroundImage=''; s.style.backgroundSize=''; s.innerHTML='<i class="fa fa-image" style="font-size:1.4rem;color:var(--b400);margin-bottom:4px"></i>' + (i===0?'Main image':'Photo '+(i+1)); } });
   ppImgUrls=['','',''];
   var typeEl = document.getElementById('pp-new-type'); if(typeEl) typeEl.value='';
