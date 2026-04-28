@@ -10384,7 +10384,14 @@ async function loadPartnerExperiences() {
         + '<div style="font-size:.73rem;color:var(--muted)">' + (e.description ? e.description.substring(0,80) + (e.description.length>80?'…':'') : '') + '</div>'
         + '</div>'
         + '<div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0">'
-        + '<button class="btn bg bsm" onclick="ppEditExperience(\'' + (e.id||'') + '\',\'' + name + '\',\'' + desc + '\',\'' + (e.reservation_type||'') + '\',\'' + city + '\',' + (e.capacity||2) + ')"><i class="fa fa-pen"></i> Edit</button>'
+        + '<button class="btn bg bsm pp-edit-btn"'
+        + ' data-id="'   + (e.id||'')                  + '"'
+        + ' data-name="' + (e.name||'').replace(/"/g,'&quot;') + '"'
+        + ' data-desc="' + (e.description||'').replace(/"/g,'&quot;').substring(0,300) + '"'
+        + ' data-type="' + (e.reservation_type||'')    + '"'
+        + ' data-city="' + (e.location||'').replace(/"/g,'&quot;') + '"'
+        + ' data-cap="'  + (e.capacity||2)             + '"'
+        + '><i class="fa fa-pen"></i> Edit</button>'
         + '</div>'
         + '</div>';
     });
@@ -10418,6 +10425,21 @@ async function loadPartnerExperiences() {
     });
 
     listEl.innerHTML = html;
+
+    // Attach edit button listeners (avoids onclick string escaping issues)
+    listEl.querySelectorAll('.pp-edit-btn').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        ppEditExperience(
+          this.dataset.id,
+          this.dataset.name,
+          this.dataset.desc,
+          this.dataset.type,
+          this.dataset.city,
+          parseInt(this.dataset.cap) || 2
+        );
+      });
+    });
+
   } catch(e) {
     listEl.innerHTML = '<div style="padding:16px;color:#dc2626;font-size:.82rem">Error: ' + (e.message||'unknown') + '</div>';
   }
@@ -10431,7 +10453,7 @@ function ppEditExperience(expId, expName, expDesc, expType, expCity, expCap) {
   }).join('');
   document.getElementById('adm-modal-body').innerHTML =
     '<h3 style="font-size:1.1rem;color:var(--navy);margin-bottom:4px"><i class="fa fa-pen" style="color:var(--b500)"></i> Edit experience</h3>'
-    + '<p style="font-size:.78rem;color:var(--muted);margin-bottom:14px">Your changes will go back to WowBox admin for review before going live.</p>'
+    + '<div style="display:flex;align-items:center;gap:8px;background:var(--b50);border:1px solid var(--b200);border-radius:8px;padding:9px 12px;margin-bottom:14px;font-size:.78rem;color:var(--b700)"><i class="fa fa-info-circle" style="color:var(--b500)"></i> Your changes will be sent to WowBox admin for review before going live. You will receive an email once approved.</div>'
     + '<div class="fg"><label>Experience name *</label><input class="fi" id="pp-edit-name" value="'+expName+'"></div>'
     + '<div class="fg"><label>Type</label><select class="fi" id="pp-edit-type">'+typeOpts+'</select></div>'
     + '<div class="fg"><label>Description</label><textarea class="fi" id="pp-edit-desc" rows="3" style="resize:vertical">'+expDesc+'</textarea></div>'
