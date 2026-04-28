@@ -5429,12 +5429,28 @@ tr:hover td{background:var(--b50)}
               <!-- Images (up to 4) -->
               <div class="fg">
                 <label>Images (up to 4)</label>
-                <div style="display:grid;gap:12px;margin-top:6px">
-                  <div style="display:grid;grid-template-columns:1fr 84px;gap:10px;align-items:end"><div><div style="font-size:.7rem;font-weight:600;color:var(--b600);margin-bottom:4px">Main image *</div><input class="fi" id="aef-img-0" placeholder="https://..." oninput="admPreviewExpImg(0,this.value)"></div><img id="aef-prev-0" src="" style="width:80px;height:58px;object-fit:cover;border-radius:var(--rs);border:2px solid var(--b300);display:none"></div>
-                  <div style="display:grid;grid-template-columns:1fr 84px;gap:10px;align-items:end"><div><div style="font-size:.7rem;color:var(--muted);margin-bottom:4px">Image 2</div><input class="fi" id="aef-img-1" placeholder="https://..." oninput="admPreviewExpImg(1,this.value)"></div><img id="aef-prev-1" src="" style="width:80px;height:58px;object-fit:cover;border-radius:var(--rs);border:1.5px solid var(--border);display:none"></div>
-                  <div style="display:grid;grid-template-columns:1fr 84px;gap:10px;align-items:end"><div><div style="font-size:.7rem;color:var(--muted);margin-bottom:4px">Image 3</div><input class="fi" id="aef-img-2" placeholder="https://..." oninput="admPreviewExpImg(2,this.value)"></div><img id="aef-prev-2" src="" style="width:80px;height:58px;object-fit:cover;border-radius:var(--rs);border:1.5px solid var(--border);display:none"></div>
-                  <div style="display:grid;grid-template-columns:1fr 84px;gap:10px;align-items:end"><div><div style="font-size:.7rem;color:var(--muted);margin-bottom:4px">Image 4</div><input class="fi" id="aef-img-3" placeholder="https://..." oninput="admPreviewExpImg(3,this.value)"></div><img id="aef-prev-3" src="" style="width:80px;height:58px;object-fit:cover;border-radius:var(--rs);border:1.5px solid var(--border);display:none"></div>
+                <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:6px">
+                  <div id="aef-img-slot-0" class="pp-img-slot" onclick="document.getElementById('aef-img-file-0').click()" style="border:2px dashed var(--b300);border-radius:var(--rs);aspect-ratio:4/3;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;background:var(--b50);font-size:.7rem;color:var(--muted);text-align:center;padding:8px;transition:background .15s">
+                    <i class="fa fa-image" style="font-size:1.3rem;color:var(--b400);margin-bottom:4px"></i>Main *
+                  </div>
+                  <div id="aef-img-slot-1" class="pp-img-slot" onclick="document.getElementById('aef-img-file-1').click()" style="border:2px dashed var(--b300);border-radius:var(--rs);aspect-ratio:4/3;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;background:var(--b50);font-size:.7rem;color:var(--muted);text-align:center;padding:8px;transition:background .15s">
+                    <i class="fa fa-image" style="font-size:1.3rem;color:var(--b400);margin-bottom:4px"></i>Photo 2
+                  </div>
+                  <div id="aef-img-slot-2" class="pp-img-slot" onclick="document.getElementById('aef-img-file-2').click()" style="border:2px dashed var(--b300);border-radius:var(--rs);aspect-ratio:4/3;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;background:var(--b50);font-size:.7rem;color:var(--muted);text-align:center;padding:8px;transition:background .15s">
+                    <i class="fa fa-image" style="font-size:1.3rem;color:var(--b400);margin-bottom:4px"></i>Photo 3
+                  </div>
+                  <div id="aef-img-slot-3" class="pp-img-slot" onclick="document.getElementById('aef-img-file-3').click()" style="border:2px dashed var(--b300);border-radius:var(--rs);aspect-ratio:4/3;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;background:var(--b50);font-size:.7rem;color:var(--muted);text-align:center;padding:8px;transition:background .15s">
+                    <i class="fa fa-image" style="font-size:1.3rem;color:var(--b400);margin-bottom:4px"></i>Photo 4
+                  </div>
                 </div>
+                <input type="file" id="aef-img-file-0" accept="image/*" style="display:none" onchange="aefHandleImgUpload(0,this.files[0])">
+                <input type="file" id="aef-img-file-1" accept="image/*" style="display:none" onchange="aefHandleImgUpload(1,this.files[0])">
+                <input type="file" id="aef-img-file-2" accept="image/*" style="display:none" onchange="aefHandleImgUpload(2,this.files[0])">
+                <input type="file" id="aef-img-file-3" accept="image/*" style="display:none" onchange="aefHandleImgUpload(3,this.files[0])">
+                <input type="hidden" id="aef-img-0">
+                <input type="hidden" id="aef-img-1">
+                <input type="hidden" id="aef-img-2">
+                <input type="hidden" id="aef-img-3">
               </div>
               <div class="fg"><label>Status</label>
                 <select class="fi" id="aef-status" style="width:auto">
@@ -9628,15 +9644,13 @@ function admShowExpFormById(expId) {
   document.getElementById('aef-name').value    = e.name    || '';
   document.getElementById('aef-partner').value = e.partner || '';
   document.getElementById('aef-loc').value     = e.loc     || '';
+  document.getElementById('aef-lat').value     = e.lat     || '';
+  document.getElementById('aef-lng').value     = e.lng     || '';
   document.getElementById('aef-desc').value    = e.desc    || '';
   const rtSel = document.getElementById('aef-rt');
   if (rtSel) rtSel.value = e.reservation_type || '';
   admExpTypeNote();
-  const imgs4 = [e.img, e.img2, e.img3].filter(Boolean);
-  for (let i = 0; i < 4; i++) {
-    const inp = document.getElementById('aef-img-' + i);
-    if (inp) { inp.value = imgs4[i] || ''; admPreviewExpImg(i, imgs4[i] || ''); }
-  }
+  aefLoadImgSlots([e.img, e.img2, e.img3].filter(Boolean));
 }
 
 function renderBoxGallery() {
@@ -9777,17 +9791,18 @@ function admShowExpForm(expId) {
   document.getElementById('aef-name').value    = d?.name    || '';
   document.getElementById('aef-partner').value = d?.partner || '';
   document.getElementById('aef-loc').value     = d?.loc     || '';
+  document.getElementById('aef-lat').value     = d?.lat     || '';
+  document.getElementById('aef-lng').value     = d?.lng     || '';
   document.getElementById('aef-cap').value     = d?.cap     || '';
   document.getElementById('aef-desc').value    = d?.desc    || '';
   const rtSel = document.getElementById('aef-rt');
   rtSel.value = d?.rt || '';
   admExpTypeNote();
-  // Populate 4 image fields
-  const expImgs = d?.imgs || (d?.img ? [d.img] : []);
-  for (let i = 0; i < 4; i++) {
-    const inp = document.getElementById('aef-img-' + i);
-    if (inp) { inp.value = expImgs[i] || ''; admPreviewExpImg(i, expImgs[i] || ''); }
-  }
+  // Populate image slots
+  const expImgs = d?.imgs || (d?.img ? [d.img, d.img2, d.img3].filter(Boolean) : []);
+  if (expImgs.length) { aefLoadImgSlots(expImgs); } else { aefResetImgSlots(); }
+  // Re-attach Places autocomplete (form was hidden before)
+  if (window.google) initPlacesAC('aef-loc', 'aef-lat', 'aef-lng');
 }
 function admHideExpForm() {
   document.getElementById('adm-exp-form').style.display = 'none';
@@ -10991,6 +11006,68 @@ async function submitNewExp() {
 
 // ── Partner image uploads ──
 var ppImgUrls = ['', '', ''];
+
+/* ── Admin experience form — image upload (same bucket as partner) ── */
+var aefImgUrls = ['','','',''];
+
+function aefResetImgSlots() {
+  aefImgUrls = ['','','',''];
+  for (var i = 0; i < 4; i++) {
+    var slot = document.getElementById('aef-img-slot-' + i);
+    var hidden = document.getElementById('aef-img-' + i);
+    var label = i === 0 ? 'Main *' : 'Photo ' + (i + 1);
+    if (slot) {
+      slot.style.backgroundImage = '';
+      slot.style.backgroundSize = '';
+      slot.innerHTML = '<i class="fa fa-image" style="font-size:1.3rem;color:var(--b400);margin-bottom:4px"></i>' + label;
+    }
+    if (hidden) hidden.value = '';
+  }
+}
+
+function aefLoadImgSlots(urls) {
+  aefImgUrls = ['','','',''];
+  (urls || []).forEach(function(url, i) {
+    if (i > 3 || !url) return;
+    aefImgUrls[i] = url;
+    var hidden = document.getElementById('aef-img-' + i);
+    if (hidden) hidden.value = url;
+    var slot = document.getElementById('aef-img-slot-' + i);
+    if (slot) {
+      slot.style.backgroundImage = 'url(' + url + ')';
+      slot.style.backgroundSize = 'cover';
+      slot.style.backgroundPosition = 'center';
+      slot.innerHTML = '<div style="background:rgba(0,0,0,.4);border-radius:var(--rs);padding:3px 7px;font-size:.65rem;color:#fff"><i class="fa fa-check"></i> Loaded</div>';
+    }
+  });
+}
+
+async function aefHandleImgUpload(slot, file) {
+  if (!file) return;
+  var slotEl  = document.getElementById('aef-img-slot-' + slot);
+  var hiddenEl = document.getElementById('aef-img-' + slot);
+  if (!file.type.startsWith('image/')) { admToast('Please upload an image file'); return; }
+  if (file.size > 5 * 1024 * 1024)   { admToast('Image must be under 5 MB'); return; }
+  if (slotEl) slotEl.innerHTML = '<i class="fa fa-spinner fa-spin" style="font-size:1.2rem;color:var(--b500)"></i>';
+  try {
+    var ext  = file.name.split('.').pop();
+    var path = 'experiences/admin_' + slot + '_' + Date.now() + '.' + ext;
+    var res  = await db_client.storage.from('experience-images').upload(path, file, { contentType: file.type, upsert: true });
+    if (res.error) throw res.error;
+    var url = db_client.storage.from('experience-images').getPublicUrl(path).data.publicUrl;
+    aefImgUrls[slot] = url;
+    if (hiddenEl) hiddenEl.value = url;
+    if (slotEl) {
+      slotEl.style.backgroundImage = 'url(' + url + ')';
+      slotEl.style.backgroundSize = 'cover';
+      slotEl.style.backgroundPosition = 'center';
+      slotEl.innerHTML = '<div style="background:rgba(0,0,0,.4);border-radius:var(--rs);padding:3px 7px;font-size:.65rem;color:#fff"><i class="fa fa-check"></i> Uploaded</div>';
+    }
+  } catch(e) {
+    if (slotEl) slotEl.innerHTML = '<i class="fa fa-triangle-exclamation" style="color:#dc2626"></i><div style="font-size:.65rem;color:#dc2626;margin-top:2px">Failed</div>';
+    admToast('Upload failed: ' + (e.message || 'unknown'));
+  }
+}
 
 async function ppHandleImgUpload(slot, file) {
   if (!file) return;
