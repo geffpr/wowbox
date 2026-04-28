@@ -364,6 +364,25 @@ function wlUpdateExpHearts() {
   });
 }
 
+// ── Experience Detail page wishlist button helpers ──────────────────
+function expDetailUpdateWlBtn() {
+  var btn = document.getElementById('exp-wl-btn');
+  if (!btn) return;
+  var id = appState.currentExpId;
+  if (!id) return;
+  var inWl = wlHasExp(id);
+  btn.innerHTML = inWl
+    ? '<i class="fa fa-heart" style="color:#ef4444"></i>'
+    : '<i class="fa fa-heart" style="color:rgba(255,255,255,.85)"></i>';
+  btn.title = inWl ? 'Remove from wishlist' : 'Save to wishlist';
+}
+function expDetailToggleWl() {
+  var id = appState.currentExpId;
+  if (!id) return;
+  wlToggleExp(id, null);
+  expDetailUpdateWlBtn();
+}
+
 function wlRender() {
   var listEl = document.getElementById('dash-wishlist-list');
   if (!listEl) return;
