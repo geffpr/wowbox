@@ -88,6 +88,37 @@ export default async function handler(req, res) {
     }
 
     // ─── PARTNER EMAILS ──────────────────────────────────────────────
+    if (type === 'experience_approved') {
+      emails.push({
+        to:      order.email,
+        subject: order.isEdit ? `✅ Your experience edit has been approved` : `🎉 Your experience is now live on WowBox`,
+        html: baseTemplate(`
+          <h1 style="font-family:'Georgia',serif;font-size:1.7rem;color:#1e3a5f">${order.isEdit ? 'Edit approved!' : 'Experience approved!'}</h1>
+          <p style="color:#64748b">Hi ${order.name || 'there'},</p>
+          <p style="color:#64748b">Your experience <strong>${order.experienceName}</strong> has been ${order.isEdit ? 'updated and is now live' : 'approved and is now live on WowBox'}. Guests can now discover and book it.</p>
+          <div style="margin:24px 0"><a href="https://wowbox.co.za/partner" style="background:#16a34a;color:#fff;text-decoration:none;padding:14px 28px;border-radius:99px;font-weight:700;font-size:.95rem">View in Partner Portal →</a></div>
+        `)
+      });
+    }
+
+    if (type === 'experience_rejected') {
+      emails.push({
+        to:      order.email,
+        subject: `WowBox — Experience review: action required`,
+        html: baseTemplate(`
+          <h1 style="font-family:'Georgia',serif;font-size:1.6rem;color:#1e3a5f">Experience review — action required</h1>
+          <p style="color:#64748b">Hi ${order.name || 'there'},</p>
+          <p style="color:#64748b">Your experience <strong>${order.experienceName}</strong> could not be approved at this time.</p>
+          <div style="margin:20px 0;padding:16px 20px;background:#fef2f2;border-left:4px solid #ef4444;border-radius:8px">
+            <p style="font-weight:700;color:#991b1b;margin:0 0 6px">Reason from admin:</p>
+            <p style="color:#7f1d1d;margin:0">${order.note || 'Please contact us for more details.'}</p>
+          </div>
+          <p style="color:#64748b">You can update your submission and resubmit from your Partner Portal.</p>
+          <div style="margin:24px 0"><a href="https://wowbox.co.za/partner" style="background:#1e3a5f;color:#fff;text-decoration:none;padding:14px 28px;border-radius:99px;font-weight:700;font-size:.95rem">Go to Partner Portal →</a></div>
+        `)
+      });
+    }
+
     if (type === 'partner_application') {
       // Notify admin
       emails.push({

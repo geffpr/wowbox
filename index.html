@@ -9374,25 +9374,38 @@ async function renderAdmRequests() {
     var isPending  = r.status === 'pending';
     var isApproved = r.status === 'approved';
     var isRejected = r.status === 'rejected';
-    var dateStr = r.created_at ? new Date(r.created_at).toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'}) : '—';
-    var badgeCls = isPending ? 'sbadge sb-p' : isApproved ? 'sbadge sb-a' : 'sbadge sb-e';
-    var badgeTxt = isPending ? 'Pending' : isApproved ? 'Approved' : 'Rejected';
-    var hdrBg    = isPending ? 'linear-gradient(135deg,#fffbeb,#fef3c7)' : isApproved ? 'linear-gradient(135deg,#d1fae5,#a7f3d0)' : 'linear-gradient(135deg,#fee2e2,#fecaca)';
-    var cardBg   = isApproved ? 'background:#f0fdf4' : isRejected ? 'opacity:.6' : '';
-    var typeLabel = typeLabels[r.category] || r.category || '—';
+    var isEdit     = r.is_edit === true;
+    var dateStr    = r.created_at ? new Date(r.created_at).toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'}) : '—';
+    var badgeCls   = isPending ? 'sbadge sb-p' : isApproved ? 'sbadge sb-a' : 'sbadge sb-e';
+    var badgeTxt   = isPending ? (isEdit ? '✏️ Edit pending' : 'Pending') : isApproved ? 'Approved' : 'Rejected';
+    var hdrBg      = isPending ? (isEdit ? 'linear-gradient(135deg,#eff6ff,#dbeafe)' : 'linear-gradient(135deg,#fffbeb,#fef3c7)') : isApproved ? 'linear-gradient(135deg,#d1fae5,#a7f3d0)' : 'linear-gradient(135deg,#fee2e2,#fecaca)';
+    var cardBg     = isApproved ? 'background:#f0fdf4' : isRejected ? 'opacity:.6' : '';
+    var typeLabel  = typeLabels[r.category] || r.category || '—';
+
+    var imgHtml = '';
+    if (r.image_url) {
+      var allImgs = [r.image_url].concat(r.image_urls||[]).filter(function(u,i,a){ return u && a.indexOf(u)===i; }).slice(0,3);
+      imgHtml = '<div class="fg" style="margin-bottom:0"><label style="font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)">Images</label>'
+        + '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px">'
+        + allImgs.map(function(u){ return '<img src="'+u+'" onclick="admImgLightbox(this)" style="width:100px;height:70px;object-fit:cover;border-radius:6px;border:1px solid var(--border);cursor:zoom-in" title="Click to enlarge">'; }).join('')
+        + '</div></div>';
+    }
 
     var actions = isPending
-      ? '<button class="btn bgreen bsm" onclick="admApproveRequest(this)" data-id="' + r.id + '"><i class="fa fa-check-circle"></i> Approve &amp; add to DB</button>'
+      ? '<button class="btn bgreen bsm" onclick="admApproveRequest(this)" data-id="' + r.id + '"><i class="fa fa-check-circle"></i> ' + (isEdit ? 'Approve edit' : 'Approve &amp; add to DB') + '</button>'
         + '<button class="btn bg bsm" onclick="admEditRequest(this)" data-id="' + r.id + '"><i class="fa fa-pen"></i> Edit before approving</button>'
-        + '<button class="btn bg bsm" style="color:var(--red);border-color:#fca5a5" onclick="admRejectRequest(this)" data-id="' + r.id + '"><i class="fa fa-xmark-circle"></i> Reject</button>'
+        + '<button class="btn bg bsm" style="color:var(--red);border-color:#fca5a5" onclick="admRejectWithNote(\'' + r.id + '\')"><i class="fa fa-xmark-circle"></i> Reject</button>'
       : isApproved
-        ? '<div style="display:flex;align-items:center;gap:7px;font-size:.78rem;color:var(--green);font-weight:600"><i class="fa fa-circle-check"></i> Approved and live in database</div>'
+        ? '<div style="display:flex;align-items:center;gap:7px;font-size:.78rem;color:var(--green);font-weight:600"><i class="fa fa-circle-check"></i> ' + (isEdit ? 'Edit approved' : 'Approved and live') + '</div>'
         : '<div style="font-size:.78rem;color:#dc2626;font-weight:600"><i class="fa fa-xmark-circle"></i> Rejected</div>';
 
     return '<div class="atbl" style="margin-bottom:16px;' + cardBg + '">'
       + '<div class="atbl-hdr" style="background:' + hdrBg + '">'
-      + '<div style="display:flex;align-items:center;gap:10px"><span style="font-size:.82rem;font-weight:600;color:var(--navy)">' + (r.experience_name||'Untitled') + '</span>'
-      + '<span class="' + badgeCls + '">' + badgeTxt + '</span></div>'
+      + '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">'
+      + '<span style="font-size:.82rem;font-weight:600;color:var(--navy)">' + (r.experience_name||'Untitled') + '</span>'
+      + '<span class="' + badgeCls + '">' + badgeTxt + '</span>'
+      + (isEdit ? '<span style="font-size:.7rem;background:var(--b100);color:var(--b700);padding:2px 8px;border-radius:99px;font-weight:600"><i class="fa fa-pen"></i> Edit request</span>' : '')
+      + '</div>'
       + '<div style="font-size:.73rem;color:var(--muted)">' + (r.partner_name||r.partner_email||'Unknown partner') + ' · Submitted ' + dateStr + '</div>'
       + '</div>'
       + '<div style="padding:16px 20px;display:grid;grid-template-columns:1fr 1fr;gap:16px">'
@@ -9400,7 +9413,7 @@ async function renderAdmRequests() {
       + '<div class="fg"><label style="font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)">Experience</label><div style="font-size:.85rem;color:var(--navy)">' + (r.experience_name||'—') + '</div></div>'
       + '<div class="fg"><label style="font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)">Type</label><div style="font-size:.85rem;color:var(--navy)">' + typeLabel + '</div></div>'
       + '<div class="fg" style="margin-bottom:0"><label style="font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)">Description</label><div style="font-size:.82rem;color:var(--slate);line-height:1.6">' + (r.description||'—') + '</div></div>'
-      + (r.image_url ? '<div class="fg" style="margin-bottom:0"><label style="font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)">Images</label><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px">' + [r.image_url].concat(r.image_urls||[]).filter((u,i,a)=>u&&a.indexOf(u)===i).slice(0,3).map(function(u){ return '<img src="'+u+'" style="width:100px;height:70px;object-fit:cover;border-radius:6px;border:1px solid var(--border)">'; }).join('') + '</div></div>' : '')
+      + imgHtml
       + '</div>'
       + '<div>'
       + '<div class="fg"><label style="font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)">Partner</label><div style="font-size:.85rem;color:var(--navy)">' + (r.partner_name||'—') + (r.city ? ' · ' + r.city : '') + '</div></div>'
@@ -9411,6 +9424,59 @@ async function renderAdmRequests() {
       + '<div style="padding:0 20px 16px;display:flex;gap:9px;flex-wrap:wrap">' + actions + '</div>'
       + '</div>';
   }).join('');
+}
+
+function admImgLightbox(el) {
+  var url = typeof el === 'string' ? el : (el.dataset && el.dataset.src ? el.dataset.src : el.src);
+  var existing = document.getElementById('img-lightbox');
+  if (existing) existing.remove();
+  var lb = document.createElement('div');
+  lb.id = 'img-lightbox';
+  lb.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:9999;display:flex;align-items:center;justify-content:center;cursor:zoom-out';
+  lb.innerHTML = '<img src="' + url + '" style="max-width:90vw;max-height:90vh;border-radius:12px;box-shadow:0 8px 40px rgba(0,0,0,.5)">'
+    + '<button style="position:absolute;top:20px;right:24px;background:none;border:none;color:#fff;font-size:1.6rem;cursor:pointer;line-height:1" onclick="document.getElementById(\'img-lightbox\').remove()"><i class="fa fa-xmark"></i></button>';
+  lb.addEventListener('click', function(e){ if(e.target===lb||e.target.tagName==='IMG') lb.remove(); });
+  document.body.appendChild(lb);
+}
+
+function admRejectWithNote(id) {
+  var req  = admReqDB.find(function(r){ return r.id == id; });
+  if (!req) return;
+  var modal = document.getElementById('adm-modal');
+  document.getElementById('adm-modal-body').innerHTML =
+    '<h3 style="font-size:1.1rem;color:var(--navy);margin-bottom:6px"><i class="fa fa-xmark-circle" style="color:#dc2626"></i> Reject experience</h3>'
+    + '<p style="font-size:.8rem;color:var(--muted);margin-bottom:14px">Add a note to help the partner understand what needs to be improved before resubmitting.</p>'
+    + '<div class="fg"><label>Reason for rejection *</label><textarea class="fi" id="reject-note" rows="4" style="resize:vertical" placeholder="e.g. Please provide clearer images, add more detail to the description, or clarify the capacity…"></textarea></div>'
+    + '<div style="display:flex;gap:9px;margin-top:6px">'
+    + '<button class="btn bg bsm" style="color:#dc2626;border-color:#fca5a5" onclick="admConfirmReject(\'' + id + '\')"><i class="fa fa-xmark-circle"></i> Reject &amp; notify</button>'
+    + '<button class="btn bg bsm" onclick="document.getElementById(\'adm-modal\').style.display=\'none\'">Cancel</button>'
+    + '</div>';
+  modal.style.display = 'flex';
+}
+
+async function admConfirmReject(id) {
+  var note = (document.getElementById('reject-note')||{value:''}).value.trim();
+  if (!note) { admToast('Please add a reason for rejection.'); return; }
+  var req  = admReqDB.find(function(r){ return r.id == id; });
+  document.getElementById('adm-modal').style.display = 'none';
+
+  try {
+    await db_client.from('partner_requests').update({ status: 'rejected', reviewed_at: new Date().toISOString(), rejection_note: note }).eq('id', id);
+    if (req) req.status = 'rejected';
+
+    // Send email with note
+    if (req && req.partner_email) {
+      sendOrderEmail('experience_rejected', {
+        email:          req.partner_email,
+        name:           req.partner_name || 'Partner',
+        experienceName: req.experience_name,
+        note:           note,
+      });
+    }
+
+    await renderAdmRequests();
+    admToast('Experience rejected — partner notified with your note.');
+  } catch(e) { admToast('Error: ' + (e.message||'unknown')); }
 }
 
 async function admApproveRequest(btn) {
@@ -9428,32 +9494,58 @@ async function admApproveRequest(btn) {
 
     // 2. Insert into experiences table so it goes live
     var expId = (req.experience_name||'exp').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'') + '-' + id;
-    var ins = await db_client.from('experiences').insert({
-      id:               expId,
-      name:             req.experience_name,
-      description:      req.description,
-      reservation_type: req.category || 'activity',
-      partner_name:     req.partner_name || '',
-      location:         req.city || '',
-      is_active:        true,
-      image_url:        req.image_url || '',
-    });
-    if (ins.error && !ins.error.message.includes('duplicate')) throw ins.error;
+    var isEdit = req.is_edit === true;
+    if (isEdit) {
+      // Update existing experience
+      await db_client.from('experiences').update({
+        name:             req.experience_name,
+        description:      req.description,
+        reservation_type: req.category || 'activity',
+        location:         req.city || '',
+        image_url:        req.image_url || '',
+        image_urls:       req.image_urls || [],
+        partner_email:    req.partner_email || '',
+      }).eq('id', req.experience_id || expId);
+    } else {
+      var ins = await db_client.from('experiences').insert({
+        id:               expId,
+        name:             req.experience_name,
+        description:      req.description,
+        reservation_type: req.category || 'activity',
+        partner_name:     req.partner_name || '',
+        partner_email:    req.partner_email || '',
+        location:         req.city || '',
+        is_active:        true,
+        image_url:        req.image_url || '',
+        image_urls:       req.image_urls || [],
+      });
+      if (ins.error && !ins.error.message.includes('duplicate')) throw ins.error;
+    }
 
-    // 3. Update UI
+    // 3. Send approval email to partner
+    if (req.partner_email) {
+      sendOrderEmail('experience_approved', {
+        email:          req.partner_email,
+        name:           req.partner_name || 'Partner',
+        experienceName: req.experience_name,
+        isEdit:         isEdit,
+      });
+    }
+
+    // 4. Update UI
     req.status = 'approved';
     card.style.background = '#f0fdf4';
     card.querySelector('.atbl-hdr').style.background = 'linear-gradient(135deg,#d1fae5,#a7f3d0)';
     card.querySelector('.sbadge').className = 'sbadge sb-a';
     card.querySelector('.sbadge').textContent = 'Approved';
-    card.querySelector('[style*="gap:9px"]').innerHTML = '<div style="display:flex;align-items:center;gap:7px;font-size:.78rem;color:var(--green);font-weight:600"><i class="fa fa-circle-check"></i> Approved and live in database</div>';
+    card.querySelector('[style*="gap:9px"]').innerHTML = '<div style="display:flex;align-items:center;gap:7px;font-size:.78rem;color:var(--green);font-weight:600"><i class="fa fa-circle-check"></i> ' + (isEdit?'Edit approved — experience updated':'Approved and live in database') + '</div>';
 
-    // 4. Update badges
+    // 5. Update badges
     var pending = admReqDB.filter(function(r){ return r.status === 'pending'; }).length;
     var b1 = document.getElementById('adm-req-badge'); if (b1) b1.textContent = pending || '';
     var b2 = document.getElementById('adm-req-count-badge'); if (b2) { b2.textContent = pending + ' pending review'; b2.style.display = pending ? '' : 'none'; }
 
-    admToast('✅ "' + req.experience_name + '" approved and added to the database');
+    admToast('✅ "' + req.experience_name + '" ' + (isEdit?'edit approved':'approved and live'));
   } catch(e) {
     btn.disabled = false; btn.innerHTML = '<i class="fa fa-check-circle"></i> Approve &amp; add to DB';
     admToast('Error: ' + (e.message||'unknown'));
@@ -10195,6 +10287,7 @@ async function submitNewExp() {
   ppImgUrls=['','',''];
   var typeEl = document.getElementById('pp-new-type'); if(typeEl) typeEl.value='';
 
+  admToast('✅ Experience submitted — admin will review within 1–2 business days');
   form.innerHTML = `
     <div style="text-align:center;padding:24px 0">
       <div style="font-size:2rem;margin-bottom:10px">✅</div>
@@ -10202,6 +10295,7 @@ async function submitNewExp() {
       <p style="font-size:.78rem;color:var(--muted)">WowBox admin will review your submission within 1–2 business days. You'll receive an email notification when it's approved.</p>
       <button class="btn bg bsm" style="margin-top:14px" onclick="toggleAddForm()">Close</button>
     </div>`;
+  loadPartnerExperiences();
 }
 
 // ── Partner image uploads ──
@@ -10275,7 +10369,10 @@ async function loadPartnerExperiences() {
 
     // Approved / live experiences
     approved.forEach(function(e) {
-      var img = e.image_url || 'https://images.unsplash.com/photo-1528360983277-13d401cdc186?w=300&auto=format&fit=crop';
+      var img  = e.image_url || 'https://images.unsplash.com/photo-1528360983277-13d401cdc186?w=300&auto=format&fit=crop';
+      var name = (e.name||'Untitled').replace(/'/g,"\'");
+      var desc = (e.description||'').replace(/'/g,"\'");
+      var city = (e.location||'').replace(/'/g,"\'");
       html += '<div class="pp-exp-card">'
         + '<div class="pp-exp-thumb"><img src="' + img + '" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:var(--rs)"></div>'
         + '<div style="flex:1">'
@@ -10285,6 +10382,9 @@ async function loadPartnerExperiences() {
         + '</div>'
         + '<div style="font-size:.75rem;color:var(--muted);margin-bottom:4px">' + (typeLabels[e.reservation_type]||e.reservation_type||'—') + (e.location ? ' · ' + e.location : '') + '</div>'
         + '<div style="font-size:.73rem;color:var(--muted)">' + (e.description ? e.description.substring(0,80) + (e.description.length>80?'…':'') : '') + '</div>'
+        + '</div>'
+        + '<div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0">'
+        + '<button class="btn bg bsm" onclick="ppEditExperience(\'' + (e.id||'') + '\',\'' + name + '\',\'' + desc + '\',\'' + (e.reservation_type||'') + '\',\'' + city + '\',' + (e.capacity||2) + ')"><i class="fa fa-pen"></i> Edit</button>'
         + '</div>'
         + '</div>';
     });
@@ -10309,6 +10409,58 @@ async function loadPartnerExperiences() {
     listEl.innerHTML = html;
   } catch(e) {
     listEl.innerHTML = '<div style="padding:16px;color:#dc2626;font-size:.82rem">Error: ' + (e.message||'unknown') + '</div>';
+  }
+}
+
+// ── Partner: edit a published experience ──
+function ppEditExperience(expId, expName, expDesc, expType, expCity, expCap) {
+  var modal = document.getElementById('adm-modal');
+  var typeOpts = ['accommodation','dining','wellness','activity','rental','event'].map(function(t){
+    return '<option value="'+t+'"'+(expType===t?' selected':'')+'>'+t.charAt(0).toUpperCase()+t.slice(1)+'</option>';
+  }).join('');
+  document.getElementById('adm-modal-body').innerHTML =
+    '<h3 style="font-size:1.1rem;color:var(--navy);margin-bottom:4px"><i class="fa fa-pen" style="color:var(--b500)"></i> Edit experience</h3>'
+    + '<p style="font-size:.78rem;color:var(--muted);margin-bottom:14px">Your changes will go back to WowBox admin for review before going live.</p>'
+    + '<div class="fg"><label>Experience name *</label><input class="fi" id="pp-edit-name" value="'+expName+'"></div>'
+    + '<div class="fg"><label>Type</label><select class="fi" id="pp-edit-type">'+typeOpts+'</select></div>'
+    + '<div class="fg"><label>Description</label><textarea class="fi" id="pp-edit-desc" rows="3" style="resize:vertical">'+expDesc+'</textarea></div>'
+    + '<div class="fg-row"><div class="fg"><label>City</label><input class="fi" id="pp-edit-city" value="'+expCity+'"></div>'
+    + '<div class="fg"><label>Capacity</label><input class="fi" id="pp-edit-cap" type="number" value="'+expCap+'"></div></div>'
+    + '<div style="display:flex;gap:9px;margin-top:6px">'
+    + '<button class="btn bp bsm" onclick="ppSubmitEdit(\'' + expId + '\')"><i class="fa fa-paper-plane"></i> Submit for review</button>'
+    + '<button class="btn bg bsm" onclick="document.getElementById(\'adm-modal\').style.display=\'none\'">Cancel</button>'
+    + '</div>';
+  modal.style.display = 'flex';
+}
+
+async function ppSubmitEdit(expId) {
+  var name = (document.getElementById('pp-edit-name')||{value:''}).value.trim();
+  var type = (document.getElementById('pp-edit-type')||{value:''}).value;
+  var desc = (document.getElementById('pp-edit-desc')||{value:''}).value.trim();
+  var city = (document.getElementById('pp-edit-city')||{value:''}).value.trim();
+  var cap  = parseInt((document.getElementById('pp-edit-cap')||{value:''}).value) || null;
+  if (!name) { admToast('Please enter an experience name'); return; }
+
+  document.getElementById('adm-modal').style.display = 'none';
+
+  try {
+    var err = await db_client.from('partner_requests').insert({
+      experience_name: name,
+      description:     desc,
+      category:        type,
+      city:            city,
+      capacity:        cap,
+      status:          'pending',
+      is_edit:         true,
+      experience_id:   expId,
+      partner_name:    (currentUser && currentUser.displayName) ? currentUser.displayName : '',
+      partner_email:   (currentUser && currentUser.email)       ? currentUser.email       : '',
+    });
+    if (err.error) throw err.error;
+    admToast('✅ Edit submitted for review — WowBox admin will review within 1–2 days');
+    loadPartnerExperiences();
+  } catch(e) {
+    admToast('Error submitting edit: ' + (e.message||'unknown'));
   }
 }
 
