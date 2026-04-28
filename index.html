@@ -4606,7 +4606,26 @@ tr:hover td{background:var(--b50)}
             <div class="fg"><label>Capacity (guests)</label><input class="fi" id="pp-new-capacity" type="number" placeholder="2"></div>
             <div class="fg"><label>City / Location</label><input class="fi" id="pp-new-city" placeholder="Cape Town, Stellenbosch…"></div>
           </div>
-          <div class="fg"><label>Image URL (optional)</label><input class="fi" id="pp-new-img" placeholder="https://…"></div>
+          <div class="fg">
+            <label style="display:block;margin-bottom:6px">Experience images <span style="font-weight:400;color:var(--muted)">(up to 3 — first is the main image)</span></label>
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px">
+              <div id="pp-img-slot-0" class="pp-img-slot" onclick="document.getElementById('pp-img-file-0').click()" style="border:2px dashed var(--b300);border-radius:var(--rs);aspect-ratio:4/3;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;background:var(--b50);transition:background .15s;font-size:.72rem;color:var(--muted);text-align:center;padding:8px">
+                <i class="fa fa-image" style="font-size:1.4rem;color:var(--b400);margin-bottom:4px"></i>Main image
+              </div>
+              <div id="pp-img-slot-1" class="pp-img-slot" onclick="document.getElementById('pp-img-file-1').click()" style="border:2px dashed var(--b300);border-radius:var(--rs);aspect-ratio:4/3;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;background:var(--b50);transition:background .15s;font-size:.72rem;color:var(--muted);text-align:center;padding:8px">
+                <i class="fa fa-image" style="font-size:1.4rem;color:var(--b400);margin-bottom:4px"></i>Photo 2
+              </div>
+              <div id="pp-img-slot-2" class="pp-img-slot" onclick="document.getElementById('pp-img-file-2').click()" style="border:2px dashed var(--b300);border-radius:var(--rs);aspect-ratio:4/3;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;background:var(--b50);transition:background .15s;font-size:.72rem;color:var(--muted);text-align:center;padding:8px">
+                <i class="fa fa-image" style="font-size:1.4rem;color:var(--b400);margin-bottom:4px"></i>Photo 3
+              </div>
+            </div>
+            <input type="file" id="pp-img-file-0" accept="image/*" style="display:none" onchange="ppHandleImgUpload(0,this.files[0])">
+            <input type="file" id="pp-img-file-1" accept="image/*" style="display:none" onchange="ppHandleImgUpload(1,this.files[0])">
+            <input type="file" id="pp-img-file-2" accept="image/*" style="display:none" onchange="ppHandleImgUpload(2,this.files[0])">
+            <input type="hidden" id="pp-new-img-0">
+            <input type="hidden" id="pp-new-img-1">
+            <input type="hidden" id="pp-new-img-2">
+          </div>
           <div style="background:#fef3c7;border:1px solid #fcd34d;border-radius:var(--rs);padding:10px 14px;font-size:.75rem;color:#92400e;margin-bottom:16px">
             <i class="fa fa-triangle-exclamation"></i> New experiences are submitted for WowBox admin review before going live. This usually takes 1–2 business days.
           </div>
@@ -4618,51 +4637,7 @@ tr:hover td{background:var(--b50)}
 
         <!-- Experience list -->
         <div id="pp-exp-list">
-          <div class="pp-exp-card">
-            <div class="pp-exp-thumb"><img src="https://images.unsplash.com/photo-1559508551-44bff1de756b?q=80&w=300&auto=format&fit=crop" alt=""></div>
-            <div style="flex:1">
-              <div style="display:flex;align-items:center;gap:9px;margin-bottom:4px">
-                <span style="font-size:.92rem;font-weight:600;color:var(--navy)">The Vineyard Retreat</span>
-                <span class="ps-active">Active</span>
-              </div>
-              <div style="font-size:.75rem;color:var(--muted);margin-bottom:7px">🏨 Accommodation · Stellenbosch · 2 guests</div>
-              <div style="font-size:.73rem;color:var(--muted)">34 bookings · ★ 4.9 · 187 reviews</div>
-            </div>
-            <div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0">
-              <button class="btn bg bsm" onclick="showEditExpModal()"><i class="fa fa-pen"></i> Edit</button>
-              <button class="btn bg bsm" style="color:var(--red);border-color:#fca5a5"><i class="fa fa-eye-slash"></i> Deactivate</button>
-            </div>
-          </div>
-
-          <div class="pp-exp-card">
-            <div class="pp-exp-thumb"><img src="https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?q=80&w=300&auto=format&fit=crop" alt=""></div>
-            <div style="flex:1">
-              <div style="display:flex;align-items:center;gap:9px;margin-bottom:4px">
-                <span style="font-size:.92rem;font-weight:600;color:var(--navy)">Estate Wine Tasting</span>
-                <span class="ps-active">Active</span>
-              </div>
-              <div style="font-size:.75rem;color:var(--muted);margin-bottom:7px">🎉 Event · Stellenbosch · Up to 8 guests</div>
-              <div style="font-size:.73rem;color:var(--muted)">13 bookings · ★ 4.8 · 42 reviews</div>
-            </div>
-            <div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0">
-              <button class="btn bg bsm" onclick="showEditExpModal()"><i class="fa fa-pen"></i> Edit</button>
-              <button class="btn bg bsm" style="color:var(--red);border-color:#fca5a5"><i class="fa fa-eye-slash"></i> Deactivate</button>
-            </div>
-          </div>
-
-          <div class="pp-exp-card" style="border-color:#fcd34d;background:#fffbeb">
-            <div class="pp-exp-thumb" style="background:var(--border);display:flex;align-items:center;justify-content:center;border-radius:var(--rs)">
-              <i class="fa fa-clock" style="color:var(--muted);font-size:1.4rem"></i>
-            </div>
-            <div style="flex:1">
-              <div style="display:flex;align-items:center;gap:9px;margin-bottom:4px">
-                <span style="font-size:.92rem;font-weight:600;color:var(--navy)">Cellar Dinner for Two</span>
-                <span class="ps-pending">Pending review</span>
-              </div>
-              <div style="font-size:.75rem;color:var(--muted);margin-bottom:7px">🍽️ Dining · Submitted 12 Apr 2025</div>
-              <div style="font-size:.73rem;color:#92400e"><i class="fa fa-info-circle"></i> Under review by WowBox admin — usually 1–2 days.</div>
-            </div>
-          </div>
+          <div style="text-align:center;padding:32px;color:var(--muted)"><i class="fa fa-spinner fa-spin" style="font-size:1.5rem"></i><div style="margin-top:8px;font-size:.85rem">Loading your experiences…</div></div>
         </div>
       </div>
 
@@ -9425,6 +9400,7 @@ async function renderAdmRequests() {
       + '<div class="fg"><label style="font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)">Experience</label><div style="font-size:.85rem;color:var(--navy)">' + (r.experience_name||'—') + '</div></div>'
       + '<div class="fg"><label style="font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)">Type</label><div style="font-size:.85rem;color:var(--navy)">' + typeLabel + '</div></div>'
       + '<div class="fg" style="margin-bottom:0"><label style="font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)">Description</label><div style="font-size:.82rem;color:var(--slate);line-height:1.6">' + (r.description||'—') + '</div></div>'
+      + (r.image_url ? '<div class="fg" style="margin-bottom:0"><label style="font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)">Images</label><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px">' + [r.image_url].concat(r.image_urls||[]).filter((u,i,a)=>u&&a.indexOf(u)===i).slice(0,3).map(function(u){ return '<img src="'+u+'" style="width:100px;height:70px;object-fit:cover;border-radius:6px;border:1px solid var(--border)">'; }).join('') + '</div></div>' : '')
       + '</div>'
       + '<div>'
       + '<div class="fg"><label style="font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)">Partner</label><div style="font-size:.85rem;color:var(--navy)">' + (r.partner_name||'—') + (r.city ? ' · ' + r.city : '') + '</div></div>'
@@ -10170,8 +10146,10 @@ function initPartnerPage() {
   // Show Test Pro FAB on partner page
   const fab = document.getElementById('test-pro-fab');
   if (fab) fab.style.display = 'flex';
-  // Load real bookings
+  // Load real bookings and experiences
   loadPartnerBookings();
+  loadPartnerExperiences();
+  ppImgUrls = ['','',''];
 }
 
 function toggleAddForm() {
@@ -10184,7 +10162,8 @@ async function submitNewExp() {
   const name    = (document.getElementById('pp-new-name')     ||{value:''}).value.trim();
   const rt      = (document.getElementById('pp-new-type')     ||{value:''}).value || 'activity';
   const desc    = (document.getElementById('pp-new-desc')     ||{value:''}).value.trim();
-  const imgUrl  = (document.getElementById('pp-new-img')      ||{value:''}).value.trim();
+  const imgUrl  = (document.getElementById('pp-new-img-0')||{value:''}).value.trim();
+  const imgUrls = [imgUrl, (document.getElementById('pp-new-img-1')||{value:''}).value.trim(), (document.getElementById('pp-new-img-2')||{value:''}).value.trim()].filter(Boolean);
   const city    = (document.getElementById('pp-new-city')     ||{value:''}).value.trim();
   const capacity = parseInt((document.getElementById('pp-new-capacity')||{value:''}).value) || null;
 
@@ -10199,7 +10178,8 @@ async function submitNewExp() {
       status:          'pending',
       partner_name:    (currentUser && currentUser.displayName) ? currentUser.displayName : '',
       partner_email:   (currentUser && currentUser.email)       ? currentUser.email       : '',
-      image_url:       imgUrl || '',
+      image_url:       imgUrls[0] || '',
+      image_urls:      imgUrls,
       city:            city   || '',
       capacity:        capacity,
     });
@@ -10210,7 +10190,9 @@ async function submitNewExp() {
   }
 
   // Clear form fields
-  ['pp-new-name','pp-new-desc','pp-new-img','pp-new-city','pp-new-capacity'].forEach(function(id){ var el=document.getElementById(id); if(el) el.value=''; });
+  ['pp-new-name','pp-new-desc','pp-new-img-0','pp-new-img-1','pp-new-img-2','pp-new-city','pp-new-capacity'].forEach(function(id){ var el=document.getElementById(id); if(el) el.value=''; });
+  [0,1,2].forEach(function(i){ var s=document.getElementById('pp-img-slot-'+i); if(s){ s.style.backgroundImage=''; s.style.backgroundSize=''; s.innerHTML='<i class="fa fa-image" style="font-size:1.4rem;color:var(--b400);margin-bottom:4px"></i>' + (i===0?'Main image':'Photo '+(i+1)); } });
+  ppImgUrls=['','',''];
   var typeEl = document.getElementById('pp-new-type'); if(typeEl) typeEl.value='';
 
   form.innerHTML = `
@@ -10220,6 +10202,114 @@ async function submitNewExp() {
       <p style="font-size:.78rem;color:var(--muted)">WowBox admin will review your submission within 1–2 business days. You'll receive an email notification when it's approved.</p>
       <button class="btn bg bsm" style="margin-top:14px" onclick="toggleAddForm()">Close</button>
     </div>`;
+}
+
+// ── Partner image uploads ──
+var ppImgUrls = ['', '', ''];
+
+async function ppHandleImgUpload(slot, file) {
+  if (!file) return;
+  var slot_el  = document.getElementById('pp-img-slot-' + slot);
+  var hidden_el = document.getElementById('pp-new-img-' + slot);
+  if (!file.type.startsWith('image/')) { admToast('Please upload an image file'); return; }
+  if (file.size > 5 * 1024 * 1024) { admToast('Image must be under 5 MB'); return; }
+
+  // Show loading state
+  if (slot_el) slot_el.innerHTML = '<i class="fa fa-spinner fa-spin" style="font-size:1.2rem;color:var(--b500)"></i>';
+
+  try {
+    var ext  = file.name.split('.').pop();
+    var path = 'experiences/' + (currentUser ? currentUser.id : 'anon') + '_' + slot + '_' + Date.now() + '.' + ext;
+    var res  = await db_client.storage.from('experience-images').upload(path, file, { contentType: file.type, upsert: true });
+    if (res.error) throw res.error;
+    var urlRes = db_client.storage.from('experience-images').getPublicUrl(path);
+    var url = urlRes.data.publicUrl;
+    ppImgUrls[slot] = url;
+    if (hidden_el) hidden_el.value = url;
+    if (slot_el) {
+      slot_el.style.backgroundImage = 'url(' + url + ')';
+      slot_el.style.backgroundSize = 'cover';
+      slot_el.style.backgroundPosition = 'center';
+      slot_el.innerHTML = '<div style="background:rgba(0,0,0,.4);border-radius:var(--rs);padding:4px 8px;font-size:.68rem;color:#fff"><i class="fa fa-check"></i> Uploaded</div>';
+    }
+  } catch(e) {
+    if (slot_el) slot_el.innerHTML = '<i class="fa fa-triangle-exclamation" style="color:#dc2626"></i><div style="font-size:.65rem;color:#dc2626;margin-top:2px">Upload failed</div>';
+    admToast('Image upload failed: ' + (e.message || 'unknown'));
+  }
+}
+
+// ── Load partner's own experiences from Supabase ──
+async function loadPartnerExperiences() {
+  var listEl = document.getElementById('pp-exp-list');
+  if (!listEl) return;
+  var partnerEmail = currentUser ? currentUser.email : '';
+  var partnerName  = (currentUser && currentUser.partnerName) ? currentUser.partnerName
+                   : (currentUser && currentUser.displayName) ? currentUser.displayName : '';
+
+  listEl.innerHTML = '<div style="text-align:center;padding:32px;color:var(--muted)"><i class="fa fa-spinner fa-spin" style="font-size:1.5rem"></i></div>';
+
+  try {
+    // Load approved experiences
+    var expRes = await db_client.from('experiences')
+      .select('*')
+      .eq('partner_email', partnerEmail)
+      .order('created_at', { ascending: false });
+
+    // Load pending requests
+    var reqRes = await db_client.from('partner_requests')
+      .select('*')
+      .eq('partner_email', partnerEmail)
+      .order('created_at', { ascending: false });
+
+    var approved = (expRes.data || []);
+    var requests = (reqRes.data || []);
+
+    if (!approved.length && !requests.length) {
+      listEl.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted)"><i class="fa fa-star" style="font-size:2rem;opacity:.2;display:block;margin-bottom:12px"></i><div style="font-size:.88rem">No experiences yet. Add your first one above.</div></div>';
+      return;
+    }
+
+    var typeLabels = { dining:'🍽️ Dining', wellness:'🧖 Wellness', activity:'🏄 Activity', accommodation:'🏨 Accommodation', rental:'🚗 Rental', event:'🎉 Event' };
+
+    var html = '';
+
+    // Approved / live experiences
+    approved.forEach(function(e) {
+      var img = e.image_url || 'https://images.unsplash.com/photo-1528360983277-13d401cdc186?w=300&auto=format&fit=crop';
+      html += '<div class="pp-exp-card">'
+        + '<div class="pp-exp-thumb"><img src="' + img + '" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:var(--rs)"></div>'
+        + '<div style="flex:1">'
+        + '<div style="display:flex;align-items:center;gap:9px;margin-bottom:4px">'
+        + '<span style="font-size:.92rem;font-weight:600;color:var(--navy)">' + (e.name||'Untitled') + '</span>'
+        + '<span class="ps-active">Live</span>'
+        + '</div>'
+        + '<div style="font-size:.75rem;color:var(--muted);margin-bottom:4px">' + (typeLabels[e.reservation_type]||e.reservation_type||'—') + (e.location ? ' · ' + e.location : '') + '</div>'
+        + '<div style="font-size:.73rem;color:var(--muted)">' + (e.description ? e.description.substring(0,80) + (e.description.length>80?'…':'') : '') + '</div>'
+        + '</div>'
+        + '</div>';
+    });
+
+    // Pending requests
+    requests.filter(function(r){ return r.status === 'pending'; }).forEach(function(r) {
+      html += '<div class="pp-exp-card" style="border-color:#fcd34d;background:#fffbeb">'
+        + '<div class="pp-exp-thumb" style="background:var(--border);display:flex;align-items:center;justify-content:center;border-radius:var(--rs)">'
+        + (r.image_url ? '<img src="' + r.image_url + '" style="width:100%;height:100%;object-fit:cover;border-radius:var(--rs)">' : '<i class="fa fa-clock" style="color:var(--muted);font-size:1.4rem"></i>')
+        + '</div>'
+        + '<div style="flex:1">'
+        + '<div style="display:flex;align-items:center;gap:9px;margin-bottom:4px">'
+        + '<span style="font-size:.92rem;font-weight:600;color:var(--navy)">' + (r.experience_name||'Untitled') + '</span>'
+        + '<span class="ps-pending">Pending review</span>'
+        + '</div>'
+        + '<div style="font-size:.75rem;color:var(--muted);margin-bottom:4px">' + (typeLabels[r.category]||r.category||'—') + (r.city ? ' · ' + r.city : '') + '</div>'
+        + '<div style="font-size:.73rem;color:#92400e"><i class="fa fa-info-circle"></i> Under review by WowBox admin.</div>'
+        + '</div>'
+        + '</div>';
+    });
+
+    listEl.innerHTML = html;
+  } catch(e) {
+    listEl.innerHTML = '<div style="padding:16px;color:#dc2626;font-size:.82rem">Error: ' + (e.message||'unknown') + '</div>';
+  }
 }
 
 async function loadPartnerBookings() {
