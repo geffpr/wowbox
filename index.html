@@ -7035,6 +7035,8 @@ async function renderBoxGrids() {
     const resolvedImg = b.image_url || localImgs[b.id] || boxDB[b.id]?.img || '';
     // Only use real images from Supabase — never duplicate the main image to fill 4 slots
     const rawImgs = b.images && Array.isArray(b.images) ? b.images.filter(function(u){ return u && u.trim(); }) : [];
+    // image_url is always the source of truth for the main image — keep images[] in sync
+    if (resolvedImg && rawImgs[0] !== resolvedImg) rawImgs[0] = resolvedImg;
     const resolvedImgs = rawImgs.length ? rawImgs : (resolvedImg ? [resolvedImg] : []);
     boxDB[b.id] = {
       name:   b.name,
