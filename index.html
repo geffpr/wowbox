@@ -7033,9 +7033,9 @@ async function renderBoxGrids() {
   // Sync final boxDB — Supabase image_url takes priority, then local fallback
   boxes.forEach(b => {
     const resolvedImg = b.image_url || localImgs[b.id] || boxDB[b.id]?.img || '';
-    const resolvedImgs = (b.images && b.images.length)
-      ? b.images
-      : [resolvedImg, resolvedImg, resolvedImg, resolvedImg];
+    // Only use real images from Supabase — never duplicate the main image to fill 4 slots
+    const rawImgs = b.images && Array.isArray(b.images) ? b.images.filter(function(u){ return u && u.trim(); }) : [];
+    const resolvedImgs = rawImgs.length ? rawImgs : (resolvedImg ? [resolvedImg] : []);
     boxDB[b.id] = {
       name:   b.name,
       price:  b.price,
@@ -7084,7 +7084,7 @@ function loadProduct(boxId) {
   document.getElementById('qty-v').textContent = '1';
   document.getElementById('qty-total').textContent = 'R' + b.price.toLocaleString();
 
-  const imgs = thumbImages[boxId] || b.images || [b.img, b.img, b.img, b.img];
+  const imgs = (b.images && b.images.length) ? b.images : (b.img ? [b.img] : []);
   // Set main image from imgs array
   document.getElementById('prod-img').src = imgs[0] || b.img || '';
   // Use DOM to avoid URL corruption in onclick attributes
@@ -10060,7 +10060,11 @@ function abfResetImgSlots() {
 
 function abfLoadImgSlots(urls) {
   abfImgUrls = ['','','',''];
-  (urls || []).forEach(function(url, i) {
+  // Deduplicate: if all URLs are the same (old fallback), only keep slot 0
+  var unique = (urls || []).filter(function(u){ return u && u.trim(); });
+  var allSame = unique.length > 1 && unique.every(function(u){ return u === unique[0]; });
+  if (allSame) unique = [unique[0]]; // only load slot 0 if all were identical
+  unique.forEach(function(url, i) {
     if (i > 3 || !url) return;
     abfImgUrls[i] = url;
     var hidden = document.getElementById('abf-img-' + i);
@@ -10233,8 +10237,10 @@ async function admSaveBox() {
       if (boxDB[appState.editingBoxId]) {
         boxDB[appState.editingBoxId].name  = name;
         boxDB[appState.editingBoxId].price = price;
-        if (mainImg) boxDB[appState.editingBoxId].img = mainImg;
         boxDB[appState.editingBoxId].desc  = desc;
+        if (mainImg) boxDB[appState.editingBoxId].img = mainImg;
+        // Sync images array so gallery updates immediately without page refresh
+        boxDB[appState.editingBoxId].images = allImgs.filter(function(u){ return u && u.trim(); });
       }
     } else {
       // INSERT new box — generate a slug ID from name
