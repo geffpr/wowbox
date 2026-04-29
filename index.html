@@ -8265,7 +8265,7 @@ function renderCheckout() {
   document.getElementById('ck-type-info').textContent = typeInfos[ct]||'';
   document.getElementById('ck-items-preview').innerHTML = appState.cart.map(c=>`
     <div style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--border)">
-      <img src="${c.img}&h=80&w=80&auto=format&fit=crop" style="width:52px;height:44px;border-radius:var(--rs);object-fit:cover;flex-shrink:0" loading="lazy">
+      <img src="${safeImg(c.img,'h=80&w=80&auto=format&fit=crop')}" style="width:52px;height:44px;border-radius:var(--rs);object-fit:cover;flex-shrink:0" loading="lazy">
       <div style="flex:1"><div style="font-size:.87rem;font-weight:600;color:var(--navy)">${c.name}</div><div style="font-size:.73rem;color:var(--muted)">${c.type==='ebox'?'📧 E-Box':'📦 Physical'} · Qty: ${c.qty}</div></div>
       <div style="font-family:'Cormorant Garamond',serif;font-size:1.1rem;font-weight:700;color:var(--b700)">R${(c.price*c.qty).toLocaleString()}</div>
     </div>`).join('');
