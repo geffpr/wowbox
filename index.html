@@ -5325,12 +5325,28 @@ tr:hover td{background:var(--b50)}
             <!-- Images (up to 4) -->
             <div class="fg">
               <label>Images (up to 4)</label>
-              <div style="display:grid;gap:12px;margin-top:6px">
-                <div style="display:grid;grid-template-columns:1fr 84px;gap:10px;align-items:end"><div><div style="font-size:.7rem;font-weight:600;color:var(--b600);margin-bottom:4px">Main image *</div><input class="fi" id="abf-img-0" placeholder="https://..." oninput="admPreviewBoxImg(0,this.value)"></div><img id="abf-prev-0" src="" style="width:80px;height:58px;object-fit:cover;border-radius:var(--rs);border:2px solid var(--b300);display:none"></div>
-                <div style="display:grid;grid-template-columns:1fr 84px;gap:10px;align-items:end"><div><div style="font-size:.7rem;color:var(--muted);margin-bottom:4px">Image 2</div><input class="fi" id="abf-img-1" placeholder="https://..." oninput="admPreviewBoxImg(1,this.value)"></div><img id="abf-prev-1" src="" style="width:80px;height:58px;object-fit:cover;border-radius:var(--rs);border:1.5px solid var(--border);display:none"></div>
-                <div style="display:grid;grid-template-columns:1fr 84px;gap:10px;align-items:end"><div><div style="font-size:.7rem;color:var(--muted);margin-bottom:4px">Image 3</div><input class="fi" id="abf-img-2" placeholder="https://..." oninput="admPreviewBoxImg(2,this.value)"></div><img id="abf-prev-2" src="" style="width:80px;height:58px;object-fit:cover;border-radius:var(--rs);border:1.5px solid var(--border);display:none"></div>
-                <div style="display:grid;grid-template-columns:1fr 84px;gap:10px;align-items:end"><div><div style="font-size:.7rem;color:var(--muted);margin-bottom:4px">Image 4</div><input class="fi" id="abf-img-3" placeholder="https://..." oninput="admPreviewBoxImg(3,this.value)"></div><img id="abf-prev-3" src="" style="width:80px;height:58px;object-fit:cover;border-radius:var(--rs);border:1.5px solid var(--border);display:none"></div>
+              <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:6px">
+                <div id="abf-img-slot-0" class="pp-img-slot" onclick="document.getElementById('abf-img-file-0').click()" style="border:2px dashed var(--b300);border-radius:var(--rs);aspect-ratio:4/3;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;background:var(--b50);font-size:.7rem;color:var(--muted);text-align:center;padding:8px;transition:background .15s">
+                  <i class="fa fa-image" style="font-size:1.3rem;color:var(--b400);margin-bottom:4px"></i>Main *
+                </div>
+                <div id="abf-img-slot-1" class="pp-img-slot" onclick="document.getElementById('abf-img-file-1').click()" style="border:2px dashed var(--b300);border-radius:var(--rs);aspect-ratio:4/3;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;background:var(--b50);font-size:.7rem;color:var(--muted);text-align:center;padding:8px;transition:background .15s">
+                  <i class="fa fa-image" style="font-size:1.3rem;color:var(--b400);margin-bottom:4px"></i>Photo 2
+                </div>
+                <div id="abf-img-slot-2" class="pp-img-slot" onclick="document.getElementById('abf-img-file-2').click()" style="border:2px dashed var(--b300);border-radius:var(--rs);aspect-ratio:4/3;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;background:var(--b50);font-size:.7rem;color:var(--muted);text-align:center;padding:8px;transition:background .15s">
+                  <i class="fa fa-image" style="font-size:1.3rem;color:var(--b400);margin-bottom:4px"></i>Photo 3
+                </div>
+                <div id="abf-img-slot-3" class="pp-img-slot" onclick="document.getElementById('abf-img-file-3').click()" style="border:2px dashed var(--b300);border-radius:var(--rs);aspect-ratio:4/3;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;background:var(--b50);font-size:.7rem;color:var(--muted);text-align:center;padding:8px;transition:background .15s">
+                  <i class="fa fa-image" style="font-size:1.3rem;color:var(--b400);margin-bottom:4px"></i>Photo 4
+                </div>
               </div>
+              <input type="file" id="abf-img-file-0" accept="image/*" style="display:none" onchange="abfHandleImgUpload(0,this.files[0])">
+              <input type="file" id="abf-img-file-1" accept="image/*" style="display:none" onchange="abfHandleImgUpload(1,this.files[0])">
+              <input type="file" id="abf-img-file-2" accept="image/*" style="display:none" onchange="abfHandleImgUpload(2,this.files[0])">
+              <input type="file" id="abf-img-file-3" accept="image/*" style="display:none" onchange="abfHandleImgUpload(3,this.files[0])">
+              <input type="hidden" id="abf-img-0">
+              <input type="hidden" id="abf-img-1">
+              <input type="hidden" id="abf-img-2">
+              <input type="hidden" id="abf-img-3">
             </div>
             <div style="display:flex;gap:9px">
               <button class="btn bp bsm" onclick="admSaveBox()"><i class="fa fa-check"></i> Save box</button>
@@ -9596,7 +9612,7 @@ function renderAdmin() {
 
 /* ── Gift Boxes ── */
 function admShowBoxForm(boxId) {
-  appState.editingBoxId = boxId || null;  // track which box we're editing
+  appState.editingBoxId = boxId || null;
   const form = document.getElementById('adm-box-form-wrap');
   form.style.display = 'block';
   form.scrollIntoView({behavior:'smooth', block:'nearest'});
@@ -9604,25 +9620,17 @@ function admShowBoxForm(boxId) {
   if (boxId) {
     const b = boxDB[boxId];
     title.textContent = 'Edit — ' + b.name;
-    document.getElementById('abf-name').value = b.name;
+    document.getElementById('abf-name').value  = b.name;
     document.getElementById('abf-price').value = b.price;
-    document.getElementById('abf-desc').value = b.desc;
-    // Pre-populate 4 image fields
+    document.getElementById('abf-desc').value  = b.desc;
     const imgs4 = (b.images && b.images.length) ? b.images : (b.img ? [b.img] : []);
-    for (let i = 0; i < 4; i++) {
-      const inp = document.getElementById('abf-img-' + i);
-      if (inp) { inp.value = imgs4[i] || ''; admPreviewBoxImg(i, imgs4[i] || ''); }
-    }
+    abfLoadImgSlots(imgs4);
   } else {
     title.textContent = 'Create new gift box';
-    document.getElementById('abf-name').value = '';
+    document.getElementById('abf-name').value  = '';
     document.getElementById('abf-price').value = '';
-    document.getElementById('abf-desc').value = '';
-    for (let i = 0; i < 4; i++) {
-      const inp = document.getElementById('abf-img-' + i);
-      if (inp) inp.value = '';
-      admPreviewBoxImg(i, '');
-    }
+    document.getElementById('abf-desc').value  = '';
+    abfResetImgSlots();
   }
 }
 function admHideBoxForm() {
@@ -9636,6 +9644,68 @@ function admAddBoxImg() {
   admBoxImgUrls.push(url);
   input.value = '';
   renderBoxGallery();
+}
+
+/* ── Admin box form — image upload → gift-boxes bucket ── */
+var abfImgUrls = ['','','',''];
+
+function abfResetImgSlots() {
+  abfImgUrls = ['','','',''];
+  var labels = ['Main *','Photo 2','Photo 3','Photo 4'];
+  for (var i = 0; i < 4; i++) {
+    var slot = document.getElementById('abf-img-slot-' + i);
+    var hidden = document.getElementById('abf-img-' + i);
+    if (slot) {
+      slot.style.backgroundImage = '';
+      slot.style.backgroundSize = '';
+      slot.innerHTML = '<i class="fa fa-image" style="font-size:1.3rem;color:var(--b400);margin-bottom:4px"></i>' + labels[i];
+    }
+    if (hidden) hidden.value = '';
+  }
+}
+
+function abfLoadImgSlots(urls) {
+  abfImgUrls = ['','','',''];
+  (urls || []).forEach(function(url, i) {
+    if (i > 3 || !url) return;
+    abfImgUrls[i] = url;
+    var hidden = document.getElementById('abf-img-' + i);
+    if (hidden) hidden.value = url;
+    var slot = document.getElementById('abf-img-slot-' + i);
+    if (slot) {
+      slot.style.backgroundImage = 'url(' + url + ')';
+      slot.style.backgroundSize = 'cover';
+      slot.style.backgroundPosition = 'center';
+      slot.innerHTML = '<div style="background:rgba(0,0,0,.4);border-radius:var(--rs);padding:3px 7px;font-size:.65rem;color:#fff"><i class="fa fa-check"></i> Loaded</div>';
+    }
+  });
+}
+
+async function abfHandleImgUpload(slot, file) {
+  if (!file) return;
+  var slotEl   = document.getElementById('abf-img-slot-' + slot);
+  var hiddenEl = document.getElementById('abf-img-' + slot);
+  if (!file.type.startsWith('image/')) { admToast('Please upload an image file.'); return; }
+  if (file.size > 5 * 1024 * 1024)    { admToast('Image must be under 5 MB.'); return; }
+  if (slotEl) slotEl.innerHTML = '<i class="fa fa-spinner fa-spin" style="font-size:1.2rem;color:var(--b500)"></i>';
+  try {
+    var ext  = file.name.split('.').pop();
+    var path = 'boxes/box_' + slot + '_' + Date.now() + '.' + ext;
+    var res  = await db_client.storage.from('gift-boxes').upload(path, file, { contentType: file.type, upsert: true });
+    if (res.error) throw res.error;
+    var url  = db_client.storage.from('gift-boxes').getPublicUrl(path).data.publicUrl;
+    abfImgUrls[slot] = url;
+    if (hiddenEl) hiddenEl.value = url;
+    if (slotEl) {
+      slotEl.style.backgroundImage = 'url(' + url + ')';
+      slotEl.style.backgroundSize  = 'cover';
+      slotEl.style.backgroundPosition = 'center';
+      slotEl.innerHTML = '<div style="background:rgba(0,0,0,.4);border-radius:var(--rs);padding:3px 7px;font-size:.65rem;color:#fff"><i class="fa fa-check"></i> Uploaded</div>';
+    }
+  } catch(e) {
+    if (slotEl) slotEl.innerHTML = '<i class="fa fa-triangle-exclamation" style="color:#dc2626"></i><div style="font-size:.65rem;color:#dc2626;margin-top:2px">Failed</div>';
+    admToast('Upload failed: ' + (e.message || 'unknown'));
+  }
 }
 
 function admPreviewBoxImg(idx, url) {
