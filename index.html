@@ -3458,13 +3458,23 @@ tr:hover td{background:var(--b50)}
         </div>
 
         <div class="exp-filters">
-          <input class="efi" type="text" id="exp-search" placeholder="🔍  City, region..." oninput="renderExpList()">
+          <input class="efi" type="text" id="exp-search" placeholder="🔍  Search experiences…" oninput="renderExpList()">
           <select class="efi" id="exp-type-f" onchange="renderExpList()" style="min-width:130px">
             <option value="">All types</option>
-            <option value="hotel">Hotel / Lodge</option>
-            <option value="restaurant">Restaurant</option>
-            <option value="spa">Spa / Wellness</option>
-            <option value="activity">Activity / Tour</option>
+            <option value="accommodation">🏨 Accommodation</option>
+            <option value="dining">🍽️ Dining</option>
+            <option value="wellness">🧖 Wellness</option>
+            <option value="activity">🏄 Activity</option>
+            <option value="culture">🎭 Culture</option>
+            <option value="nature">🦁 Nature</option>
+            <option value="event">🎉 Event</option>
+            <option value="rental">🚗 Rental</option>
+          </select>
+          <select class="efi" id="exp-province-f" onchange="renderExpList()" style="min-width:140px">
+            <option value="">All provinces</option>
+            <option>Gauteng</option><option>Western Cape</option><option>KwaZulu-Natal</option>
+            <option>Eastern Cape</option><option>Limpopo</option><option>Mpumalanga</option>
+            <option>North West</option><option>Free State</option><option>Northern Cape</option>
           </select>
           <select class="efi" id="exp-loc-f" onchange="renderExpList()" style="min-width:140px">
             <option value="">All regions</option>
@@ -3475,6 +3485,28 @@ tr:hover td{background:var(--b50)}
             <option value="duo">👫 Duo (up to 2)</option>
             <option value="group">👥 Group (3+)</option>
           </select>
+          <select class="efi" id="exp-nights-f" onchange="renderExpList()" style="min-width:130px">
+            <option value="">Any duration</option>
+            <option value="0">🌞 Day trip</option>
+            <option value="1">🌙 1 night</option>
+            <option value="2">🌙 2 nights</option>
+            <option value="3">🌙 3+ nights</option>
+          </select>
+          <select class="efi" id="exp-weekend-f" onchange="renderExpList()" style="min-width:140px">
+            <option value="">Any style</option>
+            <option value="romantic">💑 Romantic</option>
+            <option value="family">👨‍👩‍👧 Family</option>
+            <option value="adventure">🏔️ Adventure</option>
+            <option value="relaxation">🧘 Relaxation</option>
+            <option value="gastronomic">🍷 Gastronomic</option>
+            <option value="cultural">🎨 Cultural</option>
+          </select>
+          <label class="efi" style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:.78rem;padding:8px 12px;border:1px solid var(--border);border-radius:var(--rs);background:#fff">
+            <input type="checkbox" id="exp-accessible-f" onchange="renderExpList()" style="cursor:pointer"> ♿ PMR
+          </label>
+          <label class="efi" style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:.78rem;padding:8px 12px;border:1px solid var(--border);border-radius:var(--rs);background:#fff">
+            <input type="checkbox" id="exp-insolite-f" onchange="renderExpList()" style="cursor:pointer"> 🌟 Insolite
+          </label>
         </div>
 
         <div id="view-list">
@@ -4968,6 +5000,75 @@ tr:hover td{background:var(--b50)}
             <input type="hidden" id="pp-new-img-1">
             <input type="hidden" id="pp-new-img-2">
           </div>
+          <div class="fg-row">
+            <div class="fg"><label>Province</label>
+              <select class="fi" id="pp-new-province">
+                <option value="">— Select —</option>
+                <option>Gauteng</option><option>Western Cape</option><option>KwaZulu-Natal</option>
+                <option>Eastern Cape</option><option>Limpopo</option><option>Mpumalanga</option>
+                <option>North West</option><option>Free State</option><option>Northern Cape</option>
+              </select>
+            </div>
+            <div class="fg"><label>Booking type</label>
+              <select class="fi" id="pp-new-booking-type">
+                <option value="on_site">On site (walk-in / call)</option>
+                <option value="online">Online booking</option>
+                <option value="phone">Phone reservation</option>
+              </select>
+            </div>
+            <div class="fg"><label>Nights (0 = day trip)</label>
+              <input class="fi" id="pp-new-nights" type="number" min="0" max="14" placeholder="0" value="0">
+            </div>
+          </div>
+          <div class="fg-row">
+            <div class="fg"><label>Category</label>
+              <select class="fi" id="pp-new-category">
+                <option value="">— Select —</option>
+                <option value="accommodation">🏨 Accommodation</option>
+                <option value="dining">🍽️ Dining</option>
+                <option value="wellness">🧖 Wellness</option>
+                <option value="activity">🏄 Activity</option>
+                <option value="culture">🎭 Culture</option>
+                <option value="nature">🦁 Nature</option>
+                <option value="event">🎉 Event</option>
+                <option value="rental">🚗 Rental</option>
+              </select>
+            </div>
+            <div class="fg"><label>Weekend style</label>
+              <select class="fi" id="pp-new-weekend-type">
+                <option value="">— Select —</option>
+                <option value="romantic">💑 Romantic</option>
+                <option value="family">👨‍👩‍👧 Family</option>
+                <option value="adventure">🏔️ Adventure</option>
+                <option value="relaxation">🧘 Relaxation</option>
+                <option value="gastronomic">🍷 Gastronomic</option>
+                <option value="cultural">🎨 Cultural</option>
+              </select>
+            </div>
+            <div class="fg"><label>Accommodation type</label>
+              <select class="fi" id="pp-new-accom-type">
+                <option value="">— N/A —</option>
+                <option value="hotel">Hotel</option>
+                <option value="lodge">Lodge</option>
+                <option value="boutique">Boutique</option>
+                <option value="guesthouse">Guest House</option>
+                <option value="insolite">Insolite</option>
+                <option value="farm">Farm Stay</option>
+                <option value="villa">Villa</option>
+              </select>
+            </div>
+          </div>
+          <div class="fg-row">
+            <div class="fg"><label>Certification <span style="font-weight:400;color:var(--muted)">(optional)</span></label>
+              <input class="fi" id="pp-new-certification" placeholder="e.g. Eat Out, AA, Fair Trade…">
+            </div>
+            <div class="fg" style="display:flex;align-items:center;gap:12px;padding-top:22px">
+              <input type="checkbox" id="pp-new-accessible" style="width:16px;height:16px;cursor:pointer">
+              <label for="pp-new-accessible" style="cursor:pointer;font-size:.82rem">♿ PMR accessible</label>
+              <input type="checkbox" id="pp-new-insolite" style="width:16px;height:16px;cursor:pointer;margin-left:8px">
+              <label for="pp-new-insolite" style="cursor:pointer;font-size:.82rem">🌟 Insolite</label>
+            </div>
+          </div>
           <div style="background:#fef3c7;border:1px solid #fcd34d;border-radius:var(--rs);padding:10px 14px;font-size:.75rem;color:#92400e;margin-bottom:16px">
             <i class="fa fa-triangle-exclamation"></i> New experiences are submitted for WowBox admin review before going live. This usually takes 1–2 business days.
           </div>
@@ -5596,6 +5697,75 @@ tr:hover td{background:var(--b50)}
                 </div>
               </div>
               <div class="fg"><label>Capacity</label><input class="fi" id="aef-cap" type="number" placeholder="2"></div>
+              <div class="fg-row">
+                <div class="fg"><label>Province</label>
+                  <select class="fi" id="aef-province">
+                    <option value="">— Select —</option>
+                    <option>Gauteng</option><option>Western Cape</option><option>KwaZulu-Natal</option>
+                    <option>Eastern Cape</option><option>Limpopo</option><option>Mpumalanga</option>
+                    <option>North West</option><option>Free State</option><option>Northern Cape</option>
+                  </select>
+                </div>
+                <div class="fg"><label>Booking type</label>
+                  <select class="fi" id="aef-booking-type">
+                    <option value="on_site">On site</option>
+                    <option value="online">Online</option>
+                    <option value="phone">Phone</option>
+                  </select>
+                </div>
+                <div class="fg"><label>Nights (0=day)</label>
+                  <input class="fi" id="aef-nights" type="number" min="0" max="14" value="0">
+                </div>
+              </div>
+              <div class="fg-row">
+                <div class="fg"><label>Category</label>
+                  <select class="fi" id="aef-category">
+                    <option value="">— Select —</option>
+                    <option value="accommodation">🏨 Accommodation</option>
+                    <option value="dining">🍽️ Dining</option>
+                    <option value="wellness">🧖 Wellness</option>
+                    <option value="activity">🏄 Activity</option>
+                    <option value="culture">🎭 Culture</option>
+                    <option value="nature">🦁 Nature</option>
+                    <option value="event">🎉 Event</option>
+                    <option value="rental">🚗 Rental</option>
+                  </select>
+                </div>
+                <div class="fg"><label>Weekend style</label>
+                  <select class="fi" id="aef-weekend-type">
+                    <option value="">— Select —</option>
+                    <option value="romantic">💑 Romantic</option>
+                    <option value="family">👨‍👩‍👧 Family</option>
+                    <option value="adventure">🏔️ Adventure</option>
+                    <option value="relaxation">🧘 Relaxation</option>
+                    <option value="gastronomic">🍷 Gastronomic</option>
+                    <option value="cultural">🎨 Cultural</option>
+                  </select>
+                </div>
+                <div class="fg"><label>Accommodation type</label>
+                  <select class="fi" id="aef-accom-type">
+                    <option value="">— N/A —</option>
+                    <option value="hotel">Hotel</option>
+                    <option value="lodge">Lodge</option>
+                    <option value="boutique">Boutique</option>
+                    <option value="guesthouse">Guest House</option>
+                    <option value="insolite">Insolite</option>
+                    <option value="farm">Farm Stay</option>
+                    <option value="villa">Villa</option>
+                  </select>
+                </div>
+              </div>
+              <div class="fg-row">
+                <div class="fg"><label>Certification</label>
+                  <input class="fi" id="aef-certification" placeholder="Eat Out, AA, Fair Trade…">
+                </div>
+                <div class="fg" style="display:flex;align-items:center;gap:12px;padding-top:22px">
+                  <input type="checkbox" id="aef-accessible" style="width:16px;height:16px;cursor:pointer">
+                  <label for="aef-accessible" style="cursor:pointer;font-size:.82rem">♿ PMR</label>
+                  <input type="checkbox" id="aef-insolite" style="width:16px;height:16px;cursor:pointer;margin-left:8px">
+                  <label for="aef-insolite" style="cursor:pointer;font-size:.82rem">🌟 Insolite</label>
+                </div>
+              </div>
               <div class="fg"><label>Description</label><textarea class="fi" id="aef-desc" rows="3" style="resize:vertical" placeholder="Full experience description shown on the detail page…"></textarea></div>
               <!-- Images (up to 4) -->
               <div class="fg">
@@ -6312,34 +6482,80 @@ tr:hover td{background:var(--b50)}
         <input class="fi" type="text" id="browse-search" placeholder="🔍  Search experiences…" oninput="renderBrowse()" style="padding:10px 13px">
       </div>
 
-      <h4>Reservation type</h4>
+      <h4>Type d'expérience</h4>
       <div class="filter-group">
         <label class="fcheck"><input type="checkbox" value="accommodation" onchange="renderBrowse()" class="brtf"> 🏨 Accommodation</label>
         <label class="fcheck"><input type="checkbox" value="dining" onchange="renderBrowse()" class="brtf"> 🍽️ Dining</label>
         <label class="fcheck"><input type="checkbox" value="wellness" onchange="renderBrowse()" class="brtf"> 🧖 Wellness</label>
         <label class="fcheck"><input type="checkbox" value="activity" onchange="renderBrowse()" class="brtf"> 🏄 Activity</label>
-        <label class="fcheck"><input type="checkbox" value="rental" onchange="renderBrowse()" class="brtf"> 🚗 Rental</label>
+        <label class="fcheck"><input type="checkbox" value="culture" onchange="renderBrowse()" class="brtf"> 🎭 Culture</label>
+        <label class="fcheck"><input type="checkbox" value="nature" onchange="renderBrowse()" class="brtf"> 🦁 Nature</label>
         <label class="fcheck"><input type="checkbox" value="event" onchange="renderBrowse()" class="brtf"> 🎉 Event</label>
+        <label class="fcheck"><input type="checkbox" value="rental" onchange="renderBrowse()" class="brtf"> 🚗 Rental</label>
       </div>
 
-      <h4>Group size</h4>
+      <h4>Nombre de personnes</h4>
       <div class="filter-group">
-        <label class="fcheck"><input type="checkbox" value="solo" onchange="renderBrowse()" class="brgf"> 👤 Solo (1 person)</label>
-        <label class="fcheck"><input type="checkbox" value="duo" onchange="renderBrowse()" class="brgf"> 👫 Duo (up to 2)</label>
-        <label class="fcheck"><input type="checkbox" value="group" onchange="renderBrowse()" class="brgf"> 👥 Group (3+)</label>
+        <label class="fcheck"><input type="checkbox" value="solo" onchange="renderBrowse()" class="brgf"> 👤 Solo (1)</label>
+        <label class="fcheck"><input type="checkbox" value="duo" onchange="renderBrowse()" class="brgf"> 👫 Duo (jusqu'à 2)</label>
+        <label class="fcheck"><input type="checkbox" value="group" onchange="renderBrowse()" class="brgf"> 👥 Groupe (3+)</label>
       </div>
 
-      <h4>Region</h4>
+      <h4>Province</h4>
+      <div class="filter-group">
+        <label class="fcheck"><input type="checkbox" value="Gauteng" onchange="renderBrowse()" class="brpf"> Gauteng</label>
+        <label class="fcheck"><input type="checkbox" value="Western Cape" onchange="renderBrowse()" class="brpf"> Western Cape</label>
+        <label class="fcheck"><input type="checkbox" value="KwaZulu-Natal" onchange="renderBrowse()" class="brpf"> KwaZulu-Natal</label>
+        <label class="fcheck"><input type="checkbox" value="Eastern Cape" onchange="renderBrowse()" class="brpf"> Eastern Cape</label>
+        <label class="fcheck"><input type="checkbox" value="Limpopo" onchange="renderBrowse()" class="brpf"> Limpopo</label>
+        <label class="fcheck"><input type="checkbox" value="Mpumalanga" onchange="renderBrowse()" class="brpf"> Mpumalanga</label>
+        <label class="fcheck"><input type="checkbox" value="North West" onchange="renderBrowse()" class="brpf"> North West</label>
+        <label class="fcheck"><input type="checkbox" value="Free State" onchange="renderBrowse()" class="brpf"> Free State</label>
+        <label class="fcheck"><input type="checkbox" value="Northern Cape" onchange="renderBrowse()" class="brpf"> Northern Cape</label>
+      </div>
+
+      <h4>Région / Ville</h4>
       <div class="filter-group" id="browse-loc-filter-group">
-        <!-- populated dynamically by renderBrowseLocFilter() -->
+        <!-- populated dynamically -->
       </div>
 
-      <h4>Services</h4>
+      <h4>Style de séjour</h4>
       <div class="filter-group">
-        <label class="fcheck"><input type="checkbox" value="Breakfast" onchange="renderBrowse()" class="brsf"> Breakfast included</label>
-        <label class="fcheck"><input type="checkbox" value="Pool" onchange="renderBrowse()" class="brsf"> Pool / Spa access</label>
-        <label class="fcheck"><input type="checkbox" value="Champagne" onchange="renderBrowse()" class="brsf"> Champagne included</label>
-        <label class="fcheck"><input type="checkbox" value="Kids OK" onchange="renderBrowse()" class="brsf"> Family friendly</label>
+        <label class="fcheck"><input type="checkbox" value="romantic" onchange="renderBrowse()" class="brwf"> 💑 Romantique</label>
+        <label class="fcheck"><input type="checkbox" value="family" onchange="renderBrowse()" class="brwf"> 👨‍👩‍👧 Famille</label>
+        <label class="fcheck"><input type="checkbox" value="adventure" onchange="renderBrowse()" class="brwf"> 🏔️ Aventure</label>
+        <label class="fcheck"><input type="checkbox" value="relaxation" onchange="renderBrowse()" class="brwf"> 🧘 Détente</label>
+        <label class="fcheck"><input type="checkbox" value="gastronomic" onchange="renderBrowse()" class="brwf"> 🍷 Gastronomique</label>
+        <label class="fcheck"><input type="checkbox" value="cultural" onchange="renderBrowse()" class="brwf"> 🎨 Culturel</label>
+      </div>
+
+      <h4>Durée</h4>
+      <div class="filter-group">
+        <label class="fcheck"><input type="checkbox" value="0" onchange="renderBrowse()" class="brnf"> 🌞 Journée</label>
+        <label class="fcheck"><input type="checkbox" value="1" onchange="renderBrowse()" class="brnf"> 🌙 1 nuit</label>
+        <label class="fcheck"><input type="checkbox" value="2" onchange="renderBrowse()" class="brnf"> 🌙 2 nuits</label>
+        <label class="fcheck"><input type="checkbox" value="3" onchange="renderBrowse()" class="brnf"> 🌙 3 nuits +</label>
+      </div>
+
+      <h4>Réservation</h4>
+      <div class="filter-group">
+        <label class="fcheck"><input type="checkbox" value="online" onchange="renderBrowse()" class="brbf"> 💻 En ligne</label>
+        <label class="fcheck"><input type="checkbox" value="phone" onchange="renderBrowse()" class="brbf"> 📞 Par téléphone</label>
+        <label class="fcheck"><input type="checkbox" value="on_site" onchange="renderBrowse()" class="brbf"> 🚶 Sur place</label>
+      </div>
+
+      <h4>Spécial</h4>
+      <div class="filter-group">
+        <label class="fcheck"><input type="checkbox" id="browse-accessible-f" onchange="renderBrowse()"> ♿ Accessible PMR</label>
+        <label class="fcheck"><input type="checkbox" id="browse-insolite-f" onchange="renderBrowse()"> 🌟 Hébergement insolite</label>
+      </div>
+
+      <h4>Services inclus</h4>
+      <div class="filter-group">
+        <label class="fcheck"><input type="checkbox" value="Breakfast" onchange="renderBrowse()" class="brsf"> Petit-déjeuner inclus</label>
+        <label class="fcheck"><input type="checkbox" value="Pool" onchange="renderBrowse()" class="brsf"> Piscine / Spa</label>
+        <label class="fcheck"><input type="checkbox" value="Champagne" onchange="renderBrowse()" class="brsf"> Champagne inclus</label>
+        <label class="fcheck"><input type="checkbox" value="Kids OK" onchange="renderBrowse()" class="brsf"> Enfants bienvenus</label>
       </div>
 
       <div class="divider"></div>
@@ -6814,37 +7030,39 @@ function openBrowsePage(boxId) {
 }
 
 function getBrowseFiltered() {
-  const bid = appState.browseBoxId;
-  const search = (document.getElementById('browse-search')?.value || '').toLowerCase();
-  const sortV = document.getElementById('browse-sort')?.value || 'rating';
+  const bid      = appState.browseBoxId;
+  const search   = (document.getElementById('browse-search')?.value || '').toLowerCase();
+  const sortV    = document.getElementById('browse-sort')?.value || 'rating';
 
-  // Type filters
-  const typeChecks  = [...document.querySelectorAll('.brtf:checked')].map(c => c.value);
-  // Location filters  
-  const locChecks   = [...document.querySelectorAll('.brlf:checked')].map(c => c.value);
-  // Service filters
-  const srvChecks   = [...document.querySelectorAll('.brsf:checked')].map(c => c.value);
-  // Group size filters
-  const groupChecks = [...document.querySelectorAll('.brgf:checked')].map(c => c.value);
+  const typeChecks     = [...document.querySelectorAll('.brtf:checked')].map(c => c.value);
+  const locChecks      = [...document.querySelectorAll('.brlf:checked')].map(c => c.value);
+  const srvChecks      = [...document.querySelectorAll('.brsf:checked')].map(c => c.value);
+  const groupChecks    = [...document.querySelectorAll('.brgf:checked')].map(c => c.value);
+  const provinceChecks = [...document.querySelectorAll('.brpf:checked')].map(c => c.value);
+  const weekendChecks  = [...document.querySelectorAll('.brwf:checked')].map(c => c.value);
+  const nightChecks    = [...document.querySelectorAll('.brnf:checked')].map(c => c.value);
+  const bookingChecks  = [...document.querySelectorAll('.brbf:checked')].map(c => c.value);
+  const accessibleF    = !!(document.getElementById('browse-accessible-f')?.checked);
+  const insoliteF      = !!(document.getElementById('browse-insolite-f')?.checked);
 
   let items = expDB.filter(e => {
-    const cap = e.capacity || 2; // default 2 if not set
-    const boxMatch    = !bid || e.box === bid || true;
-    const searchMatch = !search || e.name.toLowerCase().includes(search) || e.loc.toLowerCase().includes(search) || (e.partner||'').toLowerCase().includes(search);
-    const typeMatch   = typeChecks.length === 0  || typeChecks.includes(e.reservation_type);
-    const locMatch    = locChecks.length === 0   || locChecks.some(l => e.loc.includes(l));
-    const srvMatch    = srvChecks.length === 0   || srvChecks.some(s => (e.tags||[]).includes(s));
-    // Group size: solo=1, duo=2, group=3+
-    const groupMatch  = groupChecks.length === 0 || groupChecks.some(function(g) {
-      if (g === 'solo')  return cap === 1;
-      if (g === 'duo')   return cap === 2;
-      if (g === 'group') return cap >= 3;
-      return true;
-    });
-    return boxMatch && searchMatch && typeMatch && locMatch && srvMatch && groupMatch;
+    const cap    = e.capacity || 2;
+    const nights = e.duration_nights || 0;
+    const boxMatch      = !bid || e.box === bid || true;
+    const searchMatch   = !search              || e.name.toLowerCase().includes(search) || (e.loc||'').toLowerCase().includes(search) || (e.partner||'').toLowerCase().includes(search);
+    const typeMatch     = typeChecks.length===0    || typeChecks.some(t => e.reservation_type===t||e.type===t||e.category===t);
+    const locMatch      = locChecks.length===0     || locChecks.some(l => (e.loc||'').includes(l));
+    const srvMatch      = srvChecks.length===0     || srvChecks.some(s => (e.tags||[]).includes(s));
+    const groupMatch    = groupChecks.length===0   || groupChecks.some(g => (g==='solo'&&cap===1)||(g==='duo'&&cap===2)||(g==='group'&&cap>=3));
+    const provinceMatch = provinceChecks.length===0|| provinceChecks.includes(e.province||'');
+    const weekendMatch  = weekendChecks.length===0 || weekendChecks.includes(e.weekend_type||'');
+    const bookingMatch  = bookingChecks.length===0 || bookingChecks.includes(e.booking_type||'on_site');
+    const nightMatch    = nightChecks.length===0   || nightChecks.some(n => { var nv=parseInt(n); return nv===3?nights>=3:nights===nv; });
+    const accMatch      = !accessibleF || e.accessible===true;
+    const insMatch      = !insoliteF   || e.insolite===true;
+    return boxMatch && searchMatch && typeMatch && locMatch && srvMatch && groupMatch && provinceMatch && weekendMatch && bookingMatch && nightMatch && accMatch && insMatch;
   });
 
-  // Sort
   if (sortV === 'rating')  items = items.sort((a,b) => b.rating - a.rating);
   if (sortV === 'az')      items = items.sort((a,b) => a.name.localeCompare(b.name));
   if (sortV === 'reviews') items = items.sort((a,b) => b.rv - a.rv);
@@ -6955,7 +7173,9 @@ function initBrowseMap() {
 }
 
 function clearBrowseFilters(silent) {
-  document.querySelectorAll('.brtf,.brlf,.brsf').forEach(c => c.checked = false);
+  document.querySelectorAll('.brtf,.brlf,.brsf,.brgf,.brpf,.brwf,.brnf,.brbf').forEach(c => c.checked = false);
+  var accEl = document.getElementById('browse-accessible-f'); if(accEl) accEl.checked = false;
+  var insEl = document.getElementById('browse-insolite-f');   if(insEl) insEl.checked = false;
   const s = document.getElementById('browse-search');
   if (s) s.value = '';
   appState.browsePage = 1;
@@ -7245,22 +7465,29 @@ function vidUpdateDateLabel() {
    EXPERIENCE LIST (Product page)
 ══════════════════════════════════════════════════════════════ */
 function getFilteredExps() {
-  const search = (document.getElementById('exp-search')?.value||'').toLowerCase();
-  const typeF = document.getElementById('exp-type-f')?.value||'';
-  const locF = document.getElementById('exp-loc-f')?.value||'';
-  const groupF = document.getElementById('exp-group-f')?.value||'';
-  const anyActive = (typeof cityDB !== 'undefined') && cityDB.some(c => c.active);
+  const search     = (document.getElementById('exp-search')?.value||'').toLowerCase();
+  const typeF      = document.getElementById('exp-type-f')?.value||'';
+  const provinceF  = document.getElementById('exp-province-f')?.value||'';
+  const locF       = document.getElementById('exp-loc-f')?.value||'';
+  const groupF     = document.getElementById('exp-group-f')?.value||'';
+  const nightsF    = document.getElementById('exp-nights-f')?.value||'';
+  const weekendF   = document.getElementById('exp-weekend-f')?.value||'';
+  const accessibleF= !!(document.getElementById('exp-accessible-f')?.checked);
+  const insoliteF  = !!(document.getElementById('exp-insolite-f')?.checked);
+  const anyActive  = (typeof cityDB !== 'undefined') && cityDB.some(c => c.active);
   return expDB.filter(e => {
     const cap = e.capacity || 2;
-    const searchMatch = !search || e.name.toLowerCase().includes(search) || e.loc.toLowerCase().includes(search);
-    const typeMatch   = !typeF  || e.type === typeF;
-    const locMatch    = !locF   || e.loc.includes(locF);
-    const groupMatch  = !groupF
-      || (groupF === 'solo'  && cap === 1)
-      || (groupF === 'duo'   && cap === 2)
-      || (groupF === 'group' && cap >= 3);
-    const cityMatch   = !anyActive || (typeof admCityIsVisible === 'function' && admCityIsVisible(e));
-    return searchMatch && typeMatch && locMatch && groupMatch && cityMatch;
+    const searchMatch    = !search      || e.name.toLowerCase().includes(search) || (e.loc||'').toLowerCase().includes(search) || (e.partner||'').toLowerCase().includes(search);
+    const typeMatch      = !typeF       || e.type===typeF || e.reservation_type===typeF || e.category===typeF;
+    const provinceMatch  = !provinceF   || (e.province||'')===provinceF;
+    const locMatch       = !locF        || (e.loc||'').includes(locF);
+    const groupMatch     = !groupF      || (groupF==='solo'&&cap===1)||(groupF==='duo'&&cap===2)||(groupF==='group'&&cap>=3);
+    const nightsMatch    = !nightsF     || (nightsF==='0'&&(e.duration_nights||0)===0)||(nightsF==='1'&&e.duration_nights===1)||(nightsF==='2'&&e.duration_nights===2)||(nightsF==='3'&&(e.duration_nights||0)>=3);
+    const weekendMatch   = !weekendF    || e.weekend_type===weekendF;
+    const accessibleMatch= !accessibleF || e.accessible===true;
+    const insoliteMatch  = !insoliteF   || e.insolite===true;
+    const cityMatch      = !anyActive   || (typeof admCityIsVisible==='function' && admCityIsVisible(e));
+    return searchMatch && typeMatch && provinceMatch && locMatch && groupMatch && nightsMatch && weekendMatch && accessibleMatch && insoliteMatch && cityMatch;
   });
 }
 /* ══════════════════════════════════════════════════════════════
@@ -7280,24 +7507,35 @@ async function loadExpFromSupabase() {
       if (expDB.find(function(x){ return x.id === e.id; })) return;
 
       expDB.push({
-        id:       e.id,
-        name:     e.name             || 'Untitled',
-        type:     e.reservation_type || 'activity',
-        box:      e.box_id           || '',
-        lat:      e.lat              || null,
-        lng:      e.lng              || null,
-        loc:      e.location         || '',
-        address:  e.address          || '',
-        phone:    e.phone            || '',
-        rating:   e.rating           || 4.5,
-        rv:       e.review_count     || 0,
-        img:      e.image_url        || 'https://images.unsplash.com/photo-1528360983277-13d401cdc186?w=800&auto=format&fit=crop',
-        img2:     (e.image_urls && e.image_urls[0]) || '',
-        img3:     (e.image_urls && e.image_urls[1]) || '',
-        partner:  e.partner_name     || '',
-        tags:     e.tags             || [],
-        desc:     e.description      || '',
-        capacity: e.capacity         || 2,
+        id:               e.id,
+        name:             e.name             || 'Untitled',
+        type:             e.reservation_type || 'activity',
+        reservation_type: e.reservation_type || 'activity',
+        box:              e.box_id           || '',
+        lat:              e.lat              || null,
+        lng:              e.lng              || null,
+        loc:              e.location         || '',
+        city:             e.city             || '',
+        province:         e.province         || '',
+        address:          e.address          || '',
+        phone:            e.phone            || '',
+        rating:           e.rating           || 4.5,
+        rv:               e.review_count     || 0,
+        img:              e.image_url        || 'https://images.unsplash.com/photo-1528360983277-13d401cdc186?w=800&auto=format&fit=crop',
+        img2:             (e.image_urls && e.image_urls[0]) || '',
+        img3:             (e.image_urls && e.image_urls[1]) || '',
+        partner:          e.partner_name     || '',
+        tags:             e.tags             || [],
+        desc:             e.description      || '',
+        capacity:         e.capacity         || 2,
+        category:         e.category         || '',
+        booking_type:     e.booking_type     || 'on_site',
+        duration_nights:  e.duration_nights  || 0,
+        weekend_type:     e.weekend_type     || '',
+        accessible:       e.accessible       || false,
+        accommodation_type: e.accommodation_type || '',
+        insolite:         e.insolite         || false,
+        certification:    e.certification    || '',
         _fromSupabase: true,
       });
     });
@@ -10320,6 +10558,16 @@ function admShowExpForm(expId) {
   document.getElementById('aef-lng').value     = d?.lng     || '';
   document.getElementById('aef-cap').value     = d?.cap     || '';
   document.getElementById('aef-desc').value    = d?.desc    || '';
+  var el;
+  el = document.getElementById('aef-province');     if(el) el.value   = d?.province||'';
+  el = document.getElementById('aef-booking-type'); if(el) el.value   = d?.booking_type||'on_site';
+  el = document.getElementById('aef-nights');       if(el) el.value   = d?.duration_nights||0;
+  el = document.getElementById('aef-category');     if(el) el.value   = d?.category||'';
+  el = document.getElementById('aef-weekend-type'); if(el) el.value   = d?.weekend_type||'';
+  el = document.getElementById('aef-accom-type');   if(el) el.value   = d?.accommodation_type||'';
+  el = document.getElementById('aef-certification');if(el) el.value   = d?.certification||'';
+  el = document.getElementById('aef-accessible');   if(el) el.checked = !!(d?.accessible);
+  el = document.getElementById('aef-insolite');     if(el) el.checked = !!(d?.insolite);
   const rtSel = document.getElementById('aef-rt');
   rtSel.value = d?.rt || '';
   admExpTypeNote();
@@ -10395,10 +10643,19 @@ async function admSaveExp() {
   const lng     = parseFloat(document.getElementById('aef-lng')?.value) || null;
   const address = document.getElementById('aef-address')?.value?.trim() || '';
   const phone   = document.getElementById('aef-phone')?.value?.trim() || '';
+  const cap     = parseInt(document.getElementById('aef-cap')?.value) || null;
   const desc    = document.getElementById('aef-desc')?.value?.trim() || '';
+  const province     = document.getElementById('aef-province')?.value || null;
+  const bookingType  = document.getElementById('aef-booking-type')?.value || 'on_site';
+  const nights       = parseInt(document.getElementById('aef-nights')?.value) || 0;
+  const category     = document.getElementById('aef-category')?.value || null;
+  const weekendType  = document.getElementById('aef-weekend-type')?.value || null;
+  const accomType    = document.getElementById('aef-accom-type')?.value || null;
+  const certification= document.getElementById('aef-certification')?.value?.trim() || null;
+  const accessible   = !!(document.getElementById('aef-accessible')?.checked);
+  const insolite     = !!(document.getElementById('aef-insolite')?.checked);
 
   if (!name) { admToast('Please enter an experience name.'); return; }
-  if (!capacity || capacity < 1) { admToast('Please enter the maximum guests per booking.'); document.getElementById('pp-new-capacity').focus(); return; }
 
   const imgs = [];
   for (let i = 0; i < 4; i++) {
@@ -10409,17 +10666,27 @@ async function admSaveExp() {
 
   const payload = {
     name,
-    partner_name:     partner,
-    reservation_type: rt,
-    location:         loc,
-    address:          address,
-    phone:            phone,
-    ...(lat ? { lat } : {}),
-    ...(lng ? { lng } : {}),
-    description:      desc,
-    is_active:        true,
-    images:           imgs,
+    partner_name:       partner,
+    reservation_type:   rt,
+    location:           loc,
+    address:            address,
+    phone:              phone,
+    ...(cap  ? { capacity: cap } : {}),
+    ...(lat  ? { lat } : {}),
+    ...(lng  ? { lng } : {}),
+    description:        desc,
+    is_active:          true,
+    images:             imgs,
     ...(mainImg ? { image_url: mainImg } : {}),
+    province,
+    booking_type:       bookingType,
+    duration_nights:    nights,
+    category,
+    weekend_type:       weekendType,
+    accommodation_type: accomType,
+    certification,
+    accessible,
+    insolite,
   };
 
   try {
@@ -11495,50 +11762,62 @@ function toggleAddForm() {
 }
 
 async function submitNewExp() {
-  // Gather fields from pp-add-form
-  const name    = (document.getElementById('pp-new-name')     ||{value:''}).value.trim();
-  const rt      = (document.getElementById('pp-new-type')     ||{value:''}).value || 'activity';
-  const desc    = (document.getElementById('pp-new-desc')     ||{value:''}).value.trim();
-  const imgUrl  = (document.getElementById('pp-new-img-0')||{value:''}).value.trim();
-  const imgUrls = [imgUrl, (document.getElementById('pp-new-img-1')||{value:''}).value.trim(), (document.getElementById('pp-new-img-2')||{value:''}).value.trim()].filter(Boolean);
-  const city    = (document.getElementById('pp-new-city')     ||{value:''}).value.trim();
-  const address = (document.getElementById('pp-new-address')  ||{value:''}).value.trim();
-  const phone   = (document.getElementById('pp-new-phone')    ||{value:''}).value.trim();
-  const lat     = parseFloat((document.getElementById('pp-new-lat')||{value:''}).value) || null;
-  const lng     = parseFloat((document.getElementById('pp-new-lng')||{value:''}).value) || null;
-  const capacity = parseInt((document.getElementById('pp-new-capacity')||{value:''}).value) || null;
-  const price    = parseInt((document.getElementById('pp-new-price')||{value:''}).value)    || null;
+  const name     = (document.getElementById('pp-new-name')        ||{value:''}).value.trim();
+  const rt       = (document.getElementById('pp-new-type')        ||{value:''}).value || 'activity';
+  const desc     = (document.getElementById('pp-new-desc')        ||{value:''}).value.trim();
+  const imgUrl   = (document.getElementById('pp-new-img-0')       ||{value:''}).value.trim();
+  const imgUrls  = [imgUrl, (document.getElementById('pp-new-img-1')||{value:''}).value.trim(), (document.getElementById('pp-new-img-2')||{value:''}).value.trim()].filter(Boolean);
+  const city     = (document.getElementById('pp-new-city')        ||{value:''}).value.trim();
+  const address  = (document.getElementById('pp-new-address')     ||{value:''}).value.trim();
+  const phone    = (document.getElementById('pp-new-phone')       ||{value:''}).value.trim();
+  const lat      = parseFloat((document.getElementById('pp-new-lat')||{value:''}).value) || null;
+  const lng      = parseFloat((document.getElementById('pp-new-lng')||{value:''}).value) || null;
+  const capacity = parseInt((document.getElementById('pp-new-capacity')    ||{value:''}).value) || null;
+  const price    = parseInt((document.getElementById('pp-new-price')       ||{value:''}).value) || null;
+  const province    = (document.getElementById('pp-new-province')    ||{value:''}).value;
+  const bookingType = (document.getElementById('pp-new-booking-type')||{value:'on_site'}).value||'on_site';
+  const category    = (document.getElementById('pp-new-category')   ||{value:''}).value || rt;
+  const weekendType = (document.getElementById('pp-new-weekend-type')||{value:''}).value || null;
+  const nights      = parseInt((document.getElementById('pp-new-nights')   ||{value:'0'}).value)||0;
+  const accomType   = (document.getElementById('pp-new-accom-type') ||{value:''}).value || null;
+  const certification=(document.getElementById('pp-new-certification')||{value:''}).value.trim()||null;
+  const accessible  = !!(document.getElementById('pp-new-accessible')||{checked:false}).checked;
+  const insolite    = !!(document.getElementById('pp-new-insolite')  ||{checked:false}).checked;
 
   if (!name) { admToast('Please enter an experience name.'); return; }
 
   try {
-    const newId = name.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
     const { error } = await db_client.from('partner_requests').insert({
-      experience_name: name,
-      description:     desc,
-      category:        rt,
-      status:          'pending',
-      partner_name:    (currentUser && currentUser.displayName) ? currentUser.displayName : '',
-      partner_email:   (currentUser && currentUser.email)       ? currentUser.email       : '',
-      image_url:       imgUrls[0] || '',
-      image_urls:      imgUrls,
-      city:            city   || '',
-      address:         address || '',
-      phone:           phone  || '',
-      lat:             lat,
-      lng:             lng,
-      capacity:        capacity,
-      price:           price,
+      experience_name:    name,
+      description:        desc,
+      category:           rt,
+      status:             'pending',
+      partner_name:       (currentUser && currentUser.displayName) ? currentUser.displayName : '',
+      partner_email:      (currentUser && currentUser.email)       ? currentUser.email       : '',
+      image_url:          imgUrls[0] || '',
+      image_urls:         imgUrls,
+      city:               city    || '',
+      province:           province || '',
+      address:            address || '',
+      phone:              phone   || '',
+      lat, lng, capacity, price,
+      booking_type:       bookingType,
+      duration_nights:    nights,
+      weekend_type:       weekendType,
+      accommodation_type: accomType,
+      certification,
+      accessible,
+      insolite,
     });
     if (error) throw error;
   } catch(e) {
     console.error('submitNewExp error:', e);
-    // Continue anyway — show success even if Supabase had issue
   }
 
-  // Clear form fields
-  ['pp-new-name','pp-new-desc','pp-new-img-0','pp-new-img-1','pp-new-img-2','pp-new-city','pp-new-capacity','pp-new-price'].forEach(function(id){ var el=document.getElementById(id); if(el) el.value=''; });
-  [0,1,2].forEach(function(i){ var s=document.getElementById('pp-img-slot-'+i); if(s){ s.style.backgroundImage=''; s.style.backgroundSize=''; s.innerHTML='<i class="fa fa-image" style="font-size:1.4rem;color:var(--b400);margin-bottom:4px"></i>' + (i===0?'Main image':'Photo '+(i+1)); } });
+  ['pp-new-name','pp-new-desc','pp-new-img-0','pp-new-img-1','pp-new-img-2','pp-new-city','pp-new-capacity','pp-new-price','pp-new-certification','pp-new-nights'].forEach(function(id){ var el=document.getElementById(id); if(el) el.value=''; });
+  ['pp-new-province','pp-new-booking-type','pp-new-category','pp-new-weekend-type','pp-new-accom-type'].forEach(function(id){ var el=document.getElementById(id); if(el) el.value=''; });
+  ['pp-new-accessible','pp-new-insolite'].forEach(function(id){ var el=document.getElementById(id); if(el) el.checked=false; });
+  [0,1,2].forEach(function(i){ var s=document.getElementById('pp-img-slot-'+i); if(s){ s.style.backgroundImage=''; s.style.backgroundSize=''; s.innerHTML='<i class="fa fa-image" style="font-size:1.4rem;color:var(--b400);margin-bottom:4px"></i>'+(i===0?'Main image':'Photo '+(i+1)); } });
   ppImgUrls=['','',''];
   var typeEl = document.getElementById('pp-new-type'); if(typeEl) typeEl.value='';
 
