@@ -11981,12 +11981,21 @@ async function loadPartnerExperiences() {
         + '</div>'
         + '<div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0">'
         + '<button class="btn bg bsm pp-edit-btn"'
-        + ' data-id="'   + (e.id||'')                  + '"'
-        + ' data-name="' + (e.name||'').replace(/"/g,'&quot;') + '"'
-        + ' data-desc="' + (e.description||'').replace(/"/g,'&quot;').substring(0,300) + '"'
-        + ' data-type="' + (e.reservation_type||'')    + '"'
-        + ' data-city="' + (e.location||'').replace(/"/g,'&quot;') + '"'
-        + ' data-cap="'  + (e.capacity||2)             + '"'
+        + ' data-id="'       + (e.id||'')                                          + '"'
+        + ' data-name="'     + (e.name||'').replace(/"/g,'&quot;')                 + '"'
+        + ' data-desc="'     + (e.description||'').replace(/"/g,'&quot;').substring(0,300) + '"'
+        + ' data-type="'     + (e.reservation_type||'')                            + '"'
+        + ' data-city="'     + (e.location||'').replace(/"/g,'&quot;')             + '"'
+        + ' data-cap="'      + (e.capacity||2)                                     + '"'
+        + ' data-province="' + (e.province||'')                                    + '"'
+        + ' data-booking="'  + (e.booking_type||'on_site')                         + '"'
+        + ' data-nights="'   + (e.duration_nights||0)                              + '"'
+        + ' data-category="' + (e.category||'')                                    + '"'
+        + ' data-weekend="'  + (e.weekend_type||'')                                + '"'
+        + ' data-accom="'    + (e.accommodation_type||'')                          + '"'
+        + ' data-cert="'     + (e.certification||'').replace(/"/g,'&quot;')        + '"'
+        + ' data-accessible="'+ (e.accessible?'1':'0')                             + '"'
+        + ' data-insolite="' + (e.insolite?'1':'0')                               + '"'
         + '><i class="fa fa-pen"></i> Edit</button>'
         + '</div>'
         + '</div>';
@@ -12031,7 +12040,16 @@ async function loadPartnerExperiences() {
           this.dataset.desc,
           this.dataset.type,
           this.dataset.city,
-          parseInt(this.dataset.cap) || 2
+          parseInt(this.dataset.cap) || 2,
+          this.dataset.province || '',
+          this.dataset.booking || 'on_site',
+          parseInt(this.dataset.nights) || 0,
+          this.dataset.category || '',
+          this.dataset.weekend || '',
+          this.dataset.accom || '',
+          this.dataset.cert || '',
+          this.dataset.accessible === '1',
+          this.dataset.insolite === '1'
         );
       });
     });
@@ -12042,20 +12060,49 @@ async function loadPartnerExperiences() {
 }
 
 // ── Partner: edit a published experience ──
-function ppEditExperience(expId, expName, expDesc, expType, expCity, expCap) {
+function ppEditExperience(expId, expName, expDesc, expType, expCity, expCap, expProvince, expBooking, expNights, expCategory, expWeekend, expAccom, expCert, expAccessible, expInsolite) {
   var modal = document.getElementById('adm-modal');
-  var typeOpts = ['accommodation','dining','wellness','activity','rental','event'].map(function(t){
+  var typeOpts = ['accommodation','dining','wellness','activity','rental','event','culture','nature'].map(function(t){
     return '<option value="'+t+'"'+(expType===t?' selected':'')+'>'+t.charAt(0).toUpperCase()+t.slice(1)+'</option>';
   }).join('');
+  var provinceOpts = ['','Gauteng','Western Cape','KwaZulu-Natal','Eastern Cape','Limpopo','Mpumalanga','North West','Free State','Northern Cape'].map(function(p){
+    return '<option value="'+p+'"'+(expProvince===p?' selected':'')+'>'+( p||'— Select province —')+'</option>';
+  }).join('');
+  var weekendOpts = [['','— Select —'],['romantic','💑 Romantic'],['family','👨‍👩‍👧 Family'],['adventure','🏔️ Adventure'],['relaxation','🧘 Relaxation'],['gastronomic','🍷 Gastronomic'],['cultural','🎨 Cultural']].map(function(o){
+    return '<option value="'+o[0]+'"'+(expWeekend===o[0]?' selected':'')+'>'+o[1]+'</option>';
+  }).join('');
+  var accomOpts = [['','— N/A —'],['hotel','Hotel'],['lodge','Lodge'],['boutique','Boutique'],['guesthouse','Guest House'],['insolite','Insolite'],['farm','Farm Stay'],['villa','Villa']].map(function(o){
+    return '<option value="'+o[0]+'"'+(expAccom===o[0]?' selected':'')+'>'+o[1]+'</option>';
+  }).join('');
+
   document.getElementById('adm-modal-body').innerHTML =
     '<h3 style="font-size:1.1rem;color:var(--navy);margin-bottom:4px"><i class="fa fa-pen" style="color:var(--b500)"></i> Edit experience</h3>'
     + '<div style="display:flex;align-items:center;gap:8px;background:var(--b50);border:1px solid var(--b200);border-radius:8px;padding:9px 12px;margin-bottom:14px;font-size:.78rem;color:var(--b700)"><i class="fa fa-info-circle" style="color:var(--b500)"></i> Your changes will be sent to WowBox admin for review before going live. You will receive an email once approved.</div>'
     + '<div class="fg"><label>Experience name *</label><input class="fi" id="pp-edit-name" value="'+expName+'"></div>'
+    + '<div class="fg-row">'
     + '<div class="fg"><label>Type</label><select class="fi" id="pp-edit-type">'+typeOpts+'</select></div>'
+    + '<div class="fg"><label>Category</label><select class="fi" id="pp-edit-category"><option value="">— Select —</option>'+typeOpts+'</select></div>'
+    + '</div>'
     + '<div class="fg"><label>Description</label><textarea class="fi" id="pp-edit-desc" rows="3" style="resize:vertical">'+expDesc+'</textarea></div>'
-    + '<div class="fg-row"><div class="fg"><label>City</label><input class="fi" id="pp-edit-city" value="'+expCity+'"></div>'
-    + '<div class="fg"><label>Capacity</label><input class="fi" id="pp-edit-cap" type="number" value="'+expCap+'"></div></div>'
-    + '<div style="display:flex;gap:9px;margin-top:6px">'
+    + '<div class="fg-row">'
+    + '<div class="fg"><label>City / Location</label><input class="fi" id="pp-edit-city" value="'+expCity+'"></div>'
+    + '<div class="fg"><label>Province</label><select class="fi" id="pp-edit-province">'+provinceOpts+'</select></div>'
+    + '</div>'
+    + '<div class="fg-row">'
+    + '<div class="fg"><label>Capacity</label><input class="fi" id="pp-edit-cap" type="number" value="'+expCap+'"></div>'
+    + '<div class="fg"><label>Booking type</label><select class="fi" id="pp-edit-booking"><option value="on_site"'+(expBooking==='on_site'?' selected':'')+'>On site</option><option value="online"'+(expBooking==='online'?' selected':'')+'>Online</option><option value="phone"'+(expBooking==='phone'?' selected':'')+'>Phone</option></select></div>'
+    + '<div class="fg"><label>Nights (0=day)</label><input class="fi" id="pp-edit-nights" type="number" min="0" max="14" value="'+expNights+'"></div>'
+    + '</div>'
+    + '<div class="fg-row">'
+    + '<div class="fg"><label>Weekend style</label><select class="fi" id="pp-edit-weekend">'+weekendOpts+'</select></div>'
+    + '<div class="fg"><label>Accommodation type</label><select class="fi" id="pp-edit-accom">'+accomOpts+'</select></div>'
+    + '</div>'
+    + '<div class="fg"><label>Certification <span style="font-weight:400;color:var(--muted)">(optional)</span></label><input class="fi" id="pp-edit-cert" value="'+expCert+'" placeholder="Eat Out, AA Travel, Fair Trade…"></div>'
+    + '<div class="fg-row" style="margin-top:4px">'
+    + '<div class="fg" style="display:flex;align-items:center;gap:10px"><input type="checkbox" id="pp-edit-accessible"'+(expAccessible?' checked':'')+' style="width:16px;height:16px;cursor:pointer"><label for="pp-edit-accessible" style="cursor:pointer;font-size:.82rem;color:var(--navy)">♿ PMR accessible</label></div>'
+    + '<div class="fg" style="display:flex;align-items:center;gap:10px"><input type="checkbox" id="pp-edit-insolite"'+(expInsolite?' checked':'')+' style="width:16px;height:16px;cursor:pointer"><label for="pp-edit-insolite" style="cursor:pointer;font-size:.82rem;color:var(--navy)">🌟 Insolite</label></div>'
+    + '</div>'
+    + '<div style="display:flex;gap:9px;margin-top:14px">'
     + '<button class="btn bp bsm" onclick="ppSubmitEdit(\'' + expId + '\')"><i class="fa fa-paper-plane"></i> Submit for review</button>'
     + '<button class="btn bg bsm" onclick="document.getElementById(\'adm-modal\').style.display=\'none\'">Cancel</button>'
     + '</div>';
@@ -12063,27 +12110,45 @@ function ppEditExperience(expId, expName, expDesc, expType, expCity, expCap) {
 }
 
 async function ppSubmitEdit(expId) {
-  var name = (document.getElementById('pp-edit-name')||{value:''}).value.trim();
-  var type = (document.getElementById('pp-edit-type')||{value:''}).value;
-  var desc = (document.getElementById('pp-edit-desc')||{value:''}).value.trim();
-  var city = (document.getElementById('pp-edit-city')||{value:''}).value.trim();
-  var cap  = parseInt((document.getElementById('pp-edit-cap')||{value:''}).value) || null;
+  var name       = (document.getElementById('pp-edit-name')       ||{value:''}).value.trim();
+  var type       = (document.getElementById('pp-edit-type')       ||{value:''}).value;
+  var desc       = (document.getElementById('pp-edit-desc')       ||{value:''}).value.trim();
+  var city       = (document.getElementById('pp-edit-city')       ||{value:''}).value.trim();
+  var cap        = parseInt((document.getElementById('pp-edit-cap')||{value:''}).value) || null;
+  var province   = (document.getElementById('pp-edit-province')   ||{value:''}).value;
+  var bookingType= (document.getElementById('pp-edit-booking')    ||{value:'on_site'}).value||'on_site';
+  var nights     = parseInt((document.getElementById('pp-edit-nights')||{value:'0'}).value)||0;
+  var category   = (document.getElementById('pp-edit-category')   ||{value:''}).value || type;
+  var weekend    = (document.getElementById('pp-edit-weekend')    ||{value:''}).value || null;
+  var accom      = (document.getElementById('pp-edit-accom')      ||{value:''}).value || null;
+  var cert       = (document.getElementById('pp-edit-cert')       ||{value:''}).value.trim() || null;
+  var accessible = !!(document.getElementById('pp-edit-accessible')||{checked:false}).checked;
+  var insolite   = !!(document.getElementById('pp-edit-insolite') ||{checked:false}).checked;
+
   if (!name) { admToast('Please enter an experience name'); return; }
 
   document.getElementById('adm-modal').style.display = 'none';
 
   try {
     var err = await db_client.from('partner_requests').insert({
-      experience_name: name,
-      description:     desc,
-      category:        type,
-      city:            city,
-      capacity:        cap,
-      status:          'pending',
-      is_edit:         true,
-      experience_id:   expId,
-      partner_name:    (currentUser && currentUser.displayName) ? currentUser.displayName : '',
-      partner_email:   (currentUser && currentUser.email)       ? currentUser.email       : '',
+      experience_name:    name,
+      description:        desc,
+      category:           type,
+      city:               city,
+      province:           province || null,
+      capacity:           cap,
+      status:             'pending',
+      is_edit:            true,
+      experience_id:      expId,
+      partner_name:       (currentUser && currentUser.displayName) ? currentUser.displayName : '',
+      partner_email:      (currentUser && currentUser.email)       ? currentUser.email       : '',
+      booking_type:       bookingType,
+      duration_nights:    nights,
+      weekend_type:       weekend,
+      accommodation_type: accom,
+      certification:      cert,
+      accessible:         accessible,
+      insolite:           insolite,
     });
     if (err.error) throw err.error;
     admToast('✅ Edit submitted for review — WowBox admin will review within 1–2 days');
