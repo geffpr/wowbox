@@ -3902,6 +3902,8 @@ tr:hover td{background:var(--b50)}
           <div class="vf"><label id="v-lbl2">Check-out</label><span id="v-d2">Sun, 11 May 2025</span></div>
           <div class="vf"><label>Details</label><span id="v-det">1 night · 2 guests</span></div>
           <div class="vf"><label>Location</label><span id="v-loc">Stellenbosch, W. Cape</span></div>
+          <div class="vf" id="v-address-row" style="display:none"><label>Address</label><span id="v-address" style="font-size:.82rem"></span></div>
+          <div class="vf" id="v-phone-row" style="display:none"><label>Phone</label><a id="v-phone" href="#" style="color:var(--b700);font-weight:600;text-decoration:none"></a></div>
           <div class="vf"><label>Valid Until</label><span id="v-valid-until">—</span></div>
           <div class="vf"><label>Box Code</label><span id="v-bcode" style="font-family:'Courier New',monospace;color:var(--b700)">—</span></div>
         </div>
@@ -3909,6 +3911,15 @@ tr:hover td{background:var(--b50)}
           <small>Unique Booking Reference</small>
           <span class="vc-val" id="v-bref-display">—</span>
           <p style="font-size:.68rem;color:var(--muted);margin-top:7px">Present this code at the venue to redeem your experience</p>
+        </div>
+        <!-- Booking instructions -->
+        <div style="background:linear-gradient(135deg,var(--b50),#fff);border:1.5px solid var(--b200);border-radius:var(--rs);padding:16px 18px;margin-bottom:14px">
+          <div style="font-size:.75rem;font-weight:700;color:var(--b700);margin-bottom:10px;display:flex;align-items:center;gap:6px"><i class="fa fa-circle-info" style="color:var(--b500)"></i> How to use your voucher</div>
+          <ol style="margin:0;padding-left:18px;font-size:.75rem;color:var(--navy);line-height:2">
+            <li><strong>Call ahead</strong> — contact the venue by phone to confirm your booking date and time before visiting.</li>
+            <li><strong>Bring this voucher</strong> — print it or show it on your phone at the venue for validation.</li>
+            <li><strong>Enjoy!</strong> — present your unique booking reference code on arrival.</li>
+          </ol>
         </div>
         <div style="display:flex;gap:10px;margin-bottom:16px">
           <button class="btn bp" style="flex:1;justify-content:center;padding:12px"><i class="fa fa-download"></i> Download PDF</button>
@@ -4786,7 +4797,13 @@ tr:hover td{background:var(--b50)}
               <input class="fi" id="pp-new-city" placeholder="Start typing address or venue…" autocomplete="off">
               <input type="hidden" id="pp-new-lat">
               <input type="hidden" id="pp-new-lng">
+              <input type="hidden" id="pp-new-address">
               <div style="font-size:.68rem;color:var(--muted);margin-top:3px"><i class="fa fa-map-pin" style="color:var(--b500)"></i> Select from dropdown to auto-fill coordinates</div>
+            </div>
+            <div class="fg">
+              <label>Venue phone number *</label>
+              <input class="fi" id="pp-new-phone" type="tel" placeholder="+27 21 000 0000">
+              <div style="font-size:.68rem;color:var(--muted);margin-top:3px"><i class="fa fa-phone" style="color:var(--b500)"></i> Printed on the voucher — guests will call to confirm their visit</div>
             </div>
           </div>
           <div class="fg-row">
@@ -5421,10 +5438,16 @@ tr:hover td{background:var(--b50)}
                   <input class="fi" id="aef-loc" placeholder="Start typing address or venue…" autocomplete="off">
                   <input type="hidden" id="aef-lat">
                   <input type="hidden" id="aef-lng">
+                  <input type="hidden" id="aef-address">
                   <div style="font-size:.68rem;color:var(--muted);margin-top:3px"><i class="fa fa-map-pin" style="color:var(--b500)"></i> Select from dropdown to auto-fill city + coordinates</div>
                 </div>
-                <div class="fg"><label>Capacity</label><input class="fi" id="aef-cap" type="number" placeholder="2"></div>
+                <div class="fg">
+                  <label>Venue phone number *</label>
+                  <input class="fi" id="aef-phone" type="tel" placeholder="+27 21 000 0000">
+                  <div style="font-size:.68rem;color:var(--muted);margin-top:3px"><i class="fa fa-phone" style="color:var(--b500)"></i> Printed on the voucher so guests can call to confirm</div>
+                </div>
               </div>
+              <div class="fg"><label>Capacity</label><input class="fi" id="aef-cap" type="number" placeholder="2"></div>
               <div class="fg"><label>Description</label><textarea class="fi" id="aef-desc" rows="3" style="resize:vertical" placeholder="Full experience description shown on the detail page…"></textarea></div>
               <!-- Images (up to 4) -->
               <div class="fg">
@@ -7066,6 +7089,8 @@ async function loadExpFromSupabase() {
         lat:      e.lat              || null,
         lng:      e.lng              || null,
         loc:      e.location         || '',
+        address:  e.address          || '',
+        phone:    e.phone            || '',
         rating:   e.rating           || 4.5,
         rv:       e.review_count     || 0,
         img:      e.image_url        || 'https://images.unsplash.com/photo-1528360983277-13d401cdc186?w=800&auto=format&fit=crop',
@@ -7625,6 +7650,27 @@ async function confirmExpBooking() {
   document.getElementById('v-g1').textContent = data.guest1 || 'Guest';
   document.getElementById('v-g2').textContent = data.guest2 || '—';
   document.getElementById('v-loc').textContent = e.loc;
+
+  // Address
+  var addrRow = document.getElementById('v-address-row');
+  var addrEl  = document.getElementById('v-address');
+  if (e.address) {
+    addrEl.textContent = e.address;
+    addrRow.style.display = '';
+  } else {
+    addrRow.style.display = 'none';
+  }
+
+  // Phone
+  var phoneRow = document.getElementById('v-phone-row');
+  var phoneEl  = document.getElementById('v-phone');
+  if (e.phone) {
+    phoneEl.textContent = e.phone;
+    phoneEl.href = 'tel:' + e.phone.replace(/\s/g,'');
+    phoneRow.style.display = '';
+  } else {
+    phoneRow.style.display = 'none';
+  }
   document.getElementById('v-bcode').textContent = voucherCode || ('WB-' + e.box.substring(0,4).toUpperCase());
 
   // Voucher details per reservation_type
@@ -9440,7 +9486,7 @@ function admCityDrawMap() {
 ══════════════════════════════════════════════════════════════ */
 var _placesAC = {}; // keyed by input id
 
-function initPlacesAC(inputId, latId, lngId, opts) {
+function initPlacesAC(inputId, latId, lngId, addressId, opts) {
   var el = document.getElementById(inputId);
   if (!el || !window.google || _placesAC[inputId]) return;
   var ac = new google.maps.places.Autocomplete(el, Object.assign({
@@ -9451,27 +9497,26 @@ function initPlacesAC(inputId, latId, lngId, opts) {
   ac.addListener('place_changed', function() {
     var place = ac.getPlace();
     if (!place.geometry) return;
-    // Fill lat/lng hidden fields
-    if (latId) { var lf = document.getElementById(latId); if (lf) lf.value = place.geometry.location.lat(); }
-    if (lngId) { var lgf = document.getElementById(lngId); if (lgf) lgf.value = place.geometry.location.lng(); }
-    // Normalise display value to city-level (locality or admin level)
+    if (latId)     { var lf = document.getElementById(latId);     if (lf) lf.value = place.geometry.location.lat(); }
+    if (lngId)     { var lgf = document.getElementById(lngId);    if (lgf) lgf.value = place.geometry.location.lng(); }
+    if (addressId) { var af = document.getElementById(addressId); if (af) af.value = place.formatted_address || ''; }
     var city = '';
     if (place.address_components) {
-      var locality  = place.address_components.find(function(c){ return c.types.includes('locality'); });
-      var admin2    = place.address_components.find(function(c){ return c.types.includes('administrative_area_level_2'); });
-      var admin1    = place.address_components.find(function(c){ return c.types.includes('administrative_area_level_1'); });
+      var locality = place.address_components.find(function(c){ return c.types.includes('locality'); });
+      var admin2   = place.address_components.find(function(c){ return c.types.includes('administrative_area_level_2'); });
+      var admin1   = place.address_components.find(function(c){ return c.types.includes('administrative_area_level_1'); });
       city = (locality || admin2 || admin1 || {}).long_name || place.formatted_address;
     }
-    // Store city in a sibling data attr so we can read it in save functions
-    el.dataset.city = city;
+    el.dataset.city    = city;
+    el.dataset.address = place.formatted_address || '';
   });
 }
 
 // Call after Google Maps loads — attach to all 3 forms
 function initAllPlacesAC() {
-  initPlacesAC('pl-city',     'pl-lat',      'pl-lng');       // Partner signup
-  initPlacesAC('aef-loc',     'aef-lat',     'aef-lng');      // Admin exp form
-  initPlacesAC('pp-new-city', 'pp-new-lat',  'pp-new-lng');   // Partner portal submit
+  initPlacesAC('pl-city',     'pl-lat',     'pl-lng',     null,            {});  // Partner signup
+  initPlacesAC('aef-loc',     'aef-lat',    'aef-lng',    'aef-address',   {});  // Admin exp form
+  initPlacesAC('pp-new-city', 'pp-new-lat', 'pp-new-lng', 'pp-new-address',{});  // Partner portal
 }
 
 /* ── Dynamic region filter — exp list (before purchase) ── */
@@ -9868,6 +9913,8 @@ async function admSaveExp() {
   const loc     = document.getElementById('aef-loc')?.value?.trim() || '';
   const lat     = parseFloat(document.getElementById('aef-lat')?.value) || null;
   const lng     = parseFloat(document.getElementById('aef-lng')?.value) || null;
+  const address = document.getElementById('aef-address')?.value?.trim() || '';
+  const phone   = document.getElementById('aef-phone')?.value?.trim() || '';
   const desc    = document.getElementById('aef-desc')?.value?.trim() || '';
 
   if (!name) { admToast('Please enter an experience name.'); return; }
@@ -9885,6 +9932,8 @@ async function admSaveExp() {
     partner_name:     partner,
     reservation_type: rt,
     location:         loc,
+    address:          address,
+    phone:            phone,
     ...(lat ? { lat } : {}),
     ...(lng ? { lng } : {}),
     description:      desc,
@@ -10210,6 +10259,8 @@ async function admConfirmApprove(id) {
         partner_name:     req.partner_name || '',
         partner_email:    req.partner_email || '',
         location:         req.city || '',
+        address:          req.address || '',
+        phone:            req.phone || '',
         lat:              req.lat  || null,
         lng:              req.lng  || null,
         is_active:        true,
@@ -10957,6 +11008,8 @@ async function submitNewExp() {
   const imgUrl  = (document.getElementById('pp-new-img-0')||{value:''}).value.trim();
   const imgUrls = [imgUrl, (document.getElementById('pp-new-img-1')||{value:''}).value.trim(), (document.getElementById('pp-new-img-2')||{value:''}).value.trim()].filter(Boolean);
   const city    = (document.getElementById('pp-new-city')     ||{value:''}).value.trim();
+  const address = (document.getElementById('pp-new-address')  ||{value:''}).value.trim();
+  const phone   = (document.getElementById('pp-new-phone')    ||{value:''}).value.trim();
   const lat     = parseFloat((document.getElementById('pp-new-lat')||{value:''}).value) || null;
   const lng     = parseFloat((document.getElementById('pp-new-lng')||{value:''}).value) || null;
   const capacity = parseInt((document.getElementById('pp-new-capacity')||{value:''}).value) || null;
@@ -10976,6 +11029,8 @@ async function submitNewExp() {
       image_url:       imgUrls[0] || '',
       image_urls:      imgUrls,
       city:            city   || '',
+      address:         address || '',
+      phone:           phone  || '',
       lat:             lat,
       lng:             lng,
       capacity:        capacity,
