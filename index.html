@@ -992,6 +992,7 @@ async function loadUserBoxes(email) {
     var html = vouchers.map(function(v) {
       var box    = boxDB[v.box_id] || {};
       var imgSrc = box.img || 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?q=80&w=100&auto=format&fit=crop';
+      imgSrc = safeImg(imgSrc, 'w=100&h=80&auto=format&fit=crop');
       var st     = v.status || 'inactive';
       var browseBtn = st === 'active' ? '<button class="btn bp bsm" onclick="openBrowsePage(\'' + v.box_id + '\')">' + 'Browse <i class="fa fa-arrow-right"></i></button>' : '';
       var safeCode = v.code;
@@ -8001,6 +8002,13 @@ function filterRevs(filter, btn) {
 /* ══════════════════════════════════════════════════════════════
    CART
 ══════════════════════════════════════════════════════════════ */
+// Returns a properly sized image URL — only appends Unsplash params for Unsplash URLs
+function safeImg(url, params) {
+  if (!url) return '';
+  if (url.includes('unsplash.com')) return url + (url.includes('?') ? '&' : '?') + params;
+  return url;
+}
+
 function addToCart(boxId, type) {
   const b = boxDB[boxId];
   if (!b) return;
@@ -8077,7 +8085,7 @@ function renderCart() {
   wrap.innerHTML = appState.cart.map(c => {
     const isBoost = c.id === 'chance-boost';
     return `<div class="cart-item" ${isBoost?'style="border-color:#fcd34d;background:#fffbeb"':''}>
-      <div class="cart-item-img"><img src="${c.img}&h=140&auto=format&fit=crop" loading="lazy"></div>
+      <div class="cart-item-img"><img src="${safeImg(c.img,'h=140&auto=format&fit=crop')}" loading="lazy"></div>
       <div class="cart-item-info">
         <h4>${c.name}</h4>
         <span class="ci-type ${isBoost?'ci-boost':c.type==='ebox'?'ci-ebox':'ci-phys'}">${isBoost?'🚀 Chance Boost add-on':c.type==='ebox'?'📧 E-Box (Instant)':'📦 Physical Box'}</span>
