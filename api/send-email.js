@@ -201,6 +201,27 @@ export default async function handler(req, res) {
       }
     }
 
+    // ─── CONTACT FORM ────────────────────────────────────────────────
+    if (type === 'contact_form') {
+      const { name, email, subject, message } = req.body;
+      emails.push({
+        to: ADMIN_EMAIL,
+        subject: `[Contact] ${subject || 'Enquiry'} — ${name || 'Unknown'}`,
+        html: baseTemplate(`
+          <h1 style="font-family:'Georgia',serif;font-size:1.6rem;color:#1e3a5f">New contact message</h1>
+          <table style="width:100%;border-collapse:collapse;margin-top:16px">
+            <tr><td style="padding:8px;color:#64748b;width:100px">From</td><td style="padding:8px;font-weight:700;color:#1e3a5f">${name || '—'}</td></tr>
+            <tr style="background:#f8fafc"><td style="padding:8px;color:#64748b">Email</td><td style="padding:8px"><a href="mailto:${email}" style="color:#1e3a5f">${email || '—'}</a></td></tr>
+            <tr><td style="padding:8px;color:#64748b">Subject</td><td style="padding:8px">${subject || '—'}</td></tr>
+          </table>
+          <div style="margin:20px 0;padding:16px 20px;background:#f8fafc;border-left:4px solid #1e3a5f;border-radius:8px;color:#334155;line-height:1.7">
+            ${(message || '').replace(/\n/g,'<br>')}
+          </div>
+          <p style="color:#94a3b8;font-size:.82rem">Reply directly to <a href="mailto:${email}" style="color:#1e3a5f">${email}</a></p>
+        `)
+      });
+    }
+
     // ─── Send all queued emails ──────────────────────────────────────
     if (!emails.length) return res.json({ success: true, sent: 0, message: 'No emails for type: ' + type });
 

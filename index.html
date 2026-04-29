@@ -3114,6 +3114,16 @@ tr:hover td{background:var(--b50)}
 .user-avatar{width:36px;height:36px;border-radius:50%;background:var(--b600);color:#fff;
   display:flex;align-items:center;justify-content:center;font-size:.85rem;font-weight:700;flex-shrink:0}
 
+/* ── FAQ ── */
+.faq-cat{margin-bottom:28px}
+.faq-cat-title{font-size:.95rem;color:var(--navy);margin:0 0 10px;padding-bottom:8px;border-bottom:2px solid #dbeafe}
+.faq-item{border:1px solid var(--border);border-radius:10px;margin-bottom:7px;overflow:hidden}
+.faq-q{width:100%;text-align:left;background:#fff;border:none;padding:13px 15px;font-size:.84rem;font-weight:600;color:var(--navy);cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:8px;font-family:inherit}
+.faq-q:hover{background:#f8fafc}
+.faq-q i{transition:transform .22s;flex-shrink:0;color:var(--muted);font-size:.75rem}
+.faq-q.open i{transform:rotate(180deg)}
+.faq-a{display:none;padding:10px 15px 13px;font-size:.82rem;color:var(--muted);line-height:1.7;border-top:1px solid var(--border)}
+
 </style>
 </head>
 <body>
@@ -3242,6 +3252,41 @@ tr:hover td{background:var(--b50)}
     </div>
   </div>
 
+  <!-- HOW IT WORKS -->
+  <div id="home-how-it-works" class="sec" style="background:linear-gradient(135deg,#f8fafc 0%,#eff6ff 100%);border-radius:16px;padding:48px 32px;margin-bottom:0">
+    <div style="text-align:center;margin-bottom:36px">
+      <div style="display:inline-flex;align-items:center;gap:8px;background:#dbeafe;color:#1d4ed8;padding:5px 14px;border-radius:99px;font-size:.72rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;margin-bottom:10px"><i class="fa fa-circle-play"></i> How it works</div>
+      <h2 style="font-size:1.75rem;color:var(--navy);margin-bottom:6px">Four steps to an unforgettable gift</h2>
+      <p style="color:var(--muted);max-width:480px;margin:0 auto;font-size:.87rem">From purchase to experience — everything handled for you.</p>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:20px;max-width:880px;margin:0 auto">
+      <div style="text-align:center;padding:22px 14px;background:#fff;border-radius:12px;box-shadow:0 2px 12px rgba(0,0,0,.06)">
+        <div style="width:50px;height:50px;background:linear-gradient(135deg,#1e3a5f,#2563eb);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 12px;font-size:1.3rem">🎁</div>
+        <div style="font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#3b82f6;margin-bottom:5px">Step 1</div>
+        <h4 style="font-size:.9rem;color:var(--navy);margin:0 0 6px">Choose your box</h4>
+        <p style="font-size:.76rem;color:var(--muted);line-height:1.6;margin:0">Pick a curated gift box — romantic escape, culinary adventure, wellness retreat and more.</p>
+      </div>
+      <div style="text-align:center;padding:22px 14px;background:#fff;border-radius:12px;box-shadow:0 2px 12px rgba(0,0,0,.06)">
+        <div style="width:50px;height:50px;background:linear-gradient(135deg,#059669,#10b981);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 12px;font-size:1.3rem">📧</div>
+        <div style="font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#10b981;margin-bottom:5px">Step 2</div>
+        <h4 style="font-size:.9rem;color:var(--navy);margin:0 0 6px">Gift it instantly</h4>
+        <p style="font-size:.76rem;color:var(--muted);line-height:1.6;margin:0">Delivered by email immediately or on a chosen date. Add a personal message or video.</p>
+      </div>
+      <div style="text-align:center;padding:22px 14px;background:#fff;border-radius:12px;box-shadow:0 2px 12px rgba(0,0,0,.06)">
+        <div style="width:50px;height:50px;background:linear-gradient(135deg,#d97706,#f59e0b);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 12px;font-size:1.3rem">🎟️</div>
+        <div style="font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#d97706;margin-bottom:5px">Step 3</div>
+        <h4 style="font-size:.9rem;color:var(--navy);margin:0 0 6px">Activate the voucher</h4>
+        <p style="font-size:.76rem;color:var(--muted);line-height:1.6;margin:0">Enter your code on WowBox to unlock the box and browse all the experiences inside.</p>
+      </div>
+      <div style="text-align:center;padding:22px 14px;background:#fff;border-radius:12px;box-shadow:0 2px 12px rgba(0,0,0,.06)">
+        <div style="width:50px;height:50px;background:linear-gradient(135deg,#7c3aed,#a78bfa);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 12px;font-size:1.3rem">🌟</div>
+        <div style="font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#7c3aed;margin-bottom:5px">Step 4</div>
+        <h4 style="font-size:.9rem;color:var(--navy);margin:0 0 6px">Book the experience</h4>
+        <p style="font-size:.76rem;color:var(--muted);line-height:1.6;margin:0">Choose from curated experiences and book directly — date, time, and number of guests.</p>
+      </div>
+    </div>
+  </div>
+
   <!-- BEST BOXES -->
   <div class="sec">
     <div class="row">
@@ -3271,6 +3316,82 @@ tr:hover td{background:var(--b50)}
     <p>Browse our full collection of 140,000+ curated experiences across South Africa</p>
     <button class="btn bw blg" onclick="go('allboxes')"><i class="fa fa-search"></i> Browse all boxes</button>
   </div></div>
+</div>
+
+<!-- ═══════════════════════════ PAGE: FAQ ═══════════════════════════ -->
+<div id="page-faq" class="page">
+  <div class="phdr"><h1>FAQ</h1><p>Frequently asked questions about WowBox</p></div>
+  <div class="sec" style="max-width:760px;margin:0 auto">
+    <div class="faq-cat"><h3 class="faq-cat-title">🛒 Purchase &amp; Boxes</h3>
+      <div class="faq-item"><button class="faq-q" onclick="wbFaqToggle(this)">How do I buy a gift box? <i class="fa fa-chevron-down"></i></button><div class="faq-a">Browse our collection, choose a box, add to cart and complete checkout. Your digital gift box is delivered immediately by email.</div></div>
+      <div class="faq-item"><button class="faq-q" onclick="wbFaqToggle(this)">Can I schedule delivery for a specific date? <i class="fa fa-chevron-down"></i></button><div class="faq-a">Yes! During checkout you can send immediately or schedule for a specific date — perfect for birthdays and anniversaries.</div></div>
+      <div class="faq-item"><button class="faq-q" onclick="wbFaqToggle(this)">What payment methods do you accept? <i class="fa fa-chevron-down"></i></button><div class="faq-a">All major credit and debit cards (Visa, Mastercard, Amex) via Paystack. All transactions are secure and encrypted.</div></div>
+      <div class="faq-item"><button class="faq-q" onclick="wbFaqToggle(this)">Can I add a personal message? <i class="fa fa-chevron-down"></i></button><div class="faq-a">Yes! During checkout add a personalised text message, or add a video message as an optional extra for an even more special touch.</div></div>
+    </div>
+    <div class="faq-cat"><h3 class="faq-cat-title">📦 E-Box Delivery</h3>
+      <div class="faq-item"><button class="faq-q" onclick="wbFaqToggle(this)">Is the box physical or digital? <i class="fa fa-chevron-down"></i></button><div class="faq-a">WowBox is fully digital — all gift boxes are delivered by email as an E-Box. Instant delivery anywhere in South Africa.</div></div>
+      <div class="faq-item"><button class="faq-q" onclick="wbFaqToggle(this)">How does the recipient receive their gift? <i class="fa fa-chevron-down"></i></button><div class="faq-a">The recipient receives a beautifully designed email with their unique voucher code. They visit wowbox.co.za, enter their code, and choose their experience.</div></div>
+    </div>
+    <div class="faq-cat"><h3 class="faq-cat-title">🎟️ Voucher Activation</h3>
+      <div class="faq-item"><button class="faq-q" onclick="wbFaqToggle(this)">How do I activate my voucher? <i class="fa fa-chevron-down"></i></button><div class="faq-a">Go to wowbox.co.za, click "Redeem a Box", enter your unique voucher code and unlock all the experiences in your box.</div></div>
+      <div class="faq-item"><button class="faq-q" onclick="wbFaqToggle(this)">Do I need an account to activate? <i class="fa fa-chevron-down"></i></button><div class="faq-a">You can activate without an account, but creating a free account lets you save your box, track your booking and access your voucher anytime.</div></div>
+      <div class="faq-item"><button class="faq-q" onclick="wbFaqToggle(this)">What if I lose my voucher code? <i class="fa fa-chevron-down"></i></button><div class="faq-a">Check your email inbox for the original gift email. If you can't find it, contact us at support@wowbox.co.za with your name and purchase details.</div></div>
+    </div>
+    <div class="faq-cat"><h3 class="faq-cat-title">📅 Booking Experiences</h3>
+      <div class="faq-item"><button class="faq-q" onclick="wbFaqToggle(this)">How do I book my experience? <i class="fa fa-chevron-down"></i></button><div class="faq-a">After activating your voucher, browse the experiences in your box, pick one, select date &amp; time, and confirm your booking directly on the platform.</div></div>
+      <div class="faq-item"><button class="faq-q" onclick="wbFaqToggle(this)">Can I bring extra guests? <i class="fa fa-chevron-down"></i></button><div class="faq-a">Each experience specifies the guests included (Solo, Duo, or Group). For additional guests, contact the experience provider directly.</div></div>
+      <div class="faq-item"><button class="faq-q" onclick="wbFaqToggle(this)">Can I change my booking date? <i class="fa fa-chevron-down"></i></button><div class="faq-a">Yes, subject to availability. Contact the experience provider at least 48 hours before your booking. Each partner has their own cancellation policy.</div></div>
+    </div>
+    <div class="faq-cat"><h3 class="faq-cat-title">⏳ Validity &amp; Expiration</h3>
+      <div class="faq-item"><button class="faq-q" onclick="wbFaqToggle(this)">How long is my voucher valid? <i class="fa fa-chevron-down"></i></button><div class="faq-a">WowBox vouchers are valid for 12 months from purchase date. We send reminder emails before expiry.</div></div>
+      <div class="faq-item"><button class="faq-q" onclick="wbFaqToggle(this)">What happens if my voucher expires? <i class="fa fa-chevron-down"></i></button><div class="faq-a">Expired vouchers cannot be reactivated. If you have exceptional circumstances, contact our support team.</div></div>
+    </div>
+    <div class="faq-cat"><h3 class="faq-cat-title">💰 Refunds &amp; Cancellations</h3>
+      <div class="faq-item"><button class="faq-q" onclick="wbFaqToggle(this)">Can I get a refund? <i class="fa fa-chevron-down"></i></button><div class="faq-a">Unopened vouchers (not yet activated) can be refunded within 30 days of purchase. Once activated, refunds are subject to the experience provider's policy.</div></div>
+      <div class="faq-item"><button class="faq-q" onclick="wbFaqToggle(this)">Can I exchange my box for another? <i class="fa fa-chevron-down"></i></button><div class="faq-a">Yes, within 14 days of purchase and before activation, you can request an exchange for a box of equal or greater value. Contact support@wowbox.co.za.</div></div>
+    </div>
+    <div class="faq-cat"><h3 class="faq-cat-title">🎬 Video Message</h3>
+      <div class="faq-item"><button class="faq-q" onclick="wbFaqToggle(this)">What is the video message add-on? <i class="fa fa-chevron-down"></i></button><div class="faq-a">For a small extra fee, record a personal video message that the recipient watches when they open their gift.</div></div>
+      <div class="faq-item"><button class="faq-q" onclick="wbFaqToggle(this)">How long can my video message be? <i class="fa fa-chevron-down"></i></button><div class="faq-a">Up to 2 minutes. Record directly in your browser or upload a pre-recorded video.</div></div>
+    </div>
+    <div class="faq-cat"><h3 class="faq-cat-title">🤝 For Partners</h3>
+      <div class="faq-item"><button class="faq-q" onclick="wbFaqToggle(this)">How do I list my experience on WowBox? <i class="fa fa-chevron-down"></i></button><div class="faq-a">Click "List Your Experience" in the footer. Create a partner account, submit your experience for review and our team will contact you within 5 business days.</div></div>
+      <div class="faq-item"><button class="faq-q" onclick="wbFaqToggle(this)">Is there a fee to list? <i class="fa fa-chevron-down"></i></button><div class="faq-a">Listing is free. WowBox takes a small commission on completed bookings. Premium features are available via our Pro Plan.</div></div>
+      <div class="faq-item"><button class="faq-q" onclick="wbFaqToggle(this)">How do I validate a customer booking? <i class="fa fa-chevron-down"></i></button><div class="faq-a">In your Partner Portal, go to "My Bookings". When a customer arrives, click "Validate" and enter their voucher code to mark it as used.</div></div>
+    </div>
+    <div style="text-align:center;padding:32px 0 8px">
+      <p style="color:var(--muted);margin-bottom:16px;font-size:.88rem">Still have a question?</p>
+      <button class="btn bp" onclick="openContactModal()"><i class="fa fa-envelope"></i> Contact Us</button>
+    </div>
+  </div>
+</div>
+
+<!-- CONTACT MODAL -->
+<div id="contact-modal" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,.6);z-index:9999;align-items:center;justify-content:center">
+  <div style="background:#fff;border-radius:20px;padding:36px;width:100%;max-width:500px;margin:16px;box-shadow:0 24px 64px rgba(0,0,0,.25);position:relative;box-sizing:border-box">
+    <button onclick="closeContactModal()" style="position:absolute;top:14px;right:16px;background:none;border:none;font-size:1.5rem;cursor:pointer;color:#94a3b8;line-height:1">&times;</button>
+    <h2 style="font-size:1.25rem;color:var(--navy);margin:0 0 4px">Contact Us</h2>
+    <p style="color:var(--muted);font-size:.82rem;margin:0 0 22px">We usually respond within 24 hours.</p>
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <div><label style="font-size:.76rem;font-weight:600;color:var(--navy);display:block;margin-bottom:4px">Full Name</label>
+        <input id="ct-name" type="text" placeholder="Your name" class="inp" style="width:100%;box-sizing:border-box"></div>
+      <div><label style="font-size:.76rem;font-weight:600;color:var(--navy);display:block;margin-bottom:4px">Email Address</label>
+        <input id="ct-email" type="email" placeholder="your@email.com" class="inp" style="width:100%;box-sizing:border-box"></div>
+      <div><label style="font-size:.76rem;font-weight:600;color:var(--navy);display:block;margin-bottom:4px">Subject</label>
+        <select id="ct-subject" class="inp" style="width:100%;box-sizing:border-box">
+          <option value="">Select a subject…</option>
+          <option value="order">Order / Purchase</option>
+          <option value="voucher">Voucher / Activation</option>
+          <option value="booking">Booking Issue</option>
+          <option value="refund">Refund / Exchange</option>
+          <option value="partner">Partner Enquiry</option>
+          <option value="other">Other</option>
+        </select></div>
+      <div><label style="font-size:.76rem;font-weight:600;color:var(--navy);display:block;margin-bottom:4px">Message</label>
+        <textarea id="ct-message" rows="4" placeholder="How can we help you?" class="inp" style="width:100%;box-sizing:border-box;resize:vertical"></textarea></div>
+      <button class="btn bp" id="ct-send-btn" onclick="sendContactForm()"><i class="fa fa-paper-plane"></i> Send Message</button>
+    </div>
+  </div>
 </div>
 
 <!-- ═══════════════════════ PAGE: ALL BOXES ═══════════════════════ -->
@@ -6528,7 +6649,8 @@ const PAGE_HASH = {
   reviews:'/reviews',cart:'/cart',checkout:'/checkout',voucher:'/confirmation',
   login:'/login',dashboard:'/my-account',activation:'/activate',
   'partner-landing':'/partner-landing','partner-landing':'/partners',partner:'/partner',admin:'/admin',browse:'/browse',roulette:'/surprise',
-  giftvideo:'/gift-video'
+  giftvideo:'/gift-video',
+  faq:'/faq',contact:'/contact'
 };
 const HASH_PAGE = {};
 Object.entries(PAGE_HASH).forEach(function(e){ HASH_PAGE[e[1]] = e[0]; });
@@ -8461,6 +8583,42 @@ async function plSignIn() {
   }
 }
 
+function wbFaqToggle(btn){
+  var a=btn.nextElementSibling;
+  var isOpen=btn.classList.contains('open');
+  btn.closest('.faq-cat').querySelectorAll('.faq-q').forEach(function(b){
+    b.classList.remove('open');b.nextElementSibling.style.display='none';
+  });
+  if(!isOpen){btn.classList.add('open');a.style.display='block';}
+}
+function openContactModal(){
+  document.getElementById('contact-modal').style.display='flex';
+  document.body.style.overflow='hidden';
+}
+function closeContactModal(){
+  document.getElementById('contact-modal').style.display='none';
+  document.body.style.overflow='';
+  ['ct-name','ct-email','ct-message'].forEach(function(id){document.getElementById(id).value='';});
+  document.getElementById('ct-subject').value='';
+}
+async function sendContactForm(){
+  var name=document.getElementById('ct-name').value.trim();
+  var email=document.getElementById('ct-email').value.trim();
+  var subject=document.getElementById('ct-subject').value;
+  var message=document.getElementById('ct-message').value.trim();
+  if(!name||!email||!subject||!message){showToast('Please fill in all fields','warning');return;}
+  var btn=document.getElementById('ct-send-btn');
+  btn.disabled=true;btn.innerHTML='<i class="fa fa-spinner fa-spin"></i> Sending…';
+  try{
+    await fetch('/api/send-email',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({type:'contact_form',name,email,subject,message})});
+    showToast('Message sent! We\'ll get back to you soon.','success');
+    closeContactModal();
+  }catch(e){
+    showToast('Failed to send. Email us at info@wowbox.co.za','error');
+  }
+  btn.disabled=false;btn.innerHTML='<i class="fa fa-paper-plane"></i> Send Message';
+}
 function goMyAccount(){
   if (currentUser) { go('dashboard'); setNL('nl-dash'); }
   else { go('login'); setNL('nl-login'); }
@@ -12325,7 +12483,7 @@ window.addEventListener('DOMContentLoaded', async () => {
         <ul class="footer-links">
           <li><a href="#" onclick="go('home');setNL('nl-home')">Home</a></li>
           <li><a href="#" onclick="go('allboxes');setNL('nl-boxes')">Gift Boxes</a></li>
-          <li><a href="#" onclick="go('howit')">How It Works</a></li>
+          <li><a href="#" onclick="go('home');setTimeout(function(){var el=document.getElementById('home-how-it-works');if(el)el.scrollIntoView({behavior:'smooth'})},350)">How It Works</a></li>
           <li><a href="#" onclick="go('redeem')">Redeem a Code</a></li>
         </ul>
       </div>
@@ -12342,7 +12500,7 @@ window.addEventListener('DOMContentLoaded', async () => {
         <ul class="footer-links">
           <li><a href="mailto:support@wowbox.co.za">support@wowbox.co.za</a></li>
           <li><a href="#" onclick="go('faq')">FAQ</a></li>
-          <li><a href="#" onclick="go('contact')">Contact Us</a></li>
+          <li><a href="#" onclick="openContactModal()">Contact Us</a></li>
         </ul>
       </div>
     </div>
