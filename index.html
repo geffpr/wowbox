@@ -6466,9 +6466,9 @@ tr:hover td{background:var(--b50)}
 
 <!-- Admin modals (shared) -->
 <div id="adm-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:700;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(4px)" onclick="if(event.target===this)document.getElementById('adm-modal').style.display='none'">
-  <div style="background:var(--white);border-radius:var(--rx);padding:32px;max-width:500px;width:100%;box-shadow:var(--xl);position:relative">
-    <button onclick="document.getElementById('adm-modal').style.display='none'" style="position:absolute;top:14px;right:14px;width:28px;height:28px;border-radius:50%;background:var(--bg);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:.8rem"><i class="fa fa-xmark"></i></button>
-    <div id="adm-modal-body"></div>
+  <div style="background:var(--white);border-radius:var(--rx);max-width:560px;width:100%;box-shadow:var(--xl);position:relative;display:flex;flex-direction:column;max-height:90vh">
+    <button onclick="document.getElementById('adm-modal').style.display='none'" style="position:absolute;top:14px;right:14px;width:28px;height:28px;border-radius:50%;background:var(--bg);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:.8rem;z-index:1"><i class="fa fa-xmark"></i></button>
+    <div id="adm-modal-body" style="overflow-y:auto;padding:32px;flex:1"></div>
   </div>
 </div>
 
@@ -12102,7 +12102,7 @@ function ppEditExperience(expId, expName, expDesc, expType, expCity, expCap, exp
     + '<div class="fg" style="display:flex;align-items:center;gap:10px"><input type="checkbox" id="pp-edit-accessible"'+(expAccessible?' checked':'')+' style="width:16px;height:16px;cursor:pointer"><label for="pp-edit-accessible" style="cursor:pointer;font-size:.82rem;color:var(--navy)">♿ PMR accessible</label></div>'
     + '<div class="fg" style="display:flex;align-items:center;gap:10px"><input type="checkbox" id="pp-edit-insolite"'+(expInsolite?' checked':'')+' style="width:16px;height:16px;cursor:pointer"><label for="pp-edit-insolite" style="cursor:pointer;font-size:.82rem;color:var(--navy)">🌟 Insolite</label></div>'
     + '</div>'
-    + '<div style="display:flex;gap:9px;margin-top:14px">'
+    + '<div style="display:flex;gap:9px;margin-top:18px;padding-top:14px;border-top:1px solid var(--border);position:sticky;bottom:0;background:var(--white)">'
     + '<button class="btn bp bsm" onclick="ppSubmitEdit(\'' + expId + '\')"><i class="fa fa-paper-plane"></i> Submit for review</button>'
     + '<button class="btn bg bsm" onclick="document.getElementById(\'adm-modal\').style.display=\'none\'">Cancel</button>'
     + '</div>';
