@@ -473,22 +473,31 @@ function wlRender() {
 
 // ── Global pricing (loaded from Supabase app_settings) ──
 var APP_PRICES = {
-  video_message: 49,
-  chance_boost:  149,
-  partner_pro:   499,
+  video_message:      49,
+  chance_boost:       149,
+  partner_pro:        499,
+  delivery_standard:  89,
+  delivery_express:   149,
+  delivery_sameday:   249,
+  delivery_sameday_radius: 80,
 };
 
 async function loadAppPrices() {
   try {
     var res = await db_client.from('app_settings')
       .select('key,value')
-      .in('key', ['price_video_message','price_chance_boost','price_partner_pro']);
+      .in('key', ['price_video_message','price_chance_boost','price_partner_pro',
+                  'delivery_standard','delivery_express','delivery_sameday','delivery_sameday_radius']);
     if (res.error || !res.data) return;
     res.data.forEach(function(row) {
       var v = parseInt(row.value) || 0;
-      if (row.key === 'price_video_message') APP_PRICES.video_message = v;
-      if (row.key === 'price_chance_boost')  APP_PRICES.chance_boost  = v;
-      if (row.key === 'price_partner_pro')   APP_PRICES.partner_pro   = v;
+      if (row.key === 'price_video_message')       APP_PRICES.video_message           = v;
+      if (row.key === 'price_chance_boost')         APP_PRICES.chance_boost            = v;
+      if (row.key === 'price_partner_pro')          APP_PRICES.partner_pro             = v;
+      if (row.key === 'delivery_standard')          APP_PRICES.delivery_standard       = v;
+      if (row.key === 'delivery_express')           APP_PRICES.delivery_express        = v;
+      if (row.key === 'delivery_sameday')           APP_PRICES.delivery_sameday        = v;
+      if (row.key === 'delivery_sameday_radius')    APP_PRICES.delivery_sameday_radius = v || 80;
     });
     applyPricesToUI();
   } catch(e) { console.warn('loadAppPrices:', e.message); }
@@ -2404,6 +2413,9 @@ nav{position:sticky;top:0;z-index:300;background:rgba(255,255,255,.95);
 /* Admin coupon form */
 .coupon-type-toggle{display:flex;border:1.5px solid var(--border);border-radius:var(--rs);overflow:hidden;width:fit-content}
 .city-tog-wrap{cursor:pointer;display:inline-flex;align-items:center;flex-shrink:0}
+.ck-del-opt{display:block;padding:12px 14px;border:1.5px solid var(--border);border-radius:var(--rs);cursor:pointer;background:var(--white);transition:border-color .15s,background .15s;user-select:none}
+.ck-del-opt:hover{border-color:var(--b400);background:var(--b50)}
+.ck-del-opt.selected{border-color:var(--b600);background:var(--b50);box-shadow:0 0 0 3px rgba(37,99,235,.1)}
 .city-tog{display:inline-block;width:44px;height:24px;background:#cbd5e1;border-radius:99px;position:relative;transition:background .2s}
 .city-tog::after{content:'';position:absolute;top:3px;left:3px;width:18px;height:18px;background:#fff;border-radius:50%;transition:transform .2s;box-shadow:0 1px 3px rgba(0,0,0,.25)}
 .city-tog.on{background:var(--b600)}
@@ -3867,6 +3879,7 @@ tr:hover td{background:var(--b50)}
       <div class="cart-summary">
         <h3 style="font-size:1rem;color:var(--navy);margin-bottom:14px">Order summary</h3>
         <div id="ck-summary-rows"></div>
+        <div class="sum-row" id="ck-delivery-fee-row"><span>Delivery (E-Box)</span><span style="color:var(--green)">Free</span></div>
         <div class="sum-row total"><span>Total</span><span id="ck-total-disp">R0</span></div>
         <div id="ck-type-info" style="margin-top:12px;padding:10px;background:var(--b50);border-radius:var(--rs);font-size:.73rem;color:var(--muted);border:1px solid var(--b100)"></div>
       </div>
@@ -5791,7 +5804,7 @@ tr:hover td{background:var(--b50)}
         </div>
 
         <!-- Partner Pro Plan (recurring) -->
-        <div class="atbl">
+        <div class="atbl" style="margin-bottom:20px">
           <div class="atbl-hdr"><span style="font-weight:700;color:var(--navy)">Partner subscription</span></div>
           <div style="padding:20px">
             <div style="max-width:340px">
@@ -5802,6 +5815,53 @@ tr:hover td{background:var(--b50)}
                 <span style="font-size:.75rem;color:var(--muted)">/month · recurring</span>
               </div>
               <div style="font-size:.72rem;color:var(--muted);margin-top:5px">Monthly subscription charged to partners who upgrade to the Pro plan.</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Delivery Fees (Physical boxes only) -->
+        <div class="atbl">
+          <div class="atbl-hdr">
+            <span style="font-weight:700;color:var(--navy)">📦 Physical box delivery fees</span>
+            <span style="font-size:.72rem;color:var(--muted);font-weight:400">Applied at checkout for Physical boxes only — E-boxes are always free</span>
+          </div>
+          <div style="padding:20px">
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin-bottom:20px">
+
+              <div style="background:var(--b50);border:1.5px solid var(--b200);border-radius:var(--rs);padding:16px">
+                <label style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);display:block;margin-bottom:8px">🚚 Standard delivery</label>
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+                  <span style="font-size:.9rem;color:var(--navy);font-weight:600">R</span>
+                  <input type="number" class="fi" id="price-delivery-standard" min="0" step="1" value="89" style="width:90px;font-size:1rem;font-weight:700;color:var(--b700)">
+                </div>
+                <div style="font-size:.7rem;color:var(--muted)">3–5 business days · nationwide</div>
+              </div>
+
+              <div style="background:var(--b50);border:1.5px solid var(--b200);border-radius:var(--rs);padding:16px">
+                <label style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);display:block;margin-bottom:8px">⚡ Express delivery</label>
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+                  <span style="font-size:.9rem;color:var(--navy);font-weight:600">R</span>
+                  <input type="number" class="fi" id="price-delivery-express" min="0" step="1" value="149" style="width:90px;font-size:1rem;font-weight:700;color:var(--b700)">
+                </div>
+                <div style="font-size:.7rem;color:var(--muted)">1–2 business days · nationwide</div>
+              </div>
+
+              <div style="background:#fefce8;border:1.5px solid #fde047;border-radius:var(--rs);padding:16px">
+                <label style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#854d0e;display:block;margin-bottom:8px">🏎️ Same Day delivery</label>
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+                  <span style="font-size:.9rem;color:var(--navy);font-weight:600">R</span>
+                  <input type="number" class="fi" id="price-delivery-sameday" min="0" step="1" value="249" style="width:90px;font-size:1rem;font-weight:700;color:var(--b700)">
+                </div>
+                <div style="font-size:.7rem;color:#92400e">Johannesburg only · within 80km radius</div>
+                <div style="margin-top:10px;padding-top:10px;border-top:1px solid #fde047">
+                  <label style="font-size:.68rem;color:#854d0e;display:block;margin-bottom:4px">Same Day radius (km)</label>
+                  <input type="number" class="fi" id="price-delivery-sameday-radius" min="10" max="200" step="5" value="80" style="width:80px;font-size:.9rem;font-weight:700;color:var(--b700)">
+                </div>
+              </div>
+
+            </div>
+            <div style="font-size:.72rem;color:var(--muted);background:var(--b50);border-radius:var(--rs);padding:10px 14px;border:1px solid var(--b100)">
+              <i class="fa fa-circle-info" style="color:var(--b400)"></i> Same Day availability is automatically checked at checkout using the customer's delivery address coordinates against the Johannesburg radius you set above.
             </div>
           </div>
         </div>
@@ -7927,10 +7987,149 @@ function renderCart() {
 /* ══════════════════════════════════════════════════════════════
    CHECKOUT
 ══════════════════════════════════════════════════════════════ */
+/* ══════════════════════════════════════════════════════
+   DELIVERY — Physical boxes only
+══════════════════════════════════════════════════════ */
+var deliveryState = {
+  option:        'standard', // 'standard' | 'express' | 'sameday'
+  samedayOk:     false,       // set after geocode check
+  geocodeDone:   false,
+  addressLat:    null,
+  addressLng:    null,
+};
+
+// Joburg coords
+var JOBURG = { lat: -26.2041, lng: 28.0473 };
+
+function getDeliveryFee() {
+  var ct = getCartType();
+  if (ct === 'ebox') return 0; // E-box always free
+  var opt = deliveryState.option;
+  if (opt === 'sameday') return APP_PRICES.delivery_sameday;
+  if (opt === 'express')  return APP_PRICES.delivery_express;
+  return APP_PRICES.delivery_standard;
+}
+
+function getDeliveryLabel() {
+  var opt = deliveryState.option;
+  if (opt === 'sameday') return 'Same Day delivery (Joburg)';
+  if (opt === 'express')  return 'Express delivery (1–2 days)';
+  return 'Standard delivery (3–5 days)';
+}
+
+function ckCheckSameDayAvailability(lat, lng) {
+  deliveryState.addressLat  = lat;
+  deliveryState.addressLng  = lng;
+  deliveryState.geocodeDone = true;
+  var dist = admCityDistKm(JOBURG.lat, JOBURG.lng, lat, lng);
+  deliveryState.samedayOk = dist <= (APP_PRICES.delivery_sameday_radius || 80);
+  // If same day was selected but now unavailable, fall back to express
+  if (!deliveryState.samedayOk && deliveryState.option === 'sameday') {
+    deliveryState.option = 'express';
+  }
+  renderDeliverySelector();
+  updateCkTotal();
+}
+
+function renderDeliverySelector() {
+  var el = document.getElementById('ck-delivery-selector');
+  if (!el) return;
+  var sd = APP_PRICES.delivery_standard;
+  var ex = APP_PRICES.delivery_express;
+  var sm = APP_PRICES.delivery_sameday;
+  var samedayHtml = deliveryState.geocodeDone
+    ? (deliveryState.samedayOk
+        ? `<label class="ck-del-opt${deliveryState.option==='sameday'?' selected':''}" onclick="deliveryState.option='sameday';renderDeliverySelector();updateCkTotal()">
+             <div style="display:flex;justify-content:space-between;align-items:center">
+               <div><strong>🏎️ Same Day</strong><div style="font-size:.7rem;color:var(--muted)">Today · Johannesburg only</div></div>
+               <strong style="color:var(--b700)">R${sm.toLocaleString()}</strong>
+             </div>
+           </label>`
+        : `<div class="ck-del-opt" style="opacity:.45;cursor:not-allowed">
+             <div style="display:flex;justify-content:space-between;align-items:center">
+               <div><strong>🏎️ Same Day</strong><div style="font-size:.7rem;color:var(--muted)">Not available — outside Joburg radius</div></div>
+               <strong style="color:var(--muted)">R${sm.toLocaleString()}</strong>
+             </div>
+           </div>`)
+    : `<div class="ck-del-opt" style="opacity:.45;cursor:not-allowed" title="Enter your address above to check Same Day availability">
+         <div style="display:flex;justify-content:space-between;align-items:center">
+           <div><strong>🏎️ Same Day</strong><div style="font-size:.7rem;color:var(--muted)">Enter address to check availability</div></div>
+           <strong style="color:var(--muted)">R${sm.toLocaleString()}</strong>
+         </div>
+       </div>`;
+
+  el.innerHTML = `
+    <div style="font-size:.78rem;font-weight:700;color:var(--navy);margin-bottom:10px">Choose delivery speed</div>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <label class="ck-del-opt${deliveryState.option==='standard'?' selected':''}" onclick="deliveryState.option='standard';renderDeliverySelector();updateCkTotal()">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div><strong>🚚 Standard</strong><div style="font-size:.7rem;color:var(--muted)">3–5 business days · nationwide</div></div>
+          <strong style="color:var(--b700)">R${sd.toLocaleString()}</strong>
+        </div>
+      </label>
+      <label class="ck-del-opt${deliveryState.option==='express'?' selected':''}" onclick="deliveryState.option='express';renderDeliverySelector();updateCkTotal()">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div><strong>⚡ Express</strong><div style="font-size:.7rem;color:var(--muted)">1–2 business days · nationwide</div></div>
+          <strong style="color:var(--b700)">R${ex.toLocaleString()}</strong>
+        </div>
+      </label>
+      ${samedayHtml}
+    </div>`;
+}
+
+function updateCkTotal() {
+  var sub  = getCartTotal();
+  var fee  = getDeliveryFee();
+  var disc = activeCoupon
+    ? (activeCoupon.type === 'percentage'
+        ? Math.round(sub * activeCoupon.value / 100)
+        : Math.min(activeCoupon.value, sub))
+    : 0;
+  var total = sub - disc + fee;
+  // Update all total displays
+  ['ck-pay-total','ck-total-disp'].forEach(function(id){
+    var el = document.getElementById(id);
+    if (el) el.textContent = 'R' + total.toLocaleString();
+  });
+  // Update summary delivery row
+  var delRow = document.getElementById('ck-delivery-fee-row');
+  if (delRow) {
+    if (fee > 0) {
+      delRow.style.display = '';
+      delRow.innerHTML = '<span>' + getDeliveryLabel() + '</span><span>R' + fee.toLocaleString() + '</span>';
+    } else {
+      delRow.innerHTML = '<span>Delivery (E-Box)</span><span style="color:var(--green)">Free</span>';
+    }
+  }
+}
+
+function ckGeocodeAddress() {
+  var street   = document.getElementById('ck-street')?.value?.trim()   || '';
+  var city     = document.getElementById('ck-city-phys')?.value?.trim() || '';
+  var province = document.getElementById('ck-province')?.value          || '';
+  var addr = [street, city, province, 'South Africa'].filter(Boolean).join(', ');
+  if (!addr || addr.length < 10) return;
+  if (!window.google) return;
+  var geocoder = new google.maps.Geocoder();
+  var btn = document.getElementById('ck-geocode-btn');
+  if (btn) { btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Checking…'; btn.disabled = true; }
+  geocoder.geocode({ address: addr }, function(results, status) {
+    if (btn) { btn.innerHTML = '<i class="fa fa-map-pin"></i> Check delivery'; btn.disabled = false; }
+    if (status !== 'OK' || !results[0]) {
+      admToast('Address not found — please check your details.');
+      return;
+    }
+    var loc = results[0].geometry.location;
+    ckCheckSameDayAvailability(loc.lat(), loc.lng());
+  });
+}
+
 function renderCheckout() {
   const ct = getCartType();
-  const total = getCartTotal();
-  document.getElementById('ck-pay-total').textContent = 'R' + total.toLocaleString();
+  const sub = getCartTotal();
+  const fee = getDeliveryFee();
+  const total = sub + fee;
+  document.getElementById('ck-pay-total').textContent  = 'R' + total.toLocaleString();
   document.getElementById('ck-total-disp').textContent = 'R' + total.toLocaleString();
   document.getElementById('ck-summary-rows').innerHTML = appState.cart.map(c=>`<div class="sum-row"><span>${c.name} ×${c.qty}</span><span>R${(c.price*c.qty).toLocaleString()}</span></div>`).join('');
   const typeInfos = {ebox:'📧 E-Box: Your voucher codes will be sent instantly to your email after payment.',physical:'📦 Physical: Your boxes will be shipped 2–3 days after payment.',mixed:'📧📦 Mixed: E-Box vouchers sent by email immediately. Physical boxes shipped within 2–3 days.'};
@@ -7982,11 +8181,42 @@ function renderCheckout() {
         ${hasVideoInCart && vidDateVal ? '<div style="font-size:.72rem;color:var(--b600);margin-top:6px"><i class="fa fa-video"></i> Using your video scheduled date.</div>' : ''}
       </div>`;
   } else if (ct === 'physical') {
-    fields = `<div class="fg"><label>Full name *</label><input class="fi" placeholder="Recipient full name"></div><div class="fg"><label>Email</label><input class="fi" type="email" placeholder="Order confirmation email"></div><h4 style="font-size:.9rem;margin:16px 0 12px">Delivery address</h4><div class="fg"><label>Street address *</label><input class="fi" placeholder="123 Main Street"></div><div class="fg-row"><div class="fg"><label>City *</label><input class="fi" placeholder="Cape Town"></div><div class="fg"><label>Province *</label><select class="fi"><option>Western Cape</option><option>Gauteng</option><option>KwaZulu-Natal</option><option>Eastern Cape</option></select></div></div><div class="fg-row"><div class="fg"><label>Postal code *</label><input class="fi" placeholder="8001"></div><div class="fg"><label>Country</label><input class="fi" value="South Africa" readonly></div></div><div class="fg"><label>Billing same as delivery?</label><label style="display:flex;align-items:center;gap:8px;font-size:.82rem;cursor:pointer"><input type="checkbox" checked style="accent-color:var(--b600)"> Yes, same address</label></div>`;
+    deliveryState.option      = 'standard';
+    deliveryState.geocodeDone = false;
+    deliveryState.samedayOk   = false;
+    fields = `
+      <div class="fg"><label>Full name *</label><input class="fi" placeholder="Recipient full name"></div>
+      <div class="fg"><label>Email</label><input class="fi" type="email" placeholder="Order confirmation email"></div>
+      <h4 style="font-size:.9rem;margin:16px 0 12px">Delivery address</h4>
+      <div class="fg"><label>Street address *</label><input class="fi" id="ck-street" placeholder="123 Main Street" onchange="deliveryState.geocodeDone=false;renderDeliverySelector()"></div>
+      <div class="fg-row">
+        <div class="fg"><label>City *</label><input class="fi" id="ck-city-phys" placeholder="Cape Town" onchange="deliveryState.geocodeDone=false;renderDeliverySelector()"></div>
+        <div class="fg"><label>Province *</label>
+          <select class="fi" id="ck-province" onchange="deliveryState.geocodeDone=false;renderDeliverySelector()">
+            <option>Western Cape</option><option>Gauteng</option><option>KwaZulu-Natal</option><option>Eastern Cape</option><option>Limpopo</option><option>Mpumalanga</option><option>North West</option><option>Free State</option><option>Northern Cape</option>
+          </select>
+        </div>
+      </div>
+      <div class="fg-row">
+        <div class="fg"><label>Postal code *</label><input class="fi" placeholder="8001"></div>
+        <div class="fg"><label>Country</label><input class="fi" value="South Africa" readonly></div>
+      </div>
+      <div class="fg"><label>Billing same as delivery?</label><label style="display:flex;align-items:center;gap:8px;font-size:.82rem;cursor:pointer"><input type="checkbox" checked style="accent-color:var(--b600)"> Yes, same address</label></div>
+      <div style="margin-top:6px;margin-bottom:4px">
+        <button type="button" class="btn bg bsm" id="ck-geocode-btn" onclick="ckGeocodeAddress()" style="font-size:.75rem"><i class="fa fa-map-pin"></i> Check delivery options</button>
+        <span style="font-size:.68rem;color:var(--muted);margin-left:8px">Click to check Same Day availability for your address</span>
+      </div>
+      <div id="ck-delivery-selector" style="margin-top:14px;padding:14px;background:var(--b50);border:1.5px solid var(--b200);border-radius:var(--rs)"></div>`;
   } else {
     fields = `<div class="fg"><label>Full name *</label><input class="fi" placeholder="Your full name"></div><div class="fg"><label>Email address *</label><input class="fi" type="email" placeholder="for e-vouchers and order confirmation"></div><h4 style="font-size:.9rem;margin:16px 0 12px">Delivery address (for physical boxes)</h4><div class="fg"><label>Street address *</label><input class="fi" placeholder="123 Main Street"></div><div class="fg-row"><div class="fg"><label>City *</label><input class="fi" placeholder="Cape Town"></div><div class="fg"><label>Province *</label><select class="fi"><option>Western Cape</option><option>Gauteng</option><option>KwaZulu-Natal</option></select></div></div><div class="fg-row"><div class="fg"><label>Postal code *</label><input class="fi" placeholder="8001"></div><div class="fg"><label>Country</label><input class="fi" value="South Africa" readonly></div></div>`;
   }
   dc.innerHTML = `<h3>Your details</h3><p>${ct==='ebox'?'E-Box delivery — no shipping required.':ct==='physical'?'Physical box — provide your delivery address.':'Mixed order — provide email and delivery address.'}</p>${typeBadge[ct]||''}<div class="divider"></div>${fields}`;
+
+  // Init delivery selector for physical/mixed
+  if (ct === 'physical' || ct === 'mixed') {
+    renderDeliverySelector();
+  }
+
   // Reset coupon state on fresh checkout render, then sync summary
   activeCoupon = null;
   const couponInput = document.getElementById('ck-coupon-input');
@@ -8380,12 +8610,13 @@ function completeOrder() {
 
   const ct       = getCartType();
   const subtotal = getCartTotal();
+  const delivFee = getDeliveryFee();
   const discount = activeCoupon
     ? (activeCoupon.type === 'percentage'
         ? Math.round(subtotal * activeCoupon.value / 100)
         : Math.min(activeCoupon.value, subtotal))
     : 0;
-  const total = subtotal - discount;
+  const total = subtotal - discount + delivFee;
 
   // Capture personalisation
   const personalMsg   = document.getElementById('ck-personal-msg')?.value?.trim() || '';
@@ -8395,24 +8626,27 @@ function completeOrder() {
   appState.lastOrderVideo     = hasVideo;
   appState.lastScheduledDate  = scheduledDate;
 
-  // Recipient info (who receives the gift)
+  // Recipient info
   const email     = appState.lastOrderEmail || document.getElementById('ck-email')?.value?.trim() || 'customer@wowbox.co.za';
   const recipName = appState.lastOrderName  || document.getElementById('ck-full-name')?.value?.trim() || 'Customer';
-  // Sender info (the buyer — used for Paystack billing)
   const senderEmail = appState.senderEmail  || document.getElementById('ck-sender-email')?.value?.trim() || email;
   const senderName  = appState.senderName   || document.getElementById('ck-sender-name')?.value?.trim()  || recipName;
 
   appState.lastOrderEmail = email;
   appState.lastOrderName  = recipName;
 
+  // Build readable order description for Paystack label
+  const boxNames  = appState.cart.filter(c=>c.id!=='video-message'&&c.id!=='chance-boost').map(i=>i.name).join(', ');
+  const delivDesc = ct === 'ebox' ? 'E-Box (instant email)' : getDeliveryLabel() + ' — R' + delivFee.toLocaleString();
+
   // Open Paystack popup
   const handler = PaystackPop.setup({
     key:       'pk_test_4bf191b7b3f10da349ac729e9a50812459548889',
-    email:     senderEmail,   // Billing identity = buyer
+    email:     senderEmail,
     amount:    total * 100,
     currency:  'ZAR',
     ref:       'WB-' + Date.now(),
-    label:     'WowBox — ' + appState.cart.filter(c=>c.id!=='video-message').map(i => boxDB[i.boxId]?.name || i.boxId).join(', '),
+    label:     'WowBox — ' + boxNames,
     metadata: {
       custom_fields: [
         { display_name: 'Buyer name',        variable_name: 'sender_name',      value: senderName },
@@ -8420,6 +8654,11 @@ function completeOrder() {
         { display_name: 'Recipient name',    variable_name: 'recipient_name',   value: recipName },
         { display_name: 'Recipient email',   variable_name: 'recipient_email',  value: email },
         { display_name: 'Delivery type',     variable_name: 'delivery_type',    value: getCartType() },
+        { display_name: 'Delivery option',   variable_name: 'delivery_option',  value: delivDesc },
+        { display_name: 'Delivery fee',      variable_name: 'delivery_fee',     value: 'R' + delivFee.toLocaleString() },
+        { display_name: 'Subtotal',          variable_name: 'subtotal',         value: 'R' + subtotal.toLocaleString() },
+        { display_name: 'Discount',          variable_name: 'discount',         value: discount > 0 ? '-R' + discount.toLocaleString() : 'None' },
+        { display_name: 'Total charged',     variable_name: 'total_charged',    value: 'R' + total.toLocaleString() },
         { display_name: 'Gift message',      variable_name: 'personal_message', value: personalMsg },
         { display_name: 'Has video',         variable_name: 'has_video',        value: hasVideo ? 'yes' : 'no' },
         { display_name: 'Scheduled date',    variable_name: 'scheduled_date',   value: scheduledDate },
@@ -8430,14 +8669,14 @@ function completeOrder() {
       admToast('Payment cancelled. Your cart is still saved.');
     },
     callback: function(response) {
-      // Payment successful — run the original confirmation logic
-      completeOrderConfirm(response.reference, total, discount);
+      completeOrderConfirm(response.reference, total, discount, delivFee);
     }
   });
   handler.openIframe();
 }
 
-async function completeOrderConfirm(paystackRef, total, discount) {
+async function completeOrderConfirm(paystackRef, total, discount, delivFee) {
+  delivFee = delivFee || 0;
   const ct       = getCartType();
   const ref      = paystackRef || ('WB-ORD-' + Date.now());
   const dateStr  = new Date().toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'});
@@ -10457,24 +10696,36 @@ async function admSaveEditAndApprove(id) {
 
 /* ── Pricing ── */
 async function renderAdmPricing() {
-  document.getElementById('price-video').value = APP_PRICES.video_message;
-  document.getElementById('price-boost').value = APP_PRICES.chance_boost;
-  document.getElementById('price-pro').value   = APP_PRICES.partner_pro;
+  document.getElementById('price-video').value    = APP_PRICES.video_message;
+  document.getElementById('price-boost').value    = APP_PRICES.chance_boost;
+  document.getElementById('price-pro').value      = APP_PRICES.partner_pro;
+  document.getElementById('price-delivery-standard').value      = APP_PRICES.delivery_standard;
+  document.getElementById('price-delivery-express').value       = APP_PRICES.delivery_express;
+  document.getElementById('price-delivery-sameday').value       = APP_PRICES.delivery_sameday;
+  document.getElementById('price-delivery-sameday-radius').value = APP_PRICES.delivery_sameday_radius;
 }
 
 async function admSavePricing() {
-  var video = parseInt(document.getElementById('price-video')?.value) || 0;
-  var boost = parseInt(document.getElementById('price-boost')?.value) || 0;
-  var pro   = parseInt(document.getElementById('price-pro')?.value)   || 0;
+  var video    = parseInt(document.getElementById('price-video')?.value)    || 0;
+  var boost    = parseInt(document.getElementById('price-boost')?.value)    || 0;
+  var pro      = parseInt(document.getElementById('price-pro')?.value)      || 0;
+  var standard = parseInt(document.getElementById('price-delivery-standard')?.value) || 89;
+  var express  = parseInt(document.getElementById('price-delivery-express')?.value)  || 149;
+  var sameday  = parseInt(document.getElementById('price-delivery-sameday')?.value)  || 249;
+  var radius   = parseInt(document.getElementById('price-delivery-sameday-radius')?.value) || 80;
   var statusEl = document.getElementById('adm-pricing-status');
 
   if (statusEl) { statusEl.style.display='block'; statusEl.style.cssText='display:block;padding:10px 14px;border-radius:8px;font-size:.8rem;background:#fef9c3;border:1px solid #fde047;color:#854d0e;margin-bottom:16px'; statusEl.innerHTML='<i class="fa fa-spinner fa-spin"></i> Saving…'; }
 
   try {
     var updates = [
-      { key: 'price_video_message', value: String(video) },
-      { key: 'price_chance_boost',  value: String(boost) },
-      { key: 'price_partner_pro',   value: String(pro)   },
+      { key: 'price_video_message',       value: String(video)    },
+      { key: 'price_chance_boost',        value: String(boost)    },
+      { key: 'price_partner_pro',         value: String(pro)      },
+      { key: 'delivery_standard',         value: String(standard) },
+      { key: 'delivery_express',          value: String(express)  },
+      { key: 'delivery_sameday',          value: String(sameday)  },
+      { key: 'delivery_sameday_radius',   value: String(radius)   },
     ];
     for (var i = 0; i < updates.length; i++) {
       var r = await db_client.from('app_settings')
@@ -10482,13 +10733,15 @@ async function admSavePricing() {
       if (r.error) throw r.error;
     }
 
-    // Update in-memory prices
-    APP_PRICES.video_message = video;
-    APP_PRICES.chance_boost  = boost;
-    APP_PRICES.partner_pro   = pro;
+    APP_PRICES.video_message           = video;
+    APP_PRICES.chance_boost            = boost;
+    APP_PRICES.partner_pro             = pro;
+    APP_PRICES.delivery_standard       = standard;
+    APP_PRICES.delivery_express        = express;
+    APP_PRICES.delivery_sameday        = sameday;
+    APP_PRICES.delivery_sameday_radius = radius;
     applyPricesToUI();
 
-    // Update cart items that are already in cart
     var videoItem = appState.cart.find(function(c){ return c.id === 'video-message'; });
     if (videoItem) videoItem.price = video;
     var boostItem = appState.cart.find(function(c){ return c.id === 'chance-boost'; });
