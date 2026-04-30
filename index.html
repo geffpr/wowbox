@@ -7534,8 +7534,9 @@ async function loadExpFromSupabase() {
     if (res.error || !res.data || !res.data.length) return;
 
     res.data.forEach(function(e) {
-      // Skip if already in expDB (hardcoded or already merged)
-      if (expDB.find(function(x){ return x.id === e.id; })) return;
+      // Remove hardcoded entry if Supabase has a fresher version
+      var existing = expDB.findIndex(function(x){ return x.id === e.id; });
+      if (existing !== -1) expDB.splice(existing, 1);
 
       expDB.push({
         id:               e.id,
