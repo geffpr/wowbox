@@ -3126,6 +3126,8 @@ tr:hover td{background:var(--b50)}
 .faq-a{display:none;padding:10px 15px 13px;font-size:.82rem;color:var(--muted);line-height:1.7;border-top:1px solid var(--border)}
 
 </style>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<style>.flatpickr-day.flatpickr-disabled,.flatpickr-day.flatpickr-disabled:hover{color:#ccc;background:#f5f5f5;cursor:not-allowed;text-decoration:line-through}</style>
 </head>
 <body>
 
@@ -5069,6 +5071,11 @@ tr:hover td{background:var(--b50)}
               <label for="pp-new-insolite" style="cursor:pointer;font-size:.82rem">🌟 Insolite</label>
             </div>
           </div>
+          <div class="fg">
+            <label>🔗 iCal sync URL <span style="font-weight:400;color:var(--muted)">(optional — sync from Google Calendar, Airbnb, Booking.com…)</span></label>
+            <input class="fi" id="pp-new-ical" placeholder="webcal:// or https://... link to your .ics calendar">
+            <div style="font-size:.68rem;color:var(--muted);margin-top:3px"><i class="fa fa-circle-info" style="color:var(--b400)"></i> Blocked dates from this calendar will automatically grey out in the booking date picker.</div>
+          </div>
           <div style="background:#fef3c7;border:1px solid #fcd34d;border-radius:var(--rs);padding:10px 14px;font-size:.75rem;color:#92400e;margin-bottom:16px">
             <i class="fa fa-triangle-exclamation"></i> New experiences are submitted for WowBox admin review before going live. This usually takes 1–2 business days.
           </div>
@@ -5303,11 +5310,28 @@ tr:hover td{background:var(--b50)}
       <!-- ═══ PRO: CALENDAR ═══ -->
       <div id="pp-calendar" class="pp-sec">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:12px">
-          <div><h2 style="font-size:1.75rem;color:var(--navy);margin-bottom:3px">Availability Calendar</h2><p style="color:var(--muted);font-size:.82rem">Click any date to cycle: Open &rarr; Limited &rarr; Blocked &rarr; Default.</p></div>
+          <div><h2 style="font-size:1.75rem;color:var(--navy);margin-bottom:3px">Availability Calendar</h2><p style="color:var(--muted);font-size:.82rem">Click any date to cycle: Open → Limited → Blocked → Default.</p></div>
           <select class="fi" id="cal-exp-select" style="width:auto;padding:7px 12px;font-size:.78rem" onchange="renderCalendar()">
             <option value="vineyard">The Vineyard Retreat</option>
             <option value="wine">Estate Wine Tasting</option>
           </select>
+        </div>
+
+        <!-- iCal sync panel -->
+        <div class="pp-card" style="margin-bottom:18px;background:var(--b50);border:1.5px solid var(--b200)">
+          <h3 style="font-size:.9rem;color:var(--navy);margin-bottom:10px"><i class="fa fa-link" style="color:var(--b500)"></i> Sync with your calendar</h3>
+          <p style="font-size:.75rem;color:var(--muted);margin-bottom:12px">Paste your iCal link from Google Calendar, Airbnb, Booking.com or any calendar app. Blocked dates will automatically appear in the booking date picker for your guests.</p>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <input class="fi" id="pp-ical-url" placeholder="webcal:// or https://... link to your .ics calendar" style="flex:1;min-width:260px">
+            <button class="btn bp bsm" onclick="ppSyncIcal()" style="flex-shrink:0"><i class="fa fa-rotate"></i> Sync now</button>
+          </div>
+          <div id="pp-ical-status" style="font-size:.73rem;margin-top:8px;color:var(--muted)">Last sync: never</div>
+          <div style="margin-top:10px;font-size:.7rem;color:var(--muted)">
+            <strong>How to get your link:</strong>
+            Google Calendar → Settings → Share → Copy iCal link ·
+            Airbnb → Calendar → Export calendar ·
+            Booking.com → Calendar → iCal export
+          </div>
         </div>
         <div style="display:grid;grid-template-columns:1fr 230px;gap:18px">
           <div class="pp-card" style="margin-bottom:0">
@@ -5767,7 +5791,14 @@ tr:hover td{background:var(--b50)}
                 </div>
               </div>
               <div class="fg"><label>Description</label><textarea class="fi" id="aef-desc" rows="3" style="resize:vertical" placeholder="Full experience description shown on the detail page…"></textarea></div>
-              <!-- Images (up to 4) -->
+              <div class="fg">
+                <label>🔗 iCal sync URL <span style="font-weight:400;color:var(--muted)">(optional)</span></label>
+                <div style="display:flex;gap:8px">
+                  <input class="fi" id="aef-ical" placeholder="webcal:// or https://... .ics link" style="flex:1">
+                  <button type="button" class="btn bg bsm" onclick="admSyncIcal()" style="flex-shrink:0;white-space:nowrap"><i class="fa fa-rotate"></i> Sync now</button>
+                </div>
+                <div id="aef-ical-status" style="font-size:.68rem;color:var(--muted);margin-top:3px"></div>
+              </div>
               <div class="fg">
                 <label>Images (up to 4)</label>
                 <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:6px">
@@ -7536,6 +7567,7 @@ async function loadExpFromSupabase() {
         accommodation_type: e.accommodation_type || '',
         insolite:         e.insolite         || false,
         certification:    e.certification    || '',
+        ical_url:         e.ical_url         || '',
         _fromSupabase: true,
       });
     });
@@ -7931,6 +7963,106 @@ const rtConfig = {
   },
 };
 
+/* ══════════════════════════════════════════════════════════════
+   iCAL SYNC + AVAILABILITY DATE PICKER
+══════════════════════════════════════════════════════════════ */
+
+// Load blocked dates from Supabase availability table, return array of date strings
+async function loadBlockedDates(expId) {
+  if (!expId || typeof db_client === 'undefined') return [];
+  try {
+    var today = new Date().toISOString().slice(0,10);
+    var res = await db_client.from('availability')
+      .select('date')
+      .eq('experience_id', expId)
+      .eq('status', 'blocked')
+      .gte('date', today);
+    if (res.error || !res.data) return [];
+    return res.data.map(function(r){ return r.date; });
+  } catch(e) {
+    console.warn('loadBlockedDates:', e.message);
+    return [];
+  }
+}
+
+// Init Flatpickr on all date inputs in the booking form
+async function initBookingDatePickers(expId) {
+  var blocked = await loadBlockedDates(expId);
+  var today   = new Date().toISOString().slice(0,10);
+  var opts    = { minDate: today, disable: blocked, dateFormat: 'Y-m-d' };
+
+  // Single date picker (dining, wellness, activity, event)
+  var bdEl = document.getElementById('bk-date');
+  if (bdEl && window.flatpickr) {
+    if (bdEl._flatpickr) bdEl._flatpickr.destroy();
+    flatpickr(bdEl, opts);
+  }
+
+  // Range pickers (accommodation, rental)
+  var ciEl = document.getElementById('bk-ci');
+  var coEl = document.getElementById('bk-co');
+  if (ciEl && window.flatpickr) {
+    if (ciEl._flatpickr) ciEl._flatpickr.destroy();
+    flatpickr(ciEl, Object.assign({}, opts, {
+      onChange: function(sel, dateStr) {
+        if (coEl && coEl._flatpickr) coEl._flatpickr.set('minDate', dateStr || today);
+        if (typeof calcNights === 'function') calcNights();
+      }
+    }));
+  }
+  if (coEl && window.flatpickr) {
+    if (coEl._flatpickr) coEl._flatpickr.destroy();
+    flatpickr(coEl, Object.assign({}, opts, {
+      onChange: function(){ if (typeof calcNights === 'function') calcNights(); }
+    }));
+  }
+}
+
+// Partner portal: sync iCal from UI
+async function ppSyncIcal() {
+  var url  = (document.getElementById('pp-ical-url')||{value:''}).value.trim();
+  var expId= (document.getElementById('cal-exp-select')||{value:''}).value;
+  var stat = document.getElementById('pp-ical-status');
+  if (!url) { showToast('Please enter an iCal URL','warning'); return; }
+  if (stat) stat.textContent = '⏳ Syncing…';
+  try {
+    var res = await fetch('/api/ical-sync', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ ical_url: url, experience_id: expId })
+    });
+    var data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Sync failed');
+    if (stat) stat.textContent = '✅ Synced — ' + (data.count||0) + ' dates imported · ' + new Date().toLocaleTimeString();
+    showToast('✅ Calendar synced — ' + (data.count||0) + ' dates blocked','success');
+  } catch(e) {
+    if (stat) stat.textContent = '❌ Sync failed: ' + e.message;
+    showToast('Sync failed: ' + e.message,'error');
+  }
+}
+
+// Admin: sync iCal for currently editing experience
+async function admSyncIcal() {
+  var url   = (document.getElementById('aef-ical')||{value:''}).value.trim();
+  var expId = appState.editingExpId;
+  var stat  = document.getElementById('aef-ical-status');
+  if (!url)   { admToast('Please enter an iCal URL'); return; }
+  if (!expId) { admToast('Save the experience first before syncing'); return; }
+  if (stat) stat.textContent = '⏳ Syncing…';
+  try {
+    var res = await fetch('/api/ical-sync', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ ical_url: url, experience_id: expId })
+    });
+    var data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Sync failed');
+    if (stat) stat.textContent = '✅ ' + (data.count||0) + ' dates imported · ' + new Date().toLocaleTimeString();
+  } catch(e) {
+    if (stat) stat.textContent = '❌ ' + e.message;
+  }
+}
+
 function buildBookingForm(rt) {
   const cfg = rtConfig[rt] || rtConfig.activity;
   // Get capacity from current experience
@@ -8042,6 +8174,15 @@ function loadExp(expId) {
     bkBadgeEl.textContent = cfg.icon + ' ' + cfg.label;
     document.getElementById('exp-bk-title').textContent = 'Reserve this experience';
     document.getElementById('exp-bk-fields').innerHTML = buildBookingForm(rt);
+    // Load Flatpickr + blocked dates from iCal availability
+    if (window.flatpickr) {
+      initBookingDatePickers(appState.currentExpId);
+    } else {
+      var s = document.createElement('script');
+      s.src = 'https://cdn.jsdelivr.net/npm/flatpickr';
+      s.onload = function(){ initBookingDatePickers(appState.currentExpId); };
+      document.head.appendChild(s);
+    }
   } else {
     // PRE-PURCHASE: show buy panel only, no form at all
     document.getElementById('exp-buy-panel').style.display = 'block';
@@ -10568,6 +10709,8 @@ function admShowExpForm(expId) {
   el = document.getElementById('aef-certification');if(el) el.value   = d?.certification||'';
   el = document.getElementById('aef-accessible');   if(el) el.checked = !!(d?.accessible);
   el = document.getElementById('aef-insolite');     if(el) el.checked = !!(d?.insolite);
+  el = document.getElementById('aef-ical');         if(el) el.value   = d?.ical_url||'';
+  el = document.getElementById('aef-ical-status');  if(el) el.textContent = '';
   const rtSel = document.getElementById('aef-rt');
   rtSel.value = d?.rt || '';
   admExpTypeNote();
@@ -10654,6 +10797,7 @@ async function admSaveExp() {
   const certification= document.getElementById('aef-certification')?.value?.trim() || null;
   const accessible   = !!(document.getElementById('aef-accessible')?.checked);
   const insolite     = !!(document.getElementById('aef-insolite')?.checked);
+  const icalUrl      = document.getElementById('aef-ical')?.value?.trim() || null;
 
   if (!name) { admToast('Please enter an experience name.'); return; }
 
@@ -10687,6 +10831,7 @@ async function admSaveExp() {
     certification,
     accessible,
     insolite,
+    ...(icalUrl ? { ical_url: icalUrl } : {}),
   };
 
   try {
@@ -11649,6 +11794,8 @@ function confirmChoice() {
   bkBadge.className = 'rtype-badge ' + cfg.cls;
   bkBadge.textContent = cfg.icon + ' ' + cfg.label;
   document.getElementById('roulette-bk-fields').innerHTML = buildBookingForm(rt);
+  if (window.flatpickr) { initBookingDatePickers(appState.currentExpId); }
+  else { var _s=document.createElement('script');_s.src='https://cdn.jsdelivr.net/npm/flatpickr';_s.onload=function(){initBookingDatePickers(appState.currentExpId);};document.head.appendChild(_s); }
 
   // Store as current exp so confirmExpBooking can find it if needed
   appState.currentExpId = exp.id;
@@ -11783,6 +11930,7 @@ async function submitNewExp() {
   const certification=(document.getElementById('pp-new-certification')||{value:''}).value.trim()||null;
   const accessible  = !!(document.getElementById('pp-new-accessible')||{checked:false}).checked;
   const insolite    = !!(document.getElementById('pp-new-insolite')  ||{checked:false}).checked;
+  const icalUrl     = (document.getElementById('pp-new-ical')        ||{value:''}).value.trim() || null;
 
   if (!name) { admToast('Please enter an experience name.'); return; }
 
@@ -11808,6 +11956,7 @@ async function submitNewExp() {
       certification,
       accessible,
       insolite,
+      ...(icalUrl ? { ical_url: icalUrl } : {}),
     });
     if (error) throw error;
   } catch(e) {
@@ -11815,7 +11964,6 @@ async function submitNewExp() {
   }
 
   ['pp-new-name','pp-new-desc','pp-new-img-0','pp-new-img-1','pp-new-img-2','pp-new-city','pp-new-capacity','pp-new-price','pp-new-certification','pp-new-nights'].forEach(function(id){ var el=document.getElementById(id); if(el) el.value=''; });
-  ['pp-new-province','pp-new-booking-type','pp-new-category','pp-new-weekend-type','pp-new-accom-type'].forEach(function(id){ var el=document.getElementById(id); if(el) el.value=''; });
   ['pp-new-accessible','pp-new-insolite'].forEach(function(id){ var el=document.getElementById(id); if(el) el.checked=false; });
   [0,1,2].forEach(function(i){ var s=document.getElementById('pp-img-slot-'+i); if(s){ s.style.backgroundImage=''; s.style.backgroundSize=''; s.innerHTML='<i class="fa fa-image" style="font-size:1.4rem;color:var(--b400);margin-bottom:4px"></i>'+(i===0?'Main image':'Photo '+(i+1)); } });
   ppImgUrls=['','',''];
@@ -11996,6 +12144,7 @@ async function loadPartnerExperiences() {
         + ' data-cert="'     + (e.certification||'').replace(/"/g,'&quot;')        + '"'
         + ' data-accessible="'+ (e.accessible?'1':'0')                             + '"'
         + ' data-insolite="' + (e.insolite?'1':'0')                               + '"'
+        + ' data-ical="'     + (e.ical_url||'').replace(/"/g,'&quot;')            + '"'
         + '><i class="fa fa-pen"></i> Edit</button>'
         + '</div>'
         + '</div>';
@@ -12049,7 +12198,8 @@ async function loadPartnerExperiences() {
           this.dataset.accom || '',
           this.dataset.cert || '',
           this.dataset.accessible === '1',
-          this.dataset.insolite === '1'
+          this.dataset.insolite === '1',
+          this.dataset.ical || ''
         );
       });
     });
@@ -12060,7 +12210,7 @@ async function loadPartnerExperiences() {
 }
 
 // ── Partner: edit a published experience ──
-function ppEditExperience(expId, expName, expDesc, expType, expCity, expCap, expProvince, expBooking, expNights, expCategory, expWeekend, expAccom, expCert, expAccessible, expInsolite) {
+function ppEditExperience(expId, expName, expDesc, expType, expCity, expCap, expProvince, expBooking, expNights, expCategory, expWeekend, expAccom, expCert, expAccessible, expInsolite, expIcal) {
   var modal = document.getElementById('adm-modal');
   var typeOpts = ['accommodation','dining','wellness','activity','rental','event','culture','nature'].map(function(t){
     return '<option value="'+t+'"'+(expType===t?' selected':'')+'>'+t.charAt(0).toUpperCase()+t.slice(1)+'</option>';
@@ -12102,6 +12252,7 @@ function ppEditExperience(expId, expName, expDesc, expType, expCity, expCap, exp
     + '<div class="fg" style="display:flex;align-items:center;gap:10px"><input type="checkbox" id="pp-edit-accessible"'+(expAccessible?' checked':'')+' style="width:16px;height:16px;cursor:pointer"><label for="pp-edit-accessible" style="cursor:pointer;font-size:.82rem;color:var(--navy)">♿ PMR accessible</label></div>'
     + '<div class="fg" style="display:flex;align-items:center;gap:10px"><input type="checkbox" id="pp-edit-insolite"'+(expInsolite?' checked':'')+' style="width:16px;height:16px;cursor:pointer"><label for="pp-edit-insolite" style="cursor:pointer;font-size:.82rem;color:var(--navy)">🌟 Insolite</label></div>'
     + '</div>'
+    + '<div class="fg"><label>🔗 iCal sync URL <span style="font-weight:400;color:var(--muted)">(optional)</span></label><input class="fi" id="pp-edit-ical" value="'+(expIcal||'')+'" placeholder="webcal:// or https://... .ics link"><div style="font-size:.68rem;color:var(--muted);margin-top:3px">Blocked dates will grey out in the booking date picker.</div></div>'
     + '<div style="display:flex;gap:9px;margin-top:18px;padding-top:14px;border-top:1px solid var(--border);position:sticky;bottom:0;background:var(--white)">'
     + '<button class="btn bp bsm" onclick="ppSubmitEdit(\'' + expId + '\')"><i class="fa fa-paper-plane"></i> Submit for review</button>'
     + '<button class="btn bg bsm" onclick="document.getElementById(\'adm-modal\').style.display=\'none\'">Cancel</button>'
@@ -12124,6 +12275,7 @@ async function ppSubmitEdit(expId) {
   var cert       = (document.getElementById('pp-edit-cert')       ||{value:''}).value.trim() || null;
   var accessible = !!(document.getElementById('pp-edit-accessible')||{checked:false}).checked;
   var insolite   = !!(document.getElementById('pp-edit-insolite') ||{checked:false}).checked;
+  var icalUrl    = (document.getElementById('pp-edit-ical')       ||{value:''}).value.trim() || null;
 
   if (!name) { admToast('Please enter an experience name'); return; }
 
@@ -12149,6 +12301,7 @@ async function ppSubmitEdit(expId) {
       certification:      cert,
       accessible:         accessible,
       insolite:           insolite,
+      ...(icalUrl ? { ical_url: icalUrl } : {}),
     });
     if (err.error) throw err.error;
     admToast('✅ Edit submitted for review — WowBox admin will review within 1–2 days');
@@ -12890,6 +13043,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   });
 })();
 </script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 
 </body>
 </html>
