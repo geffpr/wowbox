@@ -63,11 +63,11 @@ export default async function handler(req, res) {
 
     if (!icsText) throw new Error(`Failed to fetch iCal: ${lastError || 'all attempts failed'}`);
 
-    // 2. Parse VEVENT blocks — unfold lines first (iCal spec: CRLF + space = continuation)
     const unfolded = icsText.replace(/\r\n[ \t]/g, '').replace(/\n[ \t]/g, '');
     const blocked = new Set();
     const eventBlocks = unfolded.split('BEGIN:VEVENT');
-    eventBlocks.shift(); // remove everything before first VEVENT
+    eventBlocks.shift();
+    const totalEvents = eventBlocks.length;
 
     for (const block of eventBlocks) {
       // Match both DATE (20250510) and DATETIME (20250510T140000Z) formats
@@ -90,6 +90,9 @@ export default async function handler(req, res) {
     if (blocked.size === 0) {
       return res.json({ success: true, count: 0, message: 'No blocked dates found in calendar' });
     }
+
+    console.log(`[ical-sync] Found ${blocked.size} blocked dates for ${experience_id}`);
+    console.log(`[ical-sync] Sample dates:`, [...blocked].slice(0, 5));
 
     // 3. Upsert blocked dates into Supabase availability table
     const rows = [...blocked].map(date => ({
@@ -121,7 +124,7 @@ export default async function handler(req, res) {
       upserted += chunk.length;
     }
 
-    return res.json({ success: true, count: upserted });
+    return res.json({ success: true, count: upserted, total_events: totalEvents, total_dates: blocked.size });
 
   } catch (err) {
     console.error('ical-sync error:', err);
