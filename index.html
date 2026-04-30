@@ -9116,6 +9116,7 @@ function validateDetailsAndContinue() {
     if (el) { el.style.borderColor = '#ef4444'; el.focus(); el.scrollIntoView({behavior:'smooth',block:'center'}); }
   }
 
+  var ct = getCartType();
   var sName  = senderNameEl  ? senderNameEl.value.trim()  : '';
   var sEmail = senderEmailEl ? senderEmailEl.value.trim() : '';
   var rName  = recipNameEl   ? recipNameEl.value.trim()   : '';
@@ -9123,11 +9124,17 @@ function validateDetailsAndContinue() {
 
   if (!sName)  { showErr("Please enter your name.", senderNameEl); return; }
   if (!sEmail || !sEmail.includes('@')) { showErr("Please enter your email address.", senderEmailEl); return; }
-  if (!rName)  { showErr("Please enter the recipient's name.", recipNameEl); return; }
-  if (!rEmail || !rEmail.includes('@')) { showErr("Please enter the recipient's email address.", recipEmailEl); return; }
+  // Recipient fields only required for ebox/mixed
+  if (ct !== 'physical') {
+    if (!rName)  { showErr("Please enter the recipient's name.", recipNameEl); return; }
+    if (!rEmail || !rEmail.includes('@')) { showErr("Please enter the recipient's email address.", recipEmailEl); return; }
+  }
 
   errEl.style.display = 'none';
   [senderNameEl, senderEmailEl, recipNameEl, recipEmailEl].forEach(function(el){ if(el) el.style.borderColor = ''; });
+
+  // For physical, buyer = recipient
+  if (ct === 'physical') { rName = sName; rEmail = sEmail; }
 
   // Save scheduled date from the inline date picker
   var sendDateEl = document.getElementById('ck-send-date');
