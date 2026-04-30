@@ -8693,8 +8693,8 @@ function renderCheckout() {
     deliveryState.geocodeDone = false;
     deliveryState.samedayOk   = false;
     fields = `
-      <div class="fg"><label>Full name *</label><input class="fi" placeholder="Recipient full name"></div>
-      <div class="fg"><label>Email</label><input class="fi" type="email" placeholder="Order confirmation email"></div>
+      <div class="fg"><label>Full name *</label><input class="fi" id="ck-sender-name" placeholder="Your full name"></div>
+      <div class="fg"><label>Email *</label><input class="fi" id="ck-sender-email" type="email" placeholder="Order confirmation email"></div>
       <h4 style="font-size:.9rem;margin:16px 0 12px">Delivery address</h4>
       <div class="fg"><label>Street address *</label><input class="fi" id="ck-street" placeholder="123 Main Street" onchange="deliveryState.geocodeDone=false;renderDeliverySelector()"></div>
       <div class="fg-row">
@@ -8716,7 +8716,7 @@ function renderCheckout() {
       </div>
       <div id="ck-delivery-selector" style="margin-top:14px;padding:14px;background:var(--b50);border:1.5px solid var(--b200);border-radius:var(--rs)"></div>`;
   } else {
-    fields = `<div class="fg"><label>Full name *</label><input class="fi" placeholder="Your full name"></div><div class="fg"><label>Email address *</label><input class="fi" type="email" placeholder="for e-vouchers and order confirmation"></div><h4 style="font-size:.9rem;margin:16px 0 12px">Delivery address (for physical boxes)</h4><div class="fg"><label>Street address *</label><input class="fi" placeholder="123 Main Street"></div><div class="fg-row"><div class="fg"><label>City *</label><input class="fi" placeholder="Cape Town"></div><div class="fg"><label>Province *</label><select class="fi"><option>Western Cape</option><option>Gauteng</option><option>KwaZulu-Natal</option></select></div></div><div class="fg-row"><div class="fg"><label>Postal code *</label><input class="fi" placeholder="8001"></div><div class="fg"><label>Country</label><input class="fi" value="South Africa" readonly></div></div>`;
+    fields = `<div class="fg"><label>Full name *</label><input class="fi" id="ck-sender-name" placeholder="Your full name"></div><div class="fg"><label>Email address *</label><input class="fi" id="ck-sender-email" type="email" placeholder="for e-vouchers and order confirmation"></div><h4 style="font-size:.9rem;margin:16px 0 12px">Delivery address (for physical boxes)</h4><div class="fg"><label>Street address *</label><input class="fi" placeholder="123 Main Street"></div><div class="fg-row"><div class="fg"><label>City *</label><input class="fi" placeholder="Cape Town"></div><div class="fg"><label>Province *</label><select class="fi"><option>Western Cape</option><option>Gauteng</option><option>KwaZulu-Natal</option></select></div></div><div class="fg-row"><div class="fg"><label>Postal code *</label><input class="fi" placeholder="8001"></div><div class="fg"><label>Country</label><input class="fi" value="South Africa" readonly></div></div>`;
   }
   dc.innerHTML = `<h3>Your details</h3><p>${ct==='ebox'?'E-Box delivery — no shipping required.':ct==='physical'?'Physical box — provide your delivery address.':'Mixed order — provide email and delivery address.'}</p>${typeBadge[ct]||''}<div class="divider"></div>${fields}`;
 
