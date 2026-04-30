@@ -1057,6 +1057,17 @@ db_client.auth.onAuthStateChange(function(event, session) {
 <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
 <meta name="apple-mobile-web-app-title" content="WowBox" />
 <link rel="manifest" href="/site.webmanifest" />
+<!-- OG / Social sharing — updated dynamically by JS for /box/ and /experience/ pages -->
+<meta property="og:site_name" content="WowBox">
+<meta property="og:type" content="website">
+<meta id="og-title"       property="og:title"       content="WowBox — Offer Unforgettable Experiences">
+<meta id="og-description" property="og:description" content="Curated gift boxes for couples, adventurers and dreamers across South Africa.">
+<meta id="og-image"       property="og:image"       content="https://wowbox.co.za/og-default.jpg">
+<meta id="og-url"         property="og:url"         content="https://wowbox.co.za">
+<meta name="twitter:card" content="summary_large_image">
+<meta id="tw-title"       name="twitter:title"      content="WowBox — Offer Unforgettable Experiences">
+<meta id="tw-description" name="twitter:description" content="Curated gift boxes for couples, adventurers and dreamers across South Africa.">
+<meta id="tw-image"       name="twitter:image"      content="https://wowbox.co.za/og-default.jpg">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script>
 /* ══════════════════════════════════════════════════════════════
@@ -6943,12 +6954,69 @@ const PAGE_HASH = {
   home:'/',allboxes:'/boxes',product:'/box',expdetail:'/experience',
   reviews:'/reviews',cart:'/cart',checkout:'/checkout',voucher:'/confirmation',
   login:'/login',dashboard:'/my-account',activation:'/activate',
-  'partner-landing':'/partner-landing','partner-landing':'/partners',partner:'/partner',admin:'/admin',browse:'/browse',roulette:'/surprise',
+  'partner-landing':'/partners',partner:'/partner',admin:'/admin',browse:'/browse',roulette:'/surprise',
   giftvideo:'/gift-video',
   faq:'/faq',contact:'/contact'
 };
 const HASH_PAGE = {};
 Object.entries(PAGE_HASH).forEach(function(e){ HASH_PAGE[e[1]] = e[0]; });
+
+/* ── OG tag updater ── */
+function updateOGTags(opts) {
+  var title = opts.title || 'WowBox — Offer Unforgettable Experiences';
+  var desc  = opts.desc  || 'Curated gift boxes for couples, adventurers and dreamers across South Africa.';
+  var img   = opts.img   || 'https://wowbox.co.za/og-default.jpg';
+  document.title = title;
+  document.getElementById('og-title')       && document.getElementById('og-title').setAttribute('content', title);
+  document.getElementById('og-description') && document.getElementById('og-description').setAttribute('content', desc);
+  document.getElementById('og-image')       && document.getElementById('og-image').setAttribute('content', img);
+  document.getElementById('og-url')         && document.getElementById('og-url').setAttribute('content', 'https://wowbox.co.za' + window.location.pathname + window.location.search);
+  document.getElementById('tw-title')       && document.getElementById('tw-title').setAttribute('content', title);
+  document.getElementById('tw-description') && document.getElementById('tw-description').setAttribute('content', desc);
+  document.getElementById('tw-image')       && document.getElementById('tw-image').setAttribute('content', img);
+}
+
+/* ── Slug helpers ── */
+function slugToBoxId(slug)  { return boxDB[slug] ? slug : null; }
+function slugToExpId(slug)  { var e = expDB.find(function(x){ return x.id===slug; }); return e ? e.id : null; }
+
+/* ── Browse URL helpers — sync filters to/from query string ── */
+function browseSaveToURL() {
+  var params = new URLSearchParams();
+  var q = document.getElementById('browse-search') ? document.getElementById('browse-search').value : '';
+  if (q) params.set('q', q);
+  var sortEl = document.getElementById('browse-sort');
+  var sort = sortEl ? sortEl.value : 'rating';
+  if (sort && sort !== 'rating') params.set('sort', sort);
+  var types = Array.from(document.querySelectorAll('.brtf:checked')).map(function(c){return c.value;});
+  if (types.length) params.set('types', types.join(','));
+  var locs = Array.from(document.querySelectorAll('.brlf:checked')).map(function(c){return c.value;});
+  if (locs.length) params.set('locs', locs.join(','));
+  var provinces = Array.from(document.querySelectorAll('.brpf:checked')).map(function(c){return c.value;});
+  if (provinces.length) params.set('provinces', provinces.join(','));
+  if (appState.browseBoxId && appState.browseBoxId !== 'couples-retreat') params.set('box', appState.browseBoxId);
+  var qs = params.toString();
+  var newPath = '/browse' + (qs ? '?' + qs : '');
+  if (window.location.pathname + window.location.search !== newPath) {
+    history.replaceState(null, '', newPath);
+  }
+}
+
+function browseRestoreFromURL() {
+  var params = new URLSearchParams(window.location.search);
+  var q = params.get('q') || '';
+  var s = document.getElementById('browse-search'); if(s) s.value = q;
+  var sort = params.get('sort') || 'rating';
+  var sortEl = document.getElementById('browse-sort'); if(sortEl) sortEl.value = sort;
+  var types = params.get('types') ? params.get('types').split(',') : [];
+  document.querySelectorAll('.brtf').forEach(function(c){ c.checked = types.indexOf(c.value) >= 0; });
+  var locs = params.get('locs') ? params.get('locs').split(',') : [];
+  document.querySelectorAll('.brlf').forEach(function(c){ c.checked = locs.indexOf(c.value) >= 0; });
+  var provinces = params.get('provinces') ? params.get('provinces').split(',') : [];
+  document.querySelectorAll('.brpf').forEach(function(c){ c.checked = provinces.indexOf(c.value) >= 0; });
+  var box = params.get('box');
+  if (box && boxDB[box]) appState.browseBoxId = box;
+}
 
 function go(page) {
   // ── Auth guard — check BEFORE showing anything ──
@@ -6997,7 +7065,57 @@ function go(page) {
   var el = document.getElementById('page-' + page);
   if (el) { el.classList.add('active'); el.style.display = ''; }
   window.scrollTo({top:0,behavior:'smooth'});
+
+  // ── Slug-aware URL push ──
   var cleanPath = PAGE_HASH[page] || ('/' + page);
+  if (page === 'expdetail' && appState.currentExpId) {
+    cleanPath = '/experience/' + appState.currentExpId;
+    // Save browse filters in sessionStorage so Back restores them
+    sessionStorage.setItem('wowbox_browse_search',   document.getElementById('browse-search')?.value || '');
+    sessionStorage.setItem('wowbox_browse_sort',     document.getElementById('browse-sort')?.value || 'rating');
+    sessionStorage.setItem('wowbox_browse_types',    Array.from(document.querySelectorAll('.brtf:checked')).map(function(c){return c.value;}).join(','));
+    sessionStorage.setItem('wowbox_browse_locs',     Array.from(document.querySelectorAll('.brlf:checked')).map(function(c){return c.value;}).join(','));
+    sessionStorage.setItem('wowbox_browse_provinces',Array.from(document.querySelectorAll('.brpf:checked')).map(function(c){return c.value;}).join(','));
+    sessionStorage.setItem('wowbox_browse_box',      appState.browseBoxId || '');
+    // Update OG tags for experience
+    var expE = expDB.find(function(x){ return x.id === appState.currentExpId; });
+    if (expE) {
+      updateOGTags({
+        title: expE.name + ' — WowBox',
+        desc:  expE.desc ? expE.desc.substring(0, 160) : '',
+        img:   expE.img || 'https://wowbox.co.za/og-default.jpg'
+      });
+    }
+  } else if (page === 'product' && appState.currentBoxId) {
+    cleanPath = '/box/' + appState.currentBoxId;
+    // Update OG tags for box
+    var boxB = boxDB[appState.currentBoxId];
+    if (boxB) {
+      updateOGTags({
+        title: boxB.name + ' — WowBox Gift Box',
+        desc:  boxB.desc ? boxB.desc.substring(0, 160) : '',
+        img:   boxB.img || 'https://wowbox.co.za/og-default.jpg'
+      });
+    }
+  } else if (page === 'browse') {
+    // Restore filters if coming back from an experience
+    var savedSearch = sessionStorage.getItem('wowbox_browse_search');
+    if (savedSearch !== null) {
+      var s = document.getElementById('browse-search'); if(s) s.value = savedSearch;
+      var sortEl = document.getElementById('browse-sort'); if(sortEl) sortEl.value = sessionStorage.getItem('wowbox_browse_sort') || 'rating';
+      var savedTypes = sessionStorage.getItem('wowbox_browse_types'); var typeArr = savedTypes ? savedTypes.split(',').filter(Boolean) : [];
+      document.querySelectorAll('.brtf').forEach(function(c){ c.checked = typeArr.indexOf(c.value) >= 0; });
+      var savedLocs = sessionStorage.getItem('wowbox_browse_locs'); var locArr = savedLocs ? savedLocs.split(',').filter(Boolean) : [];
+      document.querySelectorAll('.brlf').forEach(function(c){ c.checked = locArr.indexOf(c.value) >= 0; });
+      var savedProvinces = sessionStorage.getItem('wowbox_browse_provinces'); var provArr = savedProvinces ? savedProvinces.split(',').filter(Boolean) : [];
+      document.querySelectorAll('.brpf').forEach(function(c){ c.checked = provArr.indexOf(c.value) >= 0; });
+      var savedBox = sessionStorage.getItem('wowbox_browse_box'); if(savedBox && boxDB[savedBox]) appState.browseBoxId = savedBox;
+    }
+    updateOGTags({ title: 'Browse Experiences — WowBox', desc: 'Discover hundreds of curated experiences across South Africa.', img: 'https://wowbox.co.za/og-default.jpg' });
+  } else {
+    updateOGTags({});
+  }
+
   if (window.location.pathname !== cleanPath) {
     history.pushState(null, '', cleanPath);
   }
@@ -7007,7 +7125,7 @@ function go(page) {
   if (page === 'reviews') renderReviewsPage();
   if (page === 'admin') renderAdmin();
   if (page === 'partner-landing') renderPartnerLanding();
-  if (page === 'browse') { loadExpFromSupabase().then(() => renderBrowse()); }
+  if (page === 'browse') { loadExpFromSupabase().then(function(){ renderBrowse(); browseSaveToURL(); }); }
   if (page === 'roulette') initRoulettePage();
   if (page === 'partner') initPartnerPage();
   if (page === 'dashboard') {
@@ -7020,6 +7138,40 @@ function go(page) {
 
 function goFromHash() {
   var path = window.location.pathname;
+
+  // ── /experience/kruger-game-drive ──
+  if (path.startsWith('/experience/')) {
+    var expSlug = path.replace('/experience/', '').replace(/\/+$/, '');
+    var expId = slugToExpId(expSlug);
+    if (expId) {
+      appState.expContext = 'preview';
+      loadExp(expId);
+      go('expdetail');
+      return;
+    }
+  }
+
+  // ── /box/premium-adventure ──
+  if (path.startsWith('/box/')) {
+    var boxSlug = path.replace('/box/', '').replace(/\/+$/, '');
+    var boxId = slugToBoxId(boxSlug);
+    if (boxId) {
+      loadProduct(boxId);
+      go('product');
+      return;
+    }
+  }
+
+  // ── /browse (with optional ?q=... filters) ──
+  if (path === '/browse') {
+    browseRestoreFromURL();
+    go('browse');
+    var navMap2 = {};
+    if (navMap2['browse']) setNL(navMap2['browse']);
+    return;
+  }
+
+  // ── standard pages ──
   var hash = window.location.hash.replace('#','');
   var lookup = (path !== '/' && path !== '') ? path : (hash || '/');
   var page = HASH_PAGE[lookup] || 'home';
@@ -7208,6 +7360,9 @@ function renderBrowse() {
   // Map cards (compact)
   const mapCards = document.getElementById('browse-map-cards');
   if (mapCards) mapCards.innerHTML = paged.map(e => cardHTML(e)).join('');
+
+  // Sync filters to URL
+  browseSaveToURL();
 }
 
 function renderBrowsePagination(total) {
@@ -13512,6 +13667,19 @@ window.addEventListener('DOMContentLoaded', async () => {
       if (currentPath.startsWith('/gift-video/')) {
         var token = currentPath.replace('/gift-video/', '').replace(/\/+$/, '');
         go('giftvideo'); loadGiftVideoPage(token);
+      } else if (currentPath.startsWith('/experience/')) {
+        var expSlug = currentPath.replace('/experience/', '').replace(/\/+$/, '');
+        var expId = slugToExpId(expSlug);
+        if (expId) { appState.expContext = 'preview'; loadExp(expId); go('expdetail'); }
+        else { go('home'); setNL('nl-home'); }
+      } else if (currentPath.startsWith('/box/')) {
+        var boxSlug = currentPath.replace('/box/', '').replace(/\/+$/, '');
+        var boxId = slugToBoxId(boxSlug);
+        if (boxId) { loadProduct(boxId); go('product'); }
+        else { go('home'); setNL('nl-home'); }
+      } else if (currentPath === '/browse') {
+        browseRestoreFromURL();
+        go('browse');
       } else if (currentPath === '/admin') {
         if (currentUser && currentUser.role === 'admin') { go('admin'); setNL('nl-adm'); }
         else { go('home'); setNL('nl-home'); }
@@ -13537,6 +13705,19 @@ window.addEventListener('DOMContentLoaded', async () => {
   if (currentPath.startsWith('/gift-video/')) {
     var token = currentPath.replace('/gift-video/', '').replace(/\/+$/, '');
     go('giftvideo'); loadGiftVideoPage(token);
+  } else if (currentPath.startsWith('/experience/')) {
+    var expSlug = currentPath.replace('/experience/', '').replace(/\/+$/, '');
+    var expId = slugToExpId(expSlug);
+    if (expId) { appState.expContext = 'preview'; loadExp(expId); go('expdetail'); }
+    else { go('home'); setNL('nl-home'); }
+  } else if (currentPath.startsWith('/box/')) {
+    var boxSlug = currentPath.replace('/box/', '').replace(/\/+$/, '');
+    var boxId = slugToBoxId(boxSlug);
+    if (boxId) { loadProduct(boxId); go('product'); }
+    else { go('home'); setNL('nl-home'); }
+  } else if (currentPath === '/browse') {
+    browseRestoreFromURL();
+    go('browse');
   } else if (protectedPages.indexOf(currentPath) >= 0) {
     go('login'); setNL('nl-login');
   } else if (currentPath === '/' || currentPath === '') {
