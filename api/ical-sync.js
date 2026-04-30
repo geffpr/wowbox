@@ -20,13 +20,48 @@ export default async function handler(req, res) {
   }
 
   try {
-    // 1. Fetch the .ics file (proxy — avoids CORS in browser)
-    const icsUrl = ical_url.replace(/^webcal:\/\//i, 'https://');
-    const icsRes = await fetch(icsUrl, {
-      headers: { 'User-Agent': 'WowBox-iCal-Sync/1.0' }
-    });
-    if (!icsRes.ok) throw new Error(`Failed to fetch iCal: HTTP ${icsRes.status}`);
-    const icsText = await icsRes.text();
+    // 1. Fetch the .ics file — try multiple strategies for Google Calendar
+    let icsText = null;
+    let icsUrl = ical_url
+      .replace(/^webcal:\/\//i, 'https://')
+      .replace('corsproxy.io/?', ''); // strip any proxy the user may have added
+
+    // Google Calendar URLs need special handling
+    const isGoogle = icsUrl.includes('calendar.google.com');
+
+    const attempts = isGoogle ? [
+      // Strategy 1: direct with browser-like headers
+      { url: icsUrl, headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/calendar, text/plain, */*',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Cache-Control': 'no-cache',
+      }},
+      // Strategy 2: via ical.ink proxy (reliable Google Calendar proxy)
+      { url: 'https://ical.ink/proxy?url=' + encodeURIComponent(icsUrl), headers: {} },
+      // Strategy 3: via allorigins proxy
+      { url: 'https://api.allorigins.win/raw?url=' + encodeURIComponent(icsUrl), headers: {} },
+    ] : [
+      { url: icsUrl, headers: {
+        'User-Agent': 'Mozilla/5.0 (compatible; WowBox/1.0)',
+        'Accept': 'text/calendar, */*',
+      }}
+    ];
+
+    let lastError = null;
+    for (const attempt of attempts) {
+      try {
+        const r = await fetch(attempt.url, { headers: attempt.headers });
+        if (r.ok) {
+          const text = await r.text();
+          if (text.includes('BEGIN:VCALENDAR')) { icsText = text; break; }
+        } else {
+          lastError = `HTTP ${r.status} from ${attempt.url}`;
+        }
+      } catch(e) { lastError = e.message; }
+    }
+
+    if (!icsText) throw new Error(`Failed to fetch iCal: ${lastError || 'all attempts failed'}`);
 
     // 2. Parse VEVENT blocks and extract blocked date ranges
     const blocked = new Set();
