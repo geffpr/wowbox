@@ -8072,6 +8072,21 @@ function buildBookingForm(rt) {
   if (exp && exp.capacity) cap = parseInt(exp.capacity) || 2;
   return cfg.form(cap);
 }
+
+// Reload booking form after fetching fresh capacity from Supabase
+async function refreshBookingFormCapacity(rt, containerId) {
+  if (!appState.currentExpId) return;
+  try {
+    var res = await db_client.from('experiences').select('capacity').eq('id', appState.currentExpId).maybeSingle();
+    if (res.data && res.data.capacity) {
+      var exp = expDB.find(function(x){ return x.id === appState.currentExpId; });
+      if (exp) exp.capacity = res.data.capacity;
+      var container = document.getElementById(containerId);
+      if (container) container.innerHTML = buildBookingForm(rt);
+      if (window.flatpickr) initBookingDatePickers(appState.currentExpId);
+    }
+  } catch(e) { console.warn('refreshBookingFormCapacity:', e.message); }
+}
 function collectBookingData(rt) {
   const cfg = rtConfig[rt] || rtConfig.activity;
   return cfg.collect();
@@ -8175,6 +8190,7 @@ function loadExp(expId) {
     bkBadgeEl.textContent = cfg.icon + ' ' + cfg.label;
     document.getElementById('exp-bk-title').textContent = 'Reserve this experience';
     document.getElementById('exp-bk-fields').innerHTML = buildBookingForm(rt);
+    refreshBookingFormCapacity(rt, 'exp-bk-fields');
     // Load Flatpickr + blocked dates from iCal availability
     if (window.flatpickr) {
       initBookingDatePickers(appState.currentExpId);
@@ -11802,6 +11818,7 @@ function confirmChoice() {
   bkBadge.className = 'rtype-badge ' + cfg.cls;
   bkBadge.textContent = cfg.icon + ' ' + cfg.label;
   document.getElementById('roulette-bk-fields').innerHTML = buildBookingForm(rt);
+  refreshBookingFormCapacity(rt, 'roulette-bk-fields');
   if (window.flatpickr) { initBookingDatePickers(appState.currentExpId); }
   else { var _s=document.createElement('script');_s.src='https://cdn.jsdelivr.net/npm/flatpickr';_s.onload=function(){initBookingDatePickers(appState.currentExpId);};document.head.appendChild(_s); }
 
