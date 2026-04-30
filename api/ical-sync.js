@@ -104,13 +104,13 @@ export default async function handler(req, res) {
     const chunkSize = 100;
     for (let i = 0; i < rows.length; i += chunkSize) {
       const chunk = rows.slice(i, i + chunkSize);
-      const sbRes = await fetch(`${SUPABASE_URL}/rest/v1/availability`, {
+      const sbRes = await fetch(`${SUPABASE_URL}/rest/v1/availability?on_conflict=experience_id,date`, {
         method: 'POST',
         headers: {
           'apikey':        SUPABASE_KEY,
           'Authorization': `Bearer ${SUPABASE_KEY}`,
           'Content-Type':  'application/json',
-          'Prefer':        'resolution=merge-duplicates',
+          'Prefer':        'resolution=merge-duplicates,return=minimal',
         },
         body: JSON.stringify(chunk),
       });
