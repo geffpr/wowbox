@@ -2470,7 +2470,7 @@ nav{position:sticky;top:0;z-index:300;background:rgba(255,255,255,.95);
   font-size:.73rem;color:#fff;font-weight:600}
 
 .adm-layout{display:grid;grid-template-columns:230px 1fr;min-height:calc(100vh - 68px)}
-.adm-sb{background:var(--navy);padding:22px 13px}
+.adm-sb{background:var(--navy);padding:22px 13px;display:flex;flex-direction:column;min-height:100vh}
 .adm-logo{color:#fff;font-family:'Cormorant Garamond',serif;font-size:1.25rem;
   font-weight:700;margin-bottom:26px;padding:0 8px;opacity:.9}
 .anl{padding:9px 11px;border-radius:var(--rs);font-size:.8rem;font-weight:500;
@@ -5533,7 +5533,7 @@ tr:hover td{background:var(--b50)}
       <button class="anl"     onclick="switchAdm(this,'adm-coupons')"><i class="fa fa-tag"></i> Coupons</button>
       <button class="anl"     onclick="switchAdm(this,'adm-activate')"><i class="fa fa-box-open"></i> Activate Boxes <span style="background:linear-gradient(135deg,#10b981,#059669);color:#fff;border-radius:99px;padding:1px 7px;font-size:.58rem;font-weight:700;margin-left:auto">RETAIL</span></button>
       <button class="anl"     onclick="switchAdm(this,'adm-cities');renderAdmCities()"><i class="fa fa-map-location-dot"></i> Cities <span id="adm-cities-badge" style="display:none;margin-left:auto;background:var(--b600);color:#fff;border-radius:99px;padding:1px 7px;font-size:.6rem;font-weight:700"></span></button>
-      <div style="position:absolute;bottom:18px;left:13px;right:13px">
+      <div style="margin-top:auto;padding-top:14px;border-top:1px solid rgba(255,255,255,.08)">
         <button class="anl" onclick="go('home')"><i class="fa fa-right-from-bracket"></i> Exit Admin</button>
       </div>
     </div>
@@ -10525,7 +10525,7 @@ function filterDashBoxes(status, btn) {
 }
 
 /* ── ADMIN ── */
-const admTabs = ['adm-dash','adm-boxes','adm-db','adm-exp','adm-requests','adm-orders','adm-usage','adm-comm','adm-pricing','adm-coupons','adm-activate','adm-cities'];
+const admTabs = ['adm-dash','adm-boxes','adm-db','adm-exp','adm-requests','adm-reviews','adm-orders','adm-usage','adm-comm','adm-pricing','adm-coupons','adm-activate','adm-cities'];
 
 /* ══════════════════════════════════════════════════════════════
    CITY ROLLOUT — GEOGRAPHIC TOGGLE + RADIUS
@@ -12451,7 +12451,7 @@ function confirmRouletteBooking() {
 /* ══════════════════════════════════════════════════════════════
    PARTNER PORTAL
 ══════════════════════════════════════════════════════════════ */
-const PP_SECTIONS = ['pp-overview','pp-validate','pp-experiences','pp-subscription','pp-plan','pp-analytics','pp-calendar','pp-boost','pp-reporting'];
+const PP_SECTIONS = ['pp-overview','pp-validate','pp-experiences','pp-subscription','pp-plan','pp-analytics','pp-calendar','pp-boost','pp-reporting','pp-reviews'];
 
 function switchPP(btn, sectionId) {
   PP_SECTIONS.forEach(id => {
