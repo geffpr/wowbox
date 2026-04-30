@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <!-- Connexion Supabase -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.3/dist/umd/supabase.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.0/dist/umd/supabase.js"></script>
 <script>
   var SUPABASE_URL = 'https://gfqxuygfkzgmotnxrlwb.supabase.co';
   var SUPABASE_KEY = 'sb_publishable_NNDH11RkDff2KHghf_k-8g_wL2NtUIL';
@@ -599,7 +599,7 @@ async function authForgot() {
 }
 
 function showDash(tab) {
-  var allTabs = ['dash-boxes','dash-orders','dash-redeem','dash-wishlist','dash-settings'];
+  var allTabs = ['dash-boxes','dash-orders','dash-redeem','dash-wishlist','dash-reviews','dash-settings'];
   allTabs.forEach(function(t) {
     var el = document.getElementById(t);
     if (el) el.style.display = 'none';
@@ -607,8 +607,9 @@ function showDash(tab) {
   var target = document.getElementById('dash-' + tab);
   if (target) target.style.display = 'block';
   if (tab === 'wishlist') wlRender();
+  if (tab === 'reviews' && currentUser) loadUserReviews(currentUser.email);
   document.querySelectorAll('.sbl').forEach(function(b) { b.classList.remove('on'); });
-  var labels = {boxes:'My Boxes',orders:'My Orders',redeem:'Redeem',wishlist:'Wishlist',settings:'Settings'};
+  var labels = {boxes:'My Boxes',orders:'My Orders',redeem:'Redeem',wishlist:'Wishlist',reviews:'My Reviews',settings:'Settings'};
   var label = labels[tab] || '';
   document.querySelectorAll('.sbl').forEach(function(b) {
     if (label && b.textContent.trim().includes(label)) b.classList.add('on');
@@ -4201,6 +4202,7 @@ tr:hover td{background:var(--b50)}
       <button class="sbl" onclick="showDash('orders')"><i class="fa fa-box"></i> My Orders</button>
       <button class="sbl" onclick="showDash('redeem')"><i class="fa fa-ticket"></i> Redeem a Box</button>
       <button class="sbl" onclick="showDash('wishlist')"><i class="fa fa-heart"></i> Wishlist</button>
+      <button class="sbl" onclick="showDash('reviews')"><i class="fa fa-star"></i> My Reviews <span id="dash-reviews-badge" style="display:none;margin-left:auto;background:#ef4444;color:#fff;border-radius:99px;padding:1px 6px;font-size:.6rem;font-weight:700"></span></button>
       <button class="sbl" onclick="showDash('settings')"><i class="fa fa-gear"></i> Settings</button>
       <div style="margin-top:auto;padding-top:22px"><button class="sbl" onclick="authSignOut()"><i class="fa fa-right-from-bracket"></i> Sign out</button></div>
     </div>
@@ -4238,6 +4240,14 @@ tr:hover td{background:var(--b50)}
             <button class="btn bp bsm" style="margin-top:16px" onclick="go('allboxes')">Browse gift boxes</button>
           </div>
         </div>
+      </div>
+
+      <!-- Reviews tab -->
+      <div id="dash-reviews" style="display:none">
+        <h2 style="font-size:1.8rem;color:var(--navy);margin-bottom:5px">My Reviews</h2>
+        <p style="color:var(--muted);font-size:.85rem;margin-bottom:22px">Rate your completed experiences and boxes.</p>
+        <div id="dash-reviews-pending"></div>
+        <div id="dash-reviews-done" style="margin-top:24px"></div>
       </div>
 
       <!-- Settings tab -->
@@ -4753,6 +4763,7 @@ tr:hover td{background:var(--b50)}
       <button class="pp-nav" onclick="switchPP(this,'pp-subscription')"><i class="fa fa-credit-card"></i> My Subscription</button>
       <button class="pp-nav" onclick="switchPP(this,'pp-plan')"><i class="fa fa-crown"></i> Plan &amp; Features</button>
       <!-- Pro nav buttons — shown/unlocked when isPro() -->
+      <button class="pp-nav" onclick="switchPP(this,'pp-reviews');ppLoadReviews()"><i class="fa fa-star"></i> My Reviews <span id="pp-reviews-badge" style="display:none;margin-left:auto;background:#ef4444;color:#fff;border-radius:99px;padding:1px 6px;font-size:.6rem;font-weight:700"></span></button>
       <button class="pp-nav pro-nav-locked" id="pp-nav-analytics" onclick="ppProNav(this,'pp-analytics')"><i class="fa fa-chart-line"></i> Analytics <i class="fa fa-lock pp-nav-lock" style="font-size:.6rem;margin-left:auto"></i></button>
       <button class="pp-nav pro-nav-locked" id="pp-nav-calendar"  onclick="ppProNav(this,'pp-calendar')"><i class="fa fa-calendar-days"></i> Calendar <i class="fa fa-lock pp-nav-lock" style="font-size:.6rem;margin-left:auto"></i></button>
       <button class="pp-nav pro-nav-locked" id="pp-nav-boost"     onclick="ppProNav(this,'pp-boost')"><i class="fa fa-rocket"></i> Boost <i class="fa fa-lock pp-nav-lock" style="font-size:.6rem;margin-left:auto"></i></button>
@@ -5462,6 +5473,15 @@ tr:hover td{background:var(--b50)}
         </div>
       </div>
 
+
+      <!-- ══ REVIEWS ══ -->
+      <div id="pp-reviews" class="pp-sec">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:22px">
+          <div><h2 style="font-size:1.75rem;color:var(--navy)">My Reviews</h2><p style="color:var(--muted);font-size:.82rem">Guest feedback on your experiences. You can respond to reviews or flag inappropriate ones.</p></div>
+        </div>
+        <div id="pp-reviews-list"><p style="color:var(--muted)">Loading...</p></div>
+      </div>
+
     </div><!-- /pp-main -->
   </div><!-- /pp-layout -->
 </div>
@@ -5505,6 +5525,7 @@ tr:hover td{background:var(--b50)}
         <i class="fa fa-inbox"></i> Partner Requests
         <span id="adm-req-badge" style="margin-left:auto;background:#ef4444;color:#fff;border-radius:99px;padding:1px 7px;font-size:.6rem;font-weight:700">3</span>
       </button>
+      <button class="anl"     onclick="switchAdm(this,'adm-reviews');admLoadReviews()"><i class="fa fa-star"></i> Reviews <span id="adm-reviews-badge" style="display:none;margin-left:auto;background:#ef4444;color:#fff;border-radius:99px;padding:1px 7px;font-size:.6rem;font-weight:700"></span></button>
       <button class="anl"     onclick="switchAdm(this,'adm-orders')"><i class="fa fa-box"></i> Orders</button>
       <button class="anl"     onclick="switchAdm(this,'adm-usage')"><i class="fa fa-ticket"></i> Box Usage</button>
       <button class="anl"     onclick="switchAdm(this,'adm-comm')"><i class="fa fa-percent"></i> Commissions</button>
@@ -5883,6 +5904,19 @@ tr:hover td{background:var(--b50)}
             <div style="text-align:center;padding:40px;color:var(--muted)"><i class="fa fa-spinner fa-spin" style="font-size:1.5rem"></i><div style="margin-top:10px;font-size:.85rem">Loading…</div></div>
           </div>
         </div>
+      </div>
+
+      <!-- ══ REVIEWS ══ -->
+      <div id="adm-reviews" style="display:none">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:22px">
+          <div><h2 style="font-size:1.7rem;color:var(--navy)">Reviews</h2><p style="color:var(--muted);font-size:.8rem">Moderate user reviews before they go live.</p></div>
+          <div style="display:flex;gap:8px">
+            <button class="btn bg bsm" onclick="admLoadReviews('pending')">Pending</button>
+            <button class="btn bg bsm" onclick="admLoadReviews('approved')">Approved</button>
+            <button class="btn bg bsm" onclick="admLoadReviews('flagged')">Flagged</button>
+          </div>
+        </div>
+        <div id="adm-reviews-list"><p style="color:var(--muted);font-size:.85rem">Loading...</p></div>
       </div>
 
       <!-- ══ ORDERS ══ -->
@@ -8193,9 +8227,8 @@ function loadExp(expId) {
     }).join('');
   }
 
-  // Reviews
-  const revs = reviewsDB[e.box] || [];
-  document.getElementById('exp-rev-list').innerHTML = revs.slice(0,3).map(rv => revCard(rv)).join('') || '<p style="color:var(--muted);font-size:.82rem">No reviews yet.</p>';
+  // Reviews: load real data from Supabase
+  loadExpReviews(appState.currentExpId);
 
   // Box link panel — always visible
   if (b) {
@@ -8425,6 +8458,375 @@ function filterRevs(filter, btn) {
 }
 
 /* ══════════════════════════════════════════════════════════════
+
+/* ══════════════════════════════════════════════════════════════
+   REVIEWS SYSTEM — loadUserReviews, ppLoadReviews, admLoadReviews
+══════════════════════════════════════════════════════════════ */
+
+// ── Shared star renderer ──────────────────────────────────────
+function renderStars(n, interactive, prefix) {
+  var s = '';
+  for (var i = 1; i <= 5; i++) {
+    if (interactive) {
+      s += '<i class="fa fa-star" data-val="'+i+'" id="'+prefix+'-s'+i+'" '
+        + 'style="cursor:pointer;font-size:1.3rem;color:'+(i<=n?'#f59e0b':'#d1d5db')+';margin-right:2px" '
+        + 'onclick="setReviewStar(\''+prefix+'\','+i+')" '
+        + 'onmouseover="hoverStar(\''+prefix+'\','+i+')" '
+        + 'onmouseout="resetStarHover(\''+prefix+'\','+i+')"></i>';
+    } else {
+      s += '<i class="fa fa-star" style="color:'+(i<=n?'#f59e0b':'#d1d5db')+';font-size:.85rem"></i>';
+    }
+  }
+  return s;
+}
+window._reviewRatings = {};
+function setReviewStar(prefix, val) {
+  window._reviewRatings[prefix] = val;
+  for (var i=1;i<=5;i++) {
+    var el = document.getElementById(prefix+'-s'+i);
+    if (el) el.style.color = i<=val ? '#f59e0b' : '#d1d5db';
+  }
+}
+function hoverStar(prefix, val) {
+  for (var i=1;i<=5;i++) {
+    var el = document.getElementById(prefix+'-s'+i);
+    if (el) el.style.color = i<=val ? '#f59e0b' : '#d1d5db';
+  }
+}
+function resetStarHover(prefix) {
+  var cur = window._reviewRatings[prefix] || 0;
+  for (var i=1;i<=5;i++) {
+    var el = document.getElementById(prefix+'-s'+i);
+    if (el) el.style.color = i<=cur ? '#f59e0b' : '#d1d5db';
+  }
+}
+
+// ── Review card HTML (shared) ──────────────────────────────────
+function buildReviewCard(r, context) {
+  // context: 'user' | 'partner' | 'admin'
+  var stars = renderStars(r.rating || 0, false, '');
+  var date = r.created_at ? new Date(r.created_at).toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'}) : '';
+  var name = r.display_name || r.user_email || 'Anonymous';
+  var avatar = name.charAt(0).toUpperCase();
+  var statusBadge = '';
+  if (context === 'admin') {
+    var sc = {pending:'#f59e0b',approved:'#22c55e',rejected:'#ef4444',flagged:'#f97316'};
+    statusBadge = '<span style="font-size:.65rem;background:'+( sc[r.status]||'#94a3b8')+';color:#fff;padding:2px 8px;border-radius:99px;font-weight:700;text-transform:uppercase">'+r.status+'</span>';
+  }
+  var photoHtml = r.photo_url ? '<img src="'+r.photo_url+'" style="width:100%;max-height:160px;object-fit:cover;border-radius:var(--rs);margin-top:8px">' : '';
+  var replyHtml = r.partner_reply
+    ? '<div style="margin-top:10px;padding:10px 14px;background:var(--b50);border-left:3px solid var(--b400);border-radius:0 var(--rs) var(--rs) 0">'
+      + '<div style="font-size:.7rem;font-weight:700;color:var(--b600);margin-bottom:4px"><i class="fa fa-reply"></i> Partner response</div>'
+      + '<p style="font-size:.78rem;color:var(--slate);margin:0">'+r.partner_reply+'</p></div>'
+    : '';
+
+  var actions = '';
+  if (context === 'partner') {
+    if (r.status === 'approved') {
+      if (!r.partner_reply) {
+        actions = '<button class="btn bg bsm" onclick="ppOpenReply(\''+r.id+'\')" style="font-size:.72rem"><i class="fa fa-reply"></i> Reply</button> ';
+      }
+      actions += '<button class="btn bsm" onclick="ppFlagReview(\''+r.id+'\')" style="font-size:.72rem;color:#f97316;border:1px solid #fed7aa"><i class="fa fa-flag"></i> Flag</button>';
+    }
+  }
+  if (context === 'admin') {
+    if (r.status === 'pending' || r.status === 'flagged') {
+      actions = '<button class="btn bgreen bsm" onclick="admApproveReview(\''+r.id+'\')"><i class="fa fa-check"></i> Approve</button> '
+        + '<button class="btn bsm" onclick="admRejectReview(\''+r.id+'\')" style="background:#fee2e2;color:#991b1b;border:1px solid #fca5a5"><i class="fa fa-xmark"></i> Reject</button> '
+        + '<button class="btn bsm" onclick="admDeleteReview(\''+r.id+'\')" style="background:#fef2f2;color:#ef4444;border:1px solid #fca5a5"><i class="fa fa-trash"></i> Delete</button>';
+    } else if (r.status === 'approved') {
+      actions = '<button class="btn bsm" onclick="admDeleteReview(\''+r.id+'\')" style="background:#fef2f2;color:#ef4444;border:1px solid #fca5a5"><i class="fa fa-trash"></i> Delete</button>';
+    }
+  }
+
+  var expLine = r.experience_id
+    ? '<div style="font-size:.7rem;color:var(--b600);font-weight:600;margin-bottom:5px"><i class="fa fa-compass"></i> '+(r.experience_name||r.experience_id)+'</div>'
+    : (r.box_id ? '<div style="font-size:.7rem;color:var(--b600);font-weight:600;margin-bottom:5px"><i class="fa fa-gift"></i> Box review</div>' : '');
+
+  return '<div class="rev-card" style="margin-bottom:14px">'
+    + '<div class="rev-head">'
+    + '<div class="rev-av">'+avatar+'</div>'
+    + '<div style="flex:1"><div style="font-size:.85rem;font-weight:600;color:var(--navy)">'+name+'</div>'
+    + '<div style="font-size:.7rem;color:var(--muted)">'+date+' &middot; <i class="fa fa-check-circle" style="color:var(--green)"></i> Verified</div></div>'
+    + '<div style="margin-left:auto;display:flex;flex-direction:column;align-items:flex-end;gap:4px">'
+    + '<span>'+stars+'</span>' + statusBadge + '</div>'
+    + '</div>'
+    + expLine
+    + '<p style="font-size:.8rem;color:var(--slate);line-height:1.6;margin:0">'+( r.text||'')+'</p>'
+    + photoHtml
+    + replyHtml
+    + (actions ? '<div style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap">'+actions+'</div>' : '')
+    + '</div>';
+}
+
+// ─────────────────────────────────────────────────────────────
+// USER: load reviews + pending-to-review orders
+// ─────────────────────────────────────────────────────────────
+async function loadUserReviews(email) {
+  var pendEl = document.getElementById('dash-reviews-pending');
+  var doneEl = document.getElementById('dash-reviews-done');
+  if (!pendEl) return;
+
+  // Load completed bookings without a review yet
+  var bRes = await db_client.from('bookings')
+    .select('id, experience_id, experience_name, completed_at')
+    .eq('user_email', email)
+    .eq('status', 'completed')
+    .order('completed_at', { ascending: false });
+
+  var myRevRes = await db_client.from('experience_reviews')
+    .select('id, experience_id')
+    .eq('user_email', email);
+
+  var reviewed = new Set((myRevRes.data||[]).map(function(r){ return r.experience_id; }));
+  var toReview = (bRes.data||[]).filter(function(b){ return !reviewed.has(b.experience_id); });
+
+  // Badge
+  var badge = document.getElementById('dash-reviews-badge');
+  if (badge) {
+    badge.textContent = toReview.length;
+    badge.style.display = toReview.length ? '' : 'none';
+  }
+
+  // Pending section
+  if (toReview.length) {
+    pendEl.innerHTML = '<h3 style="font-size:1rem;color:var(--navy);margin-bottom:14px"><i class="fa fa-star" style="color:#f59e0b"></i> Rate your experiences ('+toReview.length+')</h3>'
+      + toReview.map(function(b) {
+          var pid = 'rev-'+b.id;
+          return '<div class="ck-card" style="margin-bottom:14px">'
+            + '<div style="font-size:.88rem;font-weight:600;color:var(--navy);margin-bottom:4px">'+( b.experience_name||b.experience_id)+'</div>'
+            + '<div style="font-size:.72rem;color:var(--muted);margin-bottom:12px">Completed '+( b.completed_at ? new Date(b.completed_at).toLocaleDateString('en-ZA') : '')+'</div>'
+            + '<div style="margin-bottom:10px">'+renderStars(0, true, pid)+'</div>'
+            + '<textarea class="fi" id="'+pid+'-text" rows="3" placeholder="Share your experience..." style="margin-bottom:8px;font-size:.82rem"></textarea>'
+            + '<div style="font-size:.72rem;color:var(--muted);margin-bottom:8px">Display name (optional)</div>'
+            + '<input class="fi" id="'+pid+'-name" placeholder="e.g. Sarah M." style="margin-bottom:10px;font-size:.82rem">'
+            + '<button class="btn bp bsm" onclick="submitUserReview(\''+b.experience_id+'\',\''+b.id+'\',\''+pid+'\')"><i class="fa fa-paper-plane"></i> Submit review</button>'
+            + '</div>';
+        }).join('');
+  } else {
+    pendEl.innerHTML = '<div style="background:var(--b50);border-radius:var(--r);padding:18px;text-align:center;color:var(--muted);font-size:.85rem;margin-bottom:20px"><i class="fa fa-check-circle" style="color:var(--green);font-size:1.3rem;display:block;margin-bottom:8px"></i>No pending reviews — you\'re all caught up!</div>';
+  }
+
+  // Past reviews
+  var pastRes = await db_client.from('experience_reviews')
+    .select('*')
+    .eq('user_email', email)
+    .order('created_at', { ascending: false });
+
+  var pastRevs = pastRes.data || [];
+  if (pastRevs.length) {
+    doneEl.innerHTML = '<h3 style="font-size:1rem;color:var(--navy);margin-bottom:14px"><i class="fa fa-clock-rotate-left"></i> Your past reviews ('+pastRevs.length+')</h3>'
+      + pastRevs.map(function(r){ return buildReviewCard(r, 'user'); }).join('');
+  }
+}
+
+async function submitUserReview(expId, bookingId, prefix) {
+  var rating = window._reviewRatings[prefix] || 0;
+  var text   = (document.getElementById(prefix+'-text')||{value:''}).value.trim();
+  var name   = (document.getElementById(prefix+'-name')||{value:''}).value.trim();
+  if (!rating) { admToast('Please select a star rating.'); return; }
+  if (!text)   { admToast('Please write a short review.'); return; }
+  try {
+    var res = await db_client.from('experience_reviews').insert({
+      experience_id: expId,
+      order_id:      bookingId,
+      user_email:    currentUser.email,
+      display_name:  name || null,
+      rating:        rating,
+      text:          text,
+      status:        'pending',
+    });
+    if (res.error) throw res.error;
+    admToast('Review submitted — thanks! It will appear after moderation.');
+    loadUserReviews(currentUser.email);
+  } catch(e) { admToast('Error: '+e.message); }
+}
+
+// ─────────────────────────────────────────────────────────────
+// EXPERIENCE PAGE: load real reviews from Supabase
+// ─────────────────────────────────────────────────────────────
+async function loadExpReviews(expId) {
+  var listEl = document.getElementById('exp-rev-list');
+  var cntEl  = document.getElementById('exp-rev-cnt');
+  var numEl  = document.getElementById('exp-rv-num');
+  var totEl  = document.getElementById('exp-rv-total');
+  if (!listEl) return;
+  try {
+    var res = await db_client.from('experience_reviews')
+      .select('*')
+      .eq('experience_id', expId)
+      .eq('status', 'approved')
+      .order('created_at', { ascending: false });
+    var revs = res.data || [];
+    if (cntEl) cntEl.textContent = revs.length;
+    if (revs.length) {
+      var avg = (revs.reduce(function(s,r){ return s+r.rating; },0)/revs.length).toFixed(1);
+      if (numEl) numEl.textContent = avg;
+      if (totEl) totEl.textContent = revs.length + ' reviews';
+      listEl.innerHTML = revs.map(function(r){ return buildReviewCard(r, 'display'); }).join('');
+    } else {
+      if (numEl) numEl.textContent = '—';
+      if (totEl) totEl.textContent = 'No reviews yet';
+      listEl.innerHTML = '<p style="color:var(--muted);font-size:.82rem;text-align:center;padding:20px 0">No reviews yet — be the first!</p>';
+    }
+  } catch(e) { console.warn('loadExpReviews:', e.message); }
+}
+
+// ─────────────────────────────────────────────────────────────
+// PARTNER: load reviews for their experiences
+// ─────────────────────────────────────────────────────────────
+async function ppLoadReviews() {
+  var listEl = document.getElementById('pp-reviews-list');
+  if (!listEl || !currentUser) return;
+  listEl.innerHTML = '<p style="color:var(--muted)">Loading...</p>';
+  try {
+    // Get partner's experience IDs
+    var expRes = await db_client.from('experiences')
+      .select('id, name')
+      .eq('partner_email', currentUser.email);
+    var expIds = (expRes.data||[]).map(function(e){ return e.id; });
+    var expNames = {};
+    (expRes.data||[]).forEach(function(e){ expNames[e.id] = e.name; });
+
+    if (!expIds.length) {
+      listEl.innerHTML = '<p style="color:var(--muted);font-size:.85rem">No experiences found for your account.</p>';
+      return;
+    }
+
+    var res = await db_client.from('experience_reviews')
+      .select('*')
+      .in('experience_id', expIds)
+      .eq('status', 'approved')
+      .order('created_at', { ascending: false });
+
+    var revs = (res.data||[]).map(function(r){
+      r.experience_name = expNames[r.experience_id] || r.experience_id;
+      return r;
+    });
+
+    var badge = document.getElementById('pp-reviews-badge');
+    if (badge) { badge.textContent = revs.length; badge.style.display = revs.length ? '' : 'none'; }
+
+    if (!revs.length) {
+      listEl.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted)"><i class="fa fa-star" style="font-size:2rem;opacity:.2;display:block;margin-bottom:12px"></i><p>No approved reviews yet. Reviews appear here after admin approval.</p></div>';
+      return;
+    }
+
+    listEl.innerHTML = '<div style="margin-bottom:8px;font-size:.82rem;color:var(--muted)">'+revs.length+' approved review'+(revs.length!==1?'s':'')+'</div>'
+      + revs.map(function(r){ return buildReviewCard(r, 'partner'); }).join('');
+  } catch(e) { listEl.innerHTML = '<p style="color:#ef4444">Error: '+e.message+'</p>'; }
+}
+
+function ppOpenReply(reviewId) {
+  var existing = document.getElementById('pp-reply-modal');
+  if (existing) existing.remove();
+  var modal = document.createElement('div');
+  modal.id = 'pp-reply-modal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9000;display:flex;align-items:center;justify-content:center;padding:20px';
+  modal.innerHTML = '<div style="background:#fff;border-radius:16px;padding:28px;max-width:480px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.2)">'
+    + '<h3 style="font-size:1.1rem;color:var(--navy);margin-bottom:4px"><i class="fa fa-reply"></i> Reply to review</h3>'
+    + '<p style="font-size:.78rem;color:var(--muted);margin-bottom:14px">Your reply will be visible publicly under the review.</p>'
+    + '<textarea class="fi" id="pp-reply-text" rows="4" placeholder="Thank you for your feedback..." style="margin-bottom:14px;font-size:.85rem"></textarea>'
+    + '<div style="display:flex;gap:8px">'
+    + '<button class="btn bp" style="flex:1" onclick="ppSubmitReply(\''+reviewId+'\')"><i class="fa fa-paper-plane"></i> Publish reply</button>'
+    + '<button class="btn bg" onclick="document.getElementById(\'pp-reply-modal\').remove()">Cancel</button>'
+    + '</div></div>';
+  modal.addEventListener('click', function(e){ if(e.target===modal) modal.remove(); });
+  document.body.appendChild(modal);
+}
+
+async function ppSubmitReply(reviewId) {
+  var text = (document.getElementById('pp-reply-text')||{value:''}).value.trim();
+  if (!text) { admToast('Please write a reply.'); return; }
+  try {
+    var res = await db_client.from('experience_reviews')
+      .update({ partner_reply: text, partner_replied_at: new Date().toISOString() })
+      .eq('id', reviewId);
+    if (res.error) throw res.error;
+    var modal = document.getElementById('pp-reply-modal');
+    if (modal) modal.remove();
+    admToast('Reply published!');
+    ppLoadReviews();
+  } catch(e) { admToast('Error: '+e.message); }
+}
+
+async function ppFlagReview(reviewId) {
+  if (!confirm('Flag this review as inappropriate? It will be sent to WowBox admin for review.')) return;
+  try {
+    var res = await db_client.from('experience_reviews')
+      .update({ status: 'flagged', flagged_at: new Date().toISOString() })
+      .eq('id', reviewId);
+    if (res.error) throw res.error;
+    admToast('Review flagged and sent to admin.');
+    ppLoadReviews();
+  } catch(e) { admToast('Error: '+e.message); }
+}
+
+// ─────────────────────────────────────────────────────────────
+// ADMIN: moderate reviews
+// ─────────────────────────────────────────────────────────────
+async function admLoadReviews(filter) {
+  filter = filter || 'pending';
+  var listEl = document.getElementById('adm-reviews-list');
+  if (!listEl) return;
+  listEl.innerHTML = '<p style="color:var(--muted)">Loading...</p>';
+  try {
+    var q = db_client.from('experience_reviews').select('*').order('created_at', { ascending: false });
+    if (filter === 'flagged') q = q.eq('status', 'flagged');
+    else if (filter === 'approved') q = q.eq('status', 'approved');
+    else q = q.eq('status', 'pending');
+
+    var res = await q;
+    var revs = res.data || [];
+
+    // Update badge
+    var pendRes = await db_client.from('experience_reviews').select('id', {count:'exact'}).in('status',['pending','flagged']);
+    var badge = document.getElementById('adm-reviews-badge');
+    if (badge) { badge.textContent = pendRes.count||0; badge.style.display = (pendRes.count) ? '' : 'none'; }
+
+    if (!revs.length) {
+      listEl.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted)"><i class="fa fa-star" style="font-size:2rem;opacity:.2;display:block;margin-bottom:12px"></i><p>No '+filter+' reviews.</p></div>';
+      return;
+    }
+    listEl.innerHTML = '<div style="margin-bottom:12px;font-size:.82rem;color:var(--muted)">'+revs.length+' '+filter+' review'+(revs.length!==1?'s':'')+'</div>'
+      + revs.map(function(r){ return buildReviewCard(r, 'admin'); }).join('');
+  } catch(e) { listEl.innerHTML = '<p style="color:#ef4444">Error: '+e.message+'</p>'; }
+}
+
+async function admApproveReview(id) {
+  try {
+    var res = await db_client.from('experience_reviews')
+      .update({ status: 'approved', approved_at: new Date().toISOString() })
+      .eq('id', id);
+    if (res.error) throw res.error;
+    admToast('Review approved and published!');
+    admLoadReviews('pending');
+  } catch(e) { admToast('Error: '+e.message); }
+}
+
+async function admRejectReview(id) {
+  try {
+    var res = await db_client.from('experience_reviews')
+      .update({ status: 'rejected' })
+      .eq('id', id);
+    if (res.error) throw res.error;
+    admToast('Review rejected.');
+    admLoadReviews('pending');
+  } catch(e) { admToast('Error: '+e.message); }
+}
+
+async function admDeleteReview(id) {
+  if (!confirm('Permanently delete this review? This cannot be undone.')) return;
+  try {
+    var res = await db_client.from('experience_reviews').delete().eq('id', id);
+    if (res.error) throw res.error;
+    admToast('Review deleted.');
+    admLoadReviews(document.querySelector('#adm-reviews .btn.on')?.dataset?.filter || 'approved');
+  } catch(e) { admToast('Error: '+e.message); }
+}
+
+
+/* ════════════════════════════
    CART
 ══════════════════════════════════════════════════════════════ */
 // Returns a properly sized image URL — only appends Unsplash params for Unsplash URLs
