@@ -4952,6 +4952,14 @@ tr:hover td{background:var(--b50)}
             </div>
           </div>
           <div class="fg"><label>Description</label><textarea class="fi" id="pp-new-desc" rows="3" style="resize:vertical" placeholder="Describe what guests will experience…"></textarea></div>
+          <div class="fg">
+            <label>Programme <span style="font-weight:400;color:var(--muted)">(up to 4 steps — leave empty to skip)</span></label>
+            <div id="pp-new-programme-wrap"></div>
+          </div>
+          <div class="fg">
+            <label>Amenities</label>
+            <div id="pp-new-amenities-wrap"></div>
+          </div>
           <div class="fg-row">
             <div class="fg">
               <label>Maximum guests per booking *</label>
@@ -5791,6 +5799,14 @@ tr:hover td{background:var(--b50)}
                 </div>
               </div>
               <div class="fg"><label>Description</label><textarea class="fi" id="aef-desc" rows="3" style="resize:vertical" placeholder="Full experience description shown on the detail page…"></textarea></div>
+              <div class="fg">
+                <label>Programme <span style="font-weight:400;color:var(--muted)">(4 steps max — empty steps are hidden)</span></label>
+                <div id="aef-programme-wrap"></div>
+              </div>
+              <div class="fg">
+                <label>Amenities</label>
+                <div id="aef-amenities-wrap"></div>
+              </div>
               <div class="fg">
                 <label>🔗 iCal sync URL <span style="font-weight:400;color:var(--muted)">(optional)</span></label>
                 <div style="display:flex;gap:8px">
@@ -8154,15 +8170,28 @@ function loadExp(expId) {
   document.getElementById('exp-rv-num').textContent = e.rating;
   document.getElementById('exp-rv-total').textContent = e.rv + ' reviews';
 
-  // Programme
-  const prog = programs[rt] || programs.activity;
-  document.getElementById('exp-prog-list').innerHTML = prog.map(p =>
-    `<div class="prog-item"><div class="prog-dot"></div><div><h5 style="font-size:.88rem;color:var(--navy);margin-bottom:3px">${p.title}</h5><p style="font-size:.78rem;color:var(--muted)">${p.text}</p></div></div>`
-  ).join('');
+  // Programme: use Supabase data if available, fallback to hardcoded
+  var progData = (e.programme && e.programme.length) ? e.programme : (programs[rt] || programs.activity);
+  document.getElementById('exp-prog-list').innerHTML = progData.map(function(p){
+    return '<div class="prog-item"><div class="prog-dot"></div><div>'
+      + '<h5 style="font-size:.88rem;color:var(--navy);margin-bottom:3px">' + (p.title||'') + '</h5>'
+      + '<p style="font-size:.78rem;color:var(--muted)">' + (p.text||'') + '</p>'
+      + '</div></div>';
+  }).join('');
 
-  // Amenities
-  const ams = amenities[rt] || amenities.activity;
-  document.getElementById('exp-amenities').innerHTML = ams.map(a => `<div class="am"><i class="fa ${a.i}"></i> ${a.t}</div>`).join('');
+  // Amenities: use Supabase data if available, fallback to hardcoded
+  var amData = (e.amenities && e.amenities.length) ? e.amenities : null;
+  if (amData) {
+    document.getElementById('exp-amenities').innerHTML = amData.map(function(a){
+      var found = WB_AMENITIES.find(function(w){ return w.id===a; });
+      return '<div class="am"><i class="fa '+(found?found.icon:'fa-check')+'"></i> '+(found?found.label:a)+'</div>';
+    }).join('');
+  } else {
+    var fbAms = amenities[rt] || amenities.activity;
+    document.getElementById('exp-amenities').innerHTML = fbAms.map(function(a){
+      return '<div class="am"><i class="fa '+a.i+'"></i> '+a.t+'</div>';
+    }).join('');
+  }
 
   // Reviews
   const revs = reviewsDB[e.box] || [];
@@ -10577,6 +10606,10 @@ function admShowExpFormById(expId) {
   if (rtSel) rtSel.value = e.reservation_type || '';
   admExpTypeNote();
   aefLoadImgSlots([e.img, e.img2, e.img3].filter(Boolean));
+  var progWrap2 = document.getElementById('aef-programme-wrap');
+  if (progWrap2) progWrap2.innerHTML = buildProgrammeFields('aef', e.programme || []);
+  var amWrap2 = document.getElementById('aef-amenities-wrap');
+  if (amWrap2) amWrap2.innerHTML = buildAmenitiesCheckboxes('aef', e.amenities || []);
 }
 
 function renderBoxGallery() {
@@ -10707,6 +10740,82 @@ const admExpRtNotes = {
   event:        '→ Users see: name, date, party size, preferences/notes.',
 };
 
+// ── Amenities master list ─────────────────────────────────────────────────
+const WB_AMENITIES = [
+  { id:'wifi',       icon:'fa-wifi',           label:'Wi-Fi' },
+  { id:'pool',       icon:'fa-swimming-pool',  label:'Pool' },
+  { id:'breakfast',  icon:'fa-utensils',       label:'Breakfast' },
+  { id:'parking',    icon:'fa-car',            label:'Parking' },
+  { id:'accessible', icon:'fa-wheelchair',     label:'Accessible' },
+  { id:'ac',         icon:'fa-snowflake',      label:'A/C' },
+  { id:'valet',      icon:'fa-car-side',       label:'Valet' },
+  { id:'spa',        icon:'fa-spa',            label:'Spa' },
+  { id:'jacuzzi',    icon:'fa-hot-tub-person', label:'Jacuzzi' },
+  { id:'sauna',      icon:'fa-fire',           label:'Sauna' },
+  { id:'bar',        icon:'fa-martini-glass',  label:'Bar' },
+  { id:'restaurant', icon:'fa-fork-knife',     label:'Restaurant' },
+  { id:'seaview',    icon:'fa-water',          label:'Sea view' },
+  { id:'terrace',    icon:'fa-umbrella-beach', label:'Terrace' },
+  { id:'gym',        icon:'fa-dumbbell',       label:'Gym' },
+  { id:'transfer',   icon:'fa-bus',            label:'Transfer incl.' },
+  { id:'photos',     icon:'fa-camera',         label:'Photos incl.' },
+  { id:'equipment',  icon:'fa-helmet-safety',  label:'Equipment' },
+];
+
+function buildAmenitiesCheckboxes(prefix, selected) {
+  selected = selected || [];
+  return '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:4px">'
+    + WB_AMENITIES.map(function(a) {
+        var checked = selected.includes(a.id) ? ' checked' : '';
+        return '<label style="display:flex;align-items:center;gap:6px;font-size:.78rem;cursor:pointer;padding:5px 8px;border:1px solid var(--border);border-radius:6px;background:var(--b50)">'
+          + '<input type="checkbox" id="'+prefix+'-am-'+a.id+'" value="'+a.id+'"'+checked+' style="accent-color:var(--b600);cursor:pointer">'
+          + '<i class="fa '+a.icon+'" style="color:var(--b500);width:14px;text-align:center"></i>'
+          + a.label + '</label>';
+      }).join('')
+    + '</div>'
+    + '<div style="margin-top:10px"><div style="font-size:.72rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Custom amenities (up to 3)</div>'
+    + '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px">'
+    + [0,1,2].map(function(i){
+        var val = (selected.filter(function(s){ return !WB_AMENITIES.find(function(a){ return a.id===s; }); })[i]) || '';
+        return '<input class="fi" id="'+prefix+'-am-custom-'+i+'" placeholder="e.g. Butler service" value="'+val+'" style="font-size:.78rem;padding:6px 10px">';
+      }).join('')
+    + '</div></div>';
+}
+
+function collectAmenities(prefix) {
+  var checked = WB_AMENITIES.filter(function(a){
+    var el = document.getElementById(prefix+'-am-'+a.id);
+    return el && el.checked;
+  }).map(function(a){ return a.id; });
+  var customs = [0,1,2].map(function(i){
+    var el = document.getElementById(prefix+'-am-custom-'+i);
+    return el ? el.value.trim() : '';
+  }).filter(Boolean);
+  return checked.concat(customs);
+}
+
+function buildProgrammeFields(prefix, data) {
+  data = data || [];
+  return [0,1,2,3].map(function(i){
+    var step = data[i] || {};
+    return '<div style="display:flex;gap:8px;align-items:flex-start;margin-bottom:8px">'
+      + '<div style="min-width:22px;height:22px;border-radius:50%;background:var(--b600);color:#fff;display:flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:700;margin-top:8px;flex-shrink:0">'+(i+1)+'</div>'
+      + '<div style="flex:1;display:flex;flex-direction:column;gap:4px">'
+      + '<input class="fi" id="'+prefix+'-prog-title-'+i+'" placeholder="Step title (e.g. Welcome & Briefing)" value="'+(step.title||'')+'" style="font-size:.8rem;padding:6px 10px">'
+      + '<textarea class="fi" id="'+prefix+'-prog-text-'+i+'" placeholder="What happens in this step..." rows="2" style="font-size:.78rem;padding:6px 10px;resize:vertical">'+(step.text||'')+'</textarea>'
+      + '</div></div>';
+  }).join('');
+}
+
+function collectProgramme(prefix) {
+  return [0,1,2,3].map(function(i){
+    var title = (document.getElementById(prefix+'-prog-title-'+i)||{value:''}).value.trim();
+    var text  = (document.getElementById(prefix+'-prog-text-'+i) ||{value:''}).value.trim();
+    return (title||text) ? {title:title, text:text} : null;
+  }).filter(Boolean);
+}
+
+
 function admShowExpForm(expId) {
   appState.editingExpId = expId || null;  // track which experience we're editing
   const listWrap = document.getElementById('adm-exp-list-wrap');
@@ -10735,6 +10844,11 @@ function admShowExpForm(expId) {
   el = document.getElementById('aef-insolite');     if(el) el.checked = !!(d?.insolite);
   el = document.getElementById('aef-ical');         if(el) el.value   = d?.ical_url||'';
   el = document.getElementById('aef-ical-status');  if(el) el.textContent = '';
+  // Programme & Amenities
+  var progWrap = document.getElementById('aef-programme-wrap');
+  if (progWrap) progWrap.innerHTML = buildProgrammeFields('aef', d && d.programme ? d.programme : []);
+  var amWrap = document.getElementById('aef-amenities-wrap');
+  if (amWrap) amWrap.innerHTML = buildAmenitiesCheckboxes('aef', d && d.amenities ? d.amenities : []);
   const rtSel = document.getElementById('aef-rt');
   rtSel.value = d?.rt || '';
   admExpTypeNote();
@@ -10855,6 +10969,8 @@ async function admSaveExp() {
     certification,
     accessible,
     insolite,
+    programme:          collectProgramme('aef'),
+    amenities:          collectAmenities('aef'),
     ...(icalUrl ? { ical_url: icalUrl } : {}),
   };
 
@@ -11006,6 +11122,21 @@ async function renderAdmRequests() {
         + '</div></div>';
     }
 
+    // Diff highlight for edit requests
+    var prev = r.previous_data || {};
+    function diffCell(label, newVal, oldVal) {
+      var changed = isEdit && oldVal !== undefined && String(oldVal) !== String(newVal);
+      var style = changed
+        ? 'background:#fef2f2;border:1.5px solid #fca5a5;border-radius:6px;padding:4px 8px;'
+        : '';
+      var badge = changed
+        ? '<span style="font-size:.6rem;background:#dc2626;color:#fff;padding:1px 5px;border-radius:99px;margin-left:5px;vertical-align:middle">CHANGED</span>'
+          + '<div style="font-size:.7rem;color:#6b7280;text-decoration:line-through;margin-top:1px">Was: ' + oldVal + '</div>'
+        : '';
+      return '<div class="fg" style="'+style+'"><label style="font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)">'+label+badge+'</label>'
+        + '<div style="font-size:.85rem;color:var(--navy)">'+newVal+'</div></div>';
+    }
+
     var actions = isPending
       ? '<button class="btn bgreen bsm" onclick="admApproveRequest(this)" data-id="' + r.id + '"><i class="fa fa-check-circle"></i> ' + (isEdit ? 'Approve edit' : 'Approve &amp; add to DB') + '</button>'
         + '<button class="btn bg bsm" onclick="admEditRequest(this)" data-id="' + r.id + '"><i class="fa fa-pen"></i> Edit before approving</button>'
@@ -11013,6 +11144,32 @@ async function renderAdmRequests() {
       : isApproved
         ? '<div style="display:flex;align-items:center;gap:7px;font-size:.78rem;color:var(--green);font-weight:600"><i class="fa fa-circle-check"></i> ' + (isEdit ? 'Edit approved' : 'Approved and live') + '</div>'
         : '<div style="font-size:.78rem;color:#dc2626;font-weight:600"><i class="fa fa-xmark-circle"></i> Rejected</div>';
+
+    // Programme diff display
+    var progHtml = '';
+    if (r.programme && r.programme.length) {
+      var progChanged = isEdit && prev.programme && JSON.stringify(prev.programme) !== JSON.stringify(r.programme);
+      var progStyle = progChanged ? 'background:#fef2f2;border:1.5px solid #fca5a5;border-radius:6px;padding:4px 8px;' : '';
+      progHtml = '<div class="fg" style="'+progStyle+'"><label style="font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)">Programme'
+        + (progChanged ? '<span style="font-size:.6rem;background:#dc2626;color:#fff;padding:1px 5px;border-radius:99px;margin-left:5px">CHANGED</span>' : '')
+        + '</label>'
+        + r.programme.map(function(p,i){ return '<div style="font-size:.78rem;color:var(--navy);margin-top:3px"><strong>'+(i+1)+'. '+p.title+'</strong><br><span style="color:var(--muted)">'+p.text+'</span></div>'; }).join('')
+        + '</div>';
+    }
+    // Amenities diff display
+    var amHtml = '';
+    if (r.amenities && r.amenities.length) {
+      var amChanged = isEdit && prev.amenities && JSON.stringify(prev.amenities) !== JSON.stringify(r.amenities);
+      var amStyle = amChanged ? 'background:#fef2f2;border:1.5px solid #fca5a5;border-radius:6px;padding:4px 8px;' : '';
+      amHtml = '<div class="fg" style="'+amStyle+'"><label style="font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)">Amenities'
+        + (amChanged ? '<span style="font-size:.6rem;background:#dc2626;color:#fff;padding:1px 5px;border-radius:99px;margin-left:5px">CHANGED</span>' : '')
+        + '</label><div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px">'
+        + r.amenities.map(function(a){
+            var found = (typeof WB_AMENITIES !== 'undefined') ? WB_AMENITIES.find(function(w){ return w.id===a; }) : null;
+            return '<span style="font-size:.72rem;background:var(--b100);color:var(--b700);padding:2px 8px;border-radius:99px">'+(found?found.label:a)+'</span>';
+          }).join('')
+        + '</div></div>';
+    }
 
     return '<div class="atbl" style="margin-bottom:16px;' + cardBg + '">'
       + '<div class="atbl-hdr" style="background:' + hdrBg + '">'
@@ -11025,16 +11182,20 @@ async function renderAdmRequests() {
       + '</div>'
       + '<div style="padding:16px 20px;display:grid;grid-template-columns:1fr 1fr;gap:16px">'
       + '<div>'
-      + '<div class="fg"><label style="font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)">Experience</label><div style="font-size:.85rem;color:var(--navy)">' + (r.experience_name||'—') + '</div></div>'
-      + '<div class="fg"><label style="font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)">Type</label><div style="font-size:.85rem;color:var(--navy)">' + typeLabel + '</div></div>'
-      + '<div class="fg" style="margin-bottom:0"><label style="font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)">Description</label><div style="font-size:.82rem;color:var(--slate);line-height:1.6">' + (r.description||'—') + '</div></div>'
+      + diffCell('Experience', r.experience_name||'—', prev.experience_name)
+      + diffCell('Type', typeLabel, prev.category ? (typeLabels[prev.category]||prev.category) : undefined)
+      + diffCell('Description', '<span style="font-size:.82rem;color:var(--slate);line-height:1.6">'+(r.description||'—')+'</span>', prev.description)
       + imgHtml
+      + progHtml
       + '</div>'
       + '<div>'
       + '<div class="fg"><label style="font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)">Partner</label><div style="font-size:.85rem;color:var(--navy)">' + (r.partner_name||'—') + (r.city ? ' · ' + r.city : '') + '</div></div>'
       + '<div class="fg"><label style="font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)">Email</label><div style="font-size:.82rem;color:var(--b600)">' + (r.partner_email||'—') + '</div></div>'
-      + (r.capacity ? '<div class="fg"><label style="font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)">Capacity</label><div style="font-size:.85rem;color:var(--navy)">' + r.capacity + ' guests max</div></div>' : '')
+      + diffCell('Capacity', r.capacity ? r.capacity+' guests max' : '—', prev.capacity ? prev.capacity+' guests max' : undefined)
+      + diffCell('Province', r.province||'—', prev.province)
+      + diffCell('Nights', r.duration_nights !== undefined ? r.duration_nights+' night(s)' : '—', prev.duration_nights !== undefined ? prev.duration_nights+' night(s)' : undefined)
       + (r.price ? '<div class="fg"><label style="font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)">Value per session</label><div style="font-size:.9rem;font-weight:700;color:var(--b700)">R' + r.price.toLocaleString() + '</div></div>' : '')
+      + amHtml
       + '</div>'
       + '</div>'
       + '<div style="padding:0 20px 16px;display:flex;gap:9px;flex-wrap:wrap">' + actions + '</div>'
@@ -11165,6 +11326,19 @@ async function admConfirmApprove(id) {
         image_url:        req.image_url || '',
         image_urls:       req.image_urls || [],
         partner_email:    req.partner_email || '',
+        capacity:         req.capacity || null,
+        province:         req.province || '',
+        booking_type:     req.booking_type || 'on_site',
+        duration_nights:  req.duration_nights || 0,
+        category:         req.category || '',
+        weekend_type:     req.weekend_type || null,
+        accommodation_type: req.accommodation_type || null,
+        certification:    req.certification || null,
+        accessible:       req.accessible || false,
+        insolite:         req.insolite || false,
+        programme:        req.programme || [],
+        amenities:        req.amenities || [],
+        ...(req.ical_url ? { ical_url: req.ical_url } : {}),
       }).eq('id', req.experience_id || expId);
     } else {
       var ins = await db_client.from('experiences').insert({
@@ -11179,6 +11353,19 @@ async function admConfirmApprove(id) {
         phone:            req.phone || '',
         lat:              req.lat  || null,
         lng:              req.lng  || null,
+        capacity:         req.capacity || null,
+        province:         req.province || '',
+        booking_type:     req.booking_type || 'on_site',
+        duration_nights:  req.duration_nights || 0,
+        category:         req.category || '',
+        weekend_type:     req.weekend_type || null,
+        accommodation_type: req.accommodation_type || null,
+        certification:    req.certification || null,
+        accessible:       req.accessible || false,
+        insolite:         req.insolite || false,
+        programme:        req.programme || [],
+        amenities:        req.amenities || [],
+        ...(req.ical_url ? { ical_url: req.ical_url } : {}),
         is_active:        true,
         image_url:        req.image_url || '',
         image_urls:       req.image_urls || [],
@@ -11931,6 +12118,12 @@ function initPartnerPage() {
 function toggleAddForm() {
   const form = document.getElementById('pp-add-form');
   form.classList.toggle('open');
+  if (form.classList.contains('open')) {
+    var pw = document.getElementById('pp-new-programme-wrap');
+    if (pw && !pw.innerHTML.trim()) pw.innerHTML = buildProgrammeFields('pp-new', []);
+    var aw = document.getElementById('pp-new-amenities-wrap');
+    if (aw && !aw.innerHTML.trim()) aw.innerHTML = buildAmenitiesCheckboxes('pp-new', []);
+  }
 }
 
 async function submitNewExp() {
@@ -11956,6 +12149,8 @@ async function submitNewExp() {
   const accessible  = !!(document.getElementById('pp-new-accessible')||{checked:false}).checked;
   const insolite    = !!(document.getElementById('pp-new-insolite')  ||{checked:false}).checked;
   const icalUrl     = (document.getElementById('pp-new-ical')        ||{value:''}).value.trim() || null;
+  const programme   = collectProgramme('pp-new');
+  const amenitiesList = collectAmenities('pp-new');
 
   if (!name) { admToast('Please enter an experience name.'); return; }
 
@@ -11982,6 +12177,8 @@ async function submitNewExp() {
       accessible,
       insolite,
       ...(icalUrl ? { ical_url: icalUrl } : {}),
+      programme:  programme,
+      amenities:  amenitiesList,
     });
     if (error) throw error;
   } catch(e) {
@@ -12170,6 +12367,8 @@ async function loadPartnerExperiences() {
         + ' data-accessible="'+ (e.accessible?'1':'0')                             + '"'
         + ' data-insolite="' + (e.insolite?'1':'0')                               + '"'
         + ' data-ical="'     + (e.ical_url||'').replace(/"/g,'&quot;')            + '"'
+        + ' data-programme="'  + JSON.stringify(e.programme||[]).replace(/"/g,'&quot;')  + '"'
+        + ' data-amenities="'  + JSON.stringify(e.amenities||[]).replace(/"/g,'&quot;')   + '"'
         + '><i class="fa fa-pen"></i> Edit</button>'
         + '</div>'
         + '</div>';
@@ -12224,7 +12423,9 @@ async function loadPartnerExperiences() {
           this.dataset.cert || '',
           this.dataset.accessible === '1',
           this.dataset.insolite === '1',
-          this.dataset.ical || ''
+          this.dataset.ical || '',
+          this.dataset.programme ? JSON.parse(this.dataset.programme) : [],
+          this.dataset.amenities ? JSON.parse(this.dataset.amenities) : []
         );
       });
     });
@@ -12235,7 +12436,7 @@ async function loadPartnerExperiences() {
 }
 
 // ── Partner: edit a published experience ──
-function ppEditExperience(expId, expName, expDesc, expType, expCity, expCap, expProvince, expBooking, expNights, expCategory, expWeekend, expAccom, expCert, expAccessible, expInsolite, expIcal) {
+function ppEditExperience(expId, expName, expDesc, expType, expCity, expCap, expProvince, expBooking, expNights, expCategory, expWeekend, expAccom, expCert, expAccessible, expInsolite, expIcal, expProgramme, expAmenities) {
   var modal = document.getElementById('adm-modal');
   var typeOpts = ['accommodation','dining','wellness','activity','rental','event','culture','nature'].map(function(t){
     return '<option value="'+t+'"'+(expType===t?' selected':'')+'>'+t.charAt(0).toUpperCase()+t.slice(1)+'</option>';
@@ -12278,6 +12479,8 @@ function ppEditExperience(expId, expName, expDesc, expType, expCity, expCap, exp
     + '<div class="fg" style="display:flex;align-items:center;gap:10px"><input type="checkbox" id="pp-edit-insolite"'+(expInsolite?' checked':'')+' style="width:16px;height:16px;cursor:pointer"><label for="pp-edit-insolite" style="cursor:pointer;font-size:.82rem;color:var(--navy)">🌟 Insolite</label></div>'
     + '</div>'
     + '<div class="fg"><label>🔗 iCal sync URL <span style="font-weight:400;color:var(--muted)">(optional)</span></label><input class="fi" id="pp-edit-ical" value="'+(expIcal||'')+'" placeholder="webcal:// or https://... .ics link"><div style="font-size:.68rem;color:var(--muted);margin-top:3px">Blocked dates will grey out in the booking date picker.</div></div>'
+    + '<div class="fg"><label>Programme <span style="font-weight:400;color:var(--muted)">(up to 4 steps)</span></label><div id="pp-edit-programme-wrap">' + buildProgrammeFields('pp-edit', expProgramme||[]) + '</div></div>'
+    + '<div class="fg"><label>Amenities</label><div id="pp-edit-amenities-wrap">' + buildAmenitiesCheckboxes('pp-edit', expAmenities||[]) + '</div></div>'
     + '<div style="display:flex;gap:9px;margin-top:18px;padding-top:14px;border-top:1px solid var(--border);position:sticky;bottom:0;background:var(--white)">'
     + '<button class="btn bp bsm" onclick="ppSubmitEdit(\'' + expId + '\')"><i class="fa fa-paper-plane"></i> Submit for review</button>'
     + '<button class="btn bg bsm" onclick="document.getElementById(\'adm-modal\').style.display=\'none\'">Cancel</button>'
@@ -12301,6 +12504,8 @@ async function ppSubmitEdit(expId) {
   var accessible = !!(document.getElementById('pp-edit-accessible')||{checked:false}).checked;
   var insolite   = !!(document.getElementById('pp-edit-insolite') ||{checked:false}).checked;
   var icalUrl    = (document.getElementById('pp-edit-ical')       ||{value:''}).value.trim() || null;
+  var programme  = collectProgramme('pp-edit');
+  var amenitiesList = collectAmenities('pp-edit');
 
   if (!name) { admToast('Please enter an experience name'); return; }
 
@@ -12327,6 +12532,8 @@ async function ppSubmitEdit(expId) {
       accessible:         accessible,
       insolite:           insolite,
       ...(icalUrl ? { ical_url: icalUrl } : {}),
+      programme:  programme,
+      amenities:  amenitiesList,
     });
     if (err.error) throw err.error;
     admToast('✅ Edit submitted for review — WowBox admin will review within 1–2 days');
