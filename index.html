@@ -7511,6 +7511,13 @@ async function renderBoxGrids() {
   // After syncing boxDB, reload product page if one is open
   if (appState.currentBoxId && boxDB[appState.currentBoxId]) {
     loadProduct(appState.currentBoxId);
+    // Re-push slug URL in case it was lost during async Supabase sync
+    var expectedPath = '/box/' + appState.currentBoxId;
+    if (window.location.pathname === '/box' || window.location.pathname === expectedPath) {
+      if (window.location.pathname !== expectedPath) {
+        history.replaceState(null, '', expectedPath);
+      }
+    }
   }
 }
 
