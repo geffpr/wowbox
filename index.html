@@ -1794,7 +1794,11 @@ nav{position:sticky;top:0;z-index:300;background:rgba(255,255,255,.95);
 
 /* ─── PRODUCT PAGE ─── */
 .prod-layout{display:grid;grid-template-columns:1fr 380px;gap:44px;
-  max-width:1240px;margin:0 auto;padding:36px 40px}
+  max-width:1240px;margin:0 auto;padding:36px 40px;align-items:start}
+/* Desktop: gallery-wrap + left-content share col 1, right panel = col 2 */
+.prod-gallery-wrap{grid-column:1;grid-row:1}
+.prod-layout > div:nth-child(2){grid-column:1;grid-row:2}
+.prod-layout > div:nth-child(3){grid-column:2;grid-row:1/3;position:relative}
 .gallery-main{height:430px;border-radius:var(--rx);overflow:hidden;margin-bottom:10px}
 .gallery-main img{height:100%}
 .gallery-thumbs{display:flex;gap:9px}
@@ -2710,9 +2714,15 @@ tr:hover td{background:var(--b50)}
   .boxes-grid { grid-template-columns: 1fr; gap: 16px; }
 
   /* ── Product page ── */
-  .prod-layout { grid-template-columns: 1fr; gap: 0; padding: 20px 16px; }
-  .prod-layout > div:nth-child(2) { order: -1; }
-  .gallery-main { height: 260px; border-radius: var(--r); }
+  /* Mobile: 1) galerie  2) panel achat  3) description/exp/reviews */
+  .prod-layout { grid-template-columns: 1fr; gap: 0; padding: 0; }
+  .prod-gallery-wrap { grid-column: 1; grid-row: auto; order: 1; }
+  .prod-layout > div:nth-child(2) { grid-column: 1; grid-row: auto; order: 3; padding: 16px 16px 24px; }
+  .prod-layout > div:nth-child(3) { grid-column: 1; grid-row: auto; order: 2; padding: 0 16px 12px; }
+  .prod-layout > div:nth-child(3) > div { position: static !important; }
+  #prod-breadcrumb { padding: 12px 0 0; }
+  .gallery-main { height: 260px; border-radius: 0; margin-bottom: 10px; }
+  .gallery-thumbs { gap: 6px; padding: 0 4px; }
   .gallery-thumbs { gap: 6px; }
   .gthumb { height: 60px; }
   .prod-price { font-size: 2rem; }
@@ -2828,7 +2838,7 @@ tr:hover td{background:var(--b50)}
   .tab { flex: 1; text-align: center; min-width: 80px; }
 
   /* ── Prod purchase panel sticky → static on mobile ── */
-  .prod-layout > div:nth-child(2) > div { position: static !important; }
+  .prod-layout > div:nth-child(3) > div { position: static !important; }
 
   /* ── Exp detail right panel sticky → static ── */
   .exp-detail-layout > div:nth-child(2) > div { position: static !important; }
@@ -3442,15 +3452,18 @@ tr:hover td{background:var(--b50)}
 <!-- ═══════════════════════ PAGE: PRODUCT (BOX DETAIL) ════════════ -->
 <div id="page-product" class="page">
   <div class="prod-layout">
-    <!-- LEFT -->
-    <div>
-      <div style="font-size:.73rem;color:var(--muted);margin-bottom:16px;display:flex;align-items:center;gap:5px">
+    <!-- GALLERY (own direct child for mobile ordering) -->
+    <div class="prod-gallery-wrap">
+      <div id="prod-breadcrumb" style="font-size:.73rem;color:var(--muted);margin-bottom:12px;display:flex;align-items:center;gap:5px;padding:14px 16px 0">
         <span class="txt-blue" style="cursor:pointer" onclick="go('allboxes')">Gift Boxes</span>
         <i class="fa fa-chevron-right" style="font-size:.55rem"></i>
         <span id="prod-bc">WowBox Couples Retreat</span>
       </div>
-      <div class="gallery-main"><img id="prod-img" src="" alt=""></div>
+      <div class="gallery-main" id="prod-gallery-main"><img id="prod-img" src="" alt=""></div>
       <div class="gallery-thumbs" id="prod-thumbs"></div>
+    </div>
+    <!-- LEFT (description, experiences, reviews) -->
+    <div>
 
       <div style="margin-top:32px">
         <h2 style="font-size:1.4rem;color:var(--navy);margin-bottom:10px">About this box</h2>
