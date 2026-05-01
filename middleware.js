@@ -1,13 +1,9 @@
 // Vercel Edge Middleware — OG tag injector for /box/ and /experience/ routes
-// Place this file at the ROOT of your project (next to vercel.json and index.html)
-// Runs only for social media crawlers — real users always get index.html untouched.
-
-import { createClient } from '@supabase/supabase-js';
+// Uses fetch() instead of @supabase/supabase-js (not supported in Edge runtime)
 
 const SUPABASE_URL = 'https://gfqxuygfkzgmotnxrlwb.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_NNDH11RkDff2KHghf_k-8g_wL2NtUIL';
 
-// Local box data as fallback (mirrors boxDB in index.html)
 const BOX_DB = {
   'road-trip':        { name:'WowBox Road Trip',            desc:'Hit the open road and discover South Africa\'s most spectacular landscapes. From Garden Route forest trails to the Wild Coast, this box unlocks hundreds of road trip adventures and overnight stops.', img:'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?q=80&w=1200&auto=format&fit=crop' },
   'celebration':      { name:'WowBox Celebration',          desc:'Mark every milestone in style. Exclusive restaurant experiences, private dining events, champagne tastings, and culinary masterclasses — perfect for birthdays, anniversaries, and promotions.', img:'https://images.unsplash.com/photo-1530103862676-de8c9debad1d?q=80&w=1200&auto=format&fit=crop' },
@@ -22,6 +18,16 @@ const BOX_DB = {
   'chill-day':        { name:'WowBox Chill Day',            desc:'Sometimes all you need is a perfect day off. Beach picnics, whale watching, afternoon teas, lazy day spas, and slow brunch experiences — for the gift of pure relaxation.', img:'https://images.unsplash.com/photo-1540555700478-4be289fbecef?q=80&w=1200&auto=format&fit=crop' },
   'signature':        { name:'WowBox Signature Experience', desc:'The WowBox signature selection. Michelin-standard restaurants, private chef experiences, exclusive wine events, and intimate culinary journeys curated by South Africa\'s top food critics.', img:'https://images.unsplash.com/photo-1414235077428-338989a2e8c0?q=80&w=1200&auto=format&fit=crop' },
 };
+
+async function fetchFromSupabase(table, id) {
+  const res = await fetch(
+    `${SUPABASE_URL}/rest/v1/${table}?id=eq.${encodeURIComponent(id)}&select=name,description,image_url&limit=1`,
+    { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
+  );
+  if (!res.ok) return null;
+  const data = await res.json();
+  return data?.[0] || null;
+}
 
 function isCrawler(ua) {
   if (!ua) return false;
@@ -53,7 +59,6 @@ function buildOGHtml(title, desc, img, url) {
 </html>`;
 }
 
-// Vercel Edge Middleware — must export config with matcher
 export const config = {
   matcher: ['/box/:slug*', '/experience/:slug*'],
 };
@@ -63,54 +68,35 @@ export default async function middleware(request) {
   const url  = new URL(request.url);
   const path = url.pathname;
 
-  // Real users → pass through to normal rewrite (index.html)
-  if (!isCrawler(ua)) {
-    return; // NextResponse.next() equivalent — Vercel passes through
-  }
+  if (!isCrawler(ua)) return;
 
   try {
-    // ── /box/[slug] ──
     if (path.startsWith('/box/')) {
       const slug = path.replace('/box/', '').replace(/\/+$/, '');
-
-      // Try local BOX_DB first (instant, no network)
       let box = BOX_DB[slug];
-
-      // Fallback to Supabase for boxes not in local list
       if (!box) {
-        const db = createClient(SUPABASE_URL, SUPABASE_KEY);
-        const { data } = await db.from('boxes').select('name,description,image_url').eq('id', slug).single();
+        const data = await fetchFromSupabase('boxes', slug);
         if (data) box = { name: data.name, desc: data.description, img: data.image_url };
       }
-
       if (box) {
         const title = `${box.name} — WowBox Gift Box`;
         const desc  = box.desc || `Discover the ${box.name} — curated gift box by WowBox across South Africa.`;
         const img   = box.img  || 'https://wowbox.co.za/og-default.jpg';
         return new Response(buildOGHtml(title, desc, img, url.toString()), {
-          headers: {
-            'Content-Type':  'text/html; charset=utf-8',
-            'Cache-Control': 'public, max-age=3600',
-          },
+          headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'public, max-age=3600' },
         });
       }
     }
 
-    // ── /experience/[slug] ──
     if (path.startsWith('/experience/')) {
       const slug = path.replace('/experience/', '').replace(/\/+$/, '');
-      const db   = createClient(SUPABASE_URL, SUPABASE_KEY);
-      const { data } = await db.from('experiences').select('name,description,image_url').eq('id', slug).single();
-
+      const data = await fetchFromSupabase('experiences', slug);
       if (data) {
         const title = `${data.name} — WowBox`;
         const desc  = data.description || `Experience ${data.name} — available exclusively through WowBox across South Africa.`;
         const img   = data.image_url   || 'https://wowbox.co.za/og-default.jpg';
         return new Response(buildOGHtml(title, desc, img, url.toString()), {
-          headers: {
-            'Content-Type':  'text/html; charset=utf-8',
-            'Cache-Control': 'public, max-age=3600',
-          },
+          headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'public, max-age=3600' },
         });
       }
     }
@@ -118,16 +104,12 @@ export default async function middleware(request) {
     console.error('OG middleware error:', e.message);
   }
 
-  // Fallback — default WowBox OG tags
   return new Response(buildOGHtml(
     'WowBox — Offer Unforgettable Experiences',
     'Curated gift boxes for couples, adventurers and dreamers across South Africa.',
     'https://wowbox.co.za/og-default.jpg',
     url.toString()
   ), {
-    headers: {
-      'Content-Type':  'text/html; charset=utf-8',
-      'Cache-Control': 'public, max-age=3600',
-    },
+    headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'public, max-age=3600' },
   });
 }
