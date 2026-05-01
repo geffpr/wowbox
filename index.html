@@ -13700,7 +13700,7 @@ window.addEventListener('DOMContentLoaded', async () => {
             try {
               var vRes = await db_client
                 .from('vouchers')
-                .select('id')
+                .select('code')
                 .eq('user_email', currentUser.email)
                 .eq('box_id', expBoxId)
                 .eq('status', 'active')
