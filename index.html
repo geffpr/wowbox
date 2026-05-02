@@ -11161,24 +11161,56 @@ function admPreviewExpImg(idx, url) {
   else img.style.display = 'none';
 }
 
-function renderAdmExpTable() {
+async function renderAdmExpTable() {
   const tbody = document.getElementById('adm-exp-tbody');
   if (!tbody) return;
   const q = (document.getElementById('adm-exp-search')?.value || '').toLowerCase();
   const rtBadge = {accommodation:'rt-accommodation',dining:'rt-dining',wellness:'rt-wellness',activity:'rt-activity',rental:'rt-rental',event:'rt-event'};
   const rtIcon  = {accommodation:'🏨',dining:'🍽️',wellness:'🧖',activity:'🏄',rental:'🚗',event:'🎉'};
-  const rows = expDB
-    .filter(e => !q || e.name.toLowerCase().includes(q) || (e.partner||'').toLowerCase().includes(q) || (e.loc||'').toLowerCase().includes(q))
-    .map(e => `<tr>
-      <td><div style="display:flex;align-items:center;gap:9px"><img src="${e.img}" style="width:44px;height:36px;object-fit:cover;border-radius:var(--rs);flex-shrink:0" loading="lazy"><strong>${e.name}</strong></div></td>
-      <td><span class="rtype-badge ${rtBadge[e.reservation_type]||'rt-activity'}">${rtIcon[e.reservation_type]||'🏄'} ${e.reservation_type}</span></td>
-      <td style="font-size:.8rem;color:var(--muted)">${e.box||'—'}</td>
-      <td style="font-size:.8rem">${e.partner||'—'}</td>
-      <td style="font-size:.8rem;color:var(--muted)">${e.loc||'—'}</td>
-      <td><span class="sbadge sb-a">Active</span></td>
-      <td><button class="btn bg bsm" onclick="admShowExpFormById('${e.id}')"><i class="fa fa-pen"></i> Edit</button></td>
-    </tr>`).join('');
-  tbody.innerHTML = rows || '<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--muted)">No experiences found.</td></tr>';
+
+  // Hardcoded IDs (deduplicated — expDB has duplicate wine-tasting-estate)
+  const hardcodedIds = new Set(expDB.map(function(e){ return e.id; }));
+
+  // Load partner-submitted experiences from Supabase
+  var supabaseRows = [];
+  try {
+    var res = await db_client.from('experiences').select('id,name,partner_name,location,reservation_type,image_url,is_active').order('created_at', {ascending:false});
+    if (res.error) {
+      console.error('[renderAdmExpTable] Supabase error:', res.error.message);
+    } else if (res.data) {
+      supabaseRows = res.data.filter(function(e){ return !hardcodedIds.has(e.id); });
+      console.log('[renderAdmExpTable] Supabase rows:', res.data.length, '— partner-only:', supabaseRows.length, supabaseRows.map(function(e){ return e.id+' | '+e.name; }));
+    }
+  } catch(err) { console.error('[renderAdmExpTable] fetch error:', err); }
+
+  var hardcodedFiltered = expDB.filter(function(e){
+    return !q || e.name.toLowerCase().includes(q) || (e.partner||'').toLowerCase().includes(q) || (e.loc||'').toLowerCase().includes(q);
+  });
+  var supabaseFiltered = supabaseRows.filter(function(e){
+    return !q || (e.name||'').toLowerCase().includes(q) || (e.partner_name||'').toLowerCase().includes(q) || (e.location||'').toLowerCase().includes(q);
+  });
+
+  var hardcodedHtml = hardcodedFiltered.map(function(e){ return '<tr>'
+    +'<td><div style="display:flex;align-items:center;gap:9px"><img src="'+e.img+'" style="width:44px;height:36px;object-fit:cover;border-radius:var(--rs);flex-shrink:0" loading="lazy"><strong>'+e.name+'</strong></div></td>'
+    +'<td><span class="rtype-badge '+(rtBadge[e.reservation_type]||'rt-activity')+'">'+(rtIcon[e.reservation_type]||'🏄')+' '+e.reservation_type+'</span></td>'
+    +'<td style="font-size:.8rem;color:var(--muted)">'+(e.box||'—')+'</td>'
+    +'<td style="font-size:.8rem">'+(e.partner||'—')+'</td>'
+    +'<td style="font-size:.8rem;color:var(--muted)">'+(e.loc||'—')+'</td>'
+    +'<td><span class="sbadge sb-a">Active</span></td>'
+    +'<td><button class="btn bg bsm" onclick="admShowExpFormById(\''+e.id+'\')"><i class="fa fa-pen"></i> Edit</button></td>'
+    +'</tr>'; }).join('');
+
+  var supabaseHtml = supabaseFiltered.map(function(e){ return '<tr>'
+    +'<td><div style="display:flex;align-items:center;gap:9px">'+(e.image_url?'<img src="'+e.image_url+'" style="width:44px;height:36px;object-fit:cover;border-radius:var(--rs);flex-shrink:0" loading="lazy" onerror="this.style.display=\'none\'">':'')+'<strong>'+(e.name||'—')+'</strong></div></td>'
+    +'<td><span class="rtype-badge '+(rtBadge[e.reservation_type]||'rt-activity')+'">'+(rtIcon[e.reservation_type]||'🏄')+' '+(e.reservation_type||'—')+'</span></td>'
+    +'<td style="font-size:.8rem;color:var(--muted)">—</td>'
+    +'<td style="font-size:.8rem">'+(e.partner_name||'—')+'</td>'
+    +'<td style="font-size:.8rem;color:var(--muted)">'+(e.location||'—')+'</td>'
+    +'<td><span class="sbadge '+(e.is_active?'sb-a':'sb-p')+'">'+(e.is_active?'Active':'Inactive')+'</span></td>'
+    +'<td><button class="btn bg bsm" onclick="admShowExpFormById(\''+e.id+'\')"><i class="fa fa-pen"></i> Edit</button></td>'
+    +'</tr>'; }).join('');
+
+  tbody.innerHTML = (hardcodedHtml + supabaseHtml) || '<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--muted)">No experiences found.</td></tr>';
 }
 
 async function admShowExpFormById(expId) {
@@ -11331,7 +11363,7 @@ async function admSaveBox() {
     }
     if (result?.error) throw result.error;
 
-    // Save database links
+    // Write database links
     if (savedId && selectedDbs.length) {
       await db_client.from('box_database_links').delete().eq('box_id', savedId);
       await db_client.from('box_database_links').insert(
@@ -11632,7 +11664,7 @@ async function admSaveExp() {
     }
     if (result?.error) throw result.error;
 
-    // Save database links
+    // Write database links
     const dbSel = document.getElementById('aef-db');
     const selectedDbs = dbSel ? Array.from(dbSel.selectedOptions).map(function(o){ return o.value; }).filter(Boolean) : [];
     if (savedId && selectedDbs.length) {
