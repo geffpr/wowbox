@@ -11167,12 +11167,14 @@ async function renderAdmExpTable() {
   const q = (document.getElementById('adm-exp-search')?.value || '').toLowerCase();
   const rtBadge = {accommodation:'rt-accommodation',dining:'rt-dining',wellness:'rt-wellness',activity:'rt-activity',rental:'rt-rental',event:'rt-event'};
   const rtIcon  = {accommodation:'🏨',dining:'🍽️',wellness:'🧖',activity:'🏄',rental:'🚗',event:'🎉'};
+  const dbLabels = {'romantic-getaways':'💑 Romantic','wellness-spa':'🧖 Wellness','food-gastronomy':'🍽️ Gastronomy','adventure-outdoors':'🏔️ Adventure','ocean-coastal':'🌊 Ocean','safari-wildlife':'🦁 Safari','wine-culture':'🍷 Wine','city-breaks':'🏙️ City','family-adventures':'👨‍👩‍👧 Family','ultra-premium':'👑 Ultra-Premium'};
 
-  // Hardcoded IDs (deduplicated — expDB has duplicate wine-tasting-estate)
+  // Hardcoded IDs
   const hardcodedIds = new Set(expDB.map(function(e){ return e.id; }));
 
   // Load partner-submitted experiences from Supabase
   var supabaseRows = [];
+  var dbLinksMap = {}; // experienceId → [database_id, ...]
   try {
     var res = await db_client.from('experiences').select('id,name,partner_name,location,reservation_type,image_url,is_active').order('created_at', {ascending:false});
     if (res.error) {
@@ -11180,6 +11182,19 @@ async function renderAdmExpTable() {
     } else if (res.data) {
       supabaseRows = res.data.filter(function(e){ return !hardcodedIds.has(e.id); });
       console.log('[renderAdmExpTable] Supabase rows:', res.data.length, '— partner-only:', supabaseRows.length, supabaseRows.map(function(e){ return e.id+' | '+e.name; }));
+
+      // Load all database links for these rows in one query
+      if (supabaseRows.length) {
+        var ids = supabaseRows.map(function(e){ return e.id; });
+        var lRes = await db_client.from('experience_database_links').select('experience_id,database_id').in('experience_id', ids);
+        if (lRes.data) {
+          lRes.data.forEach(function(l){
+            if (!dbLinksMap[l.experience_id]) dbLinksMap[l.experience_id] = [];
+            dbLinksMap[l.experience_id].push(l.database_id);
+          });
+        }
+        if (lRes.error) console.error('[renderAdmExpTable] DB links error:', lRes.error.message);
+      }
     }
   } catch(err) { console.error('[renderAdmExpTable] fetch error:', err); }
 
@@ -11200,15 +11215,19 @@ async function renderAdmExpTable() {
     +'<td><button class="btn bg bsm" onclick="admShowExpFormById(\''+e.id+'\')"><i class="fa fa-pen"></i> Edit</button></td>'
     +'</tr>'; }).join('');
 
-  var supabaseHtml = supabaseFiltered.map(function(e){ return '<tr>'
+  var supabaseHtml = supabaseFiltered.map(function(e){
+    var dbs = dbLinksMap[e.id] || [];
+    var dbCell = dbs.length ? dbs.map(function(d){ return dbLabels[d]||d; }).join(', ') : '—';
+    return '<tr>'
     +'<td><div style="display:flex;align-items:center;gap:9px">'+(e.image_url?'<img src="'+e.image_url+'" style="width:44px;height:36px;object-fit:cover;border-radius:var(--rs);flex-shrink:0" loading="lazy" onerror="this.style.display=\'none\'">':'')+'<strong>'+(e.name||'—')+'</strong></div></td>'
     +'<td><span class="rtype-badge '+(rtBadge[e.reservation_type]||'rt-activity')+'">'+(rtIcon[e.reservation_type]||'🏄')+' '+(e.reservation_type||'—')+'</span></td>'
-    +'<td style="font-size:.8rem;color:var(--muted)">—</td>'
+    +'<td style="font-size:.75rem;color:var(--muted)">'+dbCell+'</td>'
     +'<td style="font-size:.8rem">'+(e.partner_name||'—')+'</td>'
     +'<td style="font-size:.8rem;color:var(--muted)">'+(e.location||'—')+'</td>'
     +'<td><span class="sbadge '+(e.is_active?'sb-a':'sb-p')+'">'+(e.is_active?'Active':'Inactive')+'</span></td>'
     +'<td><button class="btn bg bsm" onclick="admShowExpFormById(\''+e.id+'\')"><i class="fa fa-pen"></i> Edit</button></td>'
-    +'</tr>'; }).join('');
+    +'</tr>';
+  }).join('');
 
   tbody.innerHTML = (hardcodedHtml + supabaseHtml) || '<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--muted)">No experiences found.</td></tr>';
 }
@@ -11668,10 +11687,12 @@ async function admSaveExp() {
     const dbSel = document.getElementById('aef-db');
     const selectedDbs = dbSel ? Array.from(dbSel.selectedOptions).map(function(o){ return o.value; }).filter(Boolean) : [];
     if (savedId && selectedDbs.length) {
-      await db_client.from('experience_database_links').delete().eq('experience_id', savedId);
-      await db_client.from('experience_database_links').insert(
+      var delRes = await db_client.from('experience_database_links').delete().eq('experience_id', savedId);
+      if (delRes.error) { console.error('DB link delete error:', delRes.error); }
+      var insRes = await db_client.from('experience_database_links').insert(
         selectedDbs.map(function(dbId){ return { experience_id: savedId, database_id: dbId }; })
       );
+      if (insRes.error) { console.error('DB link insert error:', insRes.error); admToast('⚠️ Saved but database links failed: ' + insRes.error.message); return; }
     }
 
     admHideExpForm();
