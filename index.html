@@ -5604,18 +5604,18 @@ tr:hover td{background:var(--b50)}
               <div class="fg"><label>Price from (ZAR) *</label><input class="fi" id="abf-price" type="number" placeholder="1499"></div>
             </div>
             <div class="fg-row">
-              <div class="fg"><label>Primary database *</label>
-                <select class="fi" id="abf-db">
-                  <option value="">— Select —</option>
-                  <option>💑 Romantic Getaways (847)</option>
-                  <option>🧖 Wellness & Spa (312)</option>
-                  <option>🍽️ Food & Gastronomy (1,240)</option>
-                  <option>🏔️ Adventure (2,156)</option>
-                  <option>🌊 Ocean & Coastal (589)</option>
-                  <option>🦁 Safari & Wildlife (234)</option>
-                  <option>🍷 Wine & Culture (445)</option>
-                  <option>🏙️ City Breaks (3,890)</option>
-                  <option>👑 Ultra-Premium (156)</option>
+              <div class="fg"><label>Databases * <span style="font-size:.7rem;color:var(--muted);font-weight:400">(Ctrl+click for multiple)</span></label>
+                <select class="fi" id="abf-db" multiple size="5" style="height:auto">
+                  <option value="romantic-getaways">💑 Romantic Getaways</option>
+                  <option value="wellness-spa">🧖 Wellness &amp; Spa</option>
+                  <option value="food-gastronomy">🍽️ Food &amp; Gastronomy</option>
+                  <option value="adventure-outdoors">🏔️ Adventure &amp; Outdoors</option>
+                  <option value="ocean-coastal">🌊 Ocean &amp; Coastal</option>
+                  <option value="safari-wildlife">🦁 Safari &amp; Wildlife</option>
+                  <option value="wine-culture">🍷 Wine &amp; Culture</option>
+                  <option value="city-breaks">🏙️ City Breaks</option>
+                  <option value="family-adventures">👨‍👩‍👧 Family Adventures</option>
+                  <option value="ultra-premium">👑 Ultra-Premium</option>
                 </select>
               </div>
               <div class="fg"><label>Delivery type</label>
@@ -5745,16 +5745,18 @@ tr:hover td{background:var(--b50)}
                   <div id="aef-rt-note" style="display:none;margin-top:5px;padding:8px 12px;background:var(--b50);border:1px solid var(--b200);border-radius:var(--rs);font-size:.73rem;color:var(--b700)"></div>
                 </div>
                 <div class="fg">
-                  <label>Database *</label>
-                  <select class="fi" id="aef-db">
-                    <option>💑 Romantic Getaways</option>
-                    <option>🧖 Wellness & Spa</option>
-                    <option>🍽️ Food & Gastronomy</option>
-                    <option>🏔️ Adventure & Outdoors</option>
-                    <option>🌊 Ocean & Coastal</option>
-                    <option>🦁 Safari & Wildlife</option>
-                    <option>🏙️ City Breaks</option>
-                    <option>👑 Ultra-Premium</option>
+                  <label>Database * <span style="font-size:.7rem;color:var(--muted);font-weight:400">(Ctrl+click for multiple)</span></label>
+                  <select class="fi" id="aef-db" multiple size="5" style="height:auto">
+                    <option value="romantic-getaways">💑 Romantic Getaways</option>
+                    <option value="wellness-spa">🧖 Wellness &amp; Spa</option>
+                    <option value="food-gastronomy">🍽️ Food &amp; Gastronomy</option>
+                    <option value="adventure-outdoors">🏔️ Adventure &amp; Outdoors</option>
+                    <option value="ocean-coastal">🌊 Ocean &amp; Coastal</option>
+                    <option value="safari-wildlife">🦁 Safari &amp; Wildlife</option>
+                    <option value="wine-culture">🍷 Wine &amp; Culture</option>
+                    <option value="city-breaks">🏙️ City Breaks</option>
+                    <option value="family-adventures">👨‍👩‍👧 Family Adventures</option>
+                    <option value="ultra-premium">👑 Ultra-Premium</option>
                   </select>
                 </div>
               </div>
@@ -11025,20 +11027,35 @@ function renderAdmin() {
 }
 
 /* ── Gift Boxes ── */
-function admShowBoxForm(boxId) {
+async function admShowBoxForm(boxId) {
   appState.editingBoxId = boxId || null;
   const form = document.getElementById('adm-box-form-wrap');
   form.style.display = 'block';
   form.scrollIntoView({behavior:'smooth', block:'nearest'});
   const title = document.getElementById('adm-box-form-title');
+  // Reset database select
+  var dbSel = document.getElementById('abf-db');
+  if (dbSel) Array.from(dbSel.options).forEach(function(o){ o.selected = false; });
   if (boxId) {
     const b = boxDB[boxId];
     title.textContent = 'Edit — ' + b.name;
     document.getElementById('abf-name').value  = b.name;
     document.getElementById('abf-price').value = b.price;
-    document.getElementById('abf-desc').value  = b.desc;
+    document.getElementById('abf-desc').value  = b.desc || '';
     const imgs4 = (b.images && b.images.length) ? b.images : (b.img ? [b.img] : []);
     abfLoadImgSlots(imgs4);
+    // Load databases from box_database_links
+    if (dbSel) {
+      try {
+        var lRes = await db_client.from('box_database_links').select('database_id').eq('box_id', boxId);
+        if (lRes.data && lRes.data.length) {
+          lRes.data.forEach(function(l){
+            var opt = Array.from(dbSel.options).find(function(o){ return o.value === l.database_id; });
+            if (opt) opt.selected = true;
+          });
+        }
+      } catch(err) { console.error('Failed to load box databases:', err); }
+    }
   } else {
     title.textContent = 'Create new gift box';
     document.getElementById('abf-name').value  = '';
@@ -11144,37 +11161,15 @@ function admPreviewExpImg(idx, url) {
   else img.style.display = 'none';
 }
 
-async function renderAdmExpTable() {
+function renderAdmExpTable() {
   const tbody = document.getElementById('adm-exp-tbody');
   if (!tbody) return;
   const q = (document.getElementById('adm-exp-search')?.value || '').toLowerCase();
   const rtBadge = {accommodation:'rt-accommodation',dining:'rt-dining',wellness:'rt-wellness',activity:'rt-activity',rental:'rt-rental',event:'rt-event'};
   const rtIcon  = {accommodation:'🏨',dining:'🍽️',wellness:'🧖',activity:'🏄',rental:'🚗',event:'🎉'};
-
-  // Collect hardcoded IDs to avoid duplicates
-  const hardcodedIds = new Set(expDB.map(function(e){ return e.id; }));
-
-  // Load real Supabase experiences (partner-submitted)
-  var supabaseRows = [];
-  try {
-    var res = await db_client.from('experiences').select('id,name,partner_name,location,reservation_type,image_url,is_active').order('created_at', {ascending: false});
-    if (res.error) {
-      console.error('[renderAdmExpTable] Supabase error:', res.error.message, res.error);
-    } else if (res.data) {
-      supabaseRows = res.data.filter(function(e){ return !hardcodedIds.has(e.id); });
-      console.log('[renderAdmExpTable] Supabase rows:', res.data.length, '— non-hardcoded:', supabaseRows.length, supabaseRows.map(function(e){return e.id+' '+e.name;}));
-    }
-  } catch(err) { console.error('[renderAdmExpTable] fetch failed:', err); }
-
-  // Merge: hardcoded first, then Supabase-only rows
-  var hardcodedFiltered = expDB.filter(function(e){
-    return !q || e.name.toLowerCase().includes(q) || (e.partner||'').toLowerCase().includes(q) || (e.loc||'').toLowerCase().includes(q);
-  });
-  var supabaseFiltered = supabaseRows.filter(function(e){
-    return !q || (e.name||'').toLowerCase().includes(q) || (e.partner_name||'').toLowerCase().includes(q) || (e.location||'').toLowerCase().includes(q);
-  });
-
-  var hardcodedHtml = hardcodedFiltered.map(function(e){ return `<tr>
+  const rows = expDB
+    .filter(e => !q || e.name.toLowerCase().includes(q) || (e.partner||'').toLowerCase().includes(q) || (e.loc||'').toLowerCase().includes(q))
+    .map(e => `<tr>
       <td><div style="display:flex;align-items:center;gap:9px"><img src="${e.img}" style="width:44px;height:36px;object-fit:cover;border-radius:var(--rs);flex-shrink:0" loading="lazy"><strong>${e.name}</strong></div></td>
       <td><span class="rtype-badge ${rtBadge[e.reservation_type]||'rt-activity'}">${rtIcon[e.reservation_type]||'🏄'} ${e.reservation_type}</span></td>
       <td style="font-size:.8rem;color:var(--muted)">${e.box||'—'}</td>
@@ -11182,20 +11177,8 @@ async function renderAdmExpTable() {
       <td style="font-size:.8rem;color:var(--muted)">${e.loc||'—'}</td>
       <td><span class="sbadge sb-a">Active</span></td>
       <td><button class="btn bg bsm" onclick="admShowExpFormById('${e.id}')"><i class="fa fa-pen"></i> Edit</button></td>
-    </tr>`; }).join('');
-
-  var supabaseHtml = supabaseFiltered.map(function(e){ return `<tr>
-      <td><div style="display:flex;align-items:center;gap:9px"><img src="${e.image_url||''}" style="width:44px;height:36px;object-fit:cover;border-radius:var(--rs);flex-shrink:0" loading="lazy" onerror="this.style.display='none'"><strong>${e.name||'—'}</strong></div></td>
-      <td><span class="rtype-badge ${rtBadge[e.reservation_type]||'rt-activity'}">${rtIcon[e.reservation_type]||'🏄'} ${e.reservation_type||'—'}</span></td>
-      <td style="font-size:.8rem;color:var(--muted)">—</td>
-      <td style="font-size:.8rem">${e.partner_name||'—'}</td>
-      <td style="font-size:.8rem;color:var(--muted)">${e.location||'—'}</td>
-      <td><span class="sbadge ${e.is_active?'sb-a':'sb-p'}">${e.is_active?'Active':'Inactive'}</span></td>
-      <td><button class="btn bg bsm" onclick="admShowExpFormById('${e.id}')"><i class="fa fa-pen"></i> Edit</button></td>
-    </tr>`; }).join('');
-
-  var combined = hardcodedHtml + supabaseHtml;
-  tbody.innerHTML = combined || '<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--muted)">No experiences found.</td></tr>';
+    </tr>`).join('');
+  tbody.innerHTML = rows || '<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--muted)">No experiences found.</td></tr>';
 }
 
 async function admShowExpFormById(expId) {
@@ -11304,10 +11287,13 @@ function admRemoveBoxImg(idx) {
 async function admSaveBox() {
   const name  = document.getElementById('abf-name')?.value?.trim();
   const price = parseInt(document.getElementById('abf-price')?.value || '0');
-  const dbName = document.getElementById('abf-db')?.value || '';
   const desc  = document.getElementById('abf-desc')?.value?.trim() || '';
 
   if (!name || !price) { admToast('Please fill in box name and price.'); return; }
+
+  // Read selected databases
+  const dbSel = document.getElementById('abf-db');
+  const selectedDbs = dbSel ? Array.from(dbSel.selectedOptions).map(function(o){ return o.value; }).filter(Boolean) : [];
 
   // Read 4 image URLs
   const allImgs = [];
@@ -11317,11 +11303,9 @@ async function admSaveBox() {
   }
   const mainImg = allImgs[0] || '';
 
-  // Only include image_url if we actually have one (don't overwrite with empty)
   const payload = {
     name,
     price,
-    database_name: dbName,
     description:   desc,
     is_active:     true,
     images:        allImgs,
@@ -11330,27 +11314,34 @@ async function admSaveBox() {
 
   try {
     let result;
+    let savedId;
     if (appState.editingBoxId) {
-      // UPDATE existing box
       result = await db_client.from('boxes').update(payload).eq('id', appState.editingBoxId);
-      // Also update local boxDB immediately
-      if (boxDB[appState.editingBoxId]) {
-        boxDB[appState.editingBoxId].name  = name;
-        boxDB[appState.editingBoxId].price = price;
-        boxDB[appState.editingBoxId].desc  = desc;
-        if (mainImg) boxDB[appState.editingBoxId].img = mainImg;
-        // Sync images array so gallery updates immediately without page refresh
-        boxDB[appState.editingBoxId].images = allImgs.filter(function(u){ return u && u.trim(); });
+      savedId = appState.editingBoxId;
+      if (boxDB[savedId]) {
+        boxDB[savedId].name  = name;
+        boxDB[savedId].price = price;
+        boxDB[savedId].desc  = desc;
+        if (mainImg) boxDB[savedId].img = mainImg;
+        boxDB[savedId].images = allImgs.filter(function(u){ return u && u.trim(); });
       }
     } else {
-      // INSERT new box — generate a slug ID from name
-      const newId = name.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
-      result = await db_client.from('boxes').insert({ id: newId, ...payload });
+      savedId = name.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
+      result = await db_client.from('boxes').insert({ id: savedId, ...payload });
     }
     if (result?.error) throw result.error;
+
+    // Save database links
+    if (savedId && selectedDbs.length) {
+      await db_client.from('box_database_links').delete().eq('box_id', savedId);
+      await db_client.from('box_database_links').insert(
+        selectedDbs.map(function(dbId){ return { box_id: savedId, database_id: dbId }; })
+      );
+    }
+
     admHideBoxForm();
-    admToast('✅ Box saved! Image updated.');
-    await renderBoxGrids();  // refresh the grid — reloads from Supabase
+    admToast('✅ Box saved!');
+    await renderBoxGrids();
   } catch(e) {
     console.error('Save box error:', e);
     admToast('Error saving: ' + (e.message || 'unknown error'));
@@ -11630,13 +11621,27 @@ async function admSaveExp() {
 
   try {
     let result;
+    let savedId;
     if (appState.editingExpId) {
       result = await db_client.from('experiences').update(payload).eq('id', appState.editingExpId);
+      savedId = appState.editingExpId;
     } else {
       const newId = name.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
       result = await db_client.from('experiences').insert({ id: newId, ...payload });
+      savedId = newId;
     }
     if (result?.error) throw result.error;
+
+    // Save database links
+    const dbSel = document.getElementById('aef-db');
+    const selectedDbs = dbSel ? Array.from(dbSel.selectedOptions).map(function(o){ return o.value; }).filter(Boolean) : [];
+    if (savedId && selectedDbs.length) {
+      await db_client.from('experience_database_links').delete().eq('experience_id', savedId);
+      await db_client.from('experience_database_links').insert(
+        selectedDbs.map(function(dbId){ return { experience_id: savedId, database_id: dbId }; })
+      );
+    }
+
     admHideExpForm();
     admToast('✅ Experience saved to Supabase!');
   } catch(e) {
