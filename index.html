@@ -18,14 +18,7 @@
 ══════════════════════════════════════════════════════════════ */
 
 /* ── Box Usage ── */
-var usageDB = [
-  { code:'WB-2025-COUP', box:'Couples Retreat',    customer:'My Account',    email:'amahle@demo.co.za',   experience:'The Vineyard Retreat',    partner:'Vineyard Hotels',    date:'2025-05-10' },
-  { code:'WB-2025-RSET', box:'WowBox Reset',        customer:'Zanele Mokoena',    email:'zanele@wowbox.co.za', experience:'Ananda Couples Spa',      partner:'Ananda Wellness',    date:'2024-11-03' },
-  { code:'WB-2025-SURP', box:'Surprise Experience', customer:'David Pieterse',    email:'david.p@mail.co.za',  experience:'Magalies Hot Air Balloon', partner:'AirTrack Adventures',date:'2025-03-21' },
-  { code:'WB-2025-PADV', box:'Premium Adventure',   customer:'Sipho Khumalo',     email:'sipho@demo.co.za',    experience:'Kruger Game Drive',       partner:'Wild Horizons',      date:'2025-02-15' },
-  { code:'WB-2024-SIGN', box:'Signature Experience',customer:'Claudette Ferreira',email:'claudette@wbtest.com',experience:'The Test Kitchen',        partner:'Test Kitchen Group', date:'2025-01-18' },
-  { code:'WB-2024-CITY', box:'City Break',           customer:'Fatima Naidoo',     email:'fatima@wbtest.com',   experience:'Clifton Ocean Suites',    partner:'Atlantic Hotels',    date:'2024-12-05' },
-];
+var usageDB = []; // Real data loaded from Supabase only
 
 async function loadUsageFromSupabase() {
   try {
@@ -36,10 +29,15 @@ async function loadUsageFromSupabase() {
       .not('used_at', 'is', null)
       .order('used_at', { ascending: false });
     if (error || !data) return;
-    data.forEach(v => {
-      if (!usageDB.find(u => u.code === v.code))
-        usageDB.push({ code:v.code, box:v.box_name||'—', customer:v.user_email||'—', email:v.user_email||'—', experience:v.experience_used||'—', partner:v.partner_name||'—', date:v.used_at||'' });
-    });
+    usageDB = data.map(v => ({
+      code:       v.code || '—',
+      box:        v.box_name || '—',
+      customer:   v.user_email || '—',
+      email:      v.user_email || '—',
+      experience: v.experience_used || '—',
+      partner:    v.partner_name || '—',
+      date:       v.used_at ? v.used_at.slice(0, 10) : ''
+    }));
     renderUsageTable();
   } catch(e) { console.warn('loadUsageFromSupabase:', e.message); }
 }
@@ -88,14 +86,7 @@ function exportUsageCSV() {
 }
 
 /* ── Orders ── */
-var ordersState = {
-  statuses: {
-    'WB-ORD-2025-0042': 'In transit',
-    'WB-ORD-2025-0041': 'Delivered',
-    'WB-ORD-2025-0040': 'Delivered',
-    'WB-ORD-2025-0039': 'Pending',
-  }
-};
+var ordersState = { statuses: {} };
 
 function renderOrdersTable() {
   const tbody   = document.getElementById('adm-orders-tbody');
@@ -4774,10 +4765,10 @@ tr:hover td{background:var(--b50)}
     <!-- ── SIDEBAR ── -->
     <div class="pp-sb">
       <div class="pp-sb-logo">
-        <div class="pp-sb-av">🏨</div>
+        <div class="pp-sb-av" id="pp-sb-av">🏨</div>
         <div>
-          <div class="pp-sb-name">The Vineyard Retreat</div>
-          <div class="pp-sb-sub">Stellenbosch · Partner since 2023</div>
+          <div class="pp-sb-name" id="pp-sb-name">Loading…</div>
+          <div class="pp-sb-sub" id="pp-sb-sub">Partner Portal</div>
         </div>
       </div>
 
@@ -4812,37 +4803,37 @@ tr:hover td{background:var(--b50)}
       <div id="pp-overview" class="pp-sec on">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px">
           <div>
-            <h2 style="font-size:1.75rem;color:var(--navy)">Good morning, Vineyard Retreat 👋</h2>
-            <p style="color:var(--muted);font-size:.82rem">Here's your performance summary for April 2025.</p>
+            <h2 id="pp-welcome-title" style="font-size:1.75rem;color:var(--navy)">Welcome 👋</h2>
+            <p id="pp-welcome-sub" style="color:var(--muted);font-size:.82rem">Loading your data…</p>
           </div>
-          <div style="font-size:.75rem;color:var(--muted);background:var(--white);padding:7px 14px;border-radius:var(--rs);border:1px solid var(--border)">April 2025</div>
+          <div id="pp-month-label" style="font-size:.75rem;color:var(--muted);background:var(--white);padding:7px 14px;border-radius:var(--rs);border:1px solid var(--border)">—</div>
         </div>
 
         <!-- KPIs -->
         <div class="pp-kpis">
           <div class="pp-kpi">
             <div class="pp-kpi-ico" style="background:var(--b100)"><i class="fa fa-check-circle" style="color:var(--b600)"></i></div>
-            <div class="pp-kpi-val">47</div>
+            <div class="pp-kpi-val" id="pp-kpi-validated">—</div>
             <div class="pp-kpi-lbl">Validated this month</div>
-            <div class="pp-kpi-chg chg-up">↑ +8 vs last month</div>
+            <div class="pp-kpi-chg chg-up" id="pp-kpi-validated-chg">—</div>
           </div>
           <div class="pp-kpi">
             <div class="pp-kpi-ico" style="background:#d1fae5"><i class="fa fa-sack-dollar" style="color:var(--green)"></i></div>
-            <div class="pp-kpi-val">R45,621</div>
+            <div class="pp-kpi-val" id="pp-kpi-revenue">—</div>
             <div class="pp-kpi-lbl">Revenue this month</div>
-            <div class="pp-kpi-chg chg-up">↑ +12.4%</div>
+            <div class="pp-kpi-chg chg-up" id="pp-kpi-revenue-chg">—</div>
           </div>
           <div class="pp-kpi">
             <div class="pp-kpi-ico" style="background:#ede9fe"><i class="fa fa-calendar" style="color:#7c3aed"></i></div>
-            <div class="pp-kpi-val">312</div>
+            <div class="pp-kpi-val" id="pp-kpi-total">—</div>
             <div class="pp-kpi-lbl">Total validations</div>
             <div class="pp-kpi-chg chg-up">All time</div>
           </div>
           <div class="pp-kpi">
             <div class="pp-kpi-ico" style="background:#fef3c7"><i class="fa fa-star" style="color:#d97706"></i></div>
-            <div class="pp-kpi-val">4.9</div>
+            <div class="pp-kpi-val" id="pp-kpi-rating">—</div>
             <div class="pp-kpi-lbl">Average rating</div>
-            <div class="pp-kpi-chg chg-up">187 reviews</div>
+            <div class="pp-kpi-chg chg-up" id="pp-kpi-rating-chg">—</div>
           </div>
         </div>
 
@@ -4856,17 +4847,8 @@ tr:hover td{background:var(--b50)}
           </div>
           <div class="pp-card" style="margin-bottom:0">
             <h3>Top experience</h3>
-            <div style="margin-top:14px">
-              <img src="https://images.unsplash.com/photo-1559508551-44bff1de756b?q=80&w=600&auto=format&fit=crop"
-                style="height:100px;width:100%;object-fit:cover;border-radius:var(--rs);margin-bottom:11px" alt="">
-              <div style="font-size:.9rem;font-weight:600;color:var(--navy);margin-bottom:3px">The Vineyard Retreat</div>
-              <div style="font-size:.73rem;color:var(--muted)">34 bookings this month</div>
-              <div style="margin-top:8px;display:flex;align-items:center;gap:8px">
-                <div style="flex:1;height:5px;background:var(--border);border-radius:99px;overflow:hidden">
-                  <div style="width:72%;height:100%;background:var(--b500);border-radius:99px"></div>
-                </div>
-                <span style="font-size:.7rem;color:var(--b600);font-weight:600">72%</span>
-              </div>
+            <div style="margin-top:14px" id="pp-top-exp">
+              <div style="text-align:center;padding:20px;color:var(--muted);font-size:.82rem">Loading…</div>
             </div>
           </div>
         </div>
@@ -4879,11 +4861,8 @@ tr:hover td{background:var(--b50)}
           </div>
           <table>
             <thead><tr><th>Booking ref</th><th>Guest</th><th>Experience</th><th>Date</th><th>Payout</th><th>Status</th></tr></thead>
-            <tbody>
-              <tr><td><code style="font-size:.75rem">BK-7F4D-92XP</code></td><td>My Account</td><td>Vineyard Retreat</td><td>10 May 2025</td><td style="color:var(--green);font-weight:600">R971.35</td><td><span class="ps-active">Paid</span></td></tr>
-              <tr><td><code style="font-size:.75rem">BK-2A1C-88KQ</code></td><td>Sipho Khumalo</td><td>Vineyard Retreat</td><td>8 May 2025</td><td style="color:var(--green);font-weight:600">R971.35</td><td><span class="ps-active">Paid</span></td></tr>
-              <tr><td><code style="font-size:.75rem">BK-9F3D-41WM</code></td><td>Fatima Naidoo</td><td>Vineyard Retreat</td><td>5 May 2025</td><td style="color:#d97706;font-weight:600">R971.35</td><td><span class="ps-pending">Pending</span></td></tr>
-              <tr><td><code style="font-size:.75rem">BK-6C2E-73BV</code></td><td>James Kotze</td><td>Vineyard Retreat</td><td>2 May 2025</td><td style="color:var(--green);font-weight:600">R971.35</td><td><span class="ps-active">Paid</span></td></tr>
+            <tbody id="pp-recent-tbody">
+              <tr><td colspan="6" style="text-align:center;padding:20px;color:var(--muted)">Loading…</td></tr>
             </tbody>
           </table>
         </div>
@@ -5566,15 +5545,15 @@ tr:hover td{background:var(--b50)}
       <!-- ══ DASHBOARD ══ -->
       <div id="adm-dash">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:26px">
-          <div><h2 style="font-size:1.7rem;color:var(--navy)">Dashboard</h2><p style="color:var(--muted);font-size:.8rem">April 2025 overview</p></div>
+          <div><h2 style="font-size:1.7rem;color:var(--navy)">Dashboard</h2><p id="adm-dash-period" style="color:var(--muted);font-size:.8rem">Loading…</p></div>
         </div>
         <div class="astats">
-          <div class="astat"><div class="astat-ico" style="background:var(--b100)"><i class="fa fa-gift" style="color:var(--b600)"></i></div><div class="astat-val">1,247</div><div class="astat-lbl">Boxes sold (month)</div><div class="astat-chg">↑ +12.4%</div></div>
-          <div class="astat"><div class="astat-ico" style="background:#d1fae5"><i class="fa fa-sack-dollar" style="color:var(--green)"></i></div><div class="astat-val">R1.87M</div><div class="astat-lbl">Revenue</div><div class="astat-chg">↑ +8.9%</div></div>
-          <div class="astat"><div class="astat-ico" style="background:#fef3c7"><i class="fa fa-building" style="color:#d97706"></i></div><div class="astat-val">854</div><div class="astat-lbl">Active partners</div><div class="astat-chg">↑ +5 new</div></div>
-          <div class="astat"><div class="astat-ico" style="background:#ede9fe"><i class="fa fa-users" style="color:#7c3aed"></i></div><div class="astat-val">23,481</div><div class="astat-lbl">Users</div><div class="astat-chg">↑ +321</div></div>
-          <div class="astat"><div class="astat-ico" style="background:#fce7f3"><i class="fa fa-database" style="color:#db2777"></i></div><div class="astat-val">10</div><div class="astat-lbl">Exp. databases</div><div class="astat-chg">140,556 experiences</div></div>
-          <div class="astat" style="background:linear-gradient(135deg,#fffbeb,#fef3c7);border-color:#fcd34d"><div class="astat-ico" style="background:#fef3c7"><i class="fa fa-inbox" style="color:#d97706"></i></div><div class="astat-val" style="color:#d97706">3</div><div class="astat-lbl">Partner requests</div><div class="astat-chg" style="color:#d97706;cursor:pointer" onclick="switchAdm(document.querySelectorAll('.anl')[4],'adm-requests')">→ Review now</div></div>
+          <div class="astat"><div class="astat-ico" style="background:var(--b100)"><i class="fa fa-gift" style="color:var(--b600)"></i></div><div class="astat-val" id="adm-kpi-boxes-sold">—</div><div class="astat-lbl">Boxes sold (month)</div><div class="astat-chg" id="adm-kpi-boxes-chg">—</div></div>
+          <div class="astat"><div class="astat-ico" style="background:#d1fae5"><i class="fa fa-sack-dollar" style="color:var(--green)"></i></div><div class="astat-val" id="adm-kpi-revenue">—</div><div class="astat-lbl">Revenue</div><div class="astat-chg" id="adm-kpi-revenue-chg">—</div></div>
+          <div class="astat"><div class="astat-ico" style="background:#fef3c7"><i class="fa fa-building" style="color:#d97706"></i></div><div class="astat-val" id="adm-kpi-partners">—</div><div class="astat-lbl">Active partners</div><div class="astat-chg" id="adm-kpi-partners-chg">—</div></div>
+          <div class="astat"><div class="astat-ico" style="background:#ede9fe"><i class="fa fa-users" style="color:#7c3aed"></i></div><div class="astat-val" id="adm-kpi-users">—</div><div class="astat-lbl">Users</div><div class="astat-chg" id="adm-kpi-users-chg">—</div></div>
+          <div class="astat"><div class="astat-ico" style="background:#fce7f3"><i class="fa fa-database" style="color:#db2777"></i></div><div class="astat-val" id="adm-kpi-databases">—</div><div class="astat-lbl">Exp. databases</div><div class="astat-chg" id="adm-kpi-exp-count">—</div></div>
+          <div class="astat" style="background:linear-gradient(135deg,#fffbeb,#fef3c7);border-color:#fcd34d"><div class="astat-ico" style="background:#fef3c7"><i class="fa fa-inbox" style="color:#d97706"></i></div><div class="astat-val" id="adm-kpi-requests" style="color:#d97706">—</div><div class="astat-lbl">Partner requests</div><div class="astat-chg" style="color:#d97706;cursor:pointer" onclick="switchAdm(document.querySelectorAll('.anl')[4],'adm-requests')">→ Review now</div></div>
         </div>
         <div class="comm-note"><i class="fa fa-lock"></i><strong>Default commission: 35%</strong> — Configurable per partner or experience. Partners receive the remainder.</div>
       </div>
@@ -10577,36 +10556,7 @@ function admPrintVideoQR(token) {
 }
 
 /* ── ORDER DETAIL ── */
-const orderDetailDB = {
-  'WB-ORD-2025-0042': {
-    name:'My Account', email:'amahle@demo.co.za', phone:'+27 82 555 1234', date:'10 Apr 2025',
-    type:'Mixed', total:'R10,498', boost:true,
-    delivery:{ recipient:'My Account', street:'14 Clifton Road', city:'Cape Town', province:'Western Cape', postal:'8001' },
-    items:[
-      { name:'WowBox Couples Retreat', type:'Physical', code:'WB-2025-COUP', status:'active' },
-      { name:'WowBox Surprise Experience', type:'E-Box', code:'WB-2025-SURP', status:'active' },
-      { name:'Chance Boost', type:'Add-on', code:'—', status:'active' },
-    ]
-  },
-  'WB-ORD-2025-0041': {
-    name:'Sipho Khumalo', email:'sipho@demo.co.za', phone:'+27 71 234 5678', date:'9 Apr 2025',
-    type:'E-Box', total:'R1,899', boost:false,
-    delivery:null,
-    items:[ { name:'WowBox Celebration', type:'E-Box', code:'WB-2025-CELB', status:'active' } ]
-  },
-  'WB-ORD-2025-0040': {
-    name:'Fatima Naidoo', email:'fatima@wbtest.com', phone:'+27 84 987 6543', date:'8 Apr 2025',
-    type:'Physical', total:'R8,999', boost:false,
-    delivery:{ recipient:'Fatima Naidoo', street:'7 Sandton Drive', city:'Johannesburg', province:'Gauteng', postal:'2196' },
-    items:[ { name:'WowBox Luxury Escape', type:'Physical', code:'WB-2025-LUXE', status:'active' } ]
-  },
-  'WB-ORD-2025-0039': {
-    name:'Lindi Botha', email:'lindi@wbtest.com', phone:'+27 63 456 7890', date:'7 Apr 2025',
-    type:'E-Box', total:'R1,299', boost:false,
-    delivery:null,
-    items:[ { name:'WowBox Road Trip', type:'E-Box', code:'WB-2025-ROAD', status:'inactive' } ]
-  },
-};
+const orderDetailDB = {}; // Populated from Supabase
 
 function admOrderDetail(orderId) {
   const o = orderDetailDB[orderId];
@@ -10983,7 +10933,7 @@ function switchAdm(btn, tab) {
   if (tab === 'adm-exp')    renderAdmExpTable();
   renderAdmRequests();
   renderAdmPartnerApps();
-  if (tab === 'adm-orders') renderOrdersTable();
+  if (tab === 'adm-orders') loadOrdersFromSupabase();
   if (tab === 'adm-usage')  { renderUsageTable(); loadUsageFromSupabase(); }
 }
 
@@ -10993,9 +10943,11 @@ async function renderAdmin() {
   document.querySelectorAll('.anl').forEach((n,i) => n.classList.toggle('on', i===0));
   renderBoxGrids();
   renderCouponTable();
-  renderOrdersTable();
+  loadOrdersFromSupabase();
   renderUsageTable();
+  loadUsageFromSupabase();
   renderAdmExpTable();
+  loadAdminDashStats();
 
   // Load real counts from experience_database_links
   var dbCounts = {};
@@ -11019,23 +10971,136 @@ async function renderAdmin() {
       + '<div style="margin-top:8px;font-size:.7rem;color:var(--b600);font-weight:600">→ View &amp; manage</div>'
       + '</div>';
   }).join('');
-  // Render boxes table with working edit buttons
+
+  // Render boxes table with real exp counts + databases from Supabase
   const at = document.getElementById('adm-boxes-tbody');
-  if (at) at.innerHTML = Object.keys(boxDB).map(k => {
-    const b = boxDB[k];
-    return `<tr>
-      <td><strong>${b.name}</strong></td>
-      <td><span class="tag t-act" style="font-size:.7rem">${b.db}</span></td>
-      <td><strong style="color:var(--b700)">${b.cnt}</strong></td>
-      <td>R${b.price.toLocaleString()}</td>
-      <td><span class="tag" style="background:#fef3c7;color:#92400e;font-size:.68rem">E + Physical</span></td>
-      <td>${b.sold}</td>
-      <td><span class="sbadge sb-a">Active</span></td>
-      <td style="white-space:nowrap">
-        <button class="btn bg bsm" onclick="admShowBoxForm('${k}')"><i class="fa fa-pen"></i> Edit</button>
-      </td>
-    </tr>`;
-  }).join('');
+  if (at) {
+    at.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:18px;color:var(--muted)"><i class="fa fa-circle-notch fa-spin"></i> Loading…</td></tr>';
+    try {
+      const boxIds = Object.keys(boxDB);
+      const { data: expRows } = await db_client.from('experiences').select('box_id').eq('is_active', true).in('box_id', boxIds);
+      const expCnt = {};
+      (expRows || []).forEach(function(e){ expCnt[e.box_id] = (expCnt[e.box_id] || 0) + 1; });
+      const { data: dbLinks } = await db_client.from('box_database_links').select('box_id,database_id').in('box_id', boxIds);
+      const dbPer = {};
+      (dbLinks || []).forEach(function(l){ if (!dbPer[l.box_id]) dbPer[l.box_id] = []; dbPer[l.box_id].push(l.database_id); });
+      at.innerHTML = boxIds.map(function(k) {
+        const b = boxDB[k];
+        const cnt = expCnt[k] !== undefined ? expCnt[k] : (b.cnt || 0);
+        const dbs = (dbPer[k] || []).map(function(d){ return d.replace(/-/g,' '); }).join(', ') || b.db || '—';
+        return '<tr><td><strong>'+b.name+'</strong></td>'
+          +'<td style="font-size:.78rem;color:var(--slate)">'+dbs+'</td>'
+          +'<td><strong style="color:var(--b700)">'+cnt+'</strong></td>'
+          +'<td>R'+b.price.toLocaleString()+'</td>'
+          +'<td><span class="tag" style="background:#fef3c7;color:#92400e;font-size:.68rem">E + Physical</span></td>'
+          +'<td>'+(b.sold||0)+'</td>'
+          +'<td><span class="sbadge sb-a">Active</span></td>'
+          +'<td style="white-space:nowrap"><button class="btn bg bsm" onclick="admShowBoxForm(\''+k+'\')"><i class="fa fa-pen"></i> Edit</button></td>'
+          +'</tr>';
+      }).join('');
+    } catch(e) {
+      at.innerHTML = Object.keys(boxDB).map(function(k) {
+        const b = boxDB[k];
+        return '<tr><td><strong>'+b.name+'</strong></td><td><span class="tag t-act" style="font-size:.7rem">'+b.db+'</span></td><td><strong style="color:var(--b700)">'+b.cnt+'</strong></td><td>R'+b.price.toLocaleString()+'</td><td><span class="tag" style="background:#fef3c7;color:#92400e;font-size:.68rem">E + Physical</span></td><td>'+b.sold+'</td><td><span class="sbadge sb-a">Active</span></td><td style="white-space:nowrap"><button class="btn bg bsm" onclick="admShowBoxForm(\''+k+'\')"><i class="fa fa-pen"></i> Edit</button></td></tr>';
+      }).join('');
+    }
+  }
+}
+
+/* ── Admin Dashboard: real KPIs from Supabase ── */
+async function loadAdminDashStats() {
+  const set = function(id, val) { const el = document.getElementById(id); if (el) el.textContent = val; };
+  try {
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+    const lastMonthStart = new Date(now.getFullYear(), now.getMonth()-1, 1).toISOString();
+    const monthName = now.toLocaleString('en-ZA', {month:'long'});
+    set('adm-dash-period', monthName + ' ' + now.getFullYear() + ' overview');
+
+    // Boxes sold this month
+    const soldR = await db_client.from('vouchers').select('id',{count:'exact',head:true}).neq('status','inactive').gte('created_at',monthStart);
+    const soldL = await db_client.from('vouchers').select('id',{count:'exact',head:true}).neq('status','inactive').gte('created_at',lastMonthStart).lt('created_at',monthStart);
+    const sold = soldR.count || 0, soldLast = soldL.count || 0;
+    set('adm-kpi-boxes-sold', sold.toLocaleString());
+    set('adm-kpi-boxes-chg', soldLast > 0 ? (sold >= soldLast ? '↑ +' : '↓ ') + Math.abs(Math.round(((sold-soldLast)/soldLast)*100)) + '% vs last month' : sold + ' this month');
+
+    // Active partners
+    const partR = await db_client.from('user_profiles').select('id',{count:'exact',head:true}).eq('role','partner');
+    const newPR  = await db_client.from('user_profiles').select('id',{count:'exact',head:true}).eq('role','partner').gte('created_at',monthStart);
+    set('adm-kpi-partners', (partR.count||0).toLocaleString());
+    set('adm-kpi-partners-chg', '↑ +' + (newPR.count||0) + ' new this month');
+
+    // Users
+    const userR = await db_client.from('user_profiles').select('id',{count:'exact',head:true});
+    const newUR  = await db_client.from('user_profiles').select('id',{count:'exact',head:true}).gte('created_at',monthStart);
+    set('adm-kpi-users', (userR.count||0).toLocaleString());
+    set('adm-kpi-users-chg', '↑ +' + (newUR.count||0) + ' this month');
+
+    // Databases + experiences
+    const dbR  = await db_client.from('box_database_links').select('database_id');
+    const dbs  = new Set((dbR.data||[]).map(function(r){ return r.database_id; }));
+    const expR = await db_client.from('experiences').select('id',{count:'exact',head:true}).eq('is_active',true);
+    set('adm-kpi-databases', dbs.size || '—');
+    set('adm-kpi-exp-count', (expR.count||0).toLocaleString() + ' experiences');
+
+    // Pending partner requests
+    const reqR = await db_client.from('partner_requests').select('id',{count:'exact',head:true}).eq('status','pending');
+    const reqN = reqR.count || 0;
+    set('adm-kpi-requests', reqN.toString());
+    const badge = document.getElementById('adm-req-badge');
+    if (badge) { badge.textContent = reqN || ''; badge.style.display = reqN ? '' : 'none'; }
+  } catch(e) { console.warn('loadAdminDashStats:', e.message); }
+}
+
+/* ── Orders: load from Supabase vouchers grouped by order_id ── */
+async function loadOrdersFromSupabase() {
+  const tbody = document.getElementById('adm-orders-tbody');
+  if (!tbody) return;
+  tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:18px;color:var(--muted)"><i class="fa fa-circle-notch fa-spin"></i> Loading orders…</td></tr>';
+  try {
+    const res = await db_client.from('vouchers').select('code,box_name,box_id,user_email,status,created_at,order_id').not('order_id','is',null).order('created_at',{ascending:false});
+    if (res.error) throw res.error;
+    const vouchers = res.data || [];
+    if (!vouchers.length) {
+      tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:28px;color:var(--muted)">No orders yet.</td></tr>';
+      return;
+    }
+    const grouped = {};
+    vouchers.forEach(function(v) {
+      const oid = v.order_id;
+      if (!grouped[oid]) grouped[oid] = {id:oid, email:v.user_email||'—', date:v.created_at, items:[], type:'E-Box'};
+      grouped[oid].items.push(v);
+      if (v.status === 'inactive') grouped[oid].type = 'Physical';
+    });
+    const allStatuses = ['Pending','In process','In transit','Delivered'];
+    const typeTag = {'E-Box':'<span class="tag t-act" style="font-size:.7rem">E-Box</span>','Physical':'<span class="tag t-hotel" style="font-size:.7rem">Physical</span>'};
+    // Populate orderDetailDB for the detail panel
+    Object.keys(grouped).forEach(function(oid) {
+      const g = grouped[oid];
+      const ds = g.date ? new Date(g.date).toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'}) : '—';
+      orderDetailDB[oid] = {name:g.email,email:g.email,phone:'—',date:ds,type:g.type,total:'—',boost:false,delivery:null,
+        items:g.items.map(function(v){ return {name:v.box_name||v.box_id||'—',type:v.status==='inactive'?'Physical':'E-Box',code:v.code,status:v.status}; })};
+    });
+    tbody.innerHTML = Object.values(grouped).map(function(g) {
+      const st = ordersState.statuses[g.id] || 'Pending';
+      const codes = g.items.map(function(i){ return i.code; }).join('<br>');
+      const opts = allStatuses.map(function(s){ return '<option'+(s===st?' selected':'')+'>'+s+'</option>'; }).join('');
+      const ds = g.date ? new Date(g.date).toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'}) : '—';
+      return '<tr style="cursor:pointer" onclick="admOrderDetail(\''+g.id+'\')">'
+        +'<td><strong>'+g.id+'</strong></td><td>'+g.email+'</td>'
+        +'<td style="font-size:.8rem">'+g.items.length+' box'+(g.items.length>1?'es':'')+'</td>'
+        +'<td>'+(typeTag[g.type]||g.type)+'</td>'
+        +'<td><code style="font-size:.72rem;color:var(--b700)">'+codes+'</code></td>'
+        +'<td style="font-weight:600;color:var(--b700)">—</td>'
+        +'<td style="font-size:.8rem;color:var(--muted)">'+ds+'</td>'
+        +'<td><select class="fi" data-order-id="'+g.id+'" style="padding:5px 9px;font-size:.75rem;width:auto" onchange="admUpdateOrderStatus(this)" onclick="event.stopPropagation()">'+opts+'</select></td>'
+        +'<td onclick="event.stopPropagation()"><button class="btn bg bsm" onclick="admOrderDetail(\''+g.id+'\')"><i class="fa fa-eye"></i></button></td>'
+        +'</tr>';
+    }).join('');
+  } catch(e) {
+    if (tbody) tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:24px;color:var(--muted)">Could not load orders.</td></tr>';
+    console.warn('loadOrdersFromSupabase:', e.message);
+  }
 }
 
 /* ── Gift Boxes ── */
@@ -12872,32 +12937,12 @@ function ppProNav(btn, sectionId) {
 }
 
 function initPartnerPage() {
-  // Draw revenue bar chart
-  const bars = [
-    {label:'Nov', val:28400},
-    {label:'Dec', val:35200},
-    {label:'Jan', val:31800},
-    {label:'Feb', val:38600},
-    {label:'Mar', val:40300},
-    {label:'Apr', val:45621, active:true},
-  ];
-  const max = Math.max(...bars.map(b => b.val));
-  const chartEl = document.getElementById('pp-revenue-chart');
-  const labelsEl = document.getElementById('pp-bar-labels');
-  if (!chartEl) return;
-  chartEl.innerHTML = bars.map(b => {
-    const h = Math.round((b.val / max) * 100);
-    return `<div class="pp-bar${b.active?' active-bar':''}" style="height:${h}%" title="R${b.val.toLocaleString()}"></div>`;
-  }).join('');
-  labelsEl.innerHTML = bars.map(b => `<div class="pp-bar-lbl">${b.label}</div>`).join('');
-
   // Make sure overview is visible
   PP_SECTIONS.forEach(id => {
     const el = document.getElementById(id);
     if (el) el.classList.toggle('on', id === 'pp-overview');
   });
   document.querySelectorAll('.pp-nav').forEach((n,i) => n.classList.toggle('on', i===0));
-
   // Sync subscription state on every portal load
   renderSubscriptionUI();
   updatePartnerSidebar();
@@ -12906,10 +12951,156 @@ function initPartnerPage() {
   // Show Test Pro FAB on partner page
   const fab = document.getElementById('test-pro-fab');
   if (fab) fab.style.display = 'flex';
-  // Load real bookings and experiences
-  loadPartnerBookings();
-  loadPartnerExperiences();
   ppImgUrls = ['','',''];
+  // Load real data from Supabase
+  loadPartnerPortalData();
+  loadPartnerExperiences();
+}
+
+async function loadPartnerPortalData() {
+  if (!currentUser) return;
+  const email = currentUser.email;
+  const now = new Date();
+  const monthName = now.toLocaleString('en-ZA', {month:'long'});
+  const monthYear = monthName + ' ' + now.getFullYear();
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+  const lastMonthStart = new Date(now.getFullYear(), now.getMonth()-1, 1).toISOString();
+  const hour = now.getHours();
+  const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
+  const set = function(id, val) { const el = document.getElementById(id); if (el) el.textContent = val; };
+
+  // ── Partner name + since year ──
+  let partnerName = currentUser.partnerName || currentUser.displayName || 'Partner';
+  try {
+    const profR = await db_client.from('user_profiles').select('partner_name,full_name,created_at').eq('id',currentUser.id).maybeSingle();
+    if (profR.data) {
+      if (profR.data.partner_name) partnerName = profR.data.partner_name;
+      else if (profR.data.full_name) partnerName = profR.data.full_name;
+      if (profR.data.created_at) {
+        const sbSub = document.getElementById('pp-sb-sub');
+        if (sbSub) sbSub.textContent = 'Partner since ' + new Date(profR.data.created_at).getFullYear();
+      }
+    }
+  } catch(e) {}
+
+  set('pp-sb-name', partnerName);
+  set('pp-welcome-title', greeting + ', ' + partnerName.split(' ')[0] + ' 👋');
+  set('pp-welcome-sub', "Here's your performance summary for " + monthYear + '.');
+  set('pp-month-label', monthYear);
+
+  // ── KPIs from bookings ──
+  try {
+    const thisR = await db_client.from('bookings').select('id').eq('partner_email',email).gte('created_at',monthStart);
+    const lastR = await db_client.from('bookings').select('id').eq('partner_email',email).gte('created_at',lastMonthStart).lt('created_at',monthStart);
+    const allR  = await db_client.from('bookings').select('id').eq('partner_email',email);
+    const thisCount = (thisR.data||[]).length;
+    const lastCount = (lastR.data||[]).length;
+    const allCount  = (allR.data||[]).length;
+    set('pp-kpi-validated', thisCount.toString());
+    set('pp-kpi-total', allCount.toString());
+    if (lastCount > 0) {
+      const diff = thisCount - lastCount;
+      set('pp-kpi-validated-chg', (diff >= 0 ? '↑ +' : '↓ ') + diff + ' vs last month');
+    } else {
+      set('pp-kpi-validated-chg', thisCount + ' bookings this month');
+    }
+
+    // Revenue: look up experience prices
+    const revR = await db_client.from('bookings').select('experience_id,guests').eq('partner_email',email).gte('created_at',monthStart);
+    const lrevR = await db_client.from('bookings').select('experience_id,guests').eq('partner_email',email).gte('created_at',lastMonthStart).lt('created_at',monthStart);
+    const expIds = [...new Set((revR.data||[]).map(function(b){ return b.experience_id; }).filter(Boolean))];
+    let revTotal = 0, lastRevTotal = 0;
+    if (expIds.length) {
+      const priceR = await db_client.from('experiences').select('id,price').in('id',expIds);
+      const pm = {};
+      (priceR.data||[]).forEach(function(e){ pm[e.id] = e.price||0; });
+      (revR.data||[]).forEach(function(b){ revTotal += (pm[b.experience_id]||0) * (b.guests||1); });
+      (lrevR.data||[]).forEach(function(b){ lastRevTotal += (pm[b.experience_id]||0) * (b.guests||1); });
+    }
+    set('pp-kpi-revenue', revTotal > 0 ? 'R' + revTotal.toLocaleString() : 'R0');
+    if (revTotal > 0 && lastRevTotal > 0) {
+      const pct = Math.round(((revTotal-lastRevTotal)/lastRevTotal)*100);
+      set('pp-kpi-revenue-chg', (pct >= 0 ? '↑ +' : '↓ ') + Math.abs(pct) + '% vs last month');
+    } else {
+      set('pp-kpi-revenue-chg', revTotal > 0 ? 'This month' : 'No revenue yet');
+    }
+
+    // Revenue chart: last 6 months by booking count
+    const chartData = [];
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth()-i, 1);
+      const mS = d.toISOString();
+      const mE = new Date(d.getFullYear(), d.getMonth()+1, 1).toISOString();
+      const mR = await db_client.from('bookings').select('id').eq('partner_email',email).gte('created_at',mS).lt('created_at',mE);
+      chartData.push({label:d.toLocaleString('en-ZA',{month:'short'}), val:(mR.data||[]).length, active:i===0});
+    }
+    const maxV = Math.max(...chartData.map(function(b){ return b.val; }), 1);
+    const chartEl = document.getElementById('pp-revenue-chart');
+    const labelsEl = document.getElementById('pp-bar-labels');
+    if (chartEl) chartEl.innerHTML = chartData.map(function(b){
+      const h = Math.max(Math.round((b.val/maxV)*100), 2);
+      return '<div class="pp-bar'+(b.active?' active-bar':'')+'" style="height:'+h+'%" title="'+b.val+' bookings"></div>';
+    }).join('');
+    if (labelsEl) labelsEl.innerHTML = chartData.map(function(b){ return '<div class="pp-bar-lbl">'+b.label+'</div>'; }).join('');
+  } catch(e) { console.warn('loadPartnerPortalData KPIs:', e.message); }
+
+  // ── Rating + top experience ──
+  try {
+    const myExpR = await db_client.from('experiences').select('id,name,image_url').eq('partner_email',email).eq('is_active',true);
+    const myExps = myExpR.data || [];
+    const myExpIds = myExps.map(function(e){ return e.id; });
+    if (myExpIds.length) {
+      const ratR = await db_client.from('experience_reviews').select('rating,experience_id').in('experience_id',myExpIds).eq('status','approved');
+      const revs = ratR.data || [];
+      if (revs.length) {
+        const avg = (revs.reduce(function(s,r){ return s+r.rating; },0)/revs.length).toFixed(1);
+        set('pp-kpi-rating', avg);
+        set('pp-kpi-rating-chg', revs.length + ' review'+(revs.length!==1?'s':''));
+      } else { set('pp-kpi-rating','—'); set('pp-kpi-rating-chg','No reviews yet'); }
+
+      // Top experience by booking count this month
+      const topR = await db_client.from('bookings').select('experience_id').eq('partner_email',email).gte('created_at',monthStart);
+      const topCounts = {};
+      (topR.data||[]).forEach(function(b){ if(b.experience_id) topCounts[b.experience_id]=(topCounts[b.experience_id]||0)+1; });
+      const topId = Object.keys(topCounts).sort(function(a,b){ return topCounts[b]-topCounts[a]; })[0];
+      const topExp = myExps.find(function(e){ return e.id===topId; }) || myExps[0];
+      const topEl = document.getElementById('pp-top-exp');
+      if (topEl && topExp) {
+        const bCnt = topCounts[topExp.id] || 0;
+        const maxB = Math.max(...Object.values(topCounts), 1);
+        const pct = Math.round((bCnt/maxB)*100);
+        topEl.innerHTML = (topExp.image_url ? '<img src="'+topExp.image_url+'" style="height:100px;width:100%;object-fit:cover;border-radius:var(--rs);margin-bottom:11px" alt="">' : '')
+          +'<div style="font-size:.9rem;font-weight:600;color:var(--navy);margin-bottom:3px">'+topExp.name+'</div>'
+          +'<div style="font-size:.73rem;color:var(--muted)">'+bCnt+' booking'+(bCnt!==1?'s':'')+' this month</div>'
+          +'<div style="margin-top:8px;display:flex;align-items:center;gap:8px"><div style="flex:1;height:5px;background:var(--border);border-radius:99px;overflow:hidden"><div style="width:'+pct+'%;height:100%;background:var(--b500);border-radius:99px"></div></div><span style="font-size:.7rem;color:var(--b600);font-weight:600">'+pct+'%</span></div>';
+      } else if (topEl) { topEl.innerHTML = '<div style="text-align:center;padding:20px;color:var(--muted);font-size:.82rem">No experiences yet.</div>'; }
+    } else { set('pp-kpi-rating','—'); set('pp-kpi-rating-chg','No experiences yet'); }
+  } catch(e) { console.warn('loadPartnerPortalData rating:', e.message); }
+
+  // ── Recent validations ──
+  const tbody = document.getElementById('pp-recent-tbody');
+  if (!tbody) return;
+  try {
+    const valR = await db_client.from('bookings').select('id,customer_name,customer_email,experience_name,booking_date,created_at,status').eq('partner_email',email).order('created_at',{ascending:false}).limit(5);
+    const rows = valR.data || [];
+    if (!rows.length) {
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--muted)">No validations yet.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = rows.map(function(b) {
+      const raw = b.booking_date || b.created_at || '';
+      const ds = raw ? new Date(raw).toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'}) : '—';
+      const ref = b.id ? ('BK-'+b.id.toString().substring(0,8).toUpperCase()) : '—';
+      const paid = b.status==='validated'||b.status==='confirmed'||b.status==='paid';
+      return '<tr><td><code style="font-size:.75rem">'+ref+'</code></td>'
+        +'<td>'+(b.customer_name||b.customer_email||'—')+'</td>'
+        +'<td>'+(b.experience_name||'—')+'</td>'
+        +'<td>'+ds+'</td>'
+        +'<td style="color:var(--muted);font-size:.78rem">—</td>'
+        +'<td><span class="'+(paid?'ps-active':'ps-pending')+'">'+(paid?'Paid':'Pending')+'</span></td>'
+        +'</tr>';
+    }).join('');
+  } catch(e) { tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--muted)">Could not load.</td></tr>'; }
 }
 
 function toggleAddForm() {
