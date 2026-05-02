@@ -11158,11 +11158,14 @@ async function renderAdmExpTable() {
   var supabaseRows = [];
   try {
     var res = await db_client.from('experiences').select('id,name,partner_name,location,reservation_type,image_url,status').order('created_at', {ascending: false});
-    if (res.data) {
+    if (res.error) {
+      console.error('[renderAdmExpTable] Supabase error:', res.error.message, res.error);
+    } else if (res.data) {
       // Only keep rows not already in expDB
       supabaseRows = res.data.filter(function(e){ return !hardcodedIds.has(e.id); });
+      console.log('[renderAdmExpTable] Supabase rows:', res.data.length, '— non-hardcoded:', supabaseRows.length, supabaseRows.map(function(e){return e.id+' '+e.name;}));
     }
-  } catch(err) { /* silently skip if Supabase unavailable */ }
+  } catch(err) { console.error('[renderAdmExpTable] fetch failed:', err); }
 
   // Merge: hardcoded first, then Supabase-only rows
   var hardcodedFiltered = expDB.filter(function(e){
