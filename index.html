@@ -5745,16 +5745,20 @@ tr:hover td{background:var(--b50)}
                   <div id="aef-rt-note" style="display:none;margin-top:5px;padding:8px 12px;background:var(--b50);border:1px solid var(--b200);border-radius:var(--rs);font-size:.73rem;color:var(--b700)"></div>
                 </div>
                 <div class="fg">
-                  <label>Database *</label>
-                  <select class="fi" id="aef-db">
-                    <option>💑 Romantic Getaways</option>
-                    <option>🧖 Wellness & Spa</option>
-                    <option>🍽️ Food & Gastronomy</option>
-                    <option>🏔️ Adventure & Outdoors</option>
-                    <option>🌊 Ocean & Coastal</option>
-                    <option>🦁 Safari & Wildlife</option>
-                    <option>🏙️ City Breaks</option>
-                    <option>👑 Ultra-Premium</option>
+                  <label>Database(s) *</label>
+                  <select class="fi" id="aef-db" multiple style="height:130px">
+                    <option value="romantic-getaways">💑 Romantic Getaways</option>
+                    <option value="wellness-spa">🧖 Wellness &amp; Spa</option>
+                    <option value="food-gastronomy">🍽️ Food &amp; Gastronomy</option>
+                    <option value="adventure-outdoors">🏔️ Adventure &amp; Outdoors</option>
+                    <option value="ocean-coastal">🌊 Ocean &amp; Coastal</option>
+                    <option value="safari-wildlife">🦁 Safari &amp; Wildlife</option>
+                    <option value="wine-culture">🍷 Wine &amp; Culture</option>
+                    <option value="city-breaks">🏙️ City Breaks</option>
+                    <option value="ultra-premium">👑 Ultra-Premium</option>
+                    <option value="family-adventures">👨‍👩‍👧 Family Adventures</option>
+                    <option value="relaxation-leisure">😌 Relaxation &amp; Leisure</option>
+                    <option value="exclusive-dining">⭐ Exclusive Dining</option>
                   </select>
                 </div>
               </div>
@@ -7267,11 +7271,22 @@ function setNL(id) {
 /* ══════════════════════════════════════════════════════════════
    BROWSE EXPERIENCES PAGE (post-purchase)
 ══════════════════════════════════════════════════════════════ */
-function openBrowsePage(boxId) {
+async function openBrowsePage(boxId) {
   appState.browseBoxId = boxId || appState.currentBoxId;
   appState.boxActivated = true;
   appState.browsePage = 1;
+  appState.boxDatabaseIds = [];
   clearBrowseFilters(true);
+  try {
+    var blRes = await db_client.from('box_database_links').select('database_id').eq('box_id', appState.browseBoxId);
+    if (blRes.data && blRes.data.length) {
+      appState.boxDatabaseIds = blRes.data.map(function(r){ return r.database_id; });
+    } else {
+      var dbNameToId = {'Romantic Getaways':'romantic-getaways','Wellness & Spa':'wellness-spa','Food & Gastronomy':'food-gastronomy','Adventure & Outdoors':'adventure-outdoors','Ocean & Coastal':'ocean-coastal','Safari & Wildlife':'safari-wildlife','Wine & Culture':'wine-culture','City Breaks':'city-breaks','Ultra-Premium':'ultra-premium','Family Adventures':'family-adventures','Relaxation & Leisure':'relaxation-leisure','Exclusive Dining':'exclusive-dining'};
+      var bRow = (await db_client.from('boxes').select('database_name').eq('id', appState.browseBoxId).maybeSingle()).data;
+      if (bRow && bRow.database_name && dbNameToId[bRow.database_name]) appState.boxDatabaseIds = [dbNameToId[bRow.database_name]];
+    }
+  } catch(e) { console.warn('openBrowsePage db load:', e.message); }
   go('browse');
 }
 
@@ -7294,7 +7309,8 @@ function getBrowseFiltered() {
   let items = expDB.filter(e => {
     const cap    = e.capacity || 2;
     const nights = e.duration_nights || 0;
-    const boxMatch      = !bid || e.box === bid || true;
+    var boxDbIds = appState.boxDatabaseIds || [];
+    var boxMatch = !bid || (boxDbIds.length > 0 && e.database_ids && e.database_ids.some(function(d){ return boxDbIds.indexOf(d) >= 0; })) || e.box === bid || boxDbIds.length === 0;
     const searchMatch   = !search              || e.name.toLowerCase().includes(search) || (e.loc||'').toLowerCase().includes(search) || (e.partner||'').toLowerCase().includes(search);
     const typeMatch     = typeChecks.length===0    || typeChecks.some(t => e.reservation_type===t||e.type===t||e.category===t);
     const locMatch      = locChecks.length===0     || locChecks.some(l => (e.loc||'').includes(l));
@@ -7759,8 +7775,11 @@ async function loadExpFromSupabase() {
       .eq('is_active', true);
     if (res.error || !res.data || !res.data.length) return;
 
+    var linksRes = await db_client.from('experience_database_links').select('experience_id,database_id');
+    var expDbMap = {};
+    (linksRes.data || []).forEach(function(l){ if (!expDbMap[l.experience_id]) expDbMap[l.experience_id]=[]; expDbMap[l.experience_id].push(l.database_id); });
+
     res.data.forEach(function(e) {
-      // Remove hardcoded entry if Supabase has a fresher version
       var existing = expDB.findIndex(function(x){ return x.id === e.id; });
       if (existing !== -1) expDB.splice(existing, 1);
 
@@ -7770,6 +7789,8 @@ async function loadExpFromSupabase() {
         type:             e.reservation_type || 'activity',
         reservation_type: e.reservation_type || 'activity',
         box:              e.box_id           || '',
+        database_id:      e.database_id      || '',
+        database_ids:     expDbMap[e.id]     || (e.database_id ? [e.database_id] : []),
         lat:              e.lat              || null,
         lng:              e.lng              || null,
         loc:              e.location         || '',
@@ -11144,24 +11165,33 @@ function admPreviewExpImg(idx, url) {
   else img.style.display = 'none';
 }
 
-function renderAdmExpTable() {
+async function renderAdmExpTable() {
   const tbody = document.getElementById('adm-exp-tbody');
   if (!tbody) return;
+  tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--muted)">Loading...</td></tr>';
   const q = (document.getElementById('adm-exp-search')?.value || '').toLowerCase();
   const rtBadge = {accommodation:'rt-accommodation',dining:'rt-dining',wellness:'rt-wellness',activity:'rt-activity',rental:'rt-rental',event:'rt-event'};
   const rtIcon  = {accommodation:'🏨',dining:'🍽️',wellness:'🧖',activity:'🏄',rental:'🚗',event:'🎉'};
-  const rows = expDB
-    .filter(e => !q || e.name.toLowerCase().includes(q) || (e.partner||'').toLowerCase().includes(q) || (e.loc||'').toLowerCase().includes(q))
-    .map(e => `<tr>
-      <td><div style="display:flex;align-items:center;gap:9px"><img src="${e.img}" style="width:44px;height:36px;object-fit:cover;border-radius:var(--rs);flex-shrink:0" loading="lazy"><strong>${e.name}</strong></div></td>
-      <td><span class="rtype-badge ${rtBadge[e.reservation_type]||'rt-activity'}">${rtIcon[e.reservation_type]||'🏄'} ${e.reservation_type}</span></td>
-      <td style="font-size:.8rem;color:var(--muted)">${e.box||'—'}</td>
-      <td style="font-size:.8rem">${e.partner||'—'}</td>
-      <td style="font-size:.8rem;color:var(--muted)">${e.loc||'—'}</td>
-      <td><span class="sbadge sb-a">Active</span></td>
-      <td><button class="btn bg bsm" onclick="admShowExpFormById('${e.id}')"><i class="fa fa-pen"></i> Edit</button></td>
-    </tr>`).join('');
-  tbody.innerHTML = rows || '<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--muted)">No experiences found.</td></tr>';
+  try {
+    var res = await db_client.from('experiences').select('id,name,reservation_type,database_name,partner_name,location,image_url,is_active').order('created_at', {ascending:false});
+    var exps = (res.data || []).filter(function(e){ return !q || (e.name||'').toLowerCase().includes(q) || (e.partner_name||'').toLowerCase().includes(q) || (e.location||'').toLowerCase().includes(q); });
+    var rows = exps.map(function(e){
+      var imgHtml = e.image_url ? ('<img src="' + e.image_url + '" style="width:44px;height:36px;object-fit:cover;border-radius:var(--rs);flex-shrink:0" loading="lazy">') : '';
+      return '<tr>'
+        + '<td><div style="display:flex;align-items:center;gap:9px">' + imgHtml + '<strong>' + (e.name||'') + '</strong></div></td>'
+        + '<td><span class="rtype-badge ' + (rtBadge[e.reservation_type]||'rt-activity') + '">' + (rtIcon[e.reservation_type]||'🏄') + ' ' + (e.reservation_type||'—') + '</span></td>'
+        + '<td style="font-size:.8rem;color:var(--muted)">' + (e.database_name||'—') + '</td>'
+        + '<td style="font-size:.8rem">' + (e.partner_name||'—') + '</td>'
+        + '<td style="font-size:.8rem;color:var(--muted)">' + (e.location||'—') + '</td>'
+        + '<td><span class="sbadge ' + (e.is_active ? 'sb-a' : 'sb-i') + '">' + (e.is_active ? 'Active' : 'Inactive') + '</span></td>'
+        + '<td><button class="btn bg bsm" onclick="admShowExpFormById(' + "'" + e.id + "'" + ')"><i class="fa fa-pen"></i> Edit</button></td>'
+        + '</tr>';
+    }).join('');
+    tbody.innerHTML = rows || '<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--muted)">No experiences found.</td></tr>';
+  } catch(err) {
+    console.warn('renderAdmExpTable:', err.message);
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--muted)">Error loading experiences.</td></tr>';
+  }
 }
 
 function admShowExpFormById(expId) {
@@ -11183,6 +11213,20 @@ function admShowExpFormById(expId) {
   const rtSel = document.getElementById('aef-rt');
   if (rtSel) rtSel.value = e.reservation_type || '';
   admExpTypeNote();
+  (async function preSelectDbs() {
+    var dbSel2 = document.getElementById('aef-db');
+    if (!dbSel2) return;
+    Array.from(dbSel2.options).forEach(function(o){ o.selected = false; });
+    try {
+      var lRes = await db_client.from('experience_database_links').select('database_id').eq('experience_id', expId);
+      if (lRes.data && lRes.data.length) {
+        lRes.data.forEach(function(l){ var opt = Array.from(dbSel2.options).find(function(o){ return o.value === l.database_id; }); if (opt) opt.selected = true; });
+      } else if (e.database_id) {
+        var opt = Array.from(dbSel2.options).find(function(o){ return o.value === e.database_id; });
+        if (opt) opt.selected = true;
+      }
+    } catch(err) { console.warn('preSelectDbs:', err.message); }
+  })();
   aefLoadImgSlots([e.img, e.img2, e.img3].filter(Boolean));
   var progWrap2 = document.getElementById('aef-programme-wrap');
   if (progWrap2) progWrap2.innerHTML = buildProgrammeFields('aef', e.programme || []);
@@ -11552,17 +11596,28 @@ async function admSaveExp() {
     ...(icalUrl ? { ical_url: icalUrl } : {}),
   };
 
+  var dbSel = document.getElementById('aef-db');
+  var selectedDbs = dbSel ? Array.from(dbSel.selectedOptions).map(function(o){ return o.value; }).filter(Boolean) : [];
   try {
+    var expId2;
     let result;
     if (appState.editingExpId) {
-      result = await db_client.from('experiences').update(payload).eq('id', appState.editingExpId);
+      expId2 = appState.editingExpId;
+      result = await db_client.from('experiences').update(payload).eq('id', expId2);
     } else {
-      const newId = name.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
-      result = await db_client.from('experiences').insert({ id: newId, ...payload });
+      expId2 = name.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
+      result = await db_client.from('experiences').insert({ id: expId2, ...payload });
     }
     if (result?.error) throw result.error;
+    if (selectedDbs.length > 0 && expId2) {
+      await db_client.from('experience_database_links').delete().eq('experience_id', expId2);
+      var links = selectedDbs.map(function(dbId){ return { experience_id: expId2, database_id: dbId }; });
+      await db_client.from('experience_database_links').insert(links);
+      await db_client.from('experiences').update({ database_id: selectedDbs[0] }).eq('id', expId2);
+    }
     admHideExpForm();
     admToast('✅ Experience saved to Supabase!');
+    if (typeof renderAdmExpTable === 'function') renderAdmExpTable();
   } catch(e) {
     console.error('Save exp error:', e);
     admToast('Error saving: ' + (e.message || 'unknown error'));
@@ -13696,17 +13751,33 @@ window.addEventListener('DOMContentLoaded', async () => {
           var expObj = expDB.find(function(x){ return x.id === expId; });
           var expBoxId = expObj ? expObj.box : null;
           var hasActiveVoucher = false;
-          if (expBoxId && currentUser && currentUser.email) {
+          if (currentUser && currentUser.email) {
             try {
-              var vRes = await db_client
-                .from('vouchers')
-                .select('code')
-                .eq('user_email', currentUser.email)
-                .eq('box_id', expBoxId)
-                .eq('status', 'active')
-                .limit(1);
-              if (vRes.data && vRes.data.length > 0) {
-                hasActiveVoucher = true;
+              if (expBoxId) {
+                var vRes = await db_client.from('vouchers').select('code').eq('user_email', currentUser.email).eq('box_id', expBoxId).eq('status', 'active').limit(1);
+                if (vRes.data && vRes.data.length > 0) hasActiveVoucher = true;
+              }
+              if (!hasActiveVoucher && expId) {
+                var edbRes = await db_client.from('experience_database_links').select('database_id').eq('experience_id', expId);
+                var dbIds = (edbRes.data || []).map(function(r){ return r.database_id; });
+                if (expObj && expObj.database_id) { if (dbIds.indexOf(expObj.database_id) < 0) dbIds.push(expObj.database_id); }
+                if (dbIds.length > 0) {
+                  var bdbRes = await db_client.from('box_database_links').select('box_id').in('database_id', dbIds);
+                  var linkedBoxIds = (bdbRes.data || []).map(function(r){ return r.box_id; });
+                  if (linkedBoxIds.length > 0) {
+                    var vRes2 = await db_client.from('vouchers').select('box_id').eq('user_email', currentUser.email).in('box_id', linkedBoxIds).eq('status', 'active').limit(1);
+                    if (vRes2.data && vRes2.data.length > 0) { hasActiveVoucher = true; expBoxId = vRes2.data[0].box_id; }
+                  }
+                }
+              }
+              if (!hasActiveVoucher && expObj && expObj.database_id) {
+                var vAll = await db_client.from('vouchers').select('box_id').eq('user_email', currentUser.email).eq('status', 'active');
+                var userBoxIds = (vAll.data || []).map(function(r){ return r.box_id; }).filter(Boolean);
+                if (userBoxIds.length > 0) {
+                  var bdbRes2 = await db_client.from('box_database_links').select('database_id,box_id').in('box_id', userBoxIds);
+                  var match = (bdbRes2.data || []).find(function(r){ return r.database_id === expObj.database_id; });
+                  if (match) { hasActiveVoucher = true; expBoxId = match.box_id; }
+                }
               }
             } catch(e) { console.warn('Voucher check:', e.message); }
           }
