@@ -5683,7 +5683,7 @@ tr:hover td{background:var(--b50)}
           <div class="atbl">
             <div class="atbl-hdr">
               <h4 id="adm-db-detail-subtitle" style="font-size:.88rem;color:var(--navy)"></h4>
-              <button class="btn bp bsm" onclick="admShowExpForm(null)"><i class="fa fa-plus"></i> Add experience to DB</button>
+              <button class="btn bp bsm" onclick="admAddExpToDb()"><i class="fa fa-plus"></i> Add experience to DB</button>
             </div>
             <table>
               <thead><tr><th>Experience</th><th>Type</th><th>Partner</th><th>Location</th><th>Status</th><th>Actions</th></tr></thead>
@@ -6908,16 +6908,16 @@ const reviewsDB = {
 };
 
 const admDatabases = [
-  { icon:'💑', name:'Romantic Getaways',    cnt:847,   boxes:'Couples Retreat', bg:'#fce7f3' },
-  { icon:'🧖', name:'Wellness & Spa',       cnt:312,   boxes:'WowBox Reset',       bg:'#ede9fe' },
-  { icon:'🍽️', name:'Food & Gastronomy',    cnt:1240,  boxes:'Celebration, Signature', bg:'#fef3c7' },
-  { icon:'🏔️', name:'Adventure & Outdoors', cnt:2156,  boxes:'Road Trip',          bg:'#d1fae5' },
-  { icon:'🌊', name:'Ocean & Coastal',      cnt:589,   boxes:'Chill Day',          bg:'#e0f2fe' },
-  { icon:'🦁', name:'Safari & Wildlife',    cnt:234,   boxes:'Premium Adventure',  bg:'#f0fdf4' },
-  { icon:'🍷', name:'Wine & Culture',       cnt:445,   boxes:'Luxury Escape',      bg:'#fff7ed' },
-  { icon:'🏙️', name:'City Breaks',          cnt:3890,  boxes:'City Break',         bg:'#eff6ff' },
-  { icon:'👨‍👩‍👧', name:'Family Adventures',   cnt:1120,  boxes:'Family Fun',         bg:'#fdf4ff' },
-  { icon:'👑', name:'Ultra-Premium',        cnt:156,   boxes:'Luxury Escape',      bg:'#fffbeb' },
+  { id:'romantic-getaways',  icon:'💑', name:'Romantic Getaways',    cnt:0, boxes:'Couples Retreat',         bg:'#fce7f3' },
+  { id:'wellness-spa',       icon:'🧖', name:'Wellness & Spa',       cnt:0, boxes:'WowBox Reset',            bg:'#ede9fe' },
+  { id:'food-gastronomy',    icon:'🍽️', name:'Food & Gastronomy',    cnt:0, boxes:'Celebration, Signature',  bg:'#fef3c7' },
+  { id:'adventure-outdoors', icon:'🏔️', name:'Adventure & Outdoors', cnt:0, boxes:'Road Trip',               bg:'#d1fae5' },
+  { id:'ocean-coastal',      icon:'🌊', name:'Ocean & Coastal',      cnt:0, boxes:'Chill Day',               bg:'#e0f2fe' },
+  { id:'safari-wildlife',    icon:'🦁', name:'Safari & Wildlife',    cnt:0, boxes:'Premium Adventure',        bg:'#f0fdf4' },
+  { id:'wine-culture',       icon:'🍷', name:'Wine & Culture',       cnt:0, boxes:'Luxury Escape',            bg:'#fff7ed' },
+  { id:'city-breaks',        icon:'🏙️', name:'City Breaks',          cnt:0, boxes:'City Break',              bg:'#eff6ff' },
+  { id:'family-adventures',  icon:'👨‍👩‍👧', name:'Family Adventures',   cnt:0, boxes:'Family Fun',             bg:'#fdf4ff' },
+  { id:'ultra-premium',      icon:'👑', name:'Ultra-Premium',        cnt:0, boxes:'Luxury Escape',            bg:'#fffbeb' },
 ];
 
 /* ══════════════════════════════════════════════════════════════
@@ -10987,7 +10987,7 @@ function switchAdm(btn, tab) {
   if (tab === 'adm-usage')  { renderUsageTable(); loadUsageFromSupabase(); }
 }
 
-function renderAdmin() {
+async function renderAdmin() {
   admTabs.forEach(t => { const el = document.getElementById(t); if (el && t!=='adm-dash') el.style.display='none'; });
   document.getElementById('adm-dash').style.display = 'block';
   document.querySelectorAll('.anl').forEach((n,i) => n.classList.toggle('on', i===0));
@@ -10996,17 +10996,29 @@ function renderAdmin() {
   renderOrdersTable();
   renderUsageTable();
   renderAdmExpTable();
-  // Render database grid with click handlers
+
+  // Load real counts from experience_database_links
+  var dbCounts = {};
+  try {
+    var cRes = await db_client.from('experience_database_links').select('database_id');
+    if (cRes.data) {
+      cRes.data.forEach(function(l){ dbCounts[l.database_id] = (dbCounts[l.database_id] || 0) + 1; });
+    }
+  } catch(e) { console.error('[renderAdmin] counts error:', e); }
+
+  // Render database grid with real counts
   const dbGrid = document.getElementById('adm-db-grid');
-  if (dbGrid) dbGrid.innerHTML = admDatabases.map((d,i) => `
-    <div class="db-card" onclick="admDbDetail(${i})" style="cursor:pointer">
-      <div class="db-ico" style="background:${d.bg}">${d.icon}</div>
-      <h4 style="font-size:.88rem;color:var(--navy)">${d.name}</h4>
-      <p style="font-size:.73rem;color:var(--muted)">Used in: ${d.boxes}</p>
-      <div class="db-cnt">${d.cnt.toLocaleString()}</div>
-      <div style="font-size:.7rem;color:var(--muted)">experiences</div>
-      <div style="margin-top:8px;font-size:.7rem;color:var(--b600);font-weight:600">→ View &amp; manage</div>
-    </div>`).join('');
+  if (dbGrid) dbGrid.innerHTML = admDatabases.map(function(d, i) {
+    var realCount = dbCounts[d.id] || 0;
+    return '<div class="db-card" onclick="admDbDetail('+i+')" style="cursor:pointer">'
+      + '<div class="db-ico" style="background:'+d.bg+'">'+d.icon+'</div>'
+      + '<h4 style="font-size:.88rem;color:var(--navy)">'+d.name+'</h4>'
+      + '<p style="font-size:.73rem;color:var(--muted)">Used in: '+d.boxes+'</p>'
+      + '<div class="db-cnt">'+realCount.toLocaleString()+'</div>'
+      + '<div style="font-size:.7rem;color:var(--muted)">experiences</div>'
+      + '<div style="margin-top:8px;font-size:.7rem;color:var(--b600);font-weight:600">→ View &amp; manage</div>'
+      + '</div>';
+  }).join('');
   // Render boxes table with working edit buttons
   const at = document.getElementById('adm-boxes-tbody');
   if (at) at.innerHTML = Object.keys(boxDB).map(k => {
@@ -11169,21 +11181,16 @@ async function renderAdmExpTable() {
   const rtIcon  = {accommodation:'🏨',dining:'🍽️',wellness:'🧖',activity:'🏄',rental:'🚗',event:'🎉'};
   const dbLabels = {'romantic-getaways':'💑 Romantic','wellness-spa':'🧖 Wellness','food-gastronomy':'🍽️ Gastronomy','adventure-outdoors':'🏔️ Adventure','ocean-coastal':'🌊 Ocean','safari-wildlife':'🦁 Safari','wine-culture':'🍷 Wine','city-breaks':'🏙️ City','family-adventures':'👨‍👩‍👧 Family','ultra-premium':'👑 Ultra-Premium'};
 
-  // Hardcoded IDs
   const hardcodedIds = new Set(expDB.map(function(e){ return e.id; }));
 
-  // Load partner-submitted experiences from Supabase
   var supabaseRows = [];
-  var dbLinksMap = {}; // experienceId → [database_id, ...]
+  var dbLinksMap = {};
   try {
     var res = await db_client.from('experiences').select('id,name,partner_name,location,reservation_type,image_url,is_active').order('created_at', {ascending:false});
     if (res.error) {
       console.error('[renderAdmExpTable] Supabase error:', res.error.message);
     } else if (res.data) {
       supabaseRows = res.data.filter(function(e){ return !hardcodedIds.has(e.id); });
-      console.log('[renderAdmExpTable] Supabase rows:', res.data.length, '— partner-only:', supabaseRows.length, supabaseRows.map(function(e){ return e.id+' | '+e.name; }));
-
-      // Load all database links for these rows in one query
       if (supabaseRows.length) {
         var ids = supabaseRows.map(function(e){ return e.id; });
         var lRes = await db_client.from('experience_database_links').select('experience_id,database_id').in('experience_id', ids);
@@ -11193,7 +11200,6 @@ async function renderAdmExpTable() {
             dbLinksMap[l.experience_id].push(l.database_id);
           });
         }
-        if (lRes.error) console.error('[renderAdmExpTable] DB links error:', lRes.error.message);
       }
     }
   } catch(err) { console.error('[renderAdmExpTable] fetch error:', err); }
@@ -11367,8 +11373,8 @@ async function admSaveBox() {
     let result;
     let savedId;
     if (appState.editingBoxId) {
-      result = await db_client.from('boxes').update(payload).eq('id', appState.editingBoxId);
       savedId = appState.editingBoxId;
+      result = await db_client.from('boxes').update(payload).eq('id', savedId);
       if (boxDB[savedId]) {
         boxDB[savedId].name  = name;
         boxDB[savedId].price = price;
@@ -11385,9 +11391,10 @@ async function admSaveBox() {
     // Write database links
     if (savedId && selectedDbs.length) {
       await db_client.from('box_database_links').delete().eq('box_id', savedId);
-      await db_client.from('box_database_links').insert(
+      var insRes = await db_client.from('box_database_links').insert(
         selectedDbs.map(function(dbId){ return { box_id: savedId, database_id: dbId }; })
       );
+      if (insRes.error) admToast('⚠️ Box saved but database links failed: ' + insRes.error.message);
     }
 
     admHideBoxForm();
@@ -11400,20 +11407,99 @@ async function admSaveBox() {
 }
 
 /* ── Exp Databases ── */
-function admDbDetail(idx) {
+// Track which database is currently open in the detail view
+var admCurrentDbId = null;
+
+async function admDbDetail(idx) {
   document.getElementById('adm-db-overview').style.display = 'none';
   const detail = document.getElementById('adm-db-detail');
   detail.style.display = 'block';
+
+  const rtBadge = {accommodation:'rt-accommodation',dining:'rt-dining',wellness:'rt-wellness',activity:'rt-activity',rental:'rt-rental',event:'rt-event'};
+  const rtIcon  = {accommodation:'🏨',dining:'🍽️',wellness:'🧖',activity:'🏄',rental:'🚗',event:'🎉'};
+
   if (idx !== null) {
     const d = admDatabases[idx];
+    admCurrentDbId = d.id;
     document.getElementById('adm-db-detail-title').textContent = d.icon + ' ' + d.name;
-    document.getElementById('adm-db-detail-subtitle').textContent = d.cnt.toLocaleString() + ' experiences · used in: ' + d.boxes;
+
+    const tbody = document.getElementById('adm-db-exp-tbody');
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:18px;color:var(--muted)">Loading…</td></tr>';
+
+    try {
+      // Get all experience IDs linked to this database
+      var linkRes = await db_client.from('experience_database_links').select('experience_id').eq('database_id', d.id);
+      var expIds = (linkRes.data || []).map(function(l){ return l.experience_id; });
+
+      // Also include hardcoded expDB entries that belong to this database
+      var hardcodedIds = expDB
+        .filter(function(e){ return e.box && (e.database_id === d.id); })
+        .map(function(e){ return e.id; });
+
+      var allIds = Array.from(new Set(expIds.concat(hardcodedIds)));
+
+      document.getElementById('adm-db-detail-subtitle').textContent = allIds.length + ' experiences · used in: ' + d.boxes;
+
+      if (!allIds.length) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:18px;color:var(--muted)">No experiences in this database yet.</td></tr>';
+        return;
+      }
+
+      // Fetch full experience data from Supabase
+      var expRes = await db_client.from('experiences').select('id,name,partner_name,location,reservation_type,is_active').in('id', allIds);
+      var supabaseMap = {};
+      if (expRes.data) expRes.data.forEach(function(e){ supabaseMap[e.id] = e; });
+
+      // Merge hardcoded expDB rows
+      var hardcodedMap = {};
+      expDB.forEach(function(e){ hardcodedMap[e.id] = e; });
+
+      tbody.innerHTML = allIds.map(function(id) {
+        var s = supabaseMap[id];
+        var h = hardcodedMap[id];
+        var name = (s && s.name) || (h && h.name) || id;
+        var rt   = (s && s.reservation_type) || (h && h.reservation_type) || '—';
+        var partner = (s && s.partner_name) || (h && h.partner) || '—';
+        var loc  = (s && s.location) || (h && h.loc) || '—';
+        var active = s ? s.is_active : true;
+        return '<tr>'
+          + '<td><strong>'+name+'</strong></td>'
+          + '<td><span class="rtype-badge '+(rtBadge[rt]||'rt-activity')+'">'+(rtIcon[rt]||'🏄')+' '+rt+'</span></td>'
+          + '<td style="font-size:.8rem">'+partner+'</td>'
+          + '<td style="font-size:.8rem;color:var(--muted)">'+loc+'</td>'
+          + '<td><span class="sbadge '+(active?'sb-a':'sb-p')+'">'+(active?'Active':'Inactive')+'</span></td>'
+          + '<td><button class="btn bg bsm" onclick="admShowExpFormById(\''+id+'\')"><i class="fa fa-pen"></i></button></td>'
+          + '</tr>';
+      }).join('');
+    } catch(err) {
+      console.error('[admDbDetail] error:', err);
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:18px;color:var(--muted)">Error loading experiences.</td></tr>';
+    }
   } else {
+    admCurrentDbId = null;
     document.getElementById('adm-db-detail-title').textContent = '✨ New Database';
     document.getElementById('adm-db-detail-subtitle').textContent = '0 experiences';
   }
 }
+
+function admAddExpToDb() {
+  // Open experience form and pre-select current database
+  const tab = document.getElementById('adm-exp');
+  if (tab) {
+    admOpenTab('adm-exp');
+    admShowExpFormById(null);
+    // Pre-select the current database in aef-db
+    if (admCurrentDbId) {
+      var dbSel = document.getElementById('aef-db');
+      if (dbSel) {
+        Array.from(dbSel.options).forEach(function(o){ o.selected = (o.value === admCurrentDbId); });
+      }
+    }
+  }
+}
+
 function admDbBack() {
+  admCurrentDbId = null;
   document.getElementById('adm-db-overview').style.display = 'block';
   document.getElementById('adm-db-detail').style.display = 'none';
 }
@@ -11677,9 +11763,8 @@ async function admSaveExp() {
       result = await db_client.from('experiences').update(payload).eq('id', appState.editingExpId);
       savedId = appState.editingExpId;
     } else {
-      const newId = name.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
-      result = await db_client.from('experiences').insert({ id: newId, ...payload });
-      savedId = newId;
+      savedId = name.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
+      result = await db_client.from('experiences').insert({ id: savedId, ...payload });
     }
     if (result?.error) throw result.error;
 
@@ -11688,11 +11773,11 @@ async function admSaveExp() {
     const selectedDbs = dbSel ? Array.from(dbSel.selectedOptions).map(function(o){ return o.value; }).filter(Boolean) : [];
     if (savedId && selectedDbs.length) {
       var delRes = await db_client.from('experience_database_links').delete().eq('experience_id', savedId);
-      if (delRes.error) { console.error('DB link delete error:', delRes.error); }
+      if (delRes.error) console.error('DB link delete error:', delRes.error);
       var insRes = await db_client.from('experience_database_links').insert(
         selectedDbs.map(function(dbId){ return { experience_id: savedId, database_id: dbId }; })
       );
-      if (insRes.error) { console.error('DB link insert error:', insRes.error); admToast('⚠️ Saved but database links failed: ' + insRes.error.message); return; }
+      if (insRes.error) { admToast('⚠️ Saved but database links failed: ' + insRes.error.message); return; }
     }
 
     admHideExpForm();
