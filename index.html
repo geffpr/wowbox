@@ -10978,22 +10978,29 @@ async function renderAdmin() {
     at.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:18px;color:var(--muted)"><i class="fa fa-circle-notch fa-spin"></i> Loading…</td></tr>';
     try {
       const boxIds = Object.keys(boxDB);
+      // Real exp count per box
       const { data: expRows } = await db_client.from('experiences').select('box_id').eq('is_active', true).in('box_id', boxIds);
       const expCnt = {};
       (expRows || []).forEach(function(e){ expCnt[e.box_id] = (expCnt[e.box_id] || 0) + 1; });
+      // Database names per box
       const { data: dbLinks } = await db_client.from('box_database_links').select('box_id,database_id').in('box_id', boxIds);
       const dbPer = {};
       (dbLinks || []).forEach(function(l){ if (!dbPer[l.box_id]) dbPer[l.box_id] = []; dbPer[l.box_id].push(l.database_id); });
+      // Real sold count per box from vouchers (all non-inactive = sold)
+      const { data: soldRows } = await db_client.from('vouchers').select('box_id').neq('status', 'inactive').in('box_id', boxIds);
+      const soldCnt = {};
+      (soldRows || []).forEach(function(v){ soldCnt[v.box_id] = (soldCnt[v.box_id] || 0) + 1; });
       at.innerHTML = boxIds.map(function(k) {
         const b = boxDB[k];
-        const cnt = expCnt[k] !== undefined ? expCnt[k] : (b.cnt || 0);
-        const dbs = (dbPer[k] || []).map(function(d){ return d.replace(/-/g,' '); }).join(', ') || b.db || '—';
+        const cnt  = expCnt[k]  !== undefined ? expCnt[k]  : (b.cnt  || 0);
+        const sold = soldCnt[k] !== undefined ? soldCnt[k] : (b.sold || 0);
+        const dbs  = (dbPer[k] || []).map(function(d){ return d.replace(/-/g,' '); }).join(', ') || b.db || '—';
         return '<tr><td><strong>'+b.name+'</strong></td>'
           +'<td style="font-size:.78rem;color:var(--slate)">'+dbs+'</td>'
           +'<td><strong style="color:var(--b700)">'+cnt+'</strong></td>'
           +'<td>R'+b.price.toLocaleString()+'</td>'
           +'<td><span class="tag" style="background:#fef3c7;color:#92400e;font-size:.68rem">E + Physical</span></td>'
-          +'<td>'+(b.sold||0)+'</td>'
+          +'<td><strong>'+sold+'</strong></td>'
           +'<td><span class="sbadge sb-a">Active</span></td>'
           +'<td style="white-space:nowrap"><button class="btn bg bsm" onclick="admShowBoxForm(\''+k+'\')"><i class="fa fa-pen"></i> Edit</button></td>'
           +'</tr>';
@@ -11001,7 +11008,7 @@ async function renderAdmin() {
     } catch(e) {
       at.innerHTML = Object.keys(boxDB).map(function(k) {
         const b = boxDB[k];
-        return '<tr><td><strong>'+b.name+'</strong></td><td><span class="tag t-act" style="font-size:.7rem">'+b.db+'</span></td><td><strong style="color:var(--b700)">'+b.cnt+'</strong></td><td>R'+b.price.toLocaleString()+'</td><td><span class="tag" style="background:#fef3c7;color:#92400e;font-size:.68rem">E + Physical</span></td><td>'+b.sold+'</td><td><span class="sbadge sb-a">Active</span></td><td style="white-space:nowrap"><button class="btn bg bsm" onclick="admShowBoxForm(\''+k+'\')"><i class="fa fa-pen"></i> Edit</button></td></tr>';
+        return '<tr><td><strong>'+b.name+'</strong></td><td><span class="tag t-act" style="font-size:.7rem">'+b.db+'</span></td><td><strong style="color:var(--b700)">'+b.cnt+'</strong></td><td>R'+b.price.toLocaleString()+'</td><td><span class="tag" style="background:#fef3c7;color:#92400e;font-size:.68rem">E + Physical</span></td><td>'+(b.sold||0)+'</td><td><span class="sbadge sb-a">Active</span></td><td style="white-space:nowrap"><button class="btn bg bsm" onclick="admShowBoxForm(\''+k+'\')"><i class="fa fa-pen"></i> Edit</button></td></tr>';
       }).join('');
     }
   }
