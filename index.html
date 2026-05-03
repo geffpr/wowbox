@@ -986,7 +986,21 @@ async function loadUserBoxes(email) {
       var imgSrc = box.img || 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?q=80&w=100&auto=format&fit=crop';
       imgSrc = safeImg(imgSrc, 'w=100&h=80&auto=format&fit=crop');
       var st     = v.status || 'inactive';
-      var browseBtn = st === 'active' ? '<button class="btn bp bsm" onclick="openBrowsePage(\'' + v.box_id + '\')">' + 'Browse <i class="fa fa-arrow-right"></i></button>' : '';
+      var browseBtn = '';
+      if (st === 'active') {
+        browseBtn = '<button class="btn bp bsm" onclick="openBrowsePage(\'' + v.box_id + '\')">Browse <i class="fa fa-arrow-right"></i></button>';
+      } else if (st === 'booked') {
+        // Cancellation allowed up to 24h before booking date
+        var canCancel = true;
+        if (v.booking_date) {
+          var bDate = new Date(v.booking_date);
+          var hoursUntil = (bDate - Date.now()) / 3600000;
+          canCancel = hoursUntil > 24;
+        }
+        browseBtn = canCancel
+          ? '<button class="btn bsm" style="background:#fef2f2;color:#dc2626;border:1px solid #fca5a5" onclick="cancelBooking(\'' + v.code + '\',\'' + (v.booking_date||'') + '\')"><i class="fa fa-xmark"></i> Cancel booking</button>'
+          : '<button class="btn bsm" style="background:#f8fafc;color:#94a3b8;border:1px solid #e2e8f0;cursor:not-allowed" disabled title="Cannot cancel within 24h of experience"><i class="fa fa-lock"></i> Non-cancellable</button>';
+      }
       var safeCode = v.code;
       var safeName = (v.box_name||'WowBox').replace(/'/g,'');
       var voucherBtn = '<button class="btn bg bsm" style="margin-left:4px" onclick="showBoxVoucher(\'' + safeCode + '\',\'' + safeName + '\')">' + '<i class="fa fa-ticket"></i> Voucher</button>';
@@ -8435,10 +8449,34 @@ function calcNights() {
   const co = document.getElementById('bk-co')?.value;
   const el = document.getElementById('nights-disp');
   if (!el) return;
+
+  // If experience has fixed nights, auto-set checkout and lock it
+  const exp = appState.currentExpId ? expDB.find(e => e.id === appState.currentExpId) : null;
+  const fixedNights = exp && exp.nights > 0 ? exp.nights : 0;
+  const coEl = document.getElementById('bk-co');
+
+  if (fixedNights > 0 && ci && coEl) {
+    const autoCheckout = new Date(ci);
+    autoCheckout.setDate(autoCheckout.getDate() + fixedNights);
+    const autoStr = autoCheckout.toISOString().slice(0, 10);
+    coEl.value = autoStr;
+    coEl.readOnly = true;
+    coEl.style.background = '#f8fafc';
+    coEl.style.color = '#64748b';
+    coEl.title = 'Fixed to ' + fixedNights + ' night' + (fixedNights > 1 ? 's' : '') + ' for this experience';
+    el.innerHTML = '🌙 <strong>' + fixedNights + ' night' + (fixedNights > 1 ? 's' : '') + '</strong> &nbsp;·&nbsp; '
+      + new Date(ci).toLocaleDateString('en-ZA', {day:'numeric',month:'short'})
+      + ' → ' + autoCheckout.toLocaleDateString('en-ZA', {day:'numeric',month:'short'})
+      + ' <span style="font-size:.7rem;color:var(--muted)">(fixed duration)</span>';
+    return;
+  }
+
+  // Free-choice nights
   if (ci && co) {
     const n = Math.round((new Date(co) - new Date(ci)) / 86400000);
-    const icon = appState.currentExpId && expDB.find(e=>e.id===appState.currentExpId)?.reservation_type==='rental' ? '📅' : '🌙';
-    const unit = appState.currentExpId && expDB.find(e=>e.id===appState.currentExpId)?.reservation_type==='rental' ? 'day' : 'night';
+    const isRental = exp && exp.reservation_type === 'rental';
+    const icon = isRental ? '📅' : '🌙';
+    const unit = isRental ? 'day' : 'night';
     el.innerHTML = n > 0
       ? `${icon} <strong>${n} ${unit}${n>1?'s':''}</strong> &nbsp;·&nbsp; ${new Date(ci).toLocaleDateString('en-ZA',{day:'numeric',month:'short'})} → ${new Date(co).toLocaleDateString('en-ZA',{day:'numeric',month:'short'})}`
       : '<i class="fa fa-triangle-exclamation" style="color:var(--amber)"></i> End date must be after start date';
@@ -8520,12 +8558,34 @@ async function confirmExpBooking() {
       var custEmail = (currentUser && currentUser.email) ? currentUser.email : (appState.lastOrderEmail || '');
       var custName  = (currentUser && currentUser.displayName) ? currentUser.displayName : (appState.lastOrderName || 'Guest');
 
+      // If voucherCode is still empty, try fetching the user's active voucher for this box from Supabase
+      var finalCode = voucherCode;
+      if (!finalCode && custEmail && e.box) {
+        try {
+          var vcRes = await db_client.from('vouchers')
+            .select('code')
+            .eq('user_email', custEmail)
+            .eq('box_id', e.box)
+            .in('status', ['active', 'booked'])
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          if (vcRes.data && vcRes.data.code) {
+            finalCode = vcRes.data.code;
+            // Update the on-screen display with real code
+            var bcodeEl = document.getElementById('v-bcode');
+            if (bcodeEl) bcodeEl.textContent = finalCode;
+          }
+        } catch(vcErr) { console.warn('voucher fetch:', vcErr.message); }
+      }
+
       // INSERT booking
       var bkRes = await db_client.from('bookings').insert({
-        voucher_code:     voucherCode || null,
+        voucher_code:     finalCode || null,
         experience_id:    e.id,
         experience_name:  e.name,
         partner_name:     e.partner || '',
+        partner_email:    e.partnerEmail || '',
         customer_email:   custEmail,
         customer_name:    custName,
         guests:           parseInt(data.guests) || 2,
@@ -8538,13 +8598,25 @@ async function confirmExpBooking() {
 
       var bookingId = bkRes.data ? bkRes.data.id : null;
 
+      // Show real booking reference in voucher screen
+      if (bookingId) {
+        var refEl = document.getElementById('v-bref-display');
+        if (refEl) refEl.textContent = 'BK-' + bookingId.toString().substring(0,8).toUpperCase();
+      }
+
+      // Show real voucher code if we got it from Supabase
+      if (finalCode) {
+        var bcodeEl = document.getElementById('v-bcode');
+        if (bcodeEl) bcodeEl.textContent = finalCode;
+      }
+
       // UPDATE voucher status → booked
-      if (voucherCode) {
+      if (finalCode) {
         await db_client.from('vouchers').update({
           status:     'booked',
           booked_at:  new Date().toISOString(),
           booking_id: bookingId,
-        }).eq('code', voucherCode);
+        }).eq('code', finalCode);
       }
 
       if (bkRes.error) console.warn('Booking insert:', bkRes.error.message);
@@ -8558,7 +8630,7 @@ async function confirmExpBooking() {
         experienceName: e.name,
         bookingDate:    bookingDate || '',
         guests:         data.guests || '2',
-        voucherCode:    voucherCode || '',
+        voucherCode:    finalCode || '',
       });
 
     } catch(err) {
@@ -8567,6 +8639,39 @@ async function confirmExpBooking() {
   })();
 }
 
+
+/* ── Cancel Booking ── */
+async function cancelBooking(voucherCode, bookingDate) {
+  if (!voucherCode) return;
+  // Double-check 24h rule
+  if (bookingDate) {
+    var hoursUntil = (new Date(bookingDate) - Date.now()) / 3600000;
+    if (hoursUntil <= 24) {
+      alert('This booking cannot be cancelled within 24 hours of the experience date.');
+      return;
+    }
+  }
+  if (!confirm('Are you sure you want to cancel this booking? Your voucher will be reactivated and you can browse again.')) return;
+  try {
+    // Reactivate voucher + clear booking fields
+    await db_client.from('vouchers').update({
+      status:     'active',
+      booked_at:  null,
+      booking_id: null,
+    }).eq('code', voucherCode);
+    // Mark booking as cancelled
+    await db_client.from('bookings').update({
+      status: 'cancelled',
+      cancelled_at: new Date().toISOString(),
+    }).eq('voucher_code', voucherCode).eq('status', 'pending_confirmation');
+    admToast('✅ Booking cancelled — your voucher is active again');
+    // Reload gift boxes section
+    if (typeof loadDashBoxes === 'function') loadDashBoxes();
+    else if (typeof renderMyAccount === 'function') renderMyAccount();
+  } catch(e) {
+    admToast('Error cancelling booking: ' + e.message);
+  }
+}
 
 function addBoxFromExp() {
   const e = expDB.find(x => x.id === appState.currentExpId);
@@ -13524,8 +13629,6 @@ async function ppSubmitEdit(expId) {
       weekend_type:       weekend,
       accommodation_type: accom,
       certification:      cert,
-      accessible:         accessible,
-      insolite:           insolite,
       ...(icalUrl ? { ical_url: icalUrl } : {}),
       programme:  programme,
       amenities:  amenitiesList,
