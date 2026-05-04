@@ -155,6 +155,8 @@ async function sendEmail({ to, subject, html, replyTo }) {
 // ════════════════════════════════════════════════════════════════════════════
 
 function tplStatusDelivered(o) {
+  const isPhysical = o.type === 'Physical' || o.type === 'Mixed';
+
   const items = (o.items || []).map(i =>
     `<div style="display:flex;justify-content:space-between;align-items:center;
       padding:12px 0;border-bottom:1px solid #f5ede6">
@@ -164,19 +166,33 @@ function tplStatusDelivered(o) {
     </div>`
   ).join('');
 
+  const headline = isPhysical
+    ? 'Your WowBox has arrived, ' + o.name + '!'
+    : 'Your WowBox is ready, ' + o.name + '!';
+
+  const intro = isPhysical
+    ? "Great news — your WowBox has been delivered! Your voucher codes are below. Enter your code on our website to start browsing and booking your experiences."
+    : "Your gift experience has been confirmed. Your voucher codes are below — share this email with your lucky recipient!";
+
+  const deliveryLabel = isPhysical
+    ? 'Physical box — delivered'
+    : 'E-Box — Instant digital delivery';
+
+  const subjectPrefix = isPhysical ? '📦 Your WowBox has arrived' : '🎁 Your WowBox is ready';
+
   return {
-    subject: `🎁 Your WowBox is ready — ${o.id}`,
+    subject: `${subjectPrefix} — ${o.id}`,
     html: layout(`
-      ${badge('🎁 Order Confirmed', '#059669')}
-      ${h1('Your WowBox is ready, ' + o.name + '!')}
-      ${p("Your gift experience has been confirmed. Your voucher codes are below — share this email with your lucky recipient!")}
+      ${badge(isPhysical ? '📦 Delivered' : '🎁 Order Confirmed', '#059669')}
+      ${h1(headline)}
+      ${p(intro)}
       ${hr()}
       ${h2('Your Voucher Codes')}
       <div style="background:${C.card};border-radius:10px;padding:4px 16px;margin:16px 0">${items}</div>
       ${infoTable(
         infoRow('Order ref', o.id || '—') +
         infoRow('Date', o.date || new Date().toLocaleDateString('en-ZA')) +
-        infoRow('Delivery', 'E-Box — Instant digital delivery') +
+        infoRow('Delivery', deliveryLabel) +
         infoRow('Total paid', o.total || '—')
       )}
       ${o.giftMsg ? highlight(`<strong>Gift message:</strong><br><em style="font-family:Georgia,serif;font-size:15px">"${o.giftMsg}"</em>`) : ''}
@@ -185,7 +201,7 @@ function tplStatusDelivered(o) {
       ${p('<strong>How to use your WowBox:</strong><br>1. Go to <a href="' + SITE_URL + '/redeem" style="color:' + C.goldDark + '">wowbox.co.za/redeem</a> and enter your code<br>2. Browse the experiences in your box<br>3. Book directly with the partner')}
       ${btn('Browse Your Experiences', SITE_URL + '/redeem')}
       ${sm('Need help? <a href="mailto:support@wowbox.co.za" style="color:' + C.goldDark + '">support@wowbox.co.za</a>')}
-    `, HEROES.order, 'Your WowBox voucher codes are inside'),
+    `, HEROES.order, isPhysical ? 'Your WowBox voucher codes are here' : 'Your WowBox voucher codes are inside'),
   };
 }
 
@@ -215,6 +231,46 @@ function tplStatusPending(o) {
       ${btn('View My Account', SITE_URL + '/my-account')}
       ${sm('Questions? <a href="mailto:support@wowbox.co.za" style="color:' + C.goldDark + '">support@wowbox.co.za</a>')}
     `, HEROES.order, 'Your WowBox physical box is being prepared'),
+  };
+}
+
+function tplStatusInProcess(o) {
+  return {
+    subject: `🔄 Your WowBox is being prepared — ${o.id}`,
+    html: layout(`
+      ${badge('🔄 In Preparation', C.gold)}
+      ${h1('We are preparing your WowBox, ' + o.name + '!')}
+      ${p("Good news — your order is now being processed by our team. Your physical WowBox is being carefully packed and will be on its way to you very soon.")}
+      ${infoTable(
+        infoRow('Order ref', o.id || '—') +
+        infoRow('Date', o.date || new Date().toLocaleDateString('en-ZA')) +
+        infoRow('Status', 'In preparation') +
+        infoRow('Delivery', 'Physical box — 2–3 business days')
+      )}
+      ${highlight('<strong>⏳ What\'s next?</strong><br>Once your box has been handed to the courier, you\'ll receive a tracking notification by email.')}
+      ${btn('View My Account', SITE_URL + '/my-account')}
+      ${sm('Questions? <a href="mailto:support@wowbox.co.za" style="color:' + C.goldDark + '">support@wowbox.co.za</a>')}
+    `, HEROES.order, 'Your WowBox is being packed and prepared'),
+  };
+}
+
+function tplStatusInTransit(o) {
+  return {
+    subject: `🚚 Your WowBox is on its way — ${o.id}`,
+    html: layout(`
+      ${badge('🚚 In Transit', C.midBrown)}
+      ${h1('Your WowBox is on its way, ' + o.name + '!')}
+      ${p("Your physical WowBox has been handed to our courier and is now on its way to you. Expect delivery within the next 1–3 business days.")}
+      ${infoTable(
+        infoRow('Order ref', o.id || '—') +
+        infoRow('Date', o.date || new Date().toLocaleDateString('en-ZA')) +
+        infoRow('Status', 'In transit') +
+        infoRow('Delivery', 'Physical box — estimated 1–3 business days')
+      )}
+      ${highlight('<strong>📬 Delivery tip:</strong><br>Please ensure someone is available to receive the package at your delivery address. If you miss the delivery, the courier will leave a collection notice.')}
+      ${btn('View My Account', SITE_URL + '/my-account')}
+      ${sm('Questions? <a href="mailto:support@wowbox.co.za" style="color:' + C.goldDark + '">support@wowbox.co.za</a>')}
+    `, HEROES.order, 'Your WowBox is on its way to you'),
   };
 }
 
@@ -470,6 +526,16 @@ export default async function handler(req, res) {
       case 'status_pending': {
         const dest = toOverride || o.email;
         if (dest) emailJobs.push({ to: dest, ...tplStatusPending(o) });
+        break;
+      }
+      case 'status_in_process': {
+        const dest = toOverride || o.email;
+        if (dest) emailJobs.push({ to: dest, ...tplStatusInProcess(o) });
+        break;
+      }
+      case 'status_in_transit': {
+        const dest = toOverride || o.email;
+        if (dest) emailJobs.push({ to: dest, ...tplStatusInTransit(o) });
         break;
       }
       case 'reissue': {

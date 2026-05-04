@@ -9984,11 +9984,18 @@ function closeVoucherModal() { var m = document.getElementById("wb-modal"); if(m
 function showOrderVoucher() {
   var ref = document.getElementById('ck-order-ref') ? document.getElementById('ck-order-ref').textContent : '';
   var order = ref ? orderDetailDB[ref] : null;
-  // Only show codes for real boxes (items that have a code and are not add-ons)
-  var realCodes = order
-    ? order.items.filter(function(i){ return i.code && i.type !== 'Add-on'; }).map(function(i){ return i.code; })
+
+  var eboxCodes = order
+    ? order.items.filter(function(i){ return i.code && i.type === 'E-Box'; }).map(function(i){ return i.code; })
     : [];
-  var codes = realCodes.length ? realCodes.join(', ') : 'Check your email';
+  var physicalCount = order
+    ? order.items.filter(function(i){ return i.type === 'Physical'; }).length
+    : 0;
+
+  var codes = eboxCodes.length ? eboxCodes.join(', ') : 'Check your email';
+  var physicalNote = physicalCount > 0
+    ? '<p style="font-size:.75rem;color:#d97706;background:#fef3c7;border-radius:8px;padding:10px 14px;margin-bottom:16px">📦 Physical box code' + (physicalCount > 1 ? 's' : '') + ' will be emailed once your box is delivered.</p>'
+    : '';
 
   var modal = document.createElement('div');
   modal.id = 'wb-modal';
@@ -9996,10 +10003,11 @@ function showOrderVoucher() {
   modal.innerHTML = '<div style="background:#fff;border-radius:16px;padding:32px;max-width:420px;width:100%;text-align:center">'
     + '<div style="font-size:1.5rem;font-weight:700;color:var(--navy);margin-bottom:8px">Your WowBox Code</div>'
     + '<p style="color:var(--muted);font-size:.85rem;margin-bottom:24px">Present this code at the venue or use it on wowbox.co.za to browse experiences.</p>'
-    + '<div style="background:var(--b50);border:2px dashed var(--b300);border-radius:12px;padding:20px;margin-bottom:20px">'
+    + physicalNote
+    + (eboxCodes.length ? '<div style="background:var(--b50);border:2px dashed var(--b300);border-radius:12px;padding:20px;margin-bottom:20px">'
     + '<div style="font-family:monospace;font-size:1.4rem;font-weight:700;color:var(--b700);letter-spacing:.05em">' + codes + '</div>'
     + '</div>'
-    + '<p style="font-size:.75rem;color:var(--muted);margin-bottom:20px">A copy has been sent to your email address.</p>'
+    + '<p style="font-size:.75rem;color:var(--muted);margin-bottom:20px">A copy has been sent to your email address.</p>' : '')
     + '<button type="button" class="btn bp block" onclick="closeVoucherModal()">Close</button>'
     + '</div>';
   document.body.appendChild(modal);
