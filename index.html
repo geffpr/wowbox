@@ -10256,12 +10256,15 @@ async function completeOrderConfirm(paystackRef, total, discount, delivFee) {
       var videoUrlSaved = null;
 
       // Upload video to Supabase Storage if present
+      console.log('[Video] hasVideoMsg:', hasVideoMsg, 'videoFile:', appState.videoFile);
       if (hasVideoMsg && appState.videoFile) {
         try {
           var vidFile     = appState.videoFile;
           var vidExt      = vidFile.name.split('.').pop();
           var storagePath = 'videos/' + ref + '_' + Date.now() + '.' + vidExt;
+          console.log('[Video] uploading to storage:', storagePath);
           var uploadRes   = await db_client.storage.from('gift-videos').upload(storagePath, vidFile, { contentType: vidFile.type, upsert: false });
+          console.log('[Video] uploadRes:', uploadRes);
           if (!uploadRes.error) {
             var signedRes = await db_client.storage.from('gift-videos').createSignedUrl(storagePath, 30 * 24 * 3600);
             videoUrlSaved = signedRes.data?.signedUrl || null;
@@ -10273,10 +10276,13 @@ async function completeOrderConfirm(paystackRef, total, discount, delivFee) {
               file_size_bytes: vidFile.size,
               status: 'pending',
             }).select('token').single();
+            console.log('[Video] video_messages insert:', vmRes);
             if (vmRes.data) videoToken = vmRes.data.token;
+          } else {
+            console.error('[Video] upload error:', uploadRes.error);
           }
         } catch(vidErr) {
-          console.warn('Video upload (non-blocking):', vidErr.message);
+          console.error('[Video] catch error:', vidErr.message);
         }
         appState.videoFile = null;
       }
