@@ -10205,7 +10205,7 @@ async function completeOrderConfirm(paystackRef, total, discount, delivFee) {
   // Build order items (real boxes only for codes, addons listed separately)
   const orderItems = realBoxItems.map(function(item, i) {
     const box = boxDB[item.boxId] || {};
-    return { name: box.name || item.name || item.boxId, code: wbCodes[i], type: ct === 'ebox' ? 'E-Box' : 'Physical', status: 'active' };
+    return { name: box.name || item.name || item.boxId, code: wbCodes[i], type: item.type === 'ebox' ? 'E-Box' : 'Physical', status: 'active' };
   });
   // Add addons without codes (video message, etc.)
   addonItems.forEach(function(item) {
@@ -10273,7 +10273,7 @@ async function completeOrderConfirm(paystackRef, total, discount, delivFee) {
           user_email: custEmail || null,
           status:     'active',
           order_id:   ref,
-          is_physical_box: ct !== 'ebox',
+          is_physical_box: item.type !== 'ebox',
           expires_at: expiresAt,
         };
       });
@@ -10364,7 +10364,7 @@ async function completeOrderConfirm(paystackRef, total, discount, delivFee) {
                 type:       'E-Box',
                 total:      'R' + total.toLocaleString(),
                 date:       dateStr,
-                items:      orderItems.filter(function(i){ return i.code; }),
+                items:      orderItems.filter(function(i){ return i.code && i.type === 'E-Box'; }),
                 giftMsg:    giftMsg || null,
                 videoToken: videoToken || null,
                 videoUrl:   videoUrlSaved || null,
@@ -10389,7 +10389,7 @@ async function completeOrderConfirm(paystackRef, total, discount, delivFee) {
                 type:       'E-Box',
                 total:      'R' + total.toLocaleString(),
                 date:       dateStr,
-                items:      orderItems.filter(function(i){ return i.code; }),
+                items:      orderItems.filter(function(i){ return i.code && i.type === 'E-Box'; }),
                 giftMsg:    giftMsg || null,
               }
             })
@@ -11481,7 +11481,7 @@ async function loadOrdersFromSupabase() {
   if (!tbody) return;
   tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:18px;color:var(--muted)"><i class="fa fa-circle-notch fa-spin"></i> Loading orders…</td></tr>';
   try {
-    const res = await db_client.from('vouchers').select('code,box_name,box_id,user_email,status,created_at,order_id').not('order_id','is',null).order('created_at',{ascending:false});
+    const res = await db_client.from('vouchers').select('code,box_name,box_id,user_email,status,created_at,order_id,is_physical_box').not('order_id','is',null).order('created_at',{ascending:false});
     if (res.error) throw res.error;
     const vouchers = res.data || [];
     if (!vouchers.length) {
@@ -11491,18 +11491,26 @@ async function loadOrdersFromSupabase() {
     const grouped = {};
     vouchers.forEach(function(v) {
       const oid = v.order_id;
-      if (!grouped[oid]) grouped[oid] = {id:oid, email:v.user_email||'—', date:v.created_at, items:[], type:'E-Box'};
+      if (!grouped[oid]) grouped[oid] = {id:oid, email:v.user_email||'—', date:v.created_at, items:[], hasEbox:false, hasPhysical:false};
       grouped[oid].items.push(v);
-      if (v.status === 'inactive') grouped[oid].type = 'Physical';
+      if (v.is_physical_box) grouped[oid].hasPhysical = true; else grouped[oid].hasEbox = true;
+    });
+    // Resolve order type from item mix
+    Object.values(grouped).forEach(function(g) {
+      g.type = (g.hasEbox && g.hasPhysical) ? 'Mixed' : g.hasPhysical ? 'Physical' : 'E-Box';
     });
     const allStatuses = ['Pending','In process','In transit','Delivered'];
-    const typeTag = {'E-Box':'<span class="tag t-act" style="font-size:.7rem">E-Box</span>','Physical':'<span class="tag t-hotel" style="font-size:.7rem">Physical</span>'};
+    const typeTag = {
+      'E-Box':   '<span class="tag t-act" style="font-size:.7rem">E-Box</span>',
+      'Physical':'<span class="tag t-hotel" style="font-size:.7rem">Physical</span>',
+      'Mixed':   '<span class="tag t-hotel" style="font-size:.7rem;background:#fef3c7;color:#d97706">Mixed</span>'
+    };
     // Populate orderDetailDB for the detail panel
     Object.keys(grouped).forEach(function(oid) {
       const g = grouped[oid];
       const ds = g.date ? new Date(g.date).toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'}) : '—';
       orderDetailDB[oid] = {name:g.email,email:g.email,phone:'—',date:ds,type:g.type,total:'—',boost:false,delivery:null,
-        items:g.items.map(function(v){ return {name:v.box_name||v.box_id||'—',type:v.status==='inactive'?'Physical':'E-Box',code:v.code,status:v.status}; })};
+        items:g.items.map(function(v){ return {name:v.box_name||v.box_id||'—',type:v.is_physical_box?'Physical':'E-Box',code:v.code,status:v.status}; })};
     });
     tbody.innerHTML = Object.values(grouped).map(function(g) {
       const st = ordersState.statuses[g.id] || 'Pending';
