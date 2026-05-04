@@ -681,7 +681,7 @@ async function loadUserOrders(email) {
     // Load orders from Supabase
     var res = await db_client.from('orders')
       .select('*')
-      .eq('customer_email', email)
+      .or('customer_email.eq.' + email + ',user_email.eq.' + email)
       .order('created_at', { ascending: false });
 
     var orders = (res.data && res.data.length) ? res.data : null;
@@ -10300,6 +10300,8 @@ async function completeOrderConfirm(paystackRef, total, discount, delivFee) {
         terms_accepted_at:  appState.termsAcceptedAt || null,
         recipient_name:    custName  || null,
         recipient_email:   custEmail || null,
+        user_email:        (typeof currentUser !== 'undefined' && currentUser && currentUser.email) ? currentUser.email : (buyerEmail || null),
+        user_id:           (typeof currentUser !== 'undefined' && currentUser && currentUser.id) ? currentUser.id : null,
       });
       appState.lastVideoToken = videoToken;
       if (videoToken && orderDetailDB[ref]) orderDetailDB[ref].videoToken = videoToken;
