@@ -1140,7 +1140,7 @@ async function loadUserBoxes(email) {
       var st     = v.status || 'inactive';
       var browseBtn = '';
       if (st === 'active') {
-        browseBtn = '<button class="btn bp bsm" onclick="openBrowsePage(\'' + v.box_id + '\')">Browse <i class="fa fa-arrow-right"></i></button>';
+        browseBtn = '<button class="btn bp bsm" onclick="openBrowsePage(\'' + v.box_id + '\', \'' + (v.expires_at||'') + '\')">Browse <i class="fa fa-arrow-right"></i></button>';
       } else if (st === 'booked') {
         var canCancel = true;
         if (v.booking_date) {
@@ -6832,7 +6832,7 @@ tr:hover td{background:var(--b50)}
             <button class="vbtn on" id="bvbtn-l" onclick="setBrowseView('list')"><i class="fa fa-list"></i> List</button>
             <button class="vbtn" id="bvbtn-m" onclick="setBrowseView('map')"><i class="fa fa-map"></i> Map</button>
           </div>
-          <button class="btn bg bsm" onclick="go('dashboard')"><i class="fa fa-arrow-left"></i> My Account</button>
+          <button class="btn bg bsm" onclick="go('dashboard')" style="border-color:rgba(255,255,255,.45);color:#fff"><i class="fa fa-arrow-left"></i> My Account</button>
         </div>
       </div>
 
@@ -7091,7 +7091,8 @@ const appState = {
   expPage: 1,
   expPerPage: 5,
   revFilter: 'all',
-  browseBoxId: 'couples-retreat',
+  browseBoxId: null,
+  browseVoucherExpiry: null,
   browseView: 'list',
   browsePage: 1,
   browsePerPage: 6,
@@ -7419,8 +7420,9 @@ function setNL(id) {
 /* ══════════════════════════════════════════════════════════════
    BROWSE EXPERIENCES PAGE (post-purchase)
 ══════════════════════════════════════════════════════════════ */
-function openBrowsePage(boxId) {
+function openBrowsePage(boxId, expiresAt) {
   appState.browseBoxId = boxId || appState.currentBoxId;
+  appState.browseVoucherExpiry = expiresAt || null;
   appState.boxActivated = true;
   appState.browsePage = 1;
   clearBrowseFilters(true);
@@ -7446,7 +7448,7 @@ function getBrowseFiltered() {
   let items = expDB.filter(e => {
     const cap    = e.capacity || 2;
     const nights = e.duration_nights || 0;
-    const boxMatch      = !bid || e.box === bid || true;
+    const boxMatch      = !bid || e.box === bid;
     const searchMatch   = !search              || e.name.toLowerCase().includes(search) || (e.loc||'').toLowerCase().includes(search) || (e.partner||'').toLowerCase().includes(search);
     const typeMatch     = typeChecks.length===0    || typeChecks.some(t => e.reservation_type===t||e.type===t||e.category===t);
     const locMatch      = locChecks.length===0     || locChecks.some(l => (e.loc||'').includes(l));
@@ -7477,7 +7479,12 @@ function renderBrowse() {
   // Header
   document.getElementById('browse-box-img').src = b.img;
   document.getElementById('browse-box-name').textContent = b.name;
-  document.getElementById('browse-box-meta').textContent = b.cnt + ' experiences included · Valid until 14 Jan 2026';
+  var browseExpiryStr = '';
+  if (appState.browseVoucherExpiry) {
+    var exDt = new Date(appState.browseVoucherExpiry);
+    if (!isNaN(exDt)) browseExpiryStr = ' · Valid until ' + exDt.toLocaleDateString('en-ZA', {day:'numeric', month:'short', year:'numeric'});
+  }
+  document.getElementById('browse-box-meta').textContent = b.cnt + ' experiences included' + browseExpiryStr;
 
   const items = getBrowseFiltered();
   const total = items.length;
@@ -10606,7 +10613,7 @@ function browseActivatedBox() {
   appState.currentBoxId   = boxId;
   appState.currentBoxCode = v.code;
   // Use openBrowsePage which correctly sets browseBoxId
-  openBrowsePage(boxId);
+  openBrowsePage(boxId, v.expires_at || null);
 }
 
 async function activateBox() {
