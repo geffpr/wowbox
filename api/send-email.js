@@ -412,6 +412,40 @@ function tplVoucher(d) {
   };
 }
 
+
+function tplBuyerConfirmation(o) {
+  const items = (o.items || []).map(i =>
+    `<div style="display:flex;justify-content:space-between;align-items:center;
+      padding:12px 0;border-bottom:1px solid #f5ede6">
+      <span style="font-size:14px;color:${C.text};font-weight:600">${i.name}</span>
+      <span style="font-family:'Courier New',monospace;font-size:13px;color:${C.midBrown};
+        font-weight:700;letter-spacing:1px;background:#fef3c7;padding:3px 10px;border-radius:6px">${i.code}</span>
+    </div>`
+  ).join('');
+
+  return {
+    subject: `✅ Your WowBox order is confirmed — ${o.id}`,
+    html: layout(`
+      ${badge('✅ Order Confirmed', '#059669')}
+      ${h1('Thank you, ' + o.name + '!')}
+      ${p('Your WowBox gift has been sent to <strong>' + (o.recipientName || o.recipientEmail || 'the recipient') + '</strong>. Their voucher code has been delivered to <strong>' + (o.recipientEmail || '—') + '</strong>.')}
+      ${hr()}
+      ${infoTable(
+        infoRow('Order ref', o.id || '—') +
+        infoRow('Date', o.date || new Date().toLocaleDateString('en-ZA')) +
+        infoRow('Recipient', o.recipientName || o.recipientEmail || '—') +
+        infoRow('Delivery', 'E-Box — Instant digital delivery') +
+        infoRow('Total paid', o.total || '—')
+      )}
+      ${o.giftMsg ? highlight(`<strong>Your gift message:</strong><br><em style="font-family:Georgia,serif;font-size:15px">"${o.giftMsg}"</em>`) : ''}
+      ${items ? `${h2('Voucher codes sent')}<div style="background:${C.card};border-radius:10px;padding:4px 16px;margin:16px 0">${items}</div>` : ''}
+      ${hr()}
+      ${btn('View My Orders', SITE_URL + '/my-account')}
+      ${sm('Need help? <a href="mailto:support@wowbox.co.za" style="color:' + C.goldDark + '">support@wowbox.co.za</a>')}
+    `, HEROES.order, 'Your WowBox gift has been delivered to the recipient'),
+  };
+}
+
 // ════════════════════════════════════════════════════════════════════════════
 // HANDLER
 // ════════════════════════════════════════════════════════════════════════════
@@ -469,6 +503,11 @@ export default async function handler(req, res) {
       }
       case 'contact_form': {
         emailJobs.push({ to: ADMIN_EMAIL, replyTo: o.email, ...tplContactForm(o) });
+        break;
+      }
+      case 'buyer_confirmation': {
+        const dest = toOverride || o.email;
+        if (dest) emailJobs.push({ to: dest, ...tplBuyerConfirmation(o) });
         break;
       }
       case 'voucher': {

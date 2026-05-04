@@ -10309,28 +10309,75 @@ async function completeOrderConfirm(paystackRef, total, discount, delivFee) {
       if (videoToken && orderDetailDB[ref]) orderDetailDB[ref].videoToken = videoToken;
 
       // Send email
-      if (custEmail) {
-        var emailType = (ct === 'ebox' || ct === 'mixed') ? 'status_delivered' : 'status_pending';
-        await fetch('/api/send-email', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            type: emailType,
-            order: {
-              id:         ref,
-              name:       custName,
-              email:      custEmail,
-              type:       ct === 'ebox' ? 'E-Box' : ct === 'physical' ? 'Physical' : 'Mixed',
-              total:      'R' + total.toLocaleString(),
-              date:       dateStr,
-              items:      orderItems.filter(function(i){ return i.code; }), // only items with codes in email
-              giftMsg:    giftMsg || null,
-              videoToken: videoToken || null,
-              videoUrl:   videoUrlSaved || null,
-              schedDate:  schedDate || null,
-            }
-          })
-        });
+      if (ct === 'ebox' || ct === 'mixed') {
+        // Ebox: send voucher to recipient + confirmation to buyer (if different)
+        if (custEmail) {
+          await fetch('/api/send-email', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              type: 'status_delivered',
+              order: {
+                id:         ref,
+                name:       custName,
+                email:      custEmail,
+                type:       'E-Box',
+                total:      'R' + total.toLocaleString(),
+                date:       dateStr,
+                items:      orderItems.filter(function(i){ return i.code; }),
+                giftMsg:    giftMsg || null,
+                videoToken: videoToken || null,
+                videoUrl:   videoUrlSaved || null,
+                schedDate:  schedDate || null,
+              }
+            })
+          });
+        }
+        // Also send buyer confirmation if buyer != recipient
+        if (buyerEmail && buyerEmail !== custEmail) {
+          await fetch('/api/send-email', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              type: 'buyer_confirmation',
+              order: {
+                id:         ref,
+                name:       buyerName,
+                email:      buyerEmail,
+                recipientName:  custName,
+                recipientEmail: custEmail,
+                type:       'E-Box',
+                total:      'R' + total.toLocaleString(),
+                date:       dateStr,
+                items:      orderItems.filter(function(i){ return i.code; }),
+                giftMsg:    giftMsg || null,
+              }
+            })
+          });
+        }
+      } else {
+        // Physical: send pending confirmation to buyer
+        if (buyerEmail) {
+          await fetch('/api/send-email', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              type: 'status_pending',
+              order: {
+                id:         ref,
+                name:       buyerName,
+                email:      buyerEmail,
+                type:       'Physical',
+                total:      'R' + total.toLocaleString(),
+                date:       dateStr,
+                items:      orderItems.filter(function(i){ return i.code; }),
+                giftMsg:    giftMsg || null,
+                videoToken: videoToken || null,
+                schedDate:  schedDate || null,
+              }
+            })
+          });
+        }
       }
     } catch(err) {
       console.warn('completeOrderConfirm Supabase/email:', err.message);
