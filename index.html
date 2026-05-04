@@ -9153,8 +9153,11 @@ function updateCartQty(id, d) {
 }
 function getCartTotal() { return appState.cart.reduce((s,c)=>s+c.price*c.qty,0); }
 function getCartType() {
-  const types = [...new Set(appState.cart.map(c=>c.type))];
-  if (types.length===1) return types[0];
+  // Addons (video message, chance boost) don't affect the delivery type
+  const coreItems = appState.cart.filter(c => c.type !== 'addon');
+  if (coreItems.length === 0) return 'ebox'; // only addons in cart
+  const types = [...new Set(coreItems.map(c => c.type))];
+  if (types.length === 1) return types[0];
   return 'mixed';
 }
 function renderCart() {
@@ -9402,9 +9405,17 @@ function renderCheckout() {
     deliveryState.option      = 'standard';
     deliveryState.geocodeDone = false;
     deliveryState.samedayOk   = false;
+    const hasVideoInCartNow = !!appState.cart.find(c => c.id === 'video-message');
+    const videoEmailNote = hasVideoInCartNow
+      ? `<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:.78rem;color:#1e3a5f">
+           <i class="fa fa-video" style="color:#2563eb"></i> <strong>Video message:</strong> Enter the recipient's email so we can send them the video right after payment.
+         </div>
+         <div class="fg"><label>Recipient email (for video) *</label><input class="fi" id="ck-email" type="email" placeholder="recipient@email.com" onkeydown="if(event.key==='Enter'){event.preventDefault();}"></div>`
+      : '';
     fields = `
       <div class="fg"><label>Full name *</label><input class="fi" id="ck-sender-name" placeholder="Your full name"></div>
       <div class="fg"><label>Email *</label><input class="fi" id="ck-sender-email" type="email" placeholder="Order confirmation email"></div>
+      ${videoEmailNote}
       <h4 style="font-size:.9rem;margin:16px 0 12px">Delivery address</h4>
       <div class="fg"><label>Street address *</label><input class="fi" id="ck-street" placeholder="123 Main Street" onchange="deliveryState.geocodeDone=false;renderDeliverySelector()"></div>
       <div class="fg-row">
@@ -9834,17 +9845,28 @@ function validateDetailsAndContinue() {
 
   if (!sName)  { showErr("Please enter your name.", senderNameEl); return; }
   if (!sEmail || !sEmail.includes('@')) { showErr("Please enter your email address.", senderEmailEl); return; }
-  // Recipient fields only required for ebox/mixed
+
+  var hasVideoInCart = !!appState.cart.find(function(c){ return c.id === 'video-message'; });
+
+  // Recipient name + email required for ebox and mixed
   if (ct !== 'physical') {
     if (!rName)  { showErr("Please enter the recipient's name.", recipNameEl); return; }
     if (!rEmail || !rEmail.includes('@')) { showErr("Please enter the recipient's email address.", recipEmailEl); return; }
+  }
+  // For physical + video: only recipient email required (for sending the video)
+  if (ct === 'physical' && hasVideoInCart) {
+    if (!rEmail || !rEmail.includes('@')) { showErr("Please enter the recipient's email address so we can send them the video.", recipEmailEl); return; }
   }
 
   errEl.style.display = 'none';
   [senderNameEl, senderEmailEl, recipNameEl, recipEmailEl].forEach(function(el){ if(el) el.style.borderColor = ''; });
 
-  // For physical, buyer = recipient
-  if (ct === 'physical') { rName = sName; rEmail = sEmail; }
+  // For physical without video: buyer = recipient (no separate recipient needed)
+  // For physical with video: recipient email is captured separately for video delivery
+  if (ct === 'physical') {
+    rName = sName;
+    if (!rEmail) rEmail = sEmail; // fallback if no video field
+  }
 
   // Save scheduled date from the inline date picker
   var sendDateEl = document.getElementById('ck-send-date');
