@@ -10228,6 +10228,9 @@ async function completeOrderConfirm(paystackRef, total, discount, delivFee) {
   if (typeof ordersState !== 'undefined') ordersState.statuses[ref] = 'Pending';
   if (typeof renderOrdersTable === 'function') renderOrdersTable();
 
+  // Capture videoFile NOW before the async IIFE runs (it gets reset to null synchronously after nextStep)
+  var capturedVideoFile = appState.videoFile || null;
+
   // Supabase + email (non-blocking)
   (async function() {
     try {
@@ -10250,16 +10253,16 @@ async function completeOrderConfirm(paystackRef, total, discount, delivFee) {
 
       // Capture gift/video/schedule from state
       var giftMsg      = appState.lastOrderMsg  || '';
-      var hasVideoMsg  = !!appState.videoFile;
+      var hasVideoMsg  = !!capturedVideoFile;
       var schedDate    = appState.lastScheduledDate || null;
       var videoToken   = null;
       var videoUrlSaved = null;
 
       // Upload video to Supabase Storage if present
-      console.log('[Video] hasVideoMsg:', hasVideoMsg, 'videoFile:', appState.videoFile);
-      if (hasVideoMsg && appState.videoFile) {
+      console.log('[Video] hasVideoMsg:', hasVideoMsg, 'capturedVideoFile:', capturedVideoFile);
+      if (hasVideoMsg && capturedVideoFile) {
         try {
-          var vidFile     = appState.videoFile;
+          var vidFile     = capturedVideoFile;
           var vidExt      = vidFile.name.split('.').pop();
           var storagePath = 'videos/' + ref + '_' + Date.now() + '.' + vidExt;
           console.log('[Video] uploading to storage:', storagePath);
@@ -10284,7 +10287,6 @@ async function completeOrderConfirm(paystackRef, total, discount, delivFee) {
         } catch(vidErr) {
           console.error('[Video] catch error:', vidErr.message);
         }
-        appState.videoFile = null;
       }
 
       // Insert order
