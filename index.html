@@ -7825,8 +7825,8 @@ function vidHandleFile(file) {
   vid.src = url;
   vid.onloadedmetadata = () => {
     URL.revokeObjectURL(url);
-    if (vid.duration > 30) {
-      if (errEl) { errEl.textContent = 'Video is too long. Maximum duration is 30 seconds.'; errEl.style.display = 'block'; }
+    if (vid.duration > 120) {
+      if (errEl) { errEl.textContent = 'Video is too long. Maximum duration is 2 minutes.'; errEl.style.display = 'block'; }
       appState.videoFile = null; return;
     }
     appState.videoFile = file;
@@ -10058,6 +10058,17 @@ function completeOrder() {
         : Math.min(activeCoupon.value, subtotal))
     : 0;
   const total = subtotal - discount + delivFee;
+
+  // Guard: video toggle ON but no file uploaded
+  var vidToggleOn = document.getElementById('tog-vid') && document.getElementById('tog-vid').classList.contains('on');
+  var hasVideoInCartGuard = !!appState.cart.find(function(c){ return c.id === 'video-message'; });
+  if ((vidToggleOn || hasVideoInCartGuard) && !appState.videoFile) {
+    var vidErr = document.getElementById('vid-file-err');
+    if (vidErr) { vidErr.textContent = "You've added a video message but haven't uploaded a video yet. Please upload your video or remove the video add-on."; vidErr.style.display = 'block'; }
+    var vidArea = document.getElementById('area-vid');
+    if (vidArea) vidArea.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    return;
+  }
 
   // Capture personalisation
   const personalMsg   = document.getElementById('ck-personal-msg')?.value?.trim() || '';
