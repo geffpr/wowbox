@@ -9797,10 +9797,13 @@ async function emailBoxVoucher(code) {
 function closeVoucherModal() { var m = document.getElementById("wb-modal"); if(m) m.remove(); }
 
 function showOrderVoucher() {
-  // Show a simple modal with the WB codes from the last order
   var ref = document.getElementById('ck-order-ref') ? document.getElementById('ck-order-ref').textContent : '';
   var order = ref ? orderDetailDB[ref] : null;
-  var codes = order ? order.items.map(function(i){ return i.code; }).join(', ') : 'Check your email';
+  // Only show codes for real boxes (items that have a code and are not add-ons)
+  var realCodes = order
+    ? order.items.filter(function(i){ return i.code && i.type !== 'Add-on'; }).map(function(i){ return i.code; })
+    : [];
+  var codes = realCodes.length ? realCodes.join(', ') : 'Check your email';
 
   var modal = document.createElement('div');
   modal.id = 'wb-modal';
@@ -9971,38 +9974,67 @@ async function completeOrderConfirm(paystackRef, total, discount, delivFee) {
 
   document.getElementById('ck-order-ref').textContent = ref;
 
-  const msgs = {
-    ebox:     'Your e-vouchers have been generated and sent to your email.',
-    physical: 'Your physical box has been dispatched. Expected delivery: 2-3 business days.',
-    mixed:    'Your e-vouchers have been emailed. Physical boxes dispatched.'
-  };
-  document.getElementById('ck-conf-msg').textContent = msgs[ct] || '';
+  // ── Only real boxes (not addons) get voucher codes ──
+  const hasVideoAddon = !!appState.cart.find(function(c){ return c.id === 'video-message'; });
+  const realBoxItems  = appState.cart.filter(function(c){ return c.type !== 'addon'; });
+  const addonItems    = appState.cart.filter(function(c){ return c.type === 'addon'; });
 
-  const titles = { ebox:'Your e-vouchers are on their way!', physical:'Your boxes have been shipped!', mixed:'Order processed!' };
-  document.getElementById('ck-conf-title').textContent = titles[ct] || 'Order confirmed!';
-
-  const subs = { ebox:'Vouchers sent to your email', physical:'Delivery in 2-3 business days', mixed:'Vouchers emailed · Physical boxes shipped' };
-  document.getElementById('ck-conf-sub').textContent = subs[ct] || '';
-
-  // Generate WB codes for each box
-  const wbCodes = appState.cart.map(function() {
+  // Generate WB codes only for real boxes
+  const wbCodes = realBoxItems.map(function() {
     return 'WB-' + Math.random().toString(36).toUpperCase().slice(2,6) + '-' + Math.random().toString(36).toUpperCase().slice(2,6);
   });
 
-  // Build order items
-  const orderItems = appState.cart.map(function(item, i) {
+  // Confirmation titles — physical is NOT yet shipped, it's just confirmed
+  const msgs = {
+    ebox:     'Your e-vouchers have been generated and sent to your email.',
+    physical: 'Your order is confirmed. Your box will be shipped within 2–3 business days.',
+    mixed:    'Your e-vouchers have been emailed. Physical boxes will be dispatched within 2–3 days.'
+  };
+  document.getElementById('ck-conf-msg').textContent = msgs[ct] || '';
+
+  const titles = {
+    ebox:     'Your e-vouchers are on their way!',
+    physical: 'Order confirmed!',
+    mixed:    'Order confirmed!'
+  };
+  document.getElementById('ck-conf-title').textContent = titles[ct] || 'Order confirmed!';
+
+  const subs = {
+    ebox:     'Vouchers sent to your email',
+    physical: 'Shipping within 2–3 business days',
+    mixed:    'Vouchers emailed · Physical boxes shipping soon'
+  };
+  document.getElementById('ck-conf-sub').textContent = subs[ct] || '';
+
+  // Build order items (real boxes only for codes, addons listed separately)
+  const orderItems = realBoxItems.map(function(item, i) {
     const box = boxDB[item.boxId] || {};
-    return { name: box.name || item.boxId, code: wbCodes[i], type: ct === 'ebox' ? 'E-Box' : 'Physical', status: 'active' };
+    return { name: box.name || item.name || item.boxId, code: wbCodes[i], type: ct === 'ebox' ? 'E-Box' : 'Physical', status: 'active' };
+  });
+  // Add addons without codes (video message, etc.)
+  addonItems.forEach(function(item) {
+    orderItems.push({ name: item.name, code: null, type: 'Add-on', status: 'active' });
   });
 
   const couponLine = discount > 0 && activeCoupon
     ? '<div class="cf"><label>Coupon</label><span style="color:var(--green)">-R' + discount.toLocaleString() + ' (' + activeCoupon.code + ')</span></div>'
     : '';
 
+  // Delivery line for confirmation grid
+  const deliveryLine = delivFee > 0
+    ? '<div class="cf"><label>Delivery</label><span>' + getDeliveryLabel() + ' (R' + delivFee.toLocaleString() + ')</span></div>'
+    : ct !== 'ebox' ? '<div class="cf"><label>Delivery</label><span>Free</span></div>' : '';
+
+  // Items count = real boxes only
+  const boxCount = realBoxItems.reduce(function(s, c){ return s + (c.qty || 1); }, 0);
+  const itemsLabel = boxCount + ' box' + (boxCount > 1 ? 'es' : '')
+    + (hasVideoAddon ? ' + video message' : '');
+
   document.getElementById('ck-conf-grid').innerHTML =
     '<div class="cf"><label>Order #</label><span>' + ref + '</span></div>'
     + '<div class="cf"><label>Date</label><span>' + dateStr + '</span></div>'
-    + '<div class="cf"><label>Items</label><span>' + appState.cart.length + ' box' + (appState.cart.length > 1 ? 'es' : '') + '</span></div>'
+    + '<div class="cf"><label>Items</label><span>' + itemsLabel + '</span></div>'
+    + deliveryLine
     + couponLine
     + '<div class="cf"><label>Total paid</label><span style="color:var(--b700);font-weight:700">R' + total.toLocaleString() + '</span></div>'
     + '<div class="cf"><label>Payment ref</label><span style="font-size:.75rem;color:var(--muted)">' + ref + '</span></div>';
@@ -10019,11 +10051,11 @@ async function completeOrderConfirm(paystackRef, total, discount, delivFee) {
     total:      'R' + total.toLocaleString(),
     boost:      false,
     items:      orderItems,
-    delivery:   null,
+    delivery:   delivFee > 0 ? { method: getDeliveryLabel(), fee: delivFee } : null,
     personalMsg:  appState.lastOrderMsg || '',
     hasVideo:     appState.lastOrderVideo || false,
     schedDate:    appState.lastScheduledDate || null,
-    videoToken:   null, // will be updated after Supabase insert
+    videoToken:   null,
   };
   if (typeof ordersState !== 'undefined') ordersState.statuses[ref] = 'Pending';
   if (typeof renderOrdersTable === 'function') renderOrdersTable();
@@ -10031,13 +10063,13 @@ async function completeOrderConfirm(paystackRef, total, discount, delivFee) {
   // Supabase + email (non-blocking)
   (async function() {
     try {
-      // Insert vouchers
-      var voucherRows = appState.cart.map(function(item, i) {
+      // Insert vouchers — only for real boxes, not addons
+      var voucherRows = realBoxItems.map(function(item, i) {
         var box = boxDB[item.boxId] || {};
         return {
           code:       wbCodes[i],
           box_id:     item.boxId,
-          box_name:   box.name || item.boxId,
+          box_name:   box.name || item.name || item.boxId,
           user_email: custEmail || null,
           status:     'active',
           order_id:   ref,
@@ -10065,7 +10097,6 @@ async function completeOrderConfirm(paystackRef, total, discount, delivFee) {
           if (!uploadRes.error) {
             var signedRes = await db_client.storage.from('gift-videos').createSignedUrl(storagePath, 30 * 24 * 3600);
             videoUrlSaved = signedRes.data?.signedUrl || null;
-            // Insert video_messages record
             var vmRes = await db_client.from('video_messages').insert({
               order_id:    ref,
               storage_path: storagePath,
@@ -10090,6 +10121,8 @@ async function completeOrderConfirm(paystackRef, total, discount, delivFee) {
         total_amount:      total,
         discount_amount:   discount || 0,
         delivery_type:     ct,
+        delivery_fee:      delivFee || 0,
+        delivery_method:   delivFee > 0 ? getDeliveryLabel() : null,
         status:            'pending',
         gift_message:      giftMsg || null,
         has_video_message: hasVideoMsg,
@@ -10102,7 +10135,6 @@ async function completeOrderConfirm(paystackRef, total, discount, delivFee) {
         recipient_name:    custName  || null,
         recipient_email:   custEmail || null,
       });
-      // Cache video token for confirmation screen and update local DB
       appState.lastVideoToken = videoToken;
       if (videoToken && orderDetailDB[ref]) orderDetailDB[ref].videoToken = videoToken;
 
@@ -10121,7 +10153,7 @@ async function completeOrderConfirm(paystackRef, total, discount, delivFee) {
               type:       ct === 'ebox' ? 'E-Box' : ct === 'physical' ? 'Physical' : 'Mixed',
               total:      'R' + total.toLocaleString(),
               date:       dateStr,
-              items:      orderItems,
+              items:      orderItems.filter(function(i){ return i.code; }), // only items with codes in email
               giftMsg:    giftMsg || null,
               videoToken: videoToken || null,
               videoUrl:   videoUrlSaved || null,
