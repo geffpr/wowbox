@@ -676,41 +676,37 @@ async function dashRedeemCode() {
 async function loadUserOrders(email) {
   var listEl = document.getElementById('dash-orders-list');
   if (!listEl) return;
+  listEl.innerHTML = '<div style="text-align:center;padding:30px;color:var(--muted)"><i class="fa fa-circle-notch fa-spin" style="font-size:1.4rem;opacity:.4"></i></div>';
   try {
+    // Load orders from Supabase
     var res = await db_client.from('orders')
       .select('*')
       .eq('customer_email', email)
       .order('created_at', { ascending: false });
 
-    // If orders table fails or empty, show vouchers as orders
-    var data = (res.data && res.data.length) ? res.data : null;
-    
-    if (!data) {
-      // Fallback: build orders from vouchers
+    var orders = (res.data && res.data.length) ? res.data : null;
+
+    // Fallback: build from vouchers if no orders table
+    if (!orders) {
       var vRes = await db_client.from('vouchers')
-        .select('code, box_name, created_at, status, order_id')
+        .select('code,box_name,box_id,created_at,status,order_id,user_email')
         .eq('user_email', email)
-        .eq('is_physical_box', false)
         .order('created_at', { ascending: false });
-      
       if (vRes.data && vRes.data.length) {
-        data = vRes.data.map(function(v) {
-          return {
-            id: v.order_id || v.code,
-            customer_email: email,
-            total_amount: null,
-            order_type: 'ebox',
-            status: v.status,
-            created_at: v.created_at,
-            _from_vouchers: true,
-            _box_name: v.box_name,
-            _code: v.code,
-          };
+        // Group by order_id
+        var grouped = {};
+        vRes.data.forEach(function(v) {
+          var oid = v.order_id || v.code;
+          if (!grouped[oid]) grouped[oid] = { id: oid, created_at: v.created_at, delivery_type: 'ebox', status: v.status, vouchers: [] };
+          grouped[oid].vouchers.push(v);
+        });
+        orders = Object.values(grouped).map(function(g) {
+          return { id: g.id, created_at: g.created_at, delivery_type: g.delivery_type, status: g.status, _vouchers: g.vouchers, _fallback: true };
         });
       }
     }
 
-    if (!data || !data.length) {
+    if (!orders || !orders.length) {
       listEl.innerHTML = '<div style="text-align:center;padding:40px 20px;color:var(--muted)">'
         + '<i class="fa fa-bag-shopping" style="font-size:2rem;margin-bottom:12px;opacity:.3;display:block"></i>'
         + '<p style="font-size:.9rem">No orders yet. Your purchases will appear here.</p>'
@@ -719,48 +715,188 @@ async function loadUserOrders(email) {
       return;
     }
 
-    var typeTag = {'ebox':'E-Box','physical':'Physical','mixed':'Mixed'};
-    var statusBadge = {'pending':'<span class="sbadge sb-p">Pending</span>','active':'<span class="sbadge sb-a">Active</span>','used':'<span class="sbadge sb-u">Used</span>','delivered':'<span class="sbadge sb-u">Delivered</span>'};
+    // Load vouchers for all order IDs to get codes per order
+    var orderIds = orders.filter(function(o){ return o.id && !o._fallback; }).map(function(o){ return o.id; });
+    var vouchersMap = {}; // orderId → [voucher]
+    if (orderIds.length) {
+      var vr = await db_client.from('vouchers')
+        .select('code,box_name,box_id,status,order_id')
+        .in('order_id', orderIds);
+      (vr.data || []).forEach(function(v) {
+        if (!vouchersMap[v.order_id]) vouchersMap[v.order_id] = [];
+        vouchersMap[v.order_id].push(v);
+      });
+    }
 
-    listEl.innerHTML = data.map(function(o) {
-      var date = o.created_at ? new Date(o.created_at).toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'}) : '-';
-      var rawType = o.delivery_type || o.order_type || '';
-      var type = typeTag[rawType] || 'E-Box';
-      var status = statusBadge[o.status] || '<span class="sbadge sb-p">' + (o.status||'Pending') + '</span>';
-      var title = o._from_vouchers ? (o._box_name || 'WowBox') : (o.id || '-');
-      var amount = o.total_amount ? ' · R' + Number(o.total_amount).toLocaleString() : '';
-      var subline = o._from_vouchers
-        ? date + ' · ' + type + ' · Code: ' + (o._code||'')
-        : date + amount;
-      var videoToken    = o.video_token    || '';
-      var hasVideoMsg   = o.has_video_message || false;
-      var giftMsg       = o.gift_message   || '';
-      var schedDate     = o.scheduled_send_date || '';
-      var schedLine     = (schedDate && !o.email_sent_at)
-        ? '<div style="font-size:.7rem;color:var(--b600);margin-top:4px"><i class="fa fa-calendar-days"></i> Scheduled: '
-          + new Date(schedDate+'T00:00:00').toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'}) + '</div>'
+    var statusBadge = {
+      pending:   '<span class="sbadge sb-p">Pending</span>',
+      active:    '<span class="sbadge sb-a">Active</span>',
+      shipped:   '<span class="sbadge" style="background:#dbeafe;color:#1e40af">Shipped</span>',
+      delivered: '<span class="sbadge sb-u">Delivered</span>',
+      cancelled: '<span class="sbadge sb-e">Cancelled</span>',
+    };
+
+    listEl.innerHTML = orders.map(function(o) {
+      var date = o.created_at ? new Date(o.created_at).toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'}) : '—';
+      var st   = (o.status || 'pending').toLowerCase();
+      var badge = statusBadge[st] || '<span class="sbadge sb-p">' + (o.status||'Pending') + '</span>';
+      var amount = o.total_amount ? 'R' + Number(o.total_amount).toLocaleString() : '—';
+      var delivLabel = o.delivery_method || (o.delivery_type === 'ebox' ? 'E-Box' : o.delivery_type === 'physical' ? 'Physical delivery' : 'Mixed');
+
+      // Vouchers / boxes for this order
+      var vouchers = o._fallback ? (o._vouchers || []) : (vouchersMap[o.id] || []);
+      var realVouchers = vouchers.filter(function(v){ return v.code && v.box_name; });
+      var hasVideo = o.has_video_message || false;
+
+      // Items list
+      var itemsHtml = realVouchers.length
+        ? realVouchers.map(function(v) {
+            var box = boxDB[v.box_id] || {};
+            return '<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--border)">'
+              + '<span style="font-size:.8rem;color:var(--navy);font-weight:600">📦 ' + (v.box_name || box.name || v.box_id) + '</span>'
+              + '<code style="font-size:.75rem;color:var(--b700);background:var(--b50);padding:2px 8px;border-radius:6px;letter-spacing:.05em">' + v.code + '</code>'
+              + '</div>';
+          }).join('')
+        : '<div style="font-size:.78rem;color:var(--muted);padding:6px 0">No voucher codes found</div>';
+
+      if (hasVideo) {
+        itemsHtml += '<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0">'
+          + '<span style="font-size:.8rem;color:var(--navy)">🎬 Video message</span>'
+          + '<span style="font-size:.7rem;color:var(--muted)">Sent to recipient</span>'
+          + '</div>';
+      }
+
+      // Recipient name
+      var recipientLine = o.recipient_name
+        ? '<div style="font-size:.75rem;color:var(--muted);margin-bottom:6px"><i class="fa fa-user" style="color:var(--b400);width:14px"></i> Pour : <strong style="color:var(--navy)">' + o.recipient_name + '</strong></div>'
         : '';
-      var actionBtns = '';
-      if (hasVideoMsg && videoToken) {
-        actionBtns += '<a href="/gift-video/' + videoToken + '" target="_blank" class="btn bg bsm" style="font-size:.72rem"><i class="fa fa-play"></i> Watch Video</a> ';
-      }
-      if (giftMsg) {
-        actionBtns += '<button class="btn bg bsm" style="font-size:.72rem" onclick="userViewMessage(this,this.dataset.msg)" data-msg="' + encodeURIComponent(giftMsg) + '"><i class="fa fa-envelope-open-text"></i> View Message</button>';
-      }
-      return '<div class="order-card" style="padding:16px;cursor:default">'
-        + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">'
-        + '<strong style="font-size:.88rem;color:var(--navy)">' + (o.id||title) + '</strong>'
-        + status
+
+      // Encode order data for modal
+      var encodedOrder = encodeURIComponent(JSON.stringify({
+        id: o.id, date: date, amount: amount, status: o.status || 'pending',
+        delivLabel: delivLabel, recipient: o.recipient_name || '', recipientEmail: o.recipient_email || '',
+        hasVideo: hasVideo, giftMsg: o.gift_message || '', schedDate: o.scheduled_send_date || '',
+        vouchers: realVouchers.map(function(v){ return { code: v.code, name: v.box_name || v.box_id }; })
+      }));
+
+      return '<div class="order-card" style="margin-bottom:14px">'
+        // Header
+        + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">'
+        + '<strong style="font-size:.85rem;color:var(--navy);font-family:\'Courier New\',monospace">' + (o.id||'—') + '</strong>'
+        + badge
         + '</div>'
-        + '<div style="font-size:.78rem;color:var(--muted);margin-bottom:8px">' + subline + '</div>'
-        + schedLine
-        + (!o._from_vouchers && type ? '<span style="font-size:.7rem;background:var(--b50);border:1px solid var(--b200);color:var(--b600);padding:2px 8px;border-radius:99px">' + type + '</span>' : '')
-        + (actionBtns ? '<div style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap">' + actionBtns + '</div>' : '')
+        // Meta line
+        + '<div style="font-size:.75rem;color:var(--muted);margin-bottom:8px">'
+        + date + ' · ' + amount + ' · ' + delivLabel
+        + '</div>'
+        // Recipient
+        + recipientLine
+        // Items
+        + '<div style="margin:10px 0 12px">' + itemsHtml + '</div>'
+        // Action buttons
+        + '<div style="display:flex;gap:8px;flex-wrap:wrap">'
+        + '<button class="btn bg bsm" onclick="showUserOrderReceipt(' + "'" + encodedOrder + "'" + ')" style="font-size:.75rem"><i class="fa fa-receipt"></i> Reçu</button>'
+        + (realVouchers.length ? '<button class="btn bg bsm" onclick="printUserOrderVoucher(' + "'" + encodedOrder + "'" + ')" style="font-size:.75rem"><i class="fa fa-print"></i> Voucher</button>' : '')
+        + '</div>'
         + '</div>';
     }).join('');
+
   } catch(e) {
     console.warn('loadUserOrders:', e.message);
+    listEl.innerHTML = '<div style="text-align:center;padding:30px;color:var(--muted)">Could not load orders.</div>';
   }
+}
+
+/* ── Receipt modal for My Orders ── */
+function showUserOrderReceipt(encodedOrder) {
+  try {
+    var o = JSON.parse(decodeURIComponent(encodedOrder));
+    var existing = document.getElementById('user-receipt-modal');
+    if (existing) existing.remove();
+
+    var itemRows = (o.vouchers || []).map(function(v) {
+      return '<div style="display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid var(--border)">'
+        + '<span style="font-size:.83rem;color:var(--navy)">📦 ' + v.name + '</span>'
+        + '<code style="font-size:.78rem;color:var(--b700);background:var(--b50);padding:3px 10px;border-radius:6px;letter-spacing:.06em">' + v.code + '</code>'
+        + '</div>';
+    }).join('');
+    if (o.hasVideo) {
+      itemRows += '<div style="display:flex;justify-content:space-between;padding:9px 0">'
+        + '<span style="font-size:.83rem;color:var(--navy)">🎬 Video message</span>'
+        + '<span style="font-size:.73rem;color:var(--muted)">Sent to recipient</span>'
+        + '</div>';
+    }
+
+    var statusColors = { pending:'#d97706', active:'#059669', shipped:'#2563eb', delivered:'#059669', cancelled:'#dc2626' };
+    var sc = statusColors[(o.status||'pending').toLowerCase()] || '#d97706';
+
+    var modal = document.createElement('div');
+    modal.id = 'user-receipt-modal';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;overflow-y:auto';
+    modal.innerHTML = '<div style="background:#fff;border-radius:16px;max-width:480px;width:100%;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.2)">'
+      // Header
+      + '<div style="background:#0f172a;padding:24px;text-align:center">'
+      + '<div style="font-family:Georgia,serif;font-size:1.3rem;font-weight:700;color:#fff;letter-spacing:2px">WowBox</div>'
+      + '<div style="font-size:.72rem;color:rgba(255,255,255,.45);letter-spacing:4px;text-transform:uppercase;margin-top:4px">Order Receipt</div>'
+      + '</div>'
+      // Body
+      + '<div style="padding:28px">'
+      + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">'
+      + '<div><div style="font-size:.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Order ref</div>'
+      + '<div style="font-family:\'Courier New\',monospace;font-size:.9rem;font-weight:700;color:var(--navy)">' + o.id + '</div></div>'
+      + '<span style="background:' + sc + '20;color:' + sc + ';font-size:.72rem;font-weight:700;padding:4px 12px;border-radius:99px;text-transform:capitalize">' + (o.status||'Pending') + '</span>'
+      + '</div>'
+      // Info grid
+      + '<div style="background:var(--b50);border-radius:10px;padding:14px 16px;margin-bottom:18px">'
+      + '<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border)"><span style="font-size:.75rem;color:var(--muted)">Date</span><span style="font-size:.75rem;font-weight:600;color:var(--navy)">' + o.date + '</span></div>'
+      + '<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border)"><span style="font-size:.75rem;color:var(--muted)">Delivery</span><span style="font-size:.75rem;font-weight:600;color:var(--navy)">' + o.delivLabel + '</span></div>'
+      + (o.recipient ? '<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border)"><span style="font-size:.75rem;color:var(--muted)">Pour</span><span style="font-size:.75rem;font-weight:600;color:var(--navy)">' + o.recipient + '</span></div>' : '')
+      + '<div style="display:flex;justify-content:space-between;padding:8px 0 2px"><span style="font-size:.85rem;font-weight:700;color:var(--navy)">Total payé</span><span style="font-size:.95rem;font-weight:700;color:var(--b700)">' + o.amount + '</span></div>'
+      + '</div>'
+      // Items
+      + '<div style="margin-bottom:18px">'
+      + '<div style="font-size:.72rem;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-bottom:8px;font-weight:700">Articles</div>'
+      + itemRows
+      + '</div>'
+      + (o.giftMsg ? '<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:12px 14px;margin-bottom:16px;font-size:.78rem;color:#92400e"><strong>Message cadeau :</strong><br><em>' + o.giftMsg + '</em></div>' : '')
+      // Buttons
+      + '<div style="display:flex;gap:8px;flex-wrap:wrap">'
+      + (o.vouchers && o.vouchers.length ? '<button class="btn bp bsm" onclick="printUserOrderVoucher(' + "'" + encodeURIComponent(JSON.stringify(o)) + "'" + ')"><i class="fa fa-print"></i> Imprimer voucher</button>' : '')
+      + '<button class="btn bg bsm" onclick="document.getElementById(\'user-receipt-modal\').remove()">Fermer</button>'
+      + '</div>'
+      + '</div></div>';
+    document.body.appendChild(modal);
+    modal.addEventListener('click', function(e){ if(e.target===modal) modal.remove(); });
+  } catch(e) { admToast('Erreur: ' + e.message); }
+}
+
+/* ── Printable voucher for My Orders ── */
+function printUserOrderVoucher(encodedOrder) {
+  try {
+    var o = JSON.parse(decodeURIComponent(encodedOrder));
+    var vouchers = o.vouchers || [];
+    if (!vouchers.length) { admToast('No voucher codes to print.'); return; }
+    var w = window.open('', '_blank', 'width=640,height=800');
+    var voucherBlocks = vouchers.map(function(v) {
+      return '<div style="page-break-inside:avoid;border:2px solid #0f172a;border-radius:16px;padding:40px 32px;margin-bottom:32px;text-align:center">'
+        + '<div style="font-family:Georgia,serif;font-size:1.6rem;font-weight:700;color:#0f172a;letter-spacing:2px;margin-bottom:4px">WowBox</div>'
+        + '<div style="font-size:.65rem;color:#94a3b8;letter-spacing:5px;text-transform:uppercase;margin-bottom:24px">Gift Experience Voucher</div>'
+        + '<div style="font-size:1.15rem;font-weight:700;color:#0f172a;margin-bottom:6px">' + v.name + '</div>'
+        + (o.recipient ? '<div style="font-size:.85rem;color:#64748b;margin-bottom:24px">Pour : <strong style="color:#0f172a">' + o.recipient + '</strong></div>' : '<div style="margin-bottom:24px"></div>')
+        + '<div style="border:2px dashed #d97706;border-radius:12px;padding:20px;margin:0 auto 20px;max-width:320px;background:#fffbeb">'
+        + '<div style="font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:2px;color:#d97706;margin-bottom:8px">Code Voucher</div>'
+        + '<div style="font-family:\'Courier New\',monospace;font-size:1.8rem;font-weight:700;color:#b45309;letter-spacing:.1em">' + v.code + '</div>'
+        + '</div>'
+        + '<div style="font-size:.72rem;color:#94a3b8;margin-bottom:6px">Valide 12 mois · Non transférable · wowbox.co.za</div>'
+        + '<div style="font-size:.7rem;color:#94a3b8">Présenter ce code à l\'arrivée · Order : ' + o.id + '</div>'
+        + '</div>';
+    }).join('');
+    w.document.write('<!DOCTYPE html><html><head><title>WowBox Voucher — ' + o.id + '</title>'
+      + '<style>body{font-family:\'Helvetica Neue\',Arial,sans-serif;padding:32px;max-width:580px;margin:0 auto;background:#fff} @media print{body{padding:0}}</style>'
+      + '</head><body>' + voucherBlocks + '</body></html>');
+    w.document.close();
+    setTimeout(function(){ w.print(); }, 400);
+  } catch(e) { admToast('Erreur impression: ' + e.message); }
 }
 
 function userViewMessage(btn, encodedMsg) {
@@ -974,11 +1110,25 @@ async function loadUserBoxes(email) {
     if (!vouchers.length) {
       if (subtitle) subtitle.textContent = 'You have no gift boxes yet. Browse our collection!';
       var listDiv = document.getElementById('dash-boxes-list');
-    if (listDiv) listDiv.innerHTML = '';
-    document.querySelectorAll('#dash-boxes .dash-box-card').forEach(function(el) { el.remove(); });
+      if (listDiv) listDiv.innerHTML = '';
+      document.querySelectorAll('#dash-boxes .dash-box-card').forEach(function(el) { el.remove(); });
       return;
     }
     if (subtitle) subtitle.textContent = vouchers.length + ' gift box' + (vouchers.length !== 1 ? 'es' : '') + ' in your account.';
+
+    // Check for video messages linked to these vouchers via order_id
+    var orderIds = [...new Set(vouchers.map(function(v){ return v.order_id; }).filter(Boolean))];
+    var videoMap = {}; // orderId → video_token
+    if (orderIds.length) {
+      var vmRes = await db_client.from('orders')
+        .select('id, video_token, has_video_message')
+        .in('id', orderIds)
+        .eq('has_video_message', true);
+      (vmRes.data || []).forEach(function(o) {
+        if (o.video_token) videoMap[o.id] = o.video_token;
+      });
+    }
+
     var statusMap   = { active:'sb-a', used:'sb-u', expired:'sb-e', inactive:'sb-p' };
     var statusLabel = { active:'Active', used:'Used', expired:'Expired', inactive:'Pending activation' };
     var html = vouchers.map(function(v) {
@@ -990,7 +1140,6 @@ async function loadUserBoxes(email) {
       if (st === 'active') {
         browseBtn = '<button class="btn bp bsm" onclick="openBrowsePage(\'' + v.box_id + '\')">Browse <i class="fa fa-arrow-right"></i></button>';
       } else if (st === 'booked') {
-        // Cancellation allowed up to 24h before booking date
         var canCancel = true;
         if (v.booking_date) {
           var bDate = new Date(v.booking_date);
@@ -1003,7 +1152,13 @@ async function loadUserBoxes(email) {
       }
       var safeCode = v.code;
       var safeName = (v.box_name||'WowBox').replace(/'/g,'');
-      var voucherBtn = '<button class="btn bg bsm" style="margin-left:4px" onclick="showBoxVoucher(\'' + safeCode + '\',\'' + safeName + '\')">' + '<i class="fa fa-ticket"></i> Voucher</button>';
+      var voucherBtn = '<button class="btn bg bsm" style="margin-left:4px" onclick="showBoxVoucher(\'' + safeCode + '\',\'' + safeName + '\')">'
+        + '<i class="fa fa-ticket"></i> Voucher</button>';
+      // Video button — only if this box's order has a video (recipient side)
+      var videoToken = v.order_id ? videoMap[v.order_id] : null;
+      var videoBtn = videoToken
+        ? '<a href="/gift-video/' + videoToken + '" target="_blank" class="btn bsm" style="margin-left:4px;background:#fef3c7;color:#d97706;border:1px solid #fcd34d"><i class="fa fa-play"></i> Vidéo</a>'
+        : '';
       var createdDate = v.created_at ? new Date(v.created_at).toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'}) : '';
       var expiryDate  = v.expires_at  ? new Date(v.expires_at).toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'})
         : v.created_at ? new Date(new Date(v.created_at).setFullYear(new Date(v.created_at).getFullYear()+1)).toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'})
@@ -1016,14 +1171,14 @@ async function loadUserBoxes(email) {
         + '</div>'
         + '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:7px">'
         + '<span class="sbadge ' + (statusMap[st] || 'sb-p') + '">' + (statusLabel[st] || st) + '</span>'
-        + '<div style="display:flex;gap:4px">' + browseBtn + voucherBtn + '</div>'
+        + '<div style="display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end">' + browseBtn + voucherBtn + videoBtn + '</div>'
         + '</div></div>';
     }).join('');
     var listDiv = document.getElementById('dash-boxes-list');
     if (listDiv) listDiv.innerHTML = '';
     document.querySelectorAll('#dash-boxes .dash-box-card').forEach(function(el) { el.remove(); });
-    var listDiv = document.getElementById('dash-boxes-list');
-    if (listDiv) { listDiv.innerHTML = html; }
+    var listDiv2 = document.getElementById('dash-boxes-list');
+    if (listDiv2) { listDiv2.innerHTML = html; }
     else {
       var tabsEl = document.querySelector('#dash-boxes .tabs');
       if (tabsEl) tabsEl.insertAdjacentHTML('afterend', html);
