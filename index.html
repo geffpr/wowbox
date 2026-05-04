@@ -7427,6 +7427,23 @@ function openBrowsePage(boxId, expiresAt) {
   appState.browsePage = 1;
   clearBrowseFilters(true);
   go('browse');
+  // Refresh box data from Supabase to get correct name + experience count
+  if (boxId && typeof db_client !== 'undefined') {
+    db_client.from('boxes').select('*').eq('id', boxId).limit(1).then(function(res) {
+      if (!res.error && res.data && res.data[0]) {
+        var b = res.data[0];
+        var local = boxDB[boxId] || {};
+        boxDB[boxId] = Object.assign({}, local, {
+          name:  b.name              || local.name,
+          cnt:   b.experience_count  || local.cnt,
+          price: b.price             || local.price,
+          db:    b.database_name     || local.db,
+          img:   b.image_url         || local.img,
+        });
+        renderBrowse();
+      }
+    });
+  }
 }
 
 function getBrowseFiltered() {
