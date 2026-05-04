@@ -10271,14 +10271,16 @@ async function completeOrderConfirm(paystackRef, total, discount, delivFee) {
           if (!uploadRes.error) {
             var signedRes = await db_client.storage.from('gift-videos').createSignedUrl(storagePath, 30 * 24 * 3600);
             videoUrlSaved = signedRes.data?.signedUrl || null;
-            var vmRes = await db_client.from('video_messages').upsert({
+            // Delete existing record for this order first (handles retries)
+            await db_client.from('video_messages').delete().eq('order_id', ref);
+            var vmRes = await db_client.from('video_messages').insert({
               order_id:    ref,
               storage_path: storagePath,
               video_url:   videoUrlSaved,
               gift_message: giftMsg || null,
               file_size_bytes: vidFile.size,
               status: 'pending',
-            }, { onConflict: 'order_id' }).select('token').single();
+            }).select('token').single();
             console.log('[Video] video_messages insert:', vmRes);
             if (vmRes.data) videoToken = vmRes.data.token;
           } else {
