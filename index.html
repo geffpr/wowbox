@@ -187,7 +187,8 @@ async function generateRetailCodes() {
     codeDB[code] = { boxId, boxName, userId:null, status:'inactive', activatedAt:null, activatedBy:null, usedAt:null, experience:null, partner:null, orderId:null, hasBoost:false, physicalBox:true, retailBatch:batch, activationLog:[] };
   }
   try {
-    const rows = generatedCodes.map(e => ({ code:e.code, box_id:e.boxId, box_name:e.boxName, status:'inactive', is_physical_box:true, retail_batch:e.batch }));
+    const expiresAt = new Date(Date.now() + 365*24*60*60*1000).toISOString();
+    const rows = generatedCodes.map(e => ({ code:e.code, box_id:e.boxId, box_name:e.boxName, status:'inactive', is_physical_box:true, retail_batch:e.batch, expires_at:expiresAt }));
     for (let i=0;i<rows.length;i+=50) {
       const {error} = await db_client.from('vouchers').insert(rows.slice(i,i+50));
       if (error) throw error;
@@ -6824,8 +6825,8 @@ tr:hover td{background:var(--b50)}
       <div class="browse-header" id="browse-hdr">
         <div class="browse-header-icon"><img id="browse-box-img" src="" alt=""></div>
         <div style="flex:1">
-          <h2 id="browse-box-name">WowBox Couples Retreat</h2>
-          <p id="browse-box-meta">847 experiences included · Valid until 14 Jan 2026</p>
+          <h2 id="browse-box-name">Loading…</h2>
+          <p id="browse-box-meta"></p>
         </div>
         <div style="display:flex;gap:10px;align-items:center">
           <div class="vtog">
@@ -7426,6 +7427,7 @@ function openBrowsePage(boxId, expiresAt) {
   appState.boxActivated = true;
   appState.browsePage = 1;
   clearBrowseFilters(true);
+  sessionStorage.setItem('wowbox_browse_box', appState.browseBoxId || '');
   go('browse');
   // Refresh box data from Supabase to get correct name + experience count
   if (boxId && typeof db_client !== 'undefined') {
@@ -7604,6 +7606,8 @@ function clearBrowseFilters(silent) {
   const s = document.getElementById('browse-search');
   if (s) s.value = '';
   appState.browsePage = 1;
+  sessionStorage.removeItem('wowbox_browse_search');
+  sessionStorage.removeItem('wowbox_browse_box');
   if (!silent) renderBrowse();
 }
 
@@ -10261,6 +10265,7 @@ async function completeOrderConfirm(paystackRef, total, discount, delivFee) {
       // Insert vouchers — only for real boxes, not addons
       var voucherRows = realBoxItems.map(function(item, i) {
         var box = boxDB[item.boxId] || {};
+        var expiresAt = new Date(Date.now() + 365*24*60*60*1000).toISOString();
         return {
           code:       wbCodes[i],
           box_id:     item.boxId,
@@ -10269,6 +10274,7 @@ async function completeOrderConfirm(paystackRef, total, discount, delivFee) {
           status:     'active',
           order_id:   ref,
           is_physical_box: ct !== 'ebox',
+          expires_at: expiresAt,
         };
       });
       if (voucherRows.length) {
