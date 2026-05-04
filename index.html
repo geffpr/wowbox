@@ -768,7 +768,7 @@ async function loadUserOrders(email) {
 
       // Recipient name
       var recipientLine = o.recipient_name
-        ? '<div style="font-size:.75rem;color:var(--muted);margin-bottom:6px"><i class="fa fa-user" style="color:var(--b400);width:14px"></i> Pour : <strong style="color:var(--navy)">' + o.recipient_name + '</strong></div>'
+        ? '<div style="font-size:.75rem;color:var(--muted);margin-bottom:6px"><i class="fa fa-user" style="color:var(--b400);width:14px"></i> For: <strong style="color:var(--navy)">' + o.recipient_name + '</strong></div>'
         : '';
 
       // Encode order data for modal
@@ -851,23 +851,23 @@ function showUserOrderReceipt(encodedOrder) {
       + '<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border)"><span style="font-size:.75rem;color:var(--muted)">Date</span><span style="font-size:.75rem;font-weight:600;color:var(--navy)">' + o.date + '</span></div>'
       + '<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border)"><span style="font-size:.75rem;color:var(--muted)">Delivery</span><span style="font-size:.75rem;font-weight:600;color:var(--navy)">' + o.delivLabel + '</span></div>'
       + (o.recipient ? '<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border)"><span style="font-size:.75rem;color:var(--muted)">Pour</span><span style="font-size:.75rem;font-weight:600;color:var(--navy)">' + o.recipient + '</span></div>' : '')
-      + '<div style="display:flex;justify-content:space-between;padding:8px 0 2px"><span style="font-size:.85rem;font-weight:700;color:var(--navy)">Total payé</span><span style="font-size:.95rem;font-weight:700;color:var(--b700)">' + o.amount + '</span></div>'
+      + '<div style="display:flex;justify-content:space-between;padding:8px 0 2px"><span style="font-size:.85rem;font-weight:700;color:var(--navy)">Total paid</span><span style="font-size:.95rem;font-weight:700;color:var(--b700)">' + o.amount + '</span></div>'
       + '</div>'
       // Items
       + '<div style="margin-bottom:18px">'
-      + '<div style="font-size:.72rem;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-bottom:8px;font-weight:700">Articles</div>'
+      + '<div style="font-size:.72rem;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-bottom:8px;font-weight:700">Items</div>'
       + itemRows
       + '</div>'
       + (o.giftMsg ? '<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:12px 14px;margin-bottom:16px;font-size:.78rem;color:#92400e"><strong>Message cadeau :</strong><br><em>' + o.giftMsg + '</em></div>' : '')
       // Buttons
       + '<div style="display:flex;gap:8px;flex-wrap:wrap">'
-      + (o.vouchers && o.vouchers.length ? '<button class="btn bp bsm" onclick="printUserOrderVoucher(' + "'" + encodeURIComponent(JSON.stringify(o)) + "'" + ')"><i class="fa fa-print"></i> Imprimer voucher</button>' : '')
-      + '<button class="btn bg bsm" onclick="document.getElementById(\'user-receipt-modal\').remove()">Fermer</button>'
+      + (o.vouchers && o.vouchers.length ? '<button class="btn bp bsm" onclick="printUserOrderVoucher(' + "'" + encodeURIComponent(JSON.stringify(o)) + "'" + ')"><i class="fa fa-print"></i> Print voucher</button>' : '')
+      + '<button class="btn bg bsm" onclick="document.getElementById(\'user-receipt-modal\').remove()">Close</button>'
       + '</div>'
       + '</div></div>';
     document.body.appendChild(modal);
     modal.addEventListener('click', function(e){ if(e.target===modal) modal.remove(); });
-  } catch(e) { admToast('Erreur: ' + e.message); }
+  } catch(e) { admToast('Error: ' + e.message); }
 }
 
 /* ── Printable voucher for My Orders ── */
@@ -882,12 +882,12 @@ function printUserOrderVoucher(encodedOrder) {
         + '<div style="font-family:Georgia,serif;font-size:1.6rem;font-weight:700;color:#0f172a;letter-spacing:2px;margin-bottom:4px">WowBox</div>'
         + '<div style="font-size:.65rem;color:#94a3b8;letter-spacing:5px;text-transform:uppercase;margin-bottom:24px">Gift Experience Voucher</div>'
         + '<div style="font-size:1.15rem;font-weight:700;color:#0f172a;margin-bottom:6px">' + v.name + '</div>'
-        + (o.recipient ? '<div style="font-size:.85rem;color:#64748b;margin-bottom:24px">Pour : <strong style="color:#0f172a">' + o.recipient + '</strong></div>' : '<div style="margin-bottom:24px"></div>')
+        + (o.recipient ? '<div style="font-size:.85rem;color:#64748b;margin-bottom:24px">For: <strong style="color:#0f172a">' + o.recipient + '</strong></div>' : '<div style="margin-bottom:24px"></div>')
         + '<div style="border:2px dashed #d97706;border-radius:12px;padding:20px;margin:0 auto 20px;max-width:320px;background:#fffbeb">'
         + '<div style="font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:2px;color:#d97706;margin-bottom:8px">Code Voucher</div>'
         + '<div style="font-family:\'Courier New\',monospace;font-size:1.8rem;font-weight:700;color:#b45309;letter-spacing:.1em">' + v.code + '</div>'
         + '</div>'
-        + '<div style="font-size:.72rem;color:#94a3b8;margin-bottom:6px">Valide 12 mois · Non transférable · wowbox.co.za</div>'
+        + '<div style="font-size:.72rem;color:#94a3b8;margin-bottom:6px">Valid 12 months · Non-transferable · wowbox.co.za</div>'
         + '<div style="font-size:.7rem;color:#94a3b8">Présenter ce code à l\'arrivée · Order : ' + o.id + '</div>'
         + '</div>';
     }).join('');
@@ -896,7 +896,7 @@ function printUserOrderVoucher(encodedOrder) {
       + '</head><body>' + voucherBlocks + '</body></html>');
     w.document.close();
     setTimeout(function(){ w.print(); }, 400);
-  } catch(e) { admToast('Erreur impression: ' + e.message); }
+  } catch(e) { admToast('Print error: ' + e.message); }
 }
 
 function userViewMessage(btn, encodedMsg) {
@@ -1157,7 +1157,7 @@ async function loadUserBoxes(email) {
       // Video button — only if this box's order has a video (recipient side)
       var videoToken = v.order_id ? videoMap[v.order_id] : null;
       var videoBtn = videoToken
-        ? '<a href="/gift-video/' + videoToken + '" target="_blank" class="btn bsm" style="margin-left:4px;background:#fef3c7;color:#d97706;border:1px solid #fcd34d"><i class="fa fa-play"></i> Vidéo</a>'
+        ? '<a href="/gift-video/' + videoToken + '" target="_blank" class="btn bsm" style="margin-left:4px;background:#fef3c7;color:#d97706;border:1px solid #fcd34d"><i class="fa fa-play"></i>Video</a>'
         : '';
       var createdDate = v.created_at ? new Date(v.created_at).toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'}) : '';
       var expiryDate  = v.expires_at  ? new Date(v.expires_at).toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'})
