@@ -681,8 +681,10 @@ async function loadUserOrders(email) {
     // Load orders from Supabase
     var res = await db_client.from('orders')
       .select('*')
-      .or(`customer_email.eq.${email},user_email.eq.${email}`)
+      .eq('customer_email', email)
       .order('created_at', { ascending: false });
+
+    console.log('[MyOrders] email:', email, 'data:', res.data, 'error:', res.error);
 
     var orders = (res.data && res.data.length) ? res.data : null;
 
