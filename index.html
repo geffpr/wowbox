@@ -7912,8 +7912,10 @@ function getFilteredExps() {
   const accessibleF= !!(document.getElementById('exp-accessible-f')?.checked);
   const insoliteF  = !!(document.getElementById('exp-insolite-f')?.checked);
   const anyActive  = (typeof cityDB !== 'undefined') && cityDB.some(c => c.active);
+  const currentBox = appState.currentBoxId || '';
   return expDB.filter(e => {
     const cap = e.capacity || 2;
+    const boxMatch       = !currentBox    || e.box === currentBox;
     const searchMatch    = !search      || e.name.toLowerCase().includes(search) || (e.loc||'').toLowerCase().includes(search) || (e.partner||'').toLowerCase().includes(search);
     const typeMatch      = !typeF       || e.type===typeF || e.reservation_type===typeF || e.category===typeF;
     const provinceMatch  = !provinceF   || (e.province||'')===provinceF;
@@ -7924,7 +7926,7 @@ function getFilteredExps() {
     const accessibleMatch= !accessibleF || e.accessible===true;
     const insoliteMatch  = !insoliteF   || e.insolite===true;
     const cityMatch      = !anyActive   || (typeof admCityIsVisible==='function' && admCityIsVisible(e));
-    return searchMatch && typeMatch && provinceMatch && locMatch && groupMatch && nightsMatch && weekendMatch && accessibleMatch && insoliteMatch && cityMatch;
+    return boxMatch && searchMatch && typeMatch && provinceMatch && locMatch && groupMatch && nightsMatch && weekendMatch && accessibleMatch && insoliteMatch && cityMatch;
   });
 }
 /* ══════════════════════════════════════════════════════════════
@@ -7939,6 +7941,21 @@ async function loadExpFromSupabase() {
       .eq('is_active', true);
     if (res.error || !res.data || !res.data.length) return;
 
+    // Resolve database chain: experience → database → box
+    var expToBox = {};
+    try {
+      var [dbLinkRes, boxLinkRes] = await Promise.all([
+        db_client.from('experience_database_links').select('experience_id,database_id'),
+        db_client.from('box_database_links').select('box_id,database_id'),
+      ]);
+      var dbToBox = {};
+      (boxLinkRes.data || []).forEach(function(l){ dbToBox[l.database_id] = l.box_id; });
+      (dbLinkRes.data || []).forEach(function(l){
+        var boxId = dbToBox[l.database_id];
+        if (boxId) expToBox[l.experience_id] = boxId;
+      });
+    } catch(e) { console.warn('loadExpFromSupabase: db chain error', e.message); }
+
     res.data.forEach(function(e) {
       // Remove hardcoded entry if Supabase has a fresher version
       var existing = expDB.findIndex(function(x){ return x.id === e.id; });
@@ -7949,7 +7966,7 @@ async function loadExpFromSupabase() {
         name:             e.name             || 'Untitled',
         type:             e.reservation_type || 'activity',
         reservation_type: e.reservation_type || 'activity',
-        box:              e.box_id           || '',
+        box:              e.box_id || expToBox[e.id] || '',
         lat:              e.lat              || null,
         lng:              e.lng              || null,
         loc:              e.location         || '',
@@ -7978,6 +7995,14 @@ async function loadExpFromSupabase() {
         _fromSupabase: true,
       });
     });
+
+    // Update boxDB cnt from real Supabase counts (source of truth)
+    var cntPerBox = {};
+    expDB.forEach(function(exp){ if (exp.box) cntPerBox[exp.box] = (cntPerBox[exp.box]||0) + 1; });
+    Object.keys(boxDB).forEach(function(bid){
+      if (cntPerBox[bid] !== undefined) boxDB[bid].cnt = cntPerBox[bid].toLocaleString('en-ZA');
+    });
+
     // Rebuild location filters now that expDB has new entries
     buildExpLocFilter();
     buildBrowseLocFilter();
