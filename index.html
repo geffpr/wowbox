@@ -7947,12 +7947,12 @@ async function loadExpFromSupabase() {
 
     // Resolve database chain: experience → database → box
     var expToBox = {};
+    var dbToBox = {};
     try {
       var [dbLinkRes, boxLinkRes] = await Promise.all([
         db_client.from('experience_database_links').select('experience_id,database_id'),
         db_client.from('box_database_links').select('box_id,database_id'),
       ]);
-      var dbToBox = {};
       (boxLinkRes.data || []).forEach(function(l){ dbToBox[l.database_id] = l.box_id; });
       (dbLinkRes.data || []).forEach(function(l){
         var boxId = dbToBox[l.database_id];
