@@ -11971,70 +11971,118 @@ async function renderAdmExpTable() {
 }
 
 async function admShowExpFormById(expId) {
-  appState.editingExpId = expId;
+  appState.editingExpId = expId || null;
   const listWrap = document.getElementById('adm-exp-list-wrap');
   const formWrap = document.getElementById('adm-exp-form');
   if (listWrap) listWrap.style.marginBottom = '20px';
   formWrap.style.display = 'block';
-  formWrap.scrollIntoView({behavior:'smooth',block:'nearest'});
+  formWrap.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 
-  // Try hardcoded expDB first, fallback to Supabase
-  var local = expDB.find(function(x){ return x.id === expId; });
-  if (local) {
-    document.getElementById('adm-exp-form-title').textContent = 'Edit — ' + local.name;
-    document.getElementById('aef-name').value    = local.name    || '';
-    document.getElementById('aef-partner').value = local.partner || '';
-    document.getElementById('aef-loc').value     = local.loc     || '';
-    document.getElementById('aef-lat').value     = local.lat     || '';
-    document.getElementById('aef-lng').value     = local.lng     || '';
-    document.getElementById('aef-desc').value    = local.desc    || '';
-    var rtSel = document.getElementById('aef-rt');
-    if (rtSel) rtSel.value = local.reservation_type || '';
+  if (!expId) {
+    // ── Add new experience ──
+    document.getElementById('adm-exp-form-title').textContent = 'Add new experience';
+    ['aef-name','aef-partner','aef-loc','aef-lat','aef-lng','aef-desc','aef-cap',
+     'aef-certification','aef-ical'].forEach(function(id){
+      var el = document.getElementById(id); if (el) el.value = '';
+    });
+    var el;
+    el = document.getElementById('aef-rt');           if (el) el.value   = '';
+    el = document.getElementById('aef-province');     if (el) el.value   = '';
+    el = document.getElementById('aef-booking-type'); if (el) el.value   = 'on_site';
+    el = document.getElementById('aef-nights');       if (el) el.value   = '0';
+    el = document.getElementById('aef-category');     if (el) el.value   = '';
+    el = document.getElementById('aef-weekend-type'); if (el) el.value   = '';
+    el = document.getElementById('aef-accom-type');   if (el) el.value   = '';
+    el = document.getElementById('aef-accessible');   if (el) el.checked = false;
+    el = document.getElementById('aef-insolite');     if (el) el.checked = false;
+    el = document.getElementById('aef-status');       if (el) el.value   = 'Active';
+    el = document.getElementById('aef-ical-status');  if (el) el.textContent = '';
+    // Clear database select
+    var dbSel = document.getElementById('aef-db');
+    if (dbSel) Array.from(dbSel.options).forEach(function(o){ o.selected = false; });
+    aefResetImgSlots();
+    var progWrap = document.getElementById('aef-programme-wrap');
+    if (progWrap) progWrap.innerHTML = buildProgrammeFields('aef', []);
+    var amWrap = document.getElementById('aef-amenities-wrap');
+    if (amWrap) amWrap.innerHTML = buildAmenitiesCheckboxes('aef', []);
     admExpTypeNote();
-    aefLoadImgSlots([local.img, local.img2, local.img3].filter(Boolean));
-    var progWrap2 = document.getElementById('aef-programme-wrap');
-    if (progWrap2) progWrap2.innerHTML = buildProgrammeFields('aef', local.programme || []);
-    var amWrap2 = document.getElementById('aef-amenities-wrap');
-    if (amWrap2) amWrap2.innerHTML = buildAmenitiesCheckboxes('aef', local.amenities || []);
-  } else {
-    // Load from Supabase
-    document.getElementById('adm-exp-form-title').textContent = 'Edit — loading...';
-    try {
-      var res = await db_client.from('experiences').select('*').eq('id', expId).maybeSingle();
-      if (!res.data) { admToast('Experience not found'); formWrap.style.display = 'none'; return; }
-      var e = res.data;
-      document.getElementById('adm-exp-form-title').textContent = 'Edit — ' + e.name;
-      document.getElementById('aef-name').value    = e.name          || '';
-      document.getElementById('aef-partner').value = e.partner_name  || '';
-      document.getElementById('aef-loc').value     = e.location      || '';
-      document.getElementById('aef-lat').value     = e.lat           || '';
-      document.getElementById('aef-lng').value     = e.lng           || '';
-      document.getElementById('aef-desc').value    = e.description   || '';
-      var rtSel2 = document.getElementById('aef-rt');
-      if (rtSel2) rtSel2.value = e.reservation_type || '';
-      admExpTypeNote();
-      var imgs = [];
-      if (e.image_url) imgs.push(e.image_url);
-      if (Array.isArray(e.image_urls)) imgs = imgs.concat(e.image_urls);
-      if (Array.isArray(e.images)) imgs = imgs.concat(e.images);
-      aefLoadImgSlots([...new Set(imgs)].slice(0, 4));
-      var progWrap3 = document.getElementById('aef-programme-wrap');
-      if (progWrap3) progWrap3.innerHTML = buildProgrammeFields('aef', e.programme || []);
-      var amWrap3 = document.getElementById('aef-amenities-wrap');
-      if (amWrap3) amWrap3.innerHTML = buildAmenitiesCheckboxes('aef', e.amenities || []);
-      // Pre-select databases
-      var dbSel = document.getElementById('aef-db');
-      if (dbSel) {
-        Array.from(dbSel.options).forEach(function(o){ o.selected = false; });
-        var lRes = await db_client.from('experience_database_links').select('database_id').eq('experience_id', expId);
-        if (lRes.data && lRes.data.length) {
-          lRes.data.forEach(function(l){ var opt = Array.from(dbSel.options).find(function(o){ return o.value === l.database_id; }); if (opt) opt.selected = true; });
-        } else if (e.database_id) {
-          var opt = Array.from(dbSel.options).find(function(o){ return o.value === e.database_id; });
-          if (opt) opt.selected = true;
-        }
-      }
-    } catch(err) { admToast('Error loading: ' + err.message); }
+    if (window.google) initPlacesAC('aef-loc', 'aef-lat', 'aef-lng');
+    return;
+  }
+
+  // ── Edit existing experience — always load fresh from Supabase ──
+  document.getElementById('adm-exp-form-title').textContent = 'Edit — loading…';
+  try {
+    // Fetch experience data + database links in parallel
+    var [expRes, dbLinksRes] = await Promise.all([
+      db_client.from('experiences').select('*').eq('id', expId).maybeSingle(),
+      db_client.from('experience_database_links').select('database_id').eq('experience_id', expId)
+    ]);
+
+    if (expRes.error || !expRes.data) {
+      admToast('Experience not found in Supabase.');
+      formWrap.style.display = 'none';
+      return;
+    }
+    var e = expRes.data;
+    document.getElementById('adm-exp-form-title').textContent = 'Edit — ' + e.name;
+
+    // ── Populate all fields ──
+    document.getElementById('aef-name').value    = e.name          || '';
+    document.getElementById('aef-partner').value = e.partner_name  || '';
+    document.getElementById('aef-loc').value     = e.location      || '';
+    document.getElementById('aef-lat').value     = e.lat           || '';
+    document.getElementById('aef-lng').value     = e.lng           || '';
+    document.getElementById('aef-desc').value    = e.description   || '';
+    document.getElementById('aef-cap').value     = e.capacity      || '';
+    document.getElementById('aef-certification').value = e.certification || '';
+    document.getElementById('aef-ical').value    = e.ical_url      || '';
+
+    var el;
+    el = document.getElementById('aef-rt');           if (el) el.value   = e.reservation_type       || '';
+    el = document.getElementById('aef-province');     if (el) el.value   = e.province               || '';
+    el = document.getElementById('aef-booking-type'); if (el) el.value   = e.booking_type           || 'on_site';
+    el = document.getElementById('aef-nights');       if (el) el.value   = e.duration_nights        || 0;
+    el = document.getElementById('aef-category');     if (el) el.value   = e.category               || '';
+    el = document.getElementById('aef-weekend-type'); if (el) el.value   = e.weekend_type           || '';
+    el = document.getElementById('aef-accom-type');   if (el) el.value   = e.accommodation_type     || '';
+    el = document.getElementById('aef-accessible');   if (el) el.checked = !!(e.accessible);
+    el = document.getElementById('aef-insolite');     if (el) el.checked = !!(e.insolite);
+    el = document.getElementById('aef-status');       if (el) el.value   = e.is_active ? 'Active' : 'Draft';
+    el = document.getElementById('aef-ical-status');  if (el) el.textContent = '';
+
+    admExpTypeNote();
+
+    // ── Images ──
+    var imgs = [];
+    if (e.image_url) imgs.push(e.image_url);
+    if (Array.isArray(e.image_urls)) imgs = imgs.concat(e.image_urls);
+    if (Array.isArray(e.images))     imgs = imgs.concat(e.images);
+    imgs = [...new Set(imgs)].filter(Boolean).slice(0, 4);
+    if (imgs.length) aefLoadImgSlots(imgs); else aefResetImgSlots();
+
+    // ── Programme & Amenities ──
+    var progWrap = document.getElementById('aef-programme-wrap');
+    if (progWrap) progWrap.innerHTML = buildProgrammeFields('aef', e.programme || []);
+    var amWrap = document.getElementById('aef-amenities-wrap');
+    if (amWrap) amWrap.innerHTML = buildAmenitiesCheckboxes('aef', e.amenities || []);
+
+    // ── Databases — ensure select is populated then pre-select ──
+    await loadAdmDatabases();
+    var linkedDbs = (dbLinksRes.data || []).map(function(l){ return l.database_id; });
+    var dbSel = document.getElementById('aef-db');
+    if (dbSel) {
+      Array.from(dbSel.options).forEach(function(o){
+        o.selected = linkedDbs.includes(o.value);
+      });
+    }
+
+    // ── Places autocomplete ──
+    if (window.google) initPlacesAC('aef-loc', 'aef-lat', 'aef-lng');
+
+  } catch(err) {
+    admToast('Error loading experience: ' + err.message);
+    console.error('[admShowExpFormById]', err);
   }
 }
 
@@ -12741,16 +12789,18 @@ async function admSaveExp() {
     }
     if (result?.error) throw result.error;
 
-    // Write database links
+    // Write database links — always delete existing, re-insert selected
     const dbSel = document.getElementById('aef-db');
     const selectedDbs = dbSel ? Array.from(dbSel.selectedOptions).map(function(o){ return o.value; }).filter(Boolean) : [];
-    if (savedId && selectedDbs.length) {
+    if (savedId) {
       var delRes = await db_client.from('experience_database_links').delete().eq('experience_id', savedId);
       if (delRes.error) console.error('DB link delete error:', delRes.error);
-      var insRes = await db_client.from('experience_database_links').insert(
-        selectedDbs.map(function(dbId){ return { experience_id: savedId, database_id: dbId }; })
-      );
-      if (insRes.error) { admToast('⚠️ Saved but database links failed: ' + insRes.error.message); return; }
+      if (selectedDbs.length) {
+        var insRes = await db_client.from('experience_database_links').insert(
+          selectedDbs.map(function(dbId){ return { experience_id: savedId, database_id: dbId }; })
+        );
+        if (insRes.error) { admToast('⚠️ Saved but database links failed: ' + insRes.error.message); return; }
+      }
     }
 
     admHideExpForm();
