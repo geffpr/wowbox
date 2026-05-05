@@ -5824,7 +5824,16 @@ tr:hover td{background:var(--b50)}
           <button class="btn bp bsm" onclick="admDbDetail(null)"><i class="fa fa-plus"></i> New database</button>
         </div>
         <!-- Grid of databases (clickable) -->
-        <div class="atbl" id="adm-db-overview"><div class="db-grid" id="adm-db-grid"></div></div>
+        <div class="atbl" id="adm-db-overview">
+          <div class="atbl-hdr">
+            <h3 style="font-size:.95rem;color:var(--navy)">All databases</h3>
+            <input type="text" class="fi" id="adm-db-search" style="width:200px;padding:7px 11px;font-size:.76rem" placeholder="🔍 Search..." oninput="admDbFilterList()">
+          </div>
+          <table>
+            <thead><tr><th style="width:40px"></th><th>Name</th><th>Experiences</th><th>Used in boxes</th><th>Actions</th></tr></thead>
+            <tbody id="adm-db-grid"></tbody>
+          </table>
+        </div>
         <!-- DB detail panel -->
         <div id="adm-db-detail" style="display:none">
           <div style="display:flex;align-items:center;gap:10px;margin-bottom:18px">
@@ -12233,6 +12242,32 @@ async function admSaveDatabase() {
   }
 }
 
+function admDbRenderList(filter) {
+  var tbody = document.getElementById('adm-db-grid');
+  if (!tbody) return;
+  var q = (filter || (document.getElementById('adm-db-search') ? document.getElementById('adm-db-search').value : '') || '').toLowerCase();
+  var rows = admDatabases.filter(function(d){ return !q || d.name.toLowerCase().includes(q) || d.boxes.toLowerCase().includes(q); });
+  if (!rows.length) {
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:22px;color:var(--muted)">No databases found.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = rows.map(function(d) {
+    var i = admDatabases.indexOf(d);
+    return '<tr>'
+      + '<td><span style="font-size:1.3rem;width:32px;height:32px;border-radius:8px;background:'+d.bg+';display:inline-flex;align-items:center;justify-content:center">'+d.icon+'</span></td>'
+      + '<td><strong style="color:var(--navy)">'+d.name+'</strong></td>'
+      + '<td><span class="sbadge sb-a" style="font-size:.75rem">'+d.cnt+' exp</span></td>'
+      + '<td style="font-size:.8rem;color:var(--muted)">'+d.boxes+'</td>'
+      + '<td style="display:flex;gap:6px;align-items:center">'
+      +   '<button class="btn bg bsm" onclick="admDbDetail('+i+')"><i class="fa fa-eye"></i> View</button>'
+      +   '<button class="btn bg bsm" onclick="admDbDetail('+i+');setTimeout(admDbToggleEdit,100)"><i class="fa fa-pen"></i> Edit</button>'
+      + '</td>'
+      + '</tr>';
+  }).join('');
+}
+
+function admDbFilterList() { admDbRenderList(); }
+
 async function loadAdmDatabases() {
   try {
     var [dbRes, countRes, linkRes] = await Promise.all([
@@ -12267,20 +12302,8 @@ async function loadAdmDatabases() {
       };
     });
 
-    // Re-render the database grid
-    var dbGrid = document.getElementById('adm-db-grid');
-    if (dbGrid) {
-      dbGrid.innerHTML = admDatabases.map(function(d, i){
-        return '<div class="db-card" onclick="admDbDetail('+i+')" style="cursor:pointer">'
-          + '<div class="db-ico" style="background:'+d.bg+'">'+d.icon+'</div>'
-          + '<h4 style="font-size:.88rem;color:var(--navy)">'+d.name+'</h4>'
-          + '<p style="font-size:.73rem;color:var(--muted)">Used in: '+d.boxes+'</p>'
-          + '<div class="db-cnt">'+(d.cnt).toLocaleString()+'</div>'
-          + '<div style="font-size:.7rem;color:var(--muted)">experiences</div>'
-          + '<div style="margin-top:8px;font-size:.7rem;color:var(--b600);font-weight:600">→ View &amp; manage</div>'
-          + '</div>';
-      }).join('');
-    }
+    // Re-render the database list table
+    admDbRenderList();
 
     // Re-populate ALL database <select> dropdowns from Supabase data
     var optionsHtml = admDatabases.map(function(d){
