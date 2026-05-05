@@ -7621,14 +7621,15 @@ async function renderBoxGrids() {
   Object.entries(boxDB).forEach(([id, b]) => { localImgs[id] = b.img; });
 
   let boxes = null;
+  var dbNameMap = {}; // box_id → primary database name from Supabase
   try {
-    const { data, error } = await db_client
-      .from('boxes')
-      .select('*')
-      .eq('is_active', true)
-      .order('sold_count', { ascending: false });
-    if (!error && data && data.length > 0) {
-      boxes = data;
+    const [boxRes, dbRes, linkRes] = await Promise.all([
+      db_client.from('boxes').select('*').eq('is_active', true).order('sold_count', { ascending: false }),
+      db_client.from('databases').select('id, name, experience_count'),
+      db_client.from('box_database_links').select('box_id, database_id')
+    ]);
+    if (!boxRes.error && boxRes.data && boxRes.data.length > 0) {
+      boxes = boxRes.data;
       // Sync Supabase data into local boxDB, keeping local image if Supabase has none
       boxes.forEach(b => {
         const local = boxDB[b.id] || {};
@@ -7638,6 +7639,27 @@ async function renderBoxGrids() {
           img: b.image_url || localImgs[b.id],
           badge: b.badge, rating: b.rating, sold: b.sold_count, desc: b.description
         };
+      });
+    }
+    // Build dbNameMap: box_id → real database name (primary database, most unique to this box)
+    if (!dbRes.error && dbRes.data && !linkRes.error && linkRes.data) {
+      var dbById = {};
+      dbRes.data.forEach(function(d){ dbById[d.id] = d; });
+      var linksByBox = {};
+      linkRes.data.forEach(function(l){
+        if (!linksByBox[l.box_id]) linksByBox[l.box_id] = [];
+        linksByBox[l.box_id].push(l.database_id);
+      });
+      Object.keys(linksByBox).forEach(function(boxId) {
+        var dbIds = linksByBox[boxId];
+        // Pick the database most unique to this box (used by fewest boxes total)
+        var primaryDbId = dbIds.reduce(function(best, dbId) {
+          var bestCnt = linkRes.data.filter(function(l){ return l.database_id === best; }).length;
+          var curCnt  = linkRes.data.filter(function(l){ return l.database_id === dbId; }).length;
+          return curCnt < bestCnt ? dbId : best;
+        }, dbIds[0]);
+        var db = dbById[primaryDbId];
+        if (db) dbNameMap[boxId] = db.name;
       });
     }
   } catch(e) { console.warn('Supabase unavailable, using local data'); }
@@ -7702,6 +7724,8 @@ async function renderBoxGrids() {
       sold:   b.sold_count,
       desc:   b.description
     };
+    // Override with real database name from Supabase databases table
+    if (dbNameMap[b.id]) boxDB[b.id].db = dbNameMap[b.id];
   });
   // After syncing boxDB, reload product page if one is open
   // Never overwrite context when on an experience page — the auth check handles that
