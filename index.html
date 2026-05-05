@@ -11908,66 +11908,70 @@ function admPreviewExpImg(idx, url) {
 async function renderAdmExpTable() {
   const tbody = document.getElementById('adm-exp-tbody');
   if (!tbody) return;
+  tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:18px;color:var(--muted)"><i class="fa fa-circle-notch fa-spin"></i> Loading…</td></tr>';
+
   const q = (document.getElementById('adm-exp-search')?.value || '').toLowerCase();
   const rtBadge = {accommodation:'rt-accommodation',dining:'rt-dining',wellness:'rt-wellness',activity:'rt-activity',rental:'rt-rental',event:'rt-event'};
   const rtIcon  = {accommodation:'🏨',dining:'🍽️',wellness:'🧖',activity:'🏄',rental:'🚗',event:'🎉'};
-  const dbLabels = {'romantic-getaways':'💑 Romantic','wellness-spa':'🧖 Wellness','food-gastronomy':'🍽️ Gastronomy','adventure-outdoors':'🏔️ Adventure','ocean-coastal':'🌊 Ocean','safari-wildlife':'🦁 Safari','wine-culture':'🍷 Wine','city-breaks':'🏙️ City','family-adventures':'👨‍👩‍👧 Family','ultra-premium':'👑 Ultra-Premium'};
 
-  const hardcodedIds = new Set(expDB.map(function(e){ return e.id; }));
+  // Build db label map from admDatabases (loaded from Supabase)
+  var dbNameMap = {};
+  admDatabases.forEach(function(d){ dbNameMap[d.id] = d.icon + ' ' + d.name; });
 
-  var supabaseRows = [];
-  var dbLinksMap = {};
   try {
-    var res = await db_client.from('experiences').select('id,name,partner_name,location,reservation_type,image_url,is_active').order('created_at', {ascending:false});
-    if (res.error) {
-      console.error('[renderAdmExpTable] Supabase error:', res.error.message);
-    } else if (res.data) {
-      supabaseRows = res.data.filter(function(e){ return !hardcodedIds.has(e.id); });
-      if (supabaseRows.length) {
-        var ids = supabaseRows.map(function(e){ return e.id; });
-        var lRes = await db_client.from('experience_database_links').select('experience_id,database_id').in('experience_id', ids);
-        if (lRes.data) {
-          lRes.data.forEach(function(l){
-            if (!dbLinksMap[l.experience_id]) dbLinksMap[l.experience_id] = [];
-            dbLinksMap[l.experience_id].push(l.database_id);
-          });
-        }
-      }
+    // Load all experiences from Supabase — single source of truth
+    var [expRes, linkRes] = await Promise.all([
+      db_client.from('experiences')
+        .select('id,name,partner_name,location,reservation_type,image_url,is_active')
+        .order('name', {ascending:true}),
+      db_client.from('experience_database_links').select('experience_id,database_id')
+    ]);
+
+    if (expRes.error) throw new Error(expRes.error.message);
+    var rows = expRes.data || [];
+
+    // Build database links map: experience_id → [db names]
+    var dbLinksMap = {};
+    (linkRes.data || []).forEach(function(l){
+      if (!dbLinksMap[l.experience_id]) dbLinksMap[l.experience_id] = [];
+      var label = dbNameMap[l.database_id] || l.database_id;
+      if (!dbLinksMap[l.experience_id].includes(label)) dbLinksMap[l.experience_id].push(label);
+    });
+
+    // Filter by search
+    var filtered = rows.filter(function(e){
+      return !q
+        || (e.name||'').toLowerCase().includes(q)
+        || (e.partner_name||'').toLowerCase().includes(q)
+        || (e.location||'').toLowerCase().includes(q);
+    });
+
+    if (!filtered.length) {
+      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--muted)">No experiences found.</td></tr>';
+      return;
     }
-  } catch(err) { console.error('[renderAdmExpTable] fetch error:', err); }
 
-  var hardcodedFiltered = expDB.filter(function(e){
-    return !q || e.name.toLowerCase().includes(q) || (e.partner||'').toLowerCase().includes(q) || (e.loc||'').toLowerCase().includes(q);
-  });
-  var supabaseFiltered = supabaseRows.filter(function(e){
-    return !q || (e.name||'').toLowerCase().includes(q) || (e.partner_name||'').toLowerCase().includes(q) || (e.location||'').toLowerCase().includes(q);
-  });
+    tbody.innerHTML = filtered.map(function(e){
+      var dbs = dbLinksMap[e.id] || [];
+      var dbCell = dbs.length ? dbs.join(', ') : '<span style="color:var(--muted)">—</span>';
+      var img = e.image_url
+        ? '<img src="'+e.image_url+'" style="width:44px;height:36px;object-fit:cover;border-radius:var(--rs);flex-shrink:0" loading="lazy" onerror="this.style.display=\'none\'">'
+        : '<div style="width:44px;height:36px;border-radius:var(--rs);background:var(--b50);flex-shrink:0"></div>';
+      return '<tr>'
+        +'<td><div style="display:flex;align-items:center;gap:9px">'+img+'<strong>'+(e.name||'—')+'</strong></div></td>'
+        +'<td><span class="rtype-badge '+(rtBadge[e.reservation_type]||'rt-activity')+'">'+(rtIcon[e.reservation_type]||'🏄')+' '+(e.reservation_type||'—')+'</span></td>'
+        +'<td style="font-size:.75rem">'+dbCell+'</td>'
+        +'<td style="font-size:.8rem">'+(e.partner_name||'—')+'</td>'
+        +'<td style="font-size:.8rem;color:var(--muted)">'+(e.location||'—')+'</td>'
+        +'<td><span class="sbadge '+(e.is_active?'sb-a':'sb-p')+'">'+(e.is_active?'Active':'Draft')+'</span></td>'
+        +"<td><button class='btn bg bsm' onclick='admShowExpFormById(this.dataset.id)' data-id='"+e.id+"'><i class='fa fa-pen'></i> Edit</button></td>"
+        +'</tr>';
+    }).join('');
 
-  var hardcodedHtml = hardcodedFiltered.map(function(e){ return '<tr>'
-    +'<td><div style="display:flex;align-items:center;gap:9px"><img src="'+e.img+'" style="width:44px;height:36px;object-fit:cover;border-radius:var(--rs);flex-shrink:0" loading="lazy"><strong>'+e.name+'</strong></div></td>'
-    +'<td><span class="rtype-badge '+(rtBadge[e.reservation_type]||'rt-activity')+'">'+(rtIcon[e.reservation_type]||'🏄')+' '+e.reservation_type+'</span></td>'
-    +'<td style="font-size:.8rem;color:var(--muted)">'+(e.box||'—')+'</td>'
-    +'<td style="font-size:.8rem">'+(e.partner||'—')+'</td>'
-    +'<td style="font-size:.8rem;color:var(--muted)">'+(e.loc||'—')+'</td>'
-    +'<td><span class="sbadge sb-a">Active</span></td>'
-    +'<td><button class="btn bg bsm" onclick="admShowExpFormById(\''+e.id+'\')"><i class="fa fa-pen"></i> Edit</button></td>'
-    +'</tr>'; }).join('');
-
-  var supabaseHtml = supabaseFiltered.map(function(e){
-    var dbs = dbLinksMap[e.id] || [];
-    var dbCell = dbs.length ? dbs.map(function(d){ return dbLabels[d]||d; }).join(', ') : '—';
-    return '<tr>'
-    +'<td><div style="display:flex;align-items:center;gap:9px">'+(e.image_url?'<img src="'+e.image_url+'" style="width:44px;height:36px;object-fit:cover;border-radius:var(--rs);flex-shrink:0" loading="lazy" onerror="this.style.display=\'none\'">':'')+'<strong>'+(e.name||'—')+'</strong></div></td>'
-    +'<td><span class="rtype-badge '+(rtBadge[e.reservation_type]||'rt-activity')+'">'+(rtIcon[e.reservation_type]||'🏄')+' '+(e.reservation_type||'—')+'</span></td>'
-    +'<td style="font-size:.75rem;color:var(--muted)">'+dbCell+'</td>'
-    +'<td style="font-size:.8rem">'+(e.partner_name||'—')+'</td>'
-    +'<td style="font-size:.8rem;color:var(--muted)">'+(e.location||'—')+'</td>'
-    +'<td><span class="sbadge '+(e.is_active?'sb-a':'sb-p')+'">'+(e.is_active?'Active':'Inactive')+'</span></td>'
-    +'<td><button class="btn bg bsm" onclick="admShowExpFormById(\''+e.id+'\')"><i class="fa fa-pen"></i> Edit</button></td>'
-    +'</tr>';
-  }).join('');
-
-  tbody.innerHTML = (hardcodedHtml + supabaseHtml) || '<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--muted)">No experiences found.</td></tr>';
+  } catch(err) {
+    console.error('[renderAdmExpTable]', err);
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--muted)">Error loading experiences.</td></tr>';
+  }
 }
 
 async function admShowExpFormById(expId) {
