@@ -13011,25 +13011,18 @@ async function admApproveRequest(btn) {
   var req = admReqDB.find(function(r){ return r.id == id; });
   if (!req) { admToast('Request not found'); return; }
 
-  // Build box options with suggested box highlighted based on price
-  var price = req.price || 0;
-  var boxes = Object.entries(boxDB).map(function(e){
-    var suggested = '';
-    if (price > 0) {
-      var diff = Math.abs(e[1].price - price);
-      if (diff === Math.min(...Object.values(boxDB).map(b => Math.abs(b.price - price)))) {
-        suggested = ' ⭐ suggested';
-      }
-    }
-    return '<option value="'+e[0]+'"'+suggested.includes('⭐')?'':''+'>' + e[1].name + ' (R'+e[1].price.toLocaleString()+')' + suggested + '</option>';
+  // Build database options from admDatabases (loaded from Supabase)
+  var dbOptions = admDatabases.map(function(d){
+    return '<option value="'+d.id+'">'+d.icon+' '+d.name+'</option>';
   }).join('');
 
   var modal = document.getElementById('adm-modal');
   document.getElementById('adm-modal-body').innerHTML =
     '<h3 style="font-size:1.1rem;color:var(--navy);margin-bottom:6px"><i class="fa fa-check-circle" style="color:var(--green)"></i> Approve experience</h3>'
-    + '<p style="font-size:.8rem;color:var(--muted);margin-bottom:14px">Assign this experience to a box before approving. The suggested box is based on the experience value (R' + price.toLocaleString() + ').</p>'
-    + '<div class="fg"><label>Assign to box *</label><select class="fi" id="approve-box-select">' + boxes + '</select></div>'
-    + (price ? '<div style="font-size:.75rem;color:var(--b700);margin-bottom:14px"><i class="fa fa-circle-dollar-sign"></i> Experience value: <strong>R' + price.toLocaleString() + '</strong></div>' : '')
+    + '<p style="font-size:.8rem;color:var(--muted);margin-bottom:10px">Assign this experience to one or more databases. It will automatically appear on the linked box pages.</p>'
+    + '<div class="fg"><label>Assign to database(s) <span style="font-size:.7rem;color:var(--muted);font-weight:400">(Ctrl+click for multiple)</span></label>'
+    + '<select class="fi" id="approve-db-select" multiple size="5" style="height:auto">' + dbOptions + '</select></div>'
+    + (req.price ? '<div style="font-size:.75rem;color:var(--b700);margin-bottom:10px"><i class="fa fa-circle-dollar-sign"></i> Experience value: <strong>R' + (req.price||0).toLocaleString() + '</strong></div>' : '')
     + '<div style="display:flex;gap:9px">'
     + '<button class="btn bgreen bsm" onclick="admConfirmApprove(\'' + id + '\')"><i class="fa fa-check-circle"></i> Approve &amp; go live</button>'
     + '<button class="btn bg bsm" onclick="document.getElementById(\'adm-modal\').style.display=\'none\'">Cancel</button>'
@@ -13038,24 +13031,23 @@ async function admApproveRequest(btn) {
 }
 
 async function admConfirmApprove(id) {
-  var req    = admReqDB.find(function(r){ return r.id == id; });
-  var boxId  = (document.getElementById('approve-box-select')||{value:''}).value;
+  var req     = admReqDB.find(function(r){ return r.id == id; });
+  var dbSel   = document.getElementById('approve-db-select');
+  var selDbIds = dbSel ? Array.from(dbSel.selectedOptions).map(function(o){ return o.value; }).filter(Boolean) : [];
+  if (!selDbIds.length) { admToast('Please select at least one database.'); return; }
   document.getElementById('adm-modal').style.display = 'none';
   if (!req) return;
 
-  var card = [...document.querySelectorAll('.atbl')].find(function(c){
-    return c.querySelector('[data-id="'+id+'"]');
-  });
-  var btn = card ? card.querySelector('[onclick*="admApproveRequest"]') : null;
+  // Resolve box_id from first selected database via box_database_links
+  var resolvedBoxId = null;
+  try {
+    var blRes = await db_client.from('box_database_links').select('box_id').eq('database_id', selDbIds[0]).maybeSingle();
+    if (blRes.data) resolvedBoxId = blRes.data.box_id;
+  } catch(e) {}
 
-  // Store box selection on req
-  req.assigned_box = boxId;
-
-  // Temporarily set btn state for UI feedback
+  var btn = document.querySelector('[data-id="'+id+'"]');
   if (btn) { btn.disabled = true; btn.textContent = 'Approving…'; }
-
   var card2 = btn ? btn.closest('.atbl') : null;
-  if (!card2 && card) card2 = card;
 
   try {
     // 1. Update status in partner_requests
@@ -13119,10 +13111,15 @@ async function admConfirmApprove(id) {
         is_active:        true,
         image_url:        req.image_url || '',
         image_urls:       req.image_urls || [],
-        box_id:           boxId || null,
+        box_id:           resolvedBoxId || null,
         price:            req.price || null,
       });
       if (ins.error && !ins.error.message.includes('duplicate')) throw ins.error;
+      // Link experience to selected databases
+      if (selDbIds.length) {
+        var linkRows = selDbIds.map(function(dbId){ return { experience_id: expId, database_id: dbId }; });
+        await db_client.from('experience_database_links').upsert(linkRows, { onConflict: 'experience_id,database_id' });
+      }
     }
 
     // 3. Send approval email to partner
@@ -13141,7 +13138,7 @@ async function admConfirmApprove(id) {
       card2.style.background = '#f0fdf4';
       var hdr2 = card2.querySelector('.atbl-hdr'); if(hdr2) hdr2.style.background = 'linear-gradient(135deg,#d1fae5,#a7f3d0)';
       var sb2  = card2.querySelector('.sbadge');   if(sb2)  { sb2.className = 'sbadge sb-a'; sb2.textContent = 'Approved'; }
-      var act2 = card2.querySelector('[style*="gap:9px"]'); if(act2) act2.innerHTML = '<div style="display:flex;align-items:center;gap:7px;font-size:.78rem;color:var(--green);font-weight:600"><i class="fa fa-circle-check"></i> ' + (isEdit?'Edit approved — experience updated':'Approved and live') + ' · ' + (boxDB[boxId]?boxDB[boxId].name:boxId) + '</div>';
+      var act2 = card2.querySelector('[style*="gap:9px"]'); if(act2) act2.innerHTML = '<div style="display:flex;align-items:center;gap:7px;font-size:.78rem;color:var(--green);font-weight:600"><i class="fa fa-circle-check"></i> ' + (isEdit?'Edit approved — experience updated':'Approved and live') + ' · ' + selDbIds.map(function(d){ var db=admDatabases.find(function(x){return x.id===d;}); return db?db.name:d; }).join(', ') + '</div>';
     }
 
     // 5. Update badges
