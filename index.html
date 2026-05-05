@@ -14083,6 +14083,7 @@ function toggleAddForm() {
 }
 
 async function submitNewExp() {
+  const form = document.getElementById('pp-add-form');
   const name     = (document.getElementById('pp-new-name')        ||{value:''}).value.trim();
   const rt       = (document.getElementById('pp-new-type')        ||{value:''}).value || 'activity';
   const desc     = (document.getElementById('pp-new-desc')        ||{value:''}).value.trim();
@@ -14130,6 +14131,8 @@ async function submitNewExp() {
       weekend_type:       weekendType,
       accommodation_type: accomType,
       certification,
+      accessible,
+      insolite,
       ...(icalUrl ? { ical_url: icalUrl } : {}),
       programme:  programme,
       amenities:  amenitiesList,
@@ -14137,8 +14140,11 @@ async function submitNewExp() {
     if (error) throw error;
   } catch(e) {
     console.error('submitNewExp error:', e);
+    admToast('⚠️ Error submitting: ' + (e.message || 'unknown error'));
+    return;
   }
 
+  // Success — clear form and show confirmation
   ['pp-new-name','pp-new-desc','pp-new-img-0','pp-new-img-1','pp-new-img-2','pp-new-city','pp-new-capacity','pp-new-price','pp-new-certification','pp-new-nights'].forEach(function(id){ var el=document.getElementById(id); if(el) el.value=''; });
   ['pp-new-accessible','pp-new-insolite'].forEach(function(id){ var el=document.getElementById(id); if(el) el.checked=false; });
   [0,1,2].forEach(function(i){ var s=document.getElementById('pp-img-slot-'+i); if(s){ s.style.backgroundImage=''; s.style.backgroundSize=''; s.innerHTML='<i class="fa fa-image" style="font-size:1.4rem;color:var(--b400);margin-bottom:4px"></i>'+(i===0?'Main image':'Photo '+(i+1)); } });
@@ -14146,13 +14152,14 @@ async function submitNewExp() {
   var typeEl = document.getElementById('pp-new-type'); if(typeEl) typeEl.value='';
 
   admToast('✅ Experience submitted — admin will review within 1–2 business days');
-  form.innerHTML = `
-    <div style="text-align:center;padding:24px 0">
-      <div style="font-size:2rem;margin-bottom:10px">✅</div>
-      <h4 style="font-size:1rem;color:#065f46;margin-bottom:6px">Experience submitted!</h4>
-      <p style="font-size:.78rem;color:var(--muted)">WowBox admin will review your submission within 1–2 business days. You'll receive an email notification when it's approved.</p>
-      <button class="btn bg bsm" style="margin-top:14px" onclick="toggleAddForm()">Close</button>
-    </div>`;
+  if (form) form.innerHTML = [
+    '<div style="text-align:center;padding:24px 0">',
+    '<div style="font-size:2rem;margin-bottom:10px">✅</div>',
+    '<h4 style="font-size:1rem;color:#065f46;margin-bottom:6px">Experience submitted!</h4>',
+    '<p style="font-size:.78rem;color:var(--muted)">WowBox admin will review your submission within 1-2 business days. You will receive an email when approved.</p>',
+    '<button class="btn bg bsm" style="margin-top:14px" onclick="toggleAddForm()">Close</button>',
+    '</div>'
+  ].join('');
   loadPartnerExperiences();
 }
 
@@ -14483,6 +14490,8 @@ async function ppSubmitEdit(expId) {
       weekend_type:       weekend,
       accommodation_type: accom,
       certification:      cert,
+      accessible,
+      insolite,
       ...(icalUrl ? { ical_url: icalUrl } : {}),
       programme:  programme,
       amenities:  amenitiesList,
