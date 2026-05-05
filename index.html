@@ -11507,6 +11507,25 @@ async function loadOrdersFromSupabase() {
     Object.values(grouped).forEach(function(g) {
       g.type = (g.hasEbox && g.hasPhysical) ? 'Mixed' : g.hasPhysical ? 'Physical' : 'E-Box';
     });
+
+    // Fetch customer_name, status, total_amount from orders table
+    const dbToStatus = {'pending':'Pending','in_process':'In process','in_transit':'In transit','delivered':'Delivered'};
+    const orderIds = Object.keys(grouped);
+    try {
+      const ordRes = await db_client.from('orders').select('id,customer_name,status,total_amount').in('id', orderIds);
+      if (ordRes.data) {
+        ordRes.data.forEach(function(row) {
+          if (!grouped[row.id]) return;
+          grouped[row.id].customerName = row.customer_name || null;
+          grouped[row.id].total        = row.total_amount  || null;
+          if (row.status) {
+            const displayStatus = dbToStatus[row.status] || row.status;
+            ordersState.statuses[row.id] = displayStatus;
+          }
+        });
+      }
+    } catch(e) { console.warn('orders merge:', e.message); }
+
     const allStatuses = ['Pending','In process','In transit','Delivered'];
     const typeTag = {
       'E-Box':   '<span class="tag t-act" style="font-size:.7rem">E-Box</span>',
@@ -11517,7 +11536,10 @@ async function loadOrdersFromSupabase() {
     Object.keys(grouped).forEach(function(oid) {
       const g = grouped[oid];
       const ds = g.date ? new Date(g.date).toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'}) : '—';
-      orderDetailDB[oid] = {name:g.email,email:g.email,phone:'—',date:ds,type:g.type,total:'—',boost:false,delivery:null,
+      const displayName = g.customerName || g.email;
+      orderDetailDB[oid] = {name:displayName,email:g.email,phone:'—',date:ds,type:g.type,
+        total: g.total ? 'R' + Number(g.total).toLocaleString('en-ZA') : '—',
+        boost:false,delivery:null,
         items:g.items.map(function(v){ return {name:v.box_name||v.box_id||'—',type:v.is_physical_box?'Physical':'E-Box',code:v.code,status:v.status}; })};
     });
     tbody.innerHTML = Object.values(grouped).map(function(g) {
@@ -12857,6 +12879,12 @@ function admUpdateOrderStatus(sel) {
   if (!orderId) return;
   ordersState.statuses[orderId] = newStatus;
   const order = orderDetailDB[orderId];
+
+  // Persist to Supabase orders table
+  const statusToDb = {'Pending':'pending','In process':'in_process','In transit':'in_transit','Delivered':'delivered'};
+  db_client.from('orders').update({ status: statusToDb[newStatus] || newStatus.toLowerCase() }).eq('id', orderId)
+    .then(function(r){ if (r.error) console.warn('Status save error:', r.error.message); });
+
   if (!order?.email) { admToast('Status updated to "' + newStatus + '"'); return; }
   admToast('Updating — sending email…');
   const statusMap = {'Pending':'status_pending','In process':'status_in_process','In transit':'status_in_transit','Delivered':'status_delivered'};
