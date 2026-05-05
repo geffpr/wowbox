@@ -7339,7 +7339,14 @@ function go(page) {
   if (page === 'reviews') renderReviewsPage();
   if (page === 'admin') renderAdmin();
   if (page === 'partner-landing') renderPartnerLanding();
-  if (page === 'browse') { loadExpFromSupabase().then(function(){ renderBrowse(); browseSaveToURL(); }); }
+  if (page === 'browse') {
+    var _bid = appState.browseBoxId;
+    if (_bid) {
+      fetchProductExps(_bid).then(function(){ renderBrowse(); browseSaveToURL(); });
+    } else {
+      loadExpFromSupabase().then(function(){ renderBrowse(); browseSaveToURL(); });
+    }
+  }
   if (page === 'product' && appState.currentBoxId) { fetchProductExps(appState.currentBoxId); }
   if (page === 'roulette') initRoulettePage();
   if (page === 'partner') initPartnerPage();
@@ -8012,72 +8019,87 @@ function getFilteredExps() {
    Called on every go('product') — works for any boxId
 ══════════════════════════════════════════════════════════════ */
 async function fetchProductExps(boxId) {
-  console.log('[WB] fetchProductExps called for:', boxId, '| db_client:', typeof db_client);
   if (typeof db_client === 'undefined' || !boxId) return;
   try {
-    // 1. Direct experiences: box_id = boxId
-    var r1 = await db_client.from('experiences').select('*').eq('is_active', true).eq('box_id', boxId);
-    var direct = r1.data || [];
+    // Parallel: direct exps + box→db links + databases table
+    var [r1, rLinks, dbsRes] = await Promise.all([
+      db_client.from('experiences').select('*').eq('is_active', true).eq('box_id', boxId),
+      db_client.from('box_database_links').select('database_id').eq('box_id', boxId),
+      db_client.from('databases').select('id,name,icon').eq('is_active', true)
+    ]);
 
-    // 2. Chain: box_database_links → experience_database_links → experiences
+    var direct = r1.data || [];
+    var dbIds  = (rLinks.data || []).map(function(l){ return l.database_id; });
+    var dbsMap = {};
+    (dbsRes.data || []).forEach(function(d){ dbsMap[d.id] = d; });
+
+    // Build database label: "💑 Romantic Getaways · 🍷 Wine & Culture"
+    var dbLabel = dbIds.map(function(id){ var d = dbsMap[id]; return d ? d.icon + ' ' + d.name : id; })
+                       .filter(Boolean).join(' · ');
+    if (!dbLabel && boxDB[boxId]) dbLabel = boxDB[boxId].db || '—';
+
+    // Fetch experiences via chain (exclude direct already fetched)
     var chain = [];
-    var rLinks = await db_client.from('box_database_links').select('database_id').eq('box_id', boxId);
-    var dbIds = (rLinks.data || []).map(function(l){ return l.database_id; });
     if (dbIds.length) {
-      var rExpLinks = await db_client.from('experience_database_links').select('experience_id').in('database_id', dbIds);
-      var expIds = (rExpLinks.data || []).map(function(l){ return l.experience_id; }).filter(function(id){
-        return !direct.find(function(e){ return e.id === id; });
-      });
-      if (expIds.length) {
-        var r2 = await db_client.from('experiences').select('*').eq('is_active', true).in('id', expIds);
+      var rExpLinks = await db_client.from('experience_database_links')
+        .select('experience_id').in('database_id', dbIds);
+      var chainIds = (rExpLinks.data || [])
+        .map(function(l){ return l.experience_id; })
+        .filter(function(id){ return !direct.find(function(e){ return e.id === id; }); });
+      if (chainIds.length) {
+        var r2 = await db_client.from('experiences').select('*').eq('is_active', true).in('id', chainIds);
         chain = r2.data || [];
       }
     }
 
-    console.log('[WB] fetchProductExps results for', boxId, ':', direct.length, 'direct,', chain.length, 'chain, total:', direct.length+chain.length);
     var all = direct.concat(chain);
-    if (!all.length) { console.log('[WB] fetchProductExps: 0 results, returning early'); return; }
 
-    // Remove stale entries for this box, add fresh ones
+    // Update boxDB metadata (even if 0 results so UI shows correct count)
+    if (boxDB[boxId]) {
+      if (dbLabel) boxDB[boxId].db = dbLabel;
+      boxDB[boxId].cnt = String(all.length);
+    }
+
+    // Replace expDB entries for this box with fresh Supabase data
     expDB = expDB.filter(function(e){ return e.box !== boxId; });
     all.forEach(function(e) {
       expDB.push({
         id:               e.id,
-        name:             e.name             || 'Untitled',
-        type:             e.reservation_type || 'activity',
-        reservation_type: e.reservation_type || 'activity',
+        name:             e.name                || 'Untitled',
+        type:             e.reservation_type    || 'activity',
+        reservation_type: e.reservation_type    || 'activity',
         box:              boxId,
-        lat:              e.lat              || null,
-        lng:              e.lng              || null,
-        loc:              e.location         || '',
-        city:             e.city             || '',
-        province:         e.province         || '',
-        address:          e.address          || '',
-        phone:            e.phone            || '',
-        rating:           e.rating           || 4.5,
-        rv:               e.review_count     || 0,
-        img:              e.image_url        || 'https://images.unsplash.com/photo-1528360983277-13d401cdc186?w=800&auto=format&fit=crop',
+        lat:              e.lat                 || null,
+        lng:              e.lng                 || null,
+        loc:              e.location            || '',
+        city:             e.city               || '',
+        province:         e.province            || '',
+        address:          e.address             || '',
+        phone:            e.phone               || '',
+        rating:           e.rating              || 4.5,
+        rv:               e.review_count        || 0,
+        img:              e.image_url           || 'https://images.unsplash.com/photo-1528360983277-13d401cdc186?w=800&auto=format&fit=crop',
         img2:             (e.image_urls && e.image_urls[0]) || '',
         img3:             (e.image_urls && e.image_urls[1]) || '',
-        partner:          e.partner_name     || '',
-        tags:             e.tags             || [],
-        desc:             e.description      || '',
-        capacity:         e.capacity         || 2,
-        category:         e.category         || '',
-        booking_type:     e.booking_type     || 'on_site',
-        duration_nights:  e.duration_nights  || 0,
-        weekend_type:     e.weekend_type     || '',
-        accessible:       e.accessible       || false,
+        partner:          e.partner_name        || '',
+        tags:             e.tags                || [],
+        desc:             e.description         || '',
+        capacity:         e.capacity            || 2,
+        category:         e.category            || '',
+        booking_type:     e.booking_type        || 'on_site',
+        duration_nights:  e.duration_nights     || 0,
+        weekend_type:     e.weekend_type        || '',
+        accessible:       e.accessible          || false,
         accommodation_type: e.accommodation_type || '',
-        insolite:         e.insolite         || false,
+        insolite:         e.insolite            || false,
+        certification:    e.certification       || '',
+        ical_url:         e.ical_url            || '',
         _fromSupabase:    true,
       });
     });
 
-    // Update count + re-render if still on this box's page
-    var cnt = expDB.filter(function(e){ return e.box === boxId; }).length;
-    if (boxDB[boxId]) boxDB[boxId].cnt = String(cnt);
-    if (appState.currentBoxId === boxId) {
+    // Re-render product page if user is still on this box
+    if (appState.currentBoxId === boxId && !window.location.pathname.startsWith('/browse')) {
       loadProduct(boxId);
     }
   } catch(err) {
