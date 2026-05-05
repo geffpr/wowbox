@@ -7715,6 +7715,8 @@ async function renderBoxGrids() {
       }
     }
   }
+  // Always re-run loadExpFromSupabase after boxDB sync so real counts/db names override stale Supabase boxes data
+  loadExpFromSupabase();
 }
 
 /* ══════════════════════════════════════════════════════════════
