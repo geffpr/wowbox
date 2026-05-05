@@ -7630,10 +7630,11 @@ async function renderBoxGrids() {
       boxes = data;
       // Sync Supabase data into local boxDB, keeping local image if Supabase has none
       boxes.forEach(b => {
+        const local = boxDB[b.id] || {};
         boxDB[b.id] = {
           name: b.name, price: b.price, db: b.database_name,
-          cnt: b.experience_count,
-          img: b.image_url || localImgs[b.id],  // keep local image as fallback
+          cnt: local.cnt || b.experience_count,
+          img: b.image_url || localImgs[b.id],
           badge: b.badge, rating: b.rating, sold: b.sold_count, desc: b.description
         };
       });
@@ -7692,7 +7693,7 @@ async function renderBoxGrids() {
       name:   b.name,
       price:  b.price,
       db:     b.database_name,
-      cnt:    b.experience_count,
+      cnt:    (boxDB[b.id] && boxDB[b.id].cnt) || b.experience_count,
       img:    resolvedImg,
       images: resolvedImgs,
       badge:  b.badge,
@@ -7956,8 +7957,14 @@ async function loadExpFromSupabase() {
       });
     } catch(e) { console.warn('loadExpFromSupabase: db chain error', e.message); }
 
+    // Fix 3: remove hardcoded expDB entries for boxes that now have Supabase data
+    var boxesWithRealData = new Set(
+      res.data.map(function(e){ return e.box_id || expToBox[e.id]; }).filter(Boolean)
+    );
+    expDB = expDB.filter(function(e){ return e._fromSupabase || !boxesWithRealData.has(e.box); });
+
     res.data.forEach(function(e) {
-      // Remove hardcoded entry if Supabase has a fresher version
+      // Remove any remaining duplicate by id
       var existing = expDB.findIndex(function(x){ return x.id === e.id; });
       if (existing !== -1) expDB.splice(existing, 1);
 
@@ -7996,12 +8003,25 @@ async function loadExpFromSupabase() {
       });
     });
 
-    // Update boxDB cnt from real Supabase counts (source of truth)
+    // Fix 2: update boxDB.cnt from real counts
     var cntPerBox = {};
     expDB.forEach(function(exp){ if (exp.box) cntPerBox[exp.box] = (cntPerBox[exp.box]||0) + 1; });
+    // Fix 4: update boxDB.db from resolved chain + update cnt, then refresh DOM
+    var boxToDb = {};
+    Object.keys(dbToBox).forEach(function(dbId){ boxToDb[dbToBox[dbId]] = dbId; });
     Object.keys(boxDB).forEach(function(bid){
       if (cntPerBox[bid] !== undefined) boxDB[bid].cnt = cntPerBox[bid].toLocaleString('en-ZA');
+      if (boxToDb[bid] && typeof admDatabases !== 'undefined') {
+        var dbEntry = admDatabases.find(function(d){ return d.id === boxToDb[bid]; });
+        if (dbEntry) boxDB[bid].db = dbEntry.name;
+      }
     });
+    // Refresh product page DOM if open
+    if (appState.currentBoxId && boxDB[appState.currentBoxId] &&
+        !window.location.pathname.startsWith('/experience/')) {
+      loadProduct(appState.currentBoxId);
+      renderExpList();
+    }
 
     // Rebuild location filters now that expDB has new entries
     buildExpLocFilter();
