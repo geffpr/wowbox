@@ -5830,19 +5830,33 @@ tr:hover td{background:var(--b50)}
           <div style="display:flex;align-items:center;gap:10px;margin-bottom:18px">
             <button class="btn bg bsm" onclick="admDbBack()"><i class="fa fa-arrow-left"></i> Back to databases</button>
             <h3 id="adm-db-detail-title" style="font-size:1.2rem;color:var(--navy)"></h3>
+            <button id="adm-db-edit-btn" class="btn bg bsm" onclick="admDbToggleEdit()" style="margin-left:auto;display:none"><i class="fa fa-pen"></i> Edit</button>
           </div>
-          <div class="atbl">
+          <!-- New / Edit database form -->
+          <div id="adm-db-form" style="display:none;margin-bottom:20px">
+            <div class="atbl" style="padding:18px">
+              <h4 style="margin:0 0 14px;color:var(--navy)" id="adm-db-form-title">New Database</h4>
+              <div class="fg-row">
+                <div class="fg"><label>Name *</label><input class="fi" id="adf-name" placeholder="e.g. Coastal Escapes"></div>
+                <div class="fg" style="max-width:120px"><label>Icon (emoji)</label><input class="fi" id="adf-icon" placeholder="🌊" style="font-size:1.4rem;text-align:center"></div>
+                <div class="fg" style="max-width:140px"><label>Card colour</label><input class="fi" id="adf-color" type="color" value="#e0f2fe" style="height:38px;padding:2px 6px"></div>
+              </div>
+              <div style="display:flex;gap:10px;margin-top:14px">
+                <button class="btn bp bsm" onclick="admSaveDatabase()"><i class="fa fa-floppy-disk"></i> Save database</button>
+                <button class="btn bg bsm" onclick="admDbFormCancel()"><i class="fa fa-xmark"></i> Cancel</button>
+              </div>
+              <div id="adf-status" style="margin-top:10px;font-size:.8rem"></div>
+            </div>
+          </div>
+          <!-- Experiences table (hidden when creating new db) -->
+          <div id="adm-db-exp-wrap" class="atbl">
             <div class="atbl-hdr">
               <h4 id="adm-db-detail-subtitle" style="font-size:.88rem;color:var(--navy)"></h4>
               <button class="btn bp bsm" onclick="admAddExpToDb()"><i class="fa fa-plus"></i> Add experience to DB</button>
             </div>
             <table>
               <thead><tr><th>Experience</th><th>Type</th><th>Partner</th><th>Location</th><th>Status</th><th>Actions</th></tr></thead>
-              <tbody id="adm-db-exp-tbody">
-                <tr><td><strong>The Vineyard Retreat</strong></td><td><span class="tag t-hotel">Hotel</span></td><td>Vineyard Hotels</td><td>Stellenbosch</td><td><span class="sbadge sb-a">Active</span></td><td><button class="btn bg bsm" onclick="admShowExpForm('vineyard')"><i class="fa fa-pen"></i></button></td></tr>
-                <tr><td><strong>Clifton Oceanfront</strong></td><td><span class="tag t-hotel">Hotel</span></td><td>Atlantic Hotels</td><td>Cape Town</td><td><span class="sbadge sb-a">Active</span></td><td><button class="btn bg bsm" onclick="admShowExpForm('clifton')"><i class="fa fa-pen"></i></button></td></tr>
-                <tr><td><strong>Ananda Couples Spa</strong></td><td><span class="tag t-spa">Spa</span></td><td>Ananda Wellness</td><td>Sandton</td><td><span class="sbadge sb-a">Active</span></td><td><button class="btn bg bsm" onclick="admShowExpForm('ananda')"><i class="fa fa-pen"></i></button></td></tr>
-              </tbody>
+              <tbody id="adm-db-exp-tbody"></tbody>
             </table>
           </div>
         </div>
@@ -7058,7 +7072,7 @@ const reviewsDB = {
   'signature':[ { user:'Michael R.',rating:5, date:'Mar 2025', comment:'The Test Kitchen is unlike anything I\'ve experienced. 20 courses of pure artistry. Worth every cent. The WowBox packaging made it an even more special gift to give.', verified:true, exp:'The Test Kitchen' }, { user:'Claudette F.', rating:5, date:'Jan 2025', comment:'Gifted this to my mother for her 60th birthday. She was brought to tears — happy ones! The restaurant was exceptional. WowBox is now my go-to for special occasion gifts.', verified:true, exp:'The Test Kitchen' } ],
 };
 
-const admDatabases = [
+var admDatabases = [
   { id:'romantic-getaways',  icon:'💑', name:'Romantic Getaways',    cnt:0, boxes:'Couples Retreat',         bg:'#fce7f3' },
   { id:'wellness-spa',       icon:'🧖', name:'Wellness & Spa',       cnt:0, boxes:'WowBox Reset',            bg:'#ede9fe' },
   { id:'food-gastronomy',    icon:'🍽️', name:'Food & Gastronomy',    cnt:0, boxes:'Celebration, Signature',  bg:'#fef3c7' },
@@ -11523,28 +11537,8 @@ async function renderAdmin() {
   renderAdmExpTable();
   loadAdminDashStats();
 
-  // Load real counts from experience_database_links
-  var dbCounts = {};
-  try {
-    var cRes = await db_client.from('experience_database_links').select('database_id');
-    if (cRes.data) {
-      cRes.data.forEach(function(l){ dbCounts[l.database_id] = (dbCounts[l.database_id] || 0) + 1; });
-    }
-  } catch(e) { console.error('[renderAdmin] counts error:', e); }
-
-  // Render database grid with real counts
-  const dbGrid = document.getElementById('adm-db-grid');
-  if (dbGrid) dbGrid.innerHTML = admDatabases.map(function(d, i) {
-    var realCount = dbCounts[d.id] || 0;
-    return '<div class="db-card" onclick="admDbDetail('+i+')" style="cursor:pointer">'
-      + '<div class="db-ico" style="background:'+d.bg+'">'+d.icon+'</div>'
-      + '<h4 style="font-size:.88rem;color:var(--navy)">'+d.name+'</h4>'
-      + '<p style="font-size:.73rem;color:var(--muted)">Used in: '+d.boxes+'</p>'
-      + '<div class="db-cnt">'+realCount.toLocaleString()+'</div>'
-      + '<div style="font-size:.7rem;color:var(--muted)">experiences</div>'
-      + '<div style="margin-top:8px;font-size:.7rem;color:var(--b600);font-weight:600">→ View &amp; manage</div>'
-      + '</div>';
-  }).join('');
+  // Load databases from Supabase and render grid
+  loadAdmDatabases();
 
   // Render boxes table with real exp counts + databases from Supabase
   const at = document.getElementById('adm-boxes-tbody');
@@ -12107,6 +12101,9 @@ async function admDbDetail(idx) {
     const d = admDatabases[idx];
     admCurrentDbId = d.id;
     document.getElementById('adm-db-detail-title').textContent = d.icon + ' ' + d.name;
+    document.getElementById('adm-db-edit-btn').style.display = 'inline-flex';
+    document.getElementById('adm-db-exp-wrap').style.display = 'block';
+    document.getElementById('adm-db-form').style.display = 'none';
 
     const tbody = document.getElementById('adm-db-exp-tbody');
     tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:18px;color:var(--muted)">Loading…</td></tr>';
@@ -12161,9 +12158,145 @@ async function admDbDetail(idx) {
       tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:18px;color:var(--muted)">Error loading experiences.</td></tr>';
     }
   } else {
+    // New database mode
     admCurrentDbId = null;
     document.getElementById('adm-db-detail-title').textContent = '✨ New Database';
     document.getElementById('adm-db-detail-subtitle').textContent = '0 experiences';
+    document.getElementById('adm-db-edit-btn').style.display = 'none';
+    document.getElementById('adm-db-exp-wrap').style.display = 'none';
+    document.getElementById('adf-name').value = '';
+    document.getElementById('adf-icon').value = '';
+    document.getElementById('adf-color').value = '#e0f2fe';
+    document.getElementById('adf-status').textContent = '';
+    document.getElementById('adm-db-form-title').textContent = 'New Database';
+    document.getElementById('adm-db-form').style.display = 'block';
+  }
+}
+
+function admDbToggleEdit() {
+  var d = admDatabases.find(function(x){ return x.id === admCurrentDbId; });
+  if (!d) return;
+  document.getElementById('adf-name').value  = d.name;
+  document.getElementById('adf-icon').value  = d.icon;
+  document.getElementById('adf-color').value = d.bg || '#e0f2fe';
+  document.getElementById('adf-status').textContent = '';
+  document.getElementById('adm-db-form-title').textContent = 'Edit Database';
+  document.getElementById('adm-db-form').style.display = 'block';
+}
+
+function admDbFormCancel() {
+  document.getElementById('adm-db-form').style.display = 'none';
+  if (!admCurrentDbId) admDbBack();
+}
+
+async function admSaveDatabase() {
+  var name  = (document.getElementById('adf-name').value || '').trim();
+  var icon  = (document.getElementById('adf-icon').value || '').trim() || '📁';
+  var color = document.getElementById('adf-color').value || '#e0f2fe';
+  var statusEl = document.getElementById('adf-status');
+  if (!name) { statusEl.style.color = 'red'; statusEl.textContent = 'Name is required.'; return; }
+
+  statusEl.style.color = 'var(--muted)';
+  statusEl.textContent = 'Saving…';
+
+  var isNew = !admCurrentDbId;
+  var dbId  = admCurrentDbId || name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+
+  try {
+    var payload = { id: dbId, name: name, icon: icon, color: color, is_active: true };
+    var res = isNew
+      ? await db_client.from('databases').insert(payload)
+      : await db_client.from('databases').update({ name: name, icon: icon, color: color }).eq('id', dbId);
+
+    if (res.error) throw new Error(res.error.message);
+
+    statusEl.style.color = 'green';
+    statusEl.textContent = isNew ? '✓ Database created!' : '✓ Saved!';
+
+    // Reload databases from Supabase so everything updates
+    await loadAdmDatabases();
+
+    if (isNew) {
+      // Open the new db detail view
+      admCurrentDbId = dbId;
+      setTimeout(function(){
+        var idx = admDatabases.findIndex(function(d){ return d.id === dbId; });
+        if (idx >= 0) admDbDetail(idx);
+      }, 400);
+    } else {
+      document.getElementById('adm-db-form').style.display = 'none';
+      document.getElementById('adm-db-detail-title').textContent = icon + ' ' + name;
+    }
+  } catch(err) {
+    statusEl.style.color = 'red';
+    statusEl.textContent = '✗ Error: ' + err.message;
+  }
+}
+
+async function loadAdmDatabases() {
+  try {
+    var [dbRes, countRes, linkRes] = await Promise.all([
+      db_client.from('databases').select('id,name,icon,color,experience_count').eq('is_active', true).order('name'),
+      db_client.from('experience_database_links').select('database_id'),
+      db_client.from('box_database_links').select('box_id,database_id')
+    ]);
+
+    if (dbRes.error || !dbRes.data) return;
+
+    // Real exp counts per database
+    var dbCounts = {};
+    (countRes.data || []).forEach(function(l){ dbCounts[l.database_id] = (dbCounts[l.database_id]||0)+1; });
+
+    // Box names per database
+    var boxNames = {};
+    (linkRes.data || []).forEach(function(l){
+      if (!boxNames[l.database_id]) boxNames[l.database_id] = [];
+      var bName = (boxDB[l.box_id] && boxDB[l.box_id].name) || l.box_id;
+      if (!boxNames[l.database_id].includes(bName)) boxNames[l.database_id].push(bName);
+    });
+
+    // Rebuild admDatabases from Supabase
+    admDatabases = dbRes.data.map(function(d){
+      return {
+        id:    d.id,
+        icon:  d.icon  || '📁',
+        name:  d.name,
+        cnt:   dbCounts[d.id] || 0,
+        boxes: (boxNames[d.id] || []).join(', ') || '—',
+        bg:    d.color || '#f0fdf4'
+      };
+    });
+
+    // Re-render the database grid
+    var dbGrid = document.getElementById('adm-db-grid');
+    if (dbGrid) {
+      dbGrid.innerHTML = admDatabases.map(function(d, i){
+        return '<div class="db-card" onclick="admDbDetail('+i+')" style="cursor:pointer">'
+          + '<div class="db-ico" style="background:'+d.bg+'">'+d.icon+'</div>'
+          + '<h4 style="font-size:.88rem;color:var(--navy)">'+d.name+'</h4>'
+          + '<p style="font-size:.73rem;color:var(--muted)">Used in: '+d.boxes+'</p>'
+          + '<div class="db-cnt">'+(d.cnt).toLocaleString()+'</div>'
+          + '<div style="font-size:.7rem;color:var(--muted)">experiences</div>'
+          + '<div style="margin-top:8px;font-size:.7rem;color:var(--b600);font-weight:600">→ View &amp; manage</div>'
+          + '</div>';
+      }).join('');
+    }
+
+    // Re-populate ALL database <select> dropdowns from Supabase data
+    var optionsHtml = admDatabases.map(function(d){
+      return '<option value="'+d.id+'">'+d.icon+' '+d.name+'</option>';
+    }).join('');
+    ['abf-db','aef-db'].forEach(function(selId){
+      var sel = document.getElementById(selId);
+      if (sel) {
+        var prev = Array.from(sel.selectedOptions).map(function(o){ return o.value; });
+        sel.innerHTML = optionsHtml;
+        Array.from(sel.options).forEach(function(o){ o.selected = prev.includes(o.value); });
+      }
+    });
+
+  } catch(err) {
+    console.warn('loadAdmDatabases:', err.message);
   }
 }
 
