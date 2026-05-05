@@ -5861,12 +5861,36 @@ tr:hover td{background:var(--b50)}
           <div id="adm-db-exp-wrap" class="atbl">
             <div class="atbl-hdr">
               <h4 id="adm-db-detail-subtitle" style="font-size:.88rem;color:var(--navy)"></h4>
-              <button class="btn bp bsm" onclick="admAddExpToDb()"><i class="fa fa-plus"></i> Add experience to DB</button>
+              <button class="btn bp bsm" onclick="admOpenExpPicker()"><i class="fa fa-plus"></i> Add experience to DB</button>
             </div>
             <table>
               <thead><tr><th>Experience</th><th>Type</th><th>Partner</th><th>Location</th><th>Status</th><th>Actions</th></tr></thead>
               <tbody id="adm-db-exp-tbody"></tbody>
             </table>
+          </div>
+
+          <!-- Experience picker panel -->
+          <div id="adm-db-picker" style="display:none;margin-top:16px">
+            <div class="atbl" style="padding:18px">
+              <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;flex-wrap:wrap">
+                <strong style="color:var(--navy);font-size:.95rem">Select experiences to add</strong>
+                <input type="text" class="fi" id="adm-picker-search" style="width:200px;padding:7px 11px;font-size:.76rem" placeholder="🔍 Filter..." oninput="admPickerFilter()">
+                <span id="adm-picker-count" style="font-size:.78rem;color:var(--muted);margin-left:auto"></span>
+              </div>
+              <div id="adm-picker-list" style="max-height:340px;overflow-y:auto;border:1px solid var(--border);border-radius:var(--rs)">
+                <table style="width:100%">
+                  <thead style="position:sticky;top:0;background:var(--bg);z-index:1">
+                    <tr><th style="width:36px;padding:8px 10px"><input type="checkbox" id="adm-picker-all" onchange="admPickerToggleAll(this.checked)"></th><th>Experience</th><th>Type</th><th>Partner</th><th>Location</th></tr>
+                  </thead>
+                  <tbody id="adm-picker-tbody"></tbody>
+                </table>
+              </div>
+              <div style="display:flex;gap:10px;margin-top:14px;align-items:center">
+                <button class="btn bp bsm" onclick="admAddSelectedToDb()" id="adm-picker-save"><i class="fa fa-check"></i> Add selected (0)</button>
+                <button class="btn bg bsm" onclick="admCloseExpPicker()"><i class="fa fa-xmark"></i> Cancel</button>
+                <span id="adm-picker-status" style="font-size:.8rem;margin-left:8px"></span>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -12323,19 +12347,107 @@ async function loadAdmDatabases() {
   }
 }
 
-function admAddExpToDb() {
-  // Open experience form and pre-select current database
-  const tab = document.getElementById('adm-exp');
-  if (tab) {
-    admOpenTab('adm-exp');
-    admShowExpFormById(null);
-    // Pre-select the current database in aef-db
-    if (admCurrentDbId) {
-      var dbSel = document.getElementById('aef-db');
-      if (dbSel) {
-        Array.from(dbSel.options).forEach(function(o){ o.selected = (o.value === admCurrentDbId); });
-      }
-    }
+var _admPickerAllExps = []; // cache of all experiences for picker
+
+async function admOpenExpPicker() {
+  if (!admCurrentDbId) return;
+  var picker = document.getElementById('adm-db-picker');
+  picker.style.display = 'block';
+  picker.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+  var tbody = document.getElementById('adm-picker-tbody');
+  tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:18px;color:var(--muted)"><i class="fa fa-circle-notch fa-spin"></i> Loading…</td></tr>';
+  document.getElementById('adm-picker-search').value = '';
+  document.getElementById('adm-picker-status').textContent = '';
+  document.getElementById('adm-picker-save').textContent = 'Add selected (0)';
+  document.getElementById('adm-picker-all').checked = false;
+
+  try {
+    // Get already-linked experience IDs for this database
+    var linkedRes = await db_client.from('experience_database_links').select('experience_id').eq('database_id', admCurrentDbId);
+    var alreadyLinked = new Set((linkedRes.data || []).map(function(l){ return l.experience_id; }));
+
+    // Fetch all active experiences
+    var expRes = await db_client.from('experiences').select('id,name,reservation_type,partner_name,location,is_active').eq('is_active', true).order('name');
+    var supaExps = expRes.data || [];
+
+    // Merge with hardcoded expDB entries not in Supabase
+    var supaIds = new Set(supaExps.map(function(e){ return e.id; }));
+    var hardcoded = expDB.filter(function(e){ return !supaIds.has(e.id); }).map(function(e){
+      return { id: e.id, name: e.name, reservation_type: e.reservation_type || e.type, partner_name: e.partner || '', location: e.loc || '', is_active: true };
+    });
+
+    _admPickerAllExps = supaExps.concat(hardcoded).filter(function(e){ return !alreadyLinked.has(e.id); });
+    admPickerRender(_admPickerAllExps);
+  } catch(err) {
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:18px;color:red">Error: ' + err.message + '</td></tr>';
+  }
+}
+
+function admPickerRender(exps) {
+  var tbody = document.getElementById('adm-picker-tbody');
+  var rtIcon = { accommodation:'🏨', dining:'🍽️', wellness:'🧖', activity:'🏄', rental:'🚗', event:'🎉' };
+  if (!exps.length) {
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:18px;color:var(--muted)">All experiences are already in this database.</td></tr>';
+    document.getElementById('adm-picker-count').textContent = '';
+    return;
+  }
+  document.getElementById('adm-picker-count').textContent = exps.length + ' available';
+  tbody.innerHTML = exps.map(function(e) {
+    return '<tr>'
+      + '<td style="padding:8px 10px;text-align:center"><input type="checkbox" class="adm-picker-chk" value="' + e.id + '" onchange="admPickerUpdateCount()"></td>'
+      + '<td style="padding:8px 10px"><strong style="font-size:.85rem">' + e.name + '</strong></td>'
+      + '<td style="padding:8px 10px;font-size:.8rem">' + (rtIcon[e.reservation_type] || '🏄') + ' ' + (e.reservation_type || '—') + '</td>'
+      + '<td style="padding:8px 10px;font-size:.8rem;color:var(--muted)">' + (e.partner_name || '—') + '</td>'
+      + '<td style="padding:8px 10px;font-size:.8rem;color:var(--muted)">' + (e.location || '—') + '</td>'
+      + '</tr>';
+  }).join('');
+}
+
+function admPickerFilter() {
+  var q = (document.getElementById('adm-picker-search').value || '').toLowerCase();
+  var filtered = _admPickerAllExps.filter(function(e){
+    return !q || e.name.toLowerCase().includes(q) || (e.partner_name||'').toLowerCase().includes(q) || (e.location||'').toLowerCase().includes(q);
+  });
+  admPickerRender(filtered);
+  document.getElementById('adm-picker-all').checked = false;
+}
+
+function admPickerUpdateCount() {
+  var n = document.querySelectorAll('.adm-picker-chk:checked').length;
+  var btn = document.getElementById('adm-picker-save');
+  btn.innerHTML = '<i class="fa fa-check"></i> Add selected (' + n + ')';
+}
+
+function admPickerToggleAll(checked) {
+  document.querySelectorAll('.adm-picker-chk').forEach(function(cb){ cb.checked = checked; });
+  admPickerUpdateCount();
+}
+
+function admCloseExpPicker() {
+  document.getElementById('adm-db-picker').style.display = 'none';
+}
+
+async function admAddSelectedToDb() {
+  var selected = Array.from(document.querySelectorAll('.adm-picker-chk:checked')).map(function(cb){ return cb.value; });
+  if (!selected.length) { document.getElementById('adm-picker-status').textContent = 'Select at least one experience.'; return; }
+  var statusEl = document.getElementById('adm-picker-status');
+  statusEl.style.color = 'var(--muted)';
+  statusEl.textContent = 'Saving…';
+  try {
+    var rows = selected.map(function(expId){ return { experience_id: expId, database_id: admCurrentDbId }; });
+    var res = await db_client.from('experience_database_links').upsert(rows, { onConflict: 'experience_id,database_id' });
+    if (res.error) throw new Error(res.error.message);
+    statusEl.style.color = 'green';
+    statusEl.textContent = '✓ ' + selected.length + ' experience' + (selected.length > 1 ? 's' : '') + ' added!';
+    admCloseExpPicker();
+    // Refresh the database detail
+    var idx = admDatabases.findIndex(function(d){ return d.id === admCurrentDbId; });
+    if (idx >= 0) setTimeout(function(){ admDbDetail(idx); }, 500);
+    await loadAdmDatabases();
+  } catch(err) {
+    statusEl.style.color = 'red';
+    statusEl.textContent = '✗ ' + err.message;
   }
 }
 
