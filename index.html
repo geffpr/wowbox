@@ -7293,6 +7293,7 @@ function go(page) {
   if (page === 'admin') renderAdmin();
   if (page === 'partner-landing') renderPartnerLanding();
   if (page === 'browse') { loadExpFromSupabase().then(function(){ renderBrowse(); browseSaveToURL(); }); }
+  if (page === 'product') { loadExpFromSupabase(); }
   if (page === 'roulette') initRoulettePage();
   if (page === 'partner') initPartnerPage();
   if (page === 'dashboard') {
