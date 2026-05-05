@@ -11448,12 +11448,21 @@ async function loadAdminDashStats() {
     const monthName = now.toLocaleString('en-ZA', {month:'long'});
     set('adm-dash-period', monthName + ' ' + now.getFullYear() + ' overview');
 
-    // Boxes sold this month
-    const soldR = await db_client.from('vouchers').select('id',{count:'exact',head:true}).neq('status','inactive').gte('created_at',monthStart);
-    const soldL = await db_client.from('vouchers').select('id',{count:'exact',head:true}).neq('status','inactive').gte('created_at',lastMonthStart).lt('created_at',monthStart);
-    const sold = soldR.count || 0, soldLast = soldL.count || 0;
+    // Boxes sold this month — use regular select (HEAD count blocked by RLS on vouchers)
+    const soldR = await db_client.from('vouchers').select('id').not('order_id','is',null).gte('created_at',monthStart);
+    const soldL = await db_client.from('vouchers').select('id').not('order_id','is',null).gte('created_at',lastMonthStart).lt('created_at',monthStart);
+    const sold = (soldR.data||[]).length, soldLast = (soldL.data||[]).length;
     set('adm-kpi-boxes-sold', sold.toLocaleString());
     set('adm-kpi-boxes-chg', soldLast > 0 ? (sold >= soldLast ? '↑ +' : '↓ ') + Math.abs(Math.round(((sold-soldLast)/soldLast)*100)) + '% vs last month' : sold + ' this month');
+
+    // Revenue this month from orders table
+    const revR = await db_client.from('orders').select('total_amount').gte('created_at',monthStart);
+    const revL = await db_client.from('orders').select('total_amount').gte('created_at',lastMonthStart).lt('created_at',monthStart);
+    const rev     = (revR.data||[]).reduce(function(s,r){ return s + (Number(r.total_amount)||0); }, 0);
+    const revLast = (revL.data||[]).reduce(function(s,r){ return s + (Number(r.total_amount)||0); }, 0);
+    const revDelta = revLast > 0 ? (rev >= revLast ? '↑ +' : '↓ ') + Math.abs(Math.round(((rev-revLast)/revLast)*100)) + '% vs last month' : rev > 0 ? rev + ' this month' : '—';
+    set('adm-kpi-revenue', rev > 0 ? 'R' + rev.toLocaleString('en-ZA') : '—');
+    set('adm-kpi-revenue-chg', revDelta);
 
     // Active partners
     const partR = await db_client.from('user_profiles').select('id',{count:'exact',head:true}).eq('role','partner');
