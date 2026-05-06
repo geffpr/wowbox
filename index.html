@@ -76,7 +76,12 @@ function renderUsageTable() {
   }).join('') || '<tr><td colspan="8" style="text-align:center;padding:28px;color:var(--muted)">No bookings yet.</td></tr>';
   const month = new Date().toISOString().slice(0,7);
   const thisMonth = filtered.filter(function(r){ return r.created.startsWith(month); }).length;
+  const nPending  = filtered.filter(function(r){ return r.status === 'pending_confirmation'; }).length;
+  const nUsed     = filtered.filter(function(r){ return r.status === 'used'; }).length;
+  const nCancelled= filtered.filter(function(r){ return r.status === 'cancelled'; }).length;
   if (lbl) lbl.textContent = filtered.length + ' booking' + (filtered.length!==1?'s':'') + ' · ' + thisMonth + ' this month';
+  var summaryEl = document.getElementById('usage-summary-badges');
+  if (summaryEl) summaryEl.innerHTML = '⏳ <strong>'+nPending+'</strong> pending &nbsp;•&nbsp; ✅ <strong>'+nUsed+'</strong> validated &nbsp;•&nbsp; ❌ <strong>'+nCancelled+'</strong> cancelled';
 }
 
 function exportUsageCSV() {
@@ -1145,8 +1150,8 @@ async function loadUserBoxes(email) {
       });
     }
 
-    var statusMap   = { active:'sb-a', used:'sb-u', expired:'sb-e', inactive:'sb-p' };
-    var statusLabel = { active:'Active', used:'Used', expired:'Expired', inactive:'Pending activation' };
+    var statusMap   = { active:'sb-a', used:'sb-u', expired:'sb-e', inactive:'sb-p', booked:'sb-b' };
+    var statusLabel = { active:'Active', used:'Used', expired:'Expired', inactive:'Pending activation', booked:'Experience booked' };
     var html = vouchers.map(function(v) {
       var box    = boxDB[v.box_id] || {};
       var imgSrc = box.img || 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?q=80&w=100&auto=format&fit=crop';
@@ -1184,6 +1189,7 @@ async function loadUserBoxes(email) {
         + '<div style="flex:1"><div style="font-size:.9rem;font-weight:600;color:var(--navy);margin-bottom:2px">' + (v.box_name || box.name || 'WowBox') + '</div>'
         + '<div style="font-size:.73rem;color:var(--muted)">Code: ' + v.code + (createdDate ? ' · Purchased ' + createdDate : '') + '</div>'
         + (expiryDate ? '<div style="font-size:.7rem;color:var(--muted)">Expires: ' + expiryDate + '</div>' : '')
+        + (st === 'booked' && v.booked_experience ? '<div style="font-size:.72rem;color:var(--b600);margin-top:3px"><i class="fa fa-calendar-check"></i> ' + v.booked_experience + (v.booking_date ? ' · ' + v.booking_date.slice(0,10) : '') + '</div>' : '')
         + '</div>'
         + '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:7px">'
         + '<span class="sbadge ' + (statusMap[st] || 'sb-p') + '">' + (statusLabel[st] || st) + '</span>'
@@ -2243,6 +2249,7 @@ nav{position:sticky;top:0;z-index:300;background:rgba(255,255,255,.95);
 .sb-u{background:#d1fae5;color:#065f46}
 .sb-e{background:#fee2e2;color:#991b1b}
 .sb-p{background:#fef3c7;color:#92400e}
+.sb-b{background:#dbeafe;color:#1d4ed8}
 .order-card{background:var(--white);border:1.5px solid var(--border);border-radius:var(--r);
   padding:18px;margin-bottom:12px;transition:all .16s;cursor:pointer}
 .order-card:hover{box-shadow:var(--md);border-color:var(--b200)}
@@ -6268,8 +6275,9 @@ tr:hover td{background:var(--b50)}
             <h4 id="usage-count-label">Loading…</h4>
             <button class="btn bg bsm" onclick="exportUsageCSV()"><i class="fa fa-download"></i> Export CSV</button>
           </div>
+          <div id="usage-summary-badges" style="font-size:.8rem;color:var(--muted);padding:8px 16px 4px;border-bottom:1px solid var(--border)"></div>
           <table>
-            <thead><tr><th>Box code</th><th>Box type</th><th>Customer</th><th>User account</th><th>Experience used</th><th>Partner</th><th>Date used</th></tr></thead>
+            <thead><tr><th>Booking Ref</th><th>Experience</th><th>WowBox</th><th>Customer</th><th>Partner</th><th>Status</th><th>Booked</th><th>Validated</th></tr></thead>
             <tbody id="adm-usage-tbody"></tbody>
           </table>
         </div>
@@ -11050,6 +11058,14 @@ async function validateVoucher() {
       validated_at: usedAt,
       partner_name: partnerName,
     }).eq('booking_reference', raw);
+    // Also mark the linked voucher as used so My Account reflects correctly
+    if (bk.voucher_code) {
+      await db_client.from('vouchers').update({
+        status:  'used',
+        used_at: usedAt,
+        partner_name: partnerName,
+      }).eq('code', bk.voucher_code);
+    }
 
     resEl.innerHTML = renderValidationResult('success', {
       boxName:    bk.box_name || '—',
@@ -14493,18 +14509,14 @@ async function loadPartnerBookings() {
   listEl.innerHTML = '<div style="text-align:center;padding:24px;color:var(--muted)"><i class="fa fa-spinner fa-spin"></i></div>';
   try {
     var email = currentUser && currentUser.email ? currentUser.email : '';
-    // Get bookings for this partner's experiences
+    // Filter by partner_email server-side — secure and efficient
     var res = await db_client.from('bookings')
       .select('*')
+      .eq('partner_email', email)
       .order('created_at', { ascending: false })
-      .limit(50);
+      .limit(100);
     if (res.error) throw res.error;
-    var bookings = (res.data || []).filter(function(b){
-      return b.partner_name && currentUser && (
-        b.partner_name === currentUser.displayName ||
-        b.partner_name === (currentUser.user_metadata && currentUser.user_metadata.full_name)
-      );
-    });
+    var bookings = res.data || [];
     if (!bookings.length) {
       listEl.innerHTML = '<div style="text-align:center;padding:32px;color:var(--muted);font-size:.85rem"><i class="fa fa-calendar-days" style="font-size:2rem;opacity:.3;display:block;margin-bottom:10px"></i>No bookings yet.</div>';
       return;
