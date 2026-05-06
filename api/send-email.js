@@ -331,7 +331,7 @@ function tplBookingCustomer(o) {
     subject: `✅ Booking confirmed — ${o.experienceName}`,
     html: layout(`
       ${badge('✅ Experience Booked', '#059669')}
-      ${h1("You're all set, " + o.customerName + '!')}
+      ${h1("You're all set, " + (o.guestName || o.customerName) + '!')}
       ${p('Your booking for <strong>' + o.experienceName + '</strong> is confirmed. Present your booking reference when you arrive.')}
       ${infoTable(
         infoRow('Experience', o.experienceName || '—') +

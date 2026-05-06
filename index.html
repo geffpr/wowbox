@@ -24,7 +24,7 @@ async function loadUsageFromSupabase() {
   try {
     const { data, error } = await db_client
       .from('bookings')
-      .select('booking_reference,experience_name,box_name,customer_name,customer_email,partner_name,status,booking_date,validated_at,created_at')
+      .select('booking_reference,experience_name,box_name,customer_name,customer_email,guest_name,partner_name,status,booking_date,booking_time,validated_at,created_at')
       .order('created_at', { ascending: false })
       .limit(200);
     if (error || !data) return;
@@ -34,9 +34,11 @@ async function loadUsageFromSupabase() {
         experience: b.experience_name   || '—',
         box:        b.box_name          || '—',
         customer:   b.customer_name     || '—',
+        guest:      b.guest_name        || b.customer_name || '—',
         email:      b.customer_email    || '—',
         partner:    b.partner_name      || '—',
         status:     b.status            || '—',
+        time:       b.booking_time      || '',
         date:       b.booking_date      ? b.booking_date.slice(0,10) : '',
         validated:  b.validated_at      ? b.validated_at.slice(0,10) : '',
         created:    b.created_at        ? b.created_at.slice(0,10)   : '',
@@ -67,10 +69,10 @@ function renderUsageTable() {
     + '<td><code style="font-size:.75rem;color:var(--b700)">'+r.code+'</code></td>'
     + '<td style="font-size:.82rem">'+r.experience+'</td>'
     + '<td style="font-size:.78rem;color:var(--muted)">'+r.box+'</td>'
-    + '<td style="font-size:.8rem">'+r.customer+'</td>'
+    + '<td style="font-size:.8rem">'+r.guest+'</td>'
     + '<td style="font-size:.75rem;color:var(--muted)">'+r.partner+'</td>'
     + '<td>'+statusBadge(r.status)+'</td>'
-    + '<td style="font-size:.75rem;color:var(--muted)">'+fmt(r.date)+'</td>'
+    + '<td style="font-size:.75rem;color:var(--muted)">'+(r.date+(r.time?' '+r.time:''))+'</td>'
     + '<td style="font-size:.75rem;color:var(--muted)">'+fmt(r.validated)+'</td>'
     + '</tr>';
   }).join('') || '<tr><td colspan="8" style="text-align:center;padding:28px;color:var(--muted)">No bookings yet.</td></tr>';
@@ -1159,7 +1161,7 @@ async function loadUserBoxes(email) {
       var st     = v.status || 'inactive';
       var browseBtn = '';
       if (st === 'active') {
-        browseBtn = '<button class="btn bp bsm" onclick="openBrowsePage(\'' + v.box_id + '\', \'' + (v.expires_at||'') + '\')">Browse <i class="fa fa-arrow-right"></i></button>';
+        browseBtn = '<button class="btn bp bsm" onclick="openBrowsePage(\'' + v.box_id + '\', \'' + (v.expires_at||'') + '\', \'' + v.code + '\')">Browse <i class="fa fa-arrow-right"></i></button>';
       } else if (st === 'booked') {
         var canCancel = true;
         if (v.booking_date) {
@@ -6277,7 +6279,7 @@ tr:hover td{background:var(--b50)}
           </div>
           <div id="usage-summary-badges" style="font-size:.8rem;color:var(--muted);padding:8px 16px 4px;border-bottom:1px solid var(--border)"></div>
           <table>
-            <thead><tr><th>Booking Ref</th><th>Experience</th><th>WowBox</th><th>Customer</th><th>Partner</th><th>Status</th><th>Booked</th><th>Validated</th></tr></thead>
+            <thead><tr><th>Booking Ref</th><th>Experience</th><th>WowBox</th><th>Guest</th><th>Partner</th><th>Status</th><th>Date &amp; Time</th><th>Validated</th></tr></thead>
             <tbody id="adm-usage-tbody"></tbody>
           </table>
         </div>
@@ -7497,10 +7499,11 @@ function setNL(id) {
 /* ══════════════════════════════════════════════════════════════
    BROWSE EXPERIENCES PAGE (post-purchase)
 ══════════════════════════════════════════════════════════════ */
-function openBrowsePage(boxId, expiresAt) {
+function openBrowsePage(boxId, expiresAt, voucherCode) {
   appState.browseBoxId = boxId || appState.currentBoxId;
   appState.browseVoucherExpiry = expiresAt || null;
   appState.boxActivated = true;
+  if (voucherCode) appState.activatedVoucher = { code: voucherCode };
   appState.browsePage = 1;
   clearBrowseFilters(true);
   sessionStorage.setItem('wowbox_browse_box', appState.browseBoxId || '');
@@ -9018,6 +9021,7 @@ async function confirmExpBooking() {
         customer_email:     custEmail,
         customer_name:      custName,
         guests:             parseInt(data.guests) || 2,
+        guest_name:         data.guest1 || '',
         booking_date:       bookingDate || null,
         booking_time:       bookingTime || null,
         reservation_type:   rt,
@@ -9059,6 +9063,7 @@ async function confirmExpBooking() {
         guests:           data.guests || '2',
         voucherCode:      finalCode || '',
         bookingReference: bkRef,
+        guestName:        data.guest1 || custName,
         address:          e.address  || e.loc || '',
         phone:            e.phone    || '',
         location:         e.loc      || '',
@@ -10890,7 +10895,7 @@ function browseActivatedBox() {
   appState.currentBoxId   = boxId;
   appState.currentBoxCode = v.code;
   // Use openBrowsePage which correctly sets browseBoxId
-  openBrowsePage(boxId, v.expires_at || null);
+  openBrowsePage(boxId, v.expires_at || null, v.code || null);
 }
 
 async function activateBox() {
@@ -14527,13 +14532,19 @@ async function loadPartnerBookings() {
       var bDate = b.booking_date ? new Date(b.booking_date).toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'}) : '—';
       var sColor = statusColors[b.status] || '#64748b';
       var canValidate = b.status === 'pending_confirmation' || b.status === 'confirmed';
+      var guestDisplay = b.guest_name && b.guest_name !== b.customer_name ? b.guest_name : (b.customer_name||'—');
+      var timeDisplay  = b.booking_time ? ' · ' + b.booking_time : '';
       return '<div style="background:#fff;border:1px solid var(--border);border-radius:var(--r);padding:16px;margin-bottom:10px">'
         + '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">'
         + '<div><div style="font-weight:700;font-size:.88rem;color:var(--navy)">' + (b.experience_name||'—') + '</div>'
-        + '<div style="font-size:.75rem;color:var(--muted)">Booked ' + date + ' · ' + (b.guests||'2') + ' guests · For ' + bDate + '</div></div>'
+        + '<div style="font-size:.75rem;color:var(--muted)">For ' + bDate + timeDisplay + ' · ' + (b.guests||'2') + ' guest' + ((b.guests||2)!=1?'s':'') + '</div></div>'
         + '<span style="font-size:.7rem;font-weight:700;color:' + sColor + ';background:' + sColor + '18;padding:3px 10px;border-radius:99px;flex-shrink:0">' + (b.status||'').replace('_',' ') + '</span>'
         + '</div>'
-        + '<div style="font-size:.78rem;color:var(--slate);margin-bottom:10px">' + (b.customer_name||'') + (b.customer_email ? ' · ' + b.customer_email : '') + '</div>'
+        + '<div style="display:flex;gap:16px;margin-bottom:10px;flex-wrap:wrap">'
+        + '<div style="font-size:.78rem"><span style="color:var(--muted)">Guest: </span><strong>' + guestDisplay + '</strong></div>'
+        + '<div style="font-size:.78rem"><span style="color:var(--muted)">Contact: </span>' + (b.customer_name||'') + (b.customer_email ? ' · ' + b.customer_email : '') + '</div>'
+        + (b.booking_reference ? '<div style="font-size:.78rem"><span style="color:var(--muted)">Ref: </span><code style="color:var(--b700);font-size:.75rem">' + b.booking_reference + '</code></div>' : '')
+        + '</div>'
         + (canValidate ? '<button class="btn bgreen bsm" onclick="ppValidateBooking(\'' + b.id + '\',\'' + (b.voucher_code||'') + '\',this)"><i class="fa fa-qrcode"></i> Mark as used</button>' : '')
         + '</div>';
     }).join('');
