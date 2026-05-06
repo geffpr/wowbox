@@ -307,9 +307,10 @@ function tplBookingCustomer(o) {
         infoRow('Partner', o.partnerName || '—') +
         infoRow('Date', dateDisplay) +
         infoRow('Guests', o.guests || '2') +
-        infoRow('Voucher code', codeDisplay)
+        infoRow('Booking Reference', o.bookingReference || '—') +
+        infoRow('Box Code', codeDisplay)
       )}
-      ${codeBox(codeDisplay)}
+      ${codeBox(o.bookingReference || codeDisplay)}
       ${hr()}
       ${highlight('<strong>📞 Next step:</strong> Contact <strong>' + (o.partnerName || 'the partner') + '</strong> to confirm your visit date and time.<br>Present this email or your voucher code when you arrive — the partner will scan or enter it to validate your experience.')}
       ${btn('My Account', SITE_URL + '/my-account')}
@@ -337,7 +338,7 @@ function tplBookingPartner(o) {
         infoRow('Voucher code', codeDisplay)
       )}
       ${hr()}
-      ${highlight('<strong>Action required:</strong> Contact the guest to confirm the visit. When they arrive, validate their voucher code <strong>' + codeDisplay + '</strong> in your Partner Portal.')}
+      ${highlight('<strong>Action required:</strong> Contact the guest to confirm the visit. When they arrive, ask them to present their booking reference <strong>' + (o.bookingReference || codeDisplay) + '</strong> — enter it in your Partner Portal to validate the experience.')}
       ${btn('Open Partner Portal', SITE_URL + '/partner')}
       ${sm('Questions? <a href="mailto:support@wowbox.co.za" style="color:' + C.goldDark + '">support@wowbox.co.za</a>')}
     `, HEROES.booking, 'New WowBox booking for ' + o.experienceName),

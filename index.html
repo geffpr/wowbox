@@ -23,21 +23,25 @@ var usageDB = []; // Real data loaded from Supabase only
 async function loadUsageFromSupabase() {
   try {
     const { data, error } = await db_client
-      .from('vouchers')
-      .select('code, box_name, user_email, experience_used, partner_name, used_at')
-      .eq('status', 'used')
-      .not('used_at', 'is', null)
-      .order('used_at', { ascending: false });
+      .from('bookings')
+      .select('booking_reference,experience_name,box_name,customer_name,customer_email,partner_name,status,booking_date,validated_at,created_at')
+      .order('created_at', { ascending: false })
+      .limit(200);
     if (error || !data) return;
-    usageDB = data.map(v => ({
-      code:       v.code || '—',
-      box:        v.box_name || '—',
-      customer:   v.user_email || '—',
-      email:      v.user_email || '—',
-      experience: v.experience_used || '—',
-      partner:    v.partner_name || '—',
-      date:       v.used_at ? v.used_at.slice(0, 10) : ''
-    }));
+    usageDB = data.map(function(b) {
+      return {
+        code:       b.booking_reference || '—',
+        experience: b.experience_name   || '—',
+        box:        b.box_name          || '—',
+        customer:   b.customer_name     || '—',
+        email:      b.customer_email    || '—',
+        partner:    b.partner_name      || '—',
+        status:     b.status            || '—',
+        date:       b.booking_date      ? b.booking_date.slice(0,10) : '',
+        validated:  b.validated_at      ? b.validated_at.slice(0,10) : '',
+        created:    b.created_at        ? b.created_at.slice(0,10)   : '',
+      };
+    });
     renderUsageTable();
   } catch(e) { console.warn('loadUsageFromSupabase:', e.message); }
 }
@@ -54,16 +58,25 @@ function renderUsageTable() {
     (!fBox||r.box.includes(fBox)) && (!fPartner||r.partner===fPartner) && (!fFrom||r.date>=fFrom) && (!fTo||r.date<=fTo)
   );
   const fmt = d => d ? new Date(d+'T00:00:00').toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'}) : '—';
-  tbody.innerHTML = filtered.map(r => `<tr>
-    <td><code style="font-size:.75rem;color:var(--b700)">${r.code}</code></td>
-    <td>${r.box}</td><td>${r.customer}</td>
-    <td style="font-size:.78rem;color:var(--muted)">${r.email}</td>
-    <td>${r.experience}</td><td>${r.partner}</td>
-    <td style="font-size:.8rem;color:var(--muted)">${fmt(r.date)}</td>
-  </tr>`).join('') || '<tr><td colspan="7" style="text-align:center;padding:28px;color:var(--muted)">No records match your filters.</td></tr>';
+  const statusBadge = function(s) {
+    var c = {'pending_confirmation':'#d97706','used':'#16a34a','cancelled':'#dc2626','confirmed':'#2563eb'}[s] || '#64748b';
+    var l = {'pending_confirmation':'Pending','used':'Validated','cancelled':'Cancelled','confirmed':'Confirmed'}[s] || s;
+    return '<span style="font-size:.7rem;font-weight:700;color:'+c+';background:'+c+'18;padding:2px 8px;border-radius:99px">'+l+'</span>';
+  };
+  tbody.innerHTML = filtered.map(function(r) { return '<tr>'
+    + '<td><code style="font-size:.75rem;color:var(--b700)">'+r.code+'</code></td>'
+    + '<td style="font-size:.82rem">'+r.experience+'</td>'
+    + '<td style="font-size:.78rem;color:var(--muted)">'+r.box+'</td>'
+    + '<td style="font-size:.8rem">'+r.customer+'</td>'
+    + '<td style="font-size:.75rem;color:var(--muted)">'+r.partner+'</td>'
+    + '<td>'+statusBadge(r.status)+'</td>'
+    + '<td style="font-size:.75rem;color:var(--muted)">'+fmt(r.date)+'</td>'
+    + '<td style="font-size:.75rem;color:var(--muted)">'+fmt(r.validated)+'</td>'
+    + '</tr>';
+  }).join('') || '<tr><td colspan="8" style="text-align:center;padding:28px;color:var(--muted)">No bookings yet.</td></tr>';
   const month = new Date().toISOString().slice(0,7);
-  const thisMonth = filtered.filter(r => r.date.startsWith(month)).length;
-  if (lbl) lbl.textContent = `${filtered.length} redemption${filtered.length!==1?'s':''} · ${thisMonth} this month`;
+  const thisMonth = filtered.filter(function(r){ return r.created.startsWith(month); }).length;
+  if (lbl) lbl.textContent = filtered.length + ' booking' + (filtered.length!==1?'s':'') + ' · ' + thisMonth + ' this month';
 }
 
 function exportUsageCSV() {
@@ -8981,30 +8994,35 @@ async function confirmExpBooking() {
         } catch(vcErr) { console.warn('voucher fetch:', vcErr.message); }
       }
 
+      // Generate unique booking reference BK-XXXX-XXXX
+      var bkRef = 'BK-' + Math.random().toString(36).substring(2,6).toUpperCase()
+                + '-' + Math.random().toString(36).substring(2,6).toUpperCase();
+
       // INSERT booking
       var bkRes = await db_client.from('bookings').insert({
-        voucher_code:     finalCode || null,
-        experience_id:    e.id,
-        experience_name:  e.name,
-        partner_name:     e.partner || '',
-        partner_email:    e.partnerEmail || '',
-        customer_email:   custEmail,
-        customer_name:    custName,
-        guests:           parseInt(data.guests) || 2,
-        booking_date:     bookingDate || null,
-        booking_time:     bookingTime || null,
-        reservation_type: rt,
-        booking_details:  data,
-        status:           'pending_confirmation',
+        voucher_code:       finalCode || null,
+        booking_reference:  bkRef,
+        experience_id:      e.id,
+        experience_name:    e.name,
+        box_name:           (boxDB[appState.browseBoxId] && boxDB[appState.browseBoxId].name) || '',
+        partner_name:       e.partner || '',
+        partner_email:      e.partnerEmail || '',
+        customer_email:     custEmail,
+        customer_name:      custName,
+        guests:             parseInt(data.guests) || 2,
+        booking_date:       bookingDate || null,
+        booking_time:       bookingTime || null,
+        reservation_type:   rt,
+        booking_details:    data,
+        status:             'pending_confirmation',
       }).select('id').single();
 
       var bookingId = bkRes.data ? bkRes.data.id : null;
+      if (bkRes.error) console.warn('Booking insert:', bkRes.error.message);
 
-      // Show real booking reference in voucher screen
-      if (bookingId) {
-        var refEl = document.getElementById('v-bref-display');
-        if (refEl) refEl.textContent = 'BK-' + bookingId.toString().substring(0,8).toUpperCase();
-      }
+      // Display booking reference in confirmation screen
+      var refEl = document.getElementById('v-bref-display');
+      if (refEl) refEl.textContent = bkRef;
 
       // Show real voucher code if we got it from Supabase
       if (finalCode) {
@@ -9021,18 +9039,17 @@ async function confirmExpBooking() {
         }).eq('code', finalCode);
       }
 
-      if (bkRes.error) console.warn('Booking insert:', bkRes.error.message);
-
-      // Send confirmation emails (customer + partner)
+      // Send confirmation emails (customer + partner) — include booking reference
       sendOrderEmail('booking_confirmation', {
-        customerEmail:  custEmail,
-        customerName:   custName,
-        partnerEmail:   e.partnerEmail || '',
-        partnerName:    e.partner || '',
-        experienceName: e.name,
-        bookingDate:    bookingDate || '',
-        guests:         data.guests || '2',
-        voucherCode:    finalCode || '',
+        customerEmail:    custEmail,
+        customerName:     custName,
+        partnerEmail:     e.partnerEmail || '',
+        partnerName:      e.partner || '',
+        experienceName:   e.name,
+        bookingDate:      bookingDate || '',
+        guests:           data.guests || '2',
+        voucherCode:      finalCode || '',
+        bookingReference: bkRef,
       });
 
     } catch(err) {
@@ -10975,61 +10992,73 @@ function generateBoxCode(boxId) {
 }
 
 /* ── VALIDATION ENGINE ── */
-function validateVoucher() {
+async function validateVoucher() {
   const raw   = (document.getElementById('vi-input')?.value || '').trim().toUpperCase();
   const resEl = document.getElementById('v-result');
   if (!resEl) return;
 
   if (!raw) {
     resEl.style.display = 'block';
-    resEl.innerHTML = renderValidationResult('error', null, 'Please enter a voucher code.');
+    resEl.innerHTML = renderValidationResult('error', null, 'Please enter a booking reference.');
+    return;
+  }
+  if (!raw.startsWith('BK-')) {
+    resEl.style.display = 'block';
+    resEl.innerHTML = renderValidationResult('error', null, 'Please enter a valid booking reference (format: BK-XXXX-XXXX).');
     return;
   }
 
-  const entry = codeDB[raw];
-  if (!entry) {
-    resEl.style.display = 'block';
-    resEl.innerHTML = renderValidationResult('not_found', null, raw);
-    return;
-  }
-  if (entry.status === 'used') {
-    resEl.style.display = 'block';
-    resEl.innerHTML = renderValidationResult('already_used', entry, raw);
-    return;
-  }
-  if (entry.status === 'inactive') {
-    resEl.style.display = 'block';
-    resEl.innerHTML = renderValidationResult('inactive', entry, raw);
-    return;
-  }
-  // Check expiry (1 year from activation)
-  if (entry.activatedAt) {
-    const activated = new Date(entry.activatedAt);
-    const expiry    = new Date(activated.setFullYear(activated.getFullYear() + 1));
-    if (new Date() > expiry) {
-      resEl.style.display = 'block';
-      resEl.innerHTML = renderValidationResult('expired', entry, raw);
+  resEl.style.display = 'block';
+  resEl.innerHTML = '<div style="padding:18px;text-align:center;color:var(--muted)"><i class="fa fa-spinner fa-spin"></i> Checking...</div>';
+
+  try {
+    var res = await db_client.from('bookings')
+      .select('*')
+      .eq('booking_reference', raw)
+      .maybeSingle();
+
+    if (res.error) throw res.error;
+
+    if (!res.data) {
+      resEl.innerHTML = renderValidationResult('not_found', null, raw);
       return;
     }
+
+    var bk = res.data;
+
+    if (bk.status === 'used' || bk.status === 'validated') {
+      resEl.innerHTML = renderValidationResult('already_used', {
+        usedAt:  bk.validated_at ? bk.validated_at.slice(0,10) : '—',
+        partner: bk.partner_name || 'a partner venue',
+      }, raw);
+      return;
+    }
+    if (bk.status === 'cancelled') {
+      resEl.innerHTML = renderValidationResult('not_found', null, raw);
+      return;
+    }
+
+    // Valid — mark as used in Supabase
+    var usedAt = new Date().toISOString();
+    var partnerName = appState.partnerName || 'Partner';
+    await db_client.from('bookings').update({
+      status:       'used',
+      validated_at: usedAt,
+      partner_name: partnerName,
+    }).eq('booking_reference', raw);
+
+    resEl.innerHTML = renderValidationResult('success', {
+      boxName:    bk.box_name || '—',
+      userId:     bk.customer_name || bk.customer_email || '—',
+      experience: bk.experience_name || '—',
+      partner:    partnerName,
+      bookingDate: bk.booking_date || '—',
+      guests:     bk.guests || '2',
+    }, raw);
+    resEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  } catch(err) {
+    resEl.innerHTML = renderValidationResult('error', null, 'Error: ' + (err.message || 'unknown'));
   }
-  // ✅ Valid — mark as used in memory + Supabase
-  const usedDate = new Date().toISOString().slice(0,10);
-  entry.status  = 'used';
-  entry.usedAt  = usedDate;
-  entry.partner = appState.partnerName || 'Partner';
-  (async () => {
-    try {
-      await db_client.from('vouchers').update({ status:'used', used_at:usedDate, partner_name:entry.partner }).eq('code', raw);
-      await db_client.from('activation_logs').insert({ voucher_code:raw, outcome:'validated', activated_by:entry.partner, ip_address:'(browser)' });
-      if (typeof usageDB !== 'undefined' && !usageDB.find(u => u.code === raw)) {
-        usageDB.unshift({ code:raw, box:entry.boxName||'', customer:entry.userId||'Customer', email:entry.userId||'', experience:entry.experience||'—', partner:entry.partner, date:usedDate });
-        renderUsageTable();
-      }
-    } catch(err) { console.warn('validateVoucher Supabase (non-blocking):', err.message); }
-  })();
-  resEl.style.display = 'block';
-  resEl.innerHTML  = renderValidationResult('success', entry, raw);
-  resEl.scrollIntoView({behavior:'smooth', block:'nearest'});
 }
 
 function renderValidationResult(type, entry, code) {
@@ -11046,7 +11075,7 @@ function renderValidationResult(type, entry, code) {
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px 20px;margin-bottom:12px">
         <div><span style="font-size:.68rem;font-weight:700;text-transform:uppercase;color:#065f46;opacity:.7">Code</span><div style="font-family:'Courier New',monospace;font-size:.85rem;font-weight:700;color:#065f46">${code}</div></div>
-        <div><span style="font-size:.68rem;font-weight:700;text-transform:uppercase;color:#065f46;opacity:.7">Box</span><div style="font-size:.82rem;color:#065f46">${entry.boxName}</div></div>
+        <div><span style="font-size:.68rem;font-weight:700;text-transform:uppercase;color:#065f46;opacity:.7">Experience</span><div style="font-size:.82rem;color:#065f46">${entry.experience||'—'}</div></div>
         <div><span style="font-size:.68rem;font-weight:700;text-transform:uppercase;color:#065f46;opacity:.7">Customer</span><div style="font-size:.82rem;color:#065f46">${entry.userId}</div></div>
         <div><span style="font-size:.68rem;font-weight:700;text-transform:uppercase;color:#065f46;opacity:.7">Status</span><div style="font-size:.82rem;font-weight:700;color:#065f46">✅ Marked as used</div></div>
         <div><span style="font-size:.68rem;font-weight:700;text-transform:uppercase;color:#065f46;opacity:.7">Your payout (${partnerPct}%)</span><div style="font-size:1rem;font-weight:700;color:#065f46">R${payout}</div></div>
