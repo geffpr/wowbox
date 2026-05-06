@@ -6972,6 +6972,14 @@ tr:hover td{background:var(--b50)}
             </tbody>
           </table>
         </div>
+
+        <!-- DB Schema Diagnostic -->
+        <div class="atbl" style="margin-top:22px;padding:20px;background:#fffbeb;border-color:#fcd34d">
+          <h3 style="font-size:.9rem;color:#92400e;margin-bottom:8px"><i class="fa fa-magnifying-glass-chart"></i> Schema Diagnostic</h3>
+          <p style="font-size:.78rem;color:#92400e;margin-bottom:12px">Inspect real column names from your Supabase tables so the Users section can join data correctly.</p>
+          <button class="btn bsm" style="background:#fef3c7;color:#92400e;border:1px solid #fcd34d" onclick="admRunSchemaDiag()"><i class="fa fa-play"></i> Run diagnostic</button>
+          <pre id="adm-diag-out" style="display:none;margin-top:14px;background:#1e293b;color:#e2e8f0;padding:16px;border-radius:var(--rs);font-size:.72rem;overflow-x:auto;white-space:pre-wrap;max-height:500px;overflow-y:auto"></pre>
+        </div>
       </div>
 
     </div><!-- /adm-main -->
@@ -15475,32 +15483,38 @@ async function admLoadUsers() {
       .order('created_at', { ascending: false });
     if (uErr) throw uErr;
 
-    // Load all vouchers (WB + PHYS codes)
+    // Load all vouchers (join via user_email)
     const { data: vouchers } = await db_client
       .from('vouchers')
-      .select('user_id, code, type, status, box_name, used_at, partner_name, recipient_name, recipient_email, is_physical, created_at');
+      .select('user_email, code, status, box_name, box_id, used_at, partner_name, is_physical_box, linked_wb_code, linked_phys_code, order_id, created_at, activated_at, expires_at, experience_used');
 
-    // Load all bookings (BK codes)
+    // Load all bookings (join via customer_email)
     const { data: bookings } = await db_client
       .from('bookings')
-      .select('customer_id, booking_reference, experience_name, partner_name, status, booking_date, created_at, guests, voucher_code');
+      .select('customer_email, customer_name, booking_reference, experience_name, partner_name, status, booking_date, created_at, guests, voucher_code, box_name');
 
-    // Load all orders
+    // Load all orders (join via user_id OR user_email)
     const { data: orders } = await db_client
       .from('orders')
-      .select('user_id, id, amount, box_name, type, status, created_at, recipient_name, recipient_email')
+      .select('user_id, user_email, id, total_amount, delivery_type, status, created_at, recipient_name, recipient_email, coupon_code, customer_name, customer_email')
       .order('created_at', { ascending: false });
 
-    // Assemble enriched user objects
+    // Assemble enriched user objects — join on email since vouchers/bookings have no user_id
     _admUsersData = (users || []).map(u => {
-      const uVouchers  = (vouchers  || []).filter(v => v.user_id === u.id);
-      const uBookings  = (bookings  || []).filter(b => b.customer_id === u.id);
-      const uOrders    = (orders    || []).filter(o => o.user_id === u.id);
-      const wbCodes    = uVouchers.filter(v => v.code && v.code.startsWith('WB-'));
-      const physCodes  = uVouchers.filter(v => v.is_physical);
-      const lastOrder  = uOrders[0] || null;
+      const email      = (u.email || '').toLowerCase();
+      const uVouchers  = (vouchers || []).filter(v => (v.user_email || '').toLowerCase() === email);
+      const uBookings  = (bookings || []).filter(b => (b.customer_email || '').toLowerCase() === email);
+      const uOrders    = (orders   || []).filter(o =>
+        (o.user_id && o.user_id === u.id) ||
+        (o.user_email || '').toLowerCase() === email ||
+        (o.customer_email || '').toLowerCase() === email
+      );
+      const wbCodes   = uVouchers.filter(v => v.code && v.code.startsWith('WB-'));
+      const physCodes = uVouchers.filter(v => v.is_physical_box);
+      const bkCodes   = uBookings.filter(b => b.booking_reference && b.booking_reference.startsWith('BK-'));
+      const lastOrder = uOrders[0] || null;
       return { ...u, _vouchers: uVouchers, _bookings: uBookings, _orders: uOrders,
-               _wbCount: wbCodes.length, _bkCount: uBookings.length, _physCount: physCodes.length,
+               _wbCount: wbCodes.length, _bkCount: bkCodes.length, _physCount: physCodes.length,
                _orderCount: uOrders.length, _lastOrder: lastOrder };
     });
 
@@ -15593,27 +15607,29 @@ function admOpenUserDetail(userId) {
   // Orders list
   const ordersHTML = u._orders.length ? u._orders.slice(0,8).map(o => {
     const d     = o.created_at ? new Date(o.created_at).toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'}) : '—';
-    const amt   = o.amount ? 'R' + Number(o.amount).toLocaleString('en-ZA') : '—';
+    const amt   = o.total_amount ? 'R' + Number(o.total_amount).toLocaleString('en-ZA') : '—';
     const recip = o.recipient_name ? `<div style="font-size:.7rem;color:var(--muted)">Gift for: ${o.recipient_name}${o.recipient_email?' ('+o.recipient_email+')':''}</div>` : '';
-    const typeLabel = o.type || '';
+    const typeLabel = o.delivery_type || '';
     const typeBadge = typeLabel.toLowerCase().includes('phys') ? '<span style="font-size:.65rem;background:#fef3c7;color:#92400e;padding:1px 6px;border-radius:99px;font-weight:600">PHYS</span> ' : '';
+    const coupon = o.coupon_code ? `<div style="font-size:.7rem;color:var(--b600)">Coupon: ${o.coupon_code}</div>` : '';
     return `<div style="padding:8px 0;border-bottom:1px solid var(--border)">
       <div style="display:flex;justify-content:space-between;align-items:center">
-        <div style="font-size:.8rem;font-weight:600;color:var(--navy)">${typeBadge}${o.box_name || 'Order'}</div>
+        <div style="font-size:.8rem;font-weight:600;color:var(--navy)">${typeBadge}${o.id || 'Order'}</div>
         <div style="font-size:.8rem;font-weight:700;color:var(--green)">${amt}</div>
       </div>
-      <div style="font-size:.72rem;color:var(--muted)">${d} · ${o.status || '—'}</div>
-      ${recip}
+      <div style="font-size:.72rem;color:var(--muted)">${d} · ${o.status || '—'} · ${typeLabel || '—'}</div>
+      ${recip}${coupon}
     </div>`;
   }).join('') : '<div style="font-size:.8rem;color:var(--muted);padding:10px 0">No orders yet.</div>';
 
   // Vouchers / codes list
   const codesHTML = u._vouchers.length ? u._vouchers.slice(0,10).map(v => {
-    const codeType = v.is_physical ? '<span style="font-size:.65rem;background:#fef3c7;color:#92400e;padding:1px 5px;border-radius:99px;font-weight:600">PHYS</span>' :
+    const codeType = v.is_physical_box ? '<span style="font-size:.65rem;background:#fef3c7;color:#92400e;padding:1px 5px;border-radius:99px;font-weight:600">PHYS</span>' :
                      v.code?.startsWith('WB-') ? '<span style="font-size:.65rem;background:var(--b50);color:var(--b700);padding:1px 5px;border-radius:99px;font-weight:600">WB</span>' : '';
     const statusC = v.status === 'used' ? '#22c55e' : v.status === 'expired' ? '#ef4444' : '#d97706';
+    const expUsed = v.experience_used ? `<span style="font-size:.7rem;color:var(--muted)"> · ${v.experience_used}</span>` : '';
     return `<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid var(--border);font-size:.78rem">
-      <div>${codeType} <span style="font-family:'Courier New',monospace;font-size:.8rem">${v.code || '—'}</span></div>
+      <div>${codeType} <span style="font-family:'Courier New',monospace;font-size:.8rem">${v.code || '—'}</span>${expUsed}</div>
       <span style="color:${statusC};font-weight:600;font-size:.72rem">${v.status || '—'}</span>
     </div>`;
   }).join('') : '<div style="font-size:.8rem;color:var(--muted);padding:10px 0">No vouchers.</div>';
@@ -15691,7 +15707,7 @@ function admExportUsersCSV() {
     return matchSearch && matchRole && (!from || d >= from) && (!to || d <= to);
   });
 
-  const headers = ['Name','Email','Role','Orders','WB Codes','BK Codes','PHYS','Last Order','Joined'];
+  const headers = ['Name','Email','Role','Orders','WB Codes','BK Codes','PHYS','Last Order','Joined','Total Spent (R)'];
   const rows = filtered.map(u => [
     u.full_name || '',
     u.email || '',
@@ -15701,7 +15717,8 @@ function admExportUsersCSV() {
     u._bkCount,
     u._physCount,
     u._lastOrder ? u._lastOrder.created_at?.slice(0,10) : '',
-    u.created_at?.slice(0,10) || ''
+    u.created_at?.slice(0,10) || '',
+    u._orders.reduce((sum, o) => sum + (o.total_amount || 0), 0)
   ].map(v => '"' + String(v).replace(/"/g,'""') + '"').join(','));
 
   const csv = [headers.join(','), ...rows].join('\n');
@@ -16037,6 +16054,40 @@ async function admRevokeAdmin(userId, email) {
   } catch(e) {
     admToast('Error: ' + e.message);
   }
+}
+
+async function admRunSchemaDiag() {
+  const out = document.getElementById('adm-diag-out');
+  out.style.display = 'block';
+  out.textContent = 'Running…\n';
+
+  const tables = ['orders','vouchers','bookings','user_profiles','purchases','transactions','payments','reservations','codes'];
+  const results = {};
+
+  for (const table of tables) {
+    try {
+      const { data, error } = await db_client.from(table).select('*').limit(1);
+      if (error) {
+        results[table] = 'ERROR: ' + error.message;
+      } else if (data && data.length > 0) {
+        results[table] = 'EXISTS — columns: ' + Object.keys(data[0]).join(', ');
+      } else {
+        // Table exists but is empty — try to get columns via count
+        const { data: d2, error: e2 } = await db_client.from(table).select('*').limit(0);
+        if (!e2) results[table] = 'EXISTS (empty)';
+        else results[table] = 'ERROR: ' + e2.message;
+      }
+    } catch(e) {
+      results[table] = 'EXCEPTION: ' + e.message;
+    }
+  }
+
+  let report = '=== WOWBOX SCHEMA DIAGNOSTIC ===\n\n';
+  for (const [table, info] of Object.entries(results)) {
+    report += `[${table}]\n  ${info}\n\n`;
+  }
+  report += '=== Copy and paste this result to Claude ===';
+  out.textContent = report;
 }
 </script>
 <!-- Hidden print area for box codes -->
