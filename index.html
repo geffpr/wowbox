@@ -11175,7 +11175,11 @@ async function validateVoucher() {
     // Security: verify this booking belongs to the logged-in partner
     var currentEmail = currentUser && currentUser.email ? currentUser.email.toLowerCase() : '';
     var bookingPartnerEmail = bk.partner_email ? bk.partner_email.toLowerCase() : '';
-    if (currentEmail && bookingPartnerEmail && currentEmail !== bookingPartnerEmail) {
+    if (!bookingPartnerEmail) {
+      resEl.innerHTML = renderValidationResult('error', null, 'Booking incomplete — please contact WowBox support.');
+      return;
+    }
+    if (currentEmail && currentEmail !== bookingPartnerEmail) {
       resEl.innerHTML = renderValidationResult('error', null, 'This booking does not belong to your venue.');
       return;
     }
