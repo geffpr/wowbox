@@ -1173,23 +1173,24 @@ async function loadUserBoxes(email) {
           ? '<button class="btn bsm" style="background:#fef2f2;color:#dc2626;border:1px solid #fca5a5" onclick="cancelBooking(\'' + v.code + '\',\'' + (v.booking_date||'') + '\')"><i class="fa fa-xmark"></i> Cancel booking</button>'
           : '<button class="btn bsm" style="background:#f8fafc;color:#94a3b8;border:1px solid #e2e8f0;cursor:not-allowed" disabled title="Cannot cancel within 24h of experience"><i class="fa fa-lock"></i> Non-cancellable</button>';
       }
-      // Leave a review button for used vouchers
-      if (st === 'used' && v.booking_id) {
+      // Leave a review button for used vouchers — fetch linked booking
+      if (st === 'used') {
         (function(vc) {
           db_client.from('bookings').select('id,experience_id,experience_name')
-            .eq('voucher_code', vc).eq('status','used').limit(1).maybeSingle()
+            .eq('voucher_code', vc).in('status',['used','completed']).limit(1).maybeSingle()
             .then(function(bkRes) {
-              if (!bkRes.data) return;
-              var bk = bkRes.data;
               var card = document.querySelector('[data-vcode="'+vc+'"]');
               if (!card) return;
               var actionsEl = card.querySelector('.v-actions');
               if (!actionsEl) return;
+              var bk = bkRes.data || {};
               var revBtn = document.createElement('button');
               revBtn.className = 'btn bsm';
               revBtn.style.cssText = 'background:#fef3c7;color:#92400e;border:1px solid #fcd34d';
               revBtn.innerHTML = '<i class="fa fa-star"></i> Review';
-              revBtn.onclick = function(){ openReviewFromBox(bk.experience_id, bk.experience_name, bk.id, vc); };
+              revBtn.onclick = function(){
+                openReviewFromBox(bk.experience_id||vc, bk.experience_name||'WowBox experience', bk.id||vc, vc);
+              };
               actionsEl.appendChild(revBtn);
             });
         })(v.code);
