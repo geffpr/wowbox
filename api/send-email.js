@@ -292,27 +292,62 @@ function tplReissue(o) {
 }
 
 function tplBookingCustomer(o) {
-  // Always show date and voucher code — never hide them
-  const dateDisplay  = o.bookingDate || 'To be confirmed with the partner';
+  const dateDisplay  = o.bookingDate ? new Date(o.bookingDate).toLocaleDateString('en-ZA',{weekday:'long',day:'numeric',month:'long',year:'numeric'}) : 'To be confirmed with the partner';
+  const timeDisplay  = o.bookingTime || '';
   const codeDisplay  = o.voucherCode || '—';
+  const locationStr  = [o.address, o.location].filter(Boolean).join(', ') || o.address || o.location || '—';
+
+  // Google Calendar link
+  const gcDate = o.bookingDate ? o.bookingDate.replace(/-/g,'') : null;
+  const gcStart = gcDate ? gcDate + 'T090000' : null;
+  const gcEnd   = gcDate ? gcDate + 'T110000' : null;
+  const gcTitle = encodeURIComponent((o.experienceName || 'WowBox Experience') + ' — WowBox');
+  const gcDesc  = encodeURIComponent('Booking Reference: ' + (o.bookingReference || '—') + '\n' + 'Partner: ' + (o.partnerName || '—') + (o.phone ? '\nPhone: ' + o.phone : ''));
+  const gcLoc   = encodeURIComponent(locationStr !== '—' ? locationStr : '');
+  const gcUrl   = gcStart ? 'https://calendar.google.com/calendar/render?action=TEMPLATE&text=' + gcTitle + '&dates=' + gcStart + '/' + gcEnd + '&details=' + gcDesc + '&location=' + gcLoc : null;
+
+  // iCal (.ics) data URI
+  const icsDate = gcDate || '20260101';
+  const icsContent = [
+    'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//WowBox//EN',
+    'BEGIN:VEVENT',
+    'DTSTART:' + icsDate + 'T090000',
+    'DTEND:'   + icsDate + 'T110000',
+    'SUMMARY:' + (o.experienceName || 'WowBox Experience') + ' — WowBox',
+    'DESCRIPTION:Booking Reference: ' + (o.bookingReference || '—'),
+    'LOCATION:' + (locationStr !== '—' ? locationStr : ''),
+    'END:VEVENT', 'END:VCALENDAR'
+  ].join('\r\n');
+  const icsUri = 'data:text/calendar;charset=utf8,' + encodeURIComponent(icsContent);
+
+  const calButtons = gcUrl
+    ? '<div style="display:flex;gap:10px;flex-wrap:wrap;margin:16px 0">'
+      + '<a href="' + gcUrl + '" target="_blank" style="display:inline-block;background:#1d4ed8;color:#fff;font-size:.8rem;font-weight:600;padding:9px 16px;border-radius:8px;text-decoration:none">📅 Add to Google Calendar</a>'
+      + '<a href="' + icsUri + '" download="wowbox-booking.ics" style="display:inline-block;background:#374151;color:#fff;font-size:.8rem;font-weight:600;padding:9px 16px;border-radius:8px;text-decoration:none">📥 Download .ics (Apple / Outlook)</a>'
+      + '</div>'
+    : '';
 
   return {
     subject: `✅ Booking confirmed — ${o.experienceName}`,
     html: layout(`
       ${badge('✅ Experience Booked', '#059669')}
       ${h1("You're all set, " + o.customerName + '!')}
-      ${p('Your booking for <strong>' + o.experienceName + '</strong> has been confirmed. The partner will contact you to confirm the final details.')}
+      ${p('Your booking for <strong>' + o.experienceName + '</strong> is confirmed. Present your booking reference when you arrive.')}
       ${infoTable(
         infoRow('Experience', o.experienceName || '—') +
         infoRow('Partner', o.partnerName || '—') +
         infoRow('Date', dateDisplay) +
+        (timeDisplay ? infoRow('Time', timeDisplay) : '') +
         infoRow('Guests', o.guests || '2') +
+        (locationStr !== '—' ? infoRow('Location', locationStr) : '') +
+        (o.phone ? infoRow('Phone', o.phone) : '') +
         infoRow('Booking Reference', o.bookingReference || '—') +
         infoRow('Box Code', codeDisplay)
       )}
       ${codeBox(o.bookingReference || codeDisplay)}
+      ${calButtons}
       ${hr()}
-      ${highlight('<strong>📞 Next step:</strong> Contact <strong>' + (o.partnerName || 'the partner') + '</strong> to confirm your visit date and time.<br>Present this email or your voucher code when you arrive — the partner will scan or enter it to validate your experience.')}
+      ${highlight('<strong>📞 Next step:</strong> Call <strong>' + (o.partnerName || 'the partner') + '</strong>' + (o.phone ? ' on <strong>' + o.phone + '</strong>' : '') + ' to confirm your visit.<br>Show your booking reference <strong>' + (o.bookingReference || '—') + '</strong> on arrival — the partner will enter it to validate your experience.')}
       ${btn('My Account', SITE_URL + '/my-account')}
       ${sm('WowBox is the intermediary — the experience is provided by the partner. Enjoy!')}
     `, HEROES.booking, 'Your ' + o.experienceName + ' booking is confirmed'),
@@ -335,6 +370,7 @@ function tplBookingPartner(o) {
         infoRow('Guest email', o.customerEmail || '—') +
         infoRow('Requested date', dateDisplay) +
         infoRow('Guests', o.guests || '2') +
+        infoRow('Booking Reference', o.bookingReference || '—') +
         infoRow('Voucher code', codeDisplay)
       )}
       ${hr()}

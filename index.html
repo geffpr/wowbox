@@ -9047,9 +9047,13 @@ async function confirmExpBooking() {
         partnerName:      e.partner || '',
         experienceName:   e.name,
         bookingDate:      bookingDate || '',
+        bookingTime:      bookingTime || '',
         guests:           data.guests || '2',
         voucherCode:      finalCode || '',
         bookingReference: bkRef,
+        address:          e.address  || e.loc || '',
+        phone:            e.phone    || '',
+        location:         e.loc      || '',
       });
 
     } catch(err) {
