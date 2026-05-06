@@ -13011,15 +13011,31 @@ async function admApproveRequest(btn) {
   var req = admReqDB.find(function(r){ return r.id == id; });
   if (!req) { admToast('Request not found'); return; }
 
-  // Build database options from admDatabases (loaded from Supabase)
+  // For edit requests, fetch existing database links to pre-select them
+  var existingDbIds = new Set();
+  if (req.is_edit && req.experience_id) {
+    try {
+      var linkRes = await db_client.from('experience_database_links')
+        .select('database_id').eq('experience_id', req.experience_id);
+      (linkRes.data || []).forEach(function(l){ existingDbIds.add(l.database_id); });
+    } catch(e) { console.warn('admApproveRequest: could not fetch existing db links', e.message); }
+  }
+
+  // Build database options — pre-select existing links
   var dbOptions = admDatabases.map(function(d){
-    return '<option value="'+d.id+'">'+d.icon+' '+d.name+'</option>';
+    var sel = existingDbIds.has(d.id) ? ' selected' : '';
+    return '<option value="'+d.id+'"'+sel+'>'+d.icon+' '+d.name+'</option>';
   }).join('');
 
+  var isEdit = req.is_edit === true;
   var modal = document.getElementById('adm-modal');
   document.getElementById('adm-modal-body').innerHTML =
-    '<h3 style="font-size:1.1rem;color:var(--navy);margin-bottom:6px"><i class="fa fa-check-circle" style="color:var(--green)"></i> Approve experience</h3>'
-    + '<p style="font-size:.8rem;color:var(--muted);margin-bottom:10px">Assign this experience to one or more databases. It will automatically appear on the linked box pages.</p>'
+    '<h3 style="font-size:1.1rem;color:var(--navy);margin-bottom:6px"><i class="fa fa-check-circle" style="color:var(--green)"></i> '
+    + (isEdit ? 'Approve edit' : 'Approve experience') + '</h3>'
+    + '<p style="font-size:.8rem;color:var(--muted);margin-bottom:10px">' + (isEdit
+      ? 'The databases below are pre-selected from the existing experience. Adjust if needed.'
+      : 'Assign this experience to one or more databases. It will automatically appear on the linked box pages.')
+    + '</p>'
     + '<div class="fg"><label>Assign to database(s) <span style="font-size:.7rem;color:var(--muted);font-weight:400">(Ctrl+click for multiple)</span></label>'
     + '<select class="fi" id="approve-db-select" multiple size="5" style="height:auto">' + dbOptions + '</select></div>'
     + (req.price ? '<div style="font-size:.75rem;color:var(--b700);margin-bottom:10px"><i class="fa fa-circle-dollar-sign"></i> Experience value: <strong>R' + (req.price||0).toLocaleString() + '</strong></div>' : '')
