@@ -11334,14 +11334,25 @@ async function validateVoucher() {
     var bk = res.data;
 
     // Security: verify this booking belongs to the logged-in partner
+    // Check via experiences table — source of truth for partner ownership
     var currentEmail = currentUser && currentUser.email ? currentUser.email.toLowerCase() : '';
-    var bookingPartnerEmail = bk.partner_email ? bk.partner_email.toLowerCase() : '';
-    if (!bookingPartnerEmail) {
+    if (bk.experience_id) {
+      var expCheck = await db_client.from('experiences')
+        .select('partner_email')
+        .eq('id', bk.experience_id)
+        .maybeSingle();
+      var expPartnerEmail = expCheck.data && expCheck.data.partner_email
+        ? expCheck.data.partner_email.toLowerCase() : '';
+      if (!expPartnerEmail) {
+        resEl.innerHTML = renderValidationResult('error', null, 'This experience is not linked to any venue. Please contact WowBox support.');
+        return;
+      }
+      if (currentEmail !== expPartnerEmail) {
+        resEl.innerHTML = renderValidationResult('error', null, 'This booking does not belong to your venue.');
+        return;
+      }
+    } else {
       resEl.innerHTML = renderValidationResult('error', null, 'Booking incomplete — please contact WowBox support.');
-      return;
-    }
-    if (currentEmail && currentEmail !== bookingPartnerEmail) {
-      resEl.innerHTML = renderValidationResult('error', null, 'This booking does not belong to your venue.');
       return;
     }
 
