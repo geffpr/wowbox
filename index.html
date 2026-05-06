@@ -199,12 +199,22 @@ async function generateRetailCodes() {
   btn.innerHTML = '<i class="fa fa-circle-notch fa-spin"></i> Generating…';
   generatedCodes = [];
   const now = new Date().toISOString().slice(0,10);
-  const existingNums = Object.keys(codeDB).filter(k => k.startsWith('PHYS-'+prefix+'-')).map(k => parseInt(k.split('-')[2])||0);
-  let startNum = existingNums.length ? Math.max(...existingNums)+1 : 1;
+  // Fetch last PHYS code number from Supabase to avoid duplicates
+  let startNum = 1;
+  try {
+    const { data: existingCodes } = await db_client.from('vouchers')
+      .select('code')
+      .like('code', 'PHYS-'+prefix+'-%')
+      .order('code', { ascending: false })
+      .limit(1);
+    if (existingCodes && existingCodes.length) {
+      const lastNum = parseInt((existingCodes[0].code.split('-')[2])||'0');
+      if (!isNaN(lastNum)) startNum = lastNum + 1;
+    }
+  } catch(e) { console.warn('generateRetailCodes: could not fetch last code', e.message); }
   for (let i = 0; i < qty; i++) {
     const code = 'PHYS-'+prefix+'-'+String(startNum+i).padStart(5,'0');
     generatedCodes.push({ code, boxId, boxName, batch, createdAt: now });
-    codeDB[code] = { boxId, boxName, userId:null, status:'inactive', activatedAt:null, activatedBy:null, usedAt:null, experience:null, partner:null, orderId:null, hasBoost:false, physicalBox:true, retailBatch:batch, activationLog:[] };
   }
   try {
     const expiresAt = new Date(Date.now() + 365*24*60*60*1000).toISOString();
@@ -8127,6 +8137,7 @@ async function fetchProductExps(boxId) {
         img2:             (e.image_urls && e.image_urls[0]) || '',
         img3:             (e.image_urls && e.image_urls[1]) || '',
         partner:          e.partner_name        || '',
+        partnerEmail:     e.partner_email       || '',
         tags:             e.tags                || [],
         desc:             e.description         || '',
         capacity:         e.capacity            || 2,
