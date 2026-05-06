@@ -1173,6 +1173,27 @@ async function loadUserBoxes(email) {
           ? '<button class="btn bsm" style="background:#fef2f2;color:#dc2626;border:1px solid #fca5a5" onclick="cancelBooking(\'' + v.code + '\',\'' + (v.booking_date||'') + '\')"><i class="fa fa-xmark"></i> Cancel booking</button>'
           : '<button class="btn bsm" style="background:#f8fafc;color:#94a3b8;border:1px solid #e2e8f0;cursor:not-allowed" disabled title="Cannot cancel within 24h of experience"><i class="fa fa-lock"></i> Non-cancellable</button>';
       }
+      // Leave a review button for used vouchers
+      if (st === 'used' && v.booking_id) {
+        (function(vc) {
+          db_client.from('bookings').select('id,experience_id,experience_name')
+            .eq('voucher_code', vc).eq('status','used').limit(1).maybeSingle()
+            .then(function(bkRes) {
+              if (!bkRes.data) return;
+              var bk = bkRes.data;
+              var card = document.querySelector('[data-vcode="'+vc+'"]');
+              if (!card) return;
+              var actionsEl = card.querySelector('.v-actions');
+              if (!actionsEl) return;
+              var revBtn = document.createElement('button');
+              revBtn.className = 'btn bsm';
+              revBtn.style.cssText = 'background:#fef3c7;color:#92400e;border:1px solid #fcd34d';
+              revBtn.innerHTML = '<i class="fa fa-star"></i> Review';
+              revBtn.onclick = function(){ openReviewFromBox(bk.experience_id, bk.experience_name, bk.id, vc); };
+              actionsEl.appendChild(revBtn);
+            });
+        })(v.code);
+      }
       var safeCode = v.code;
       var safeName = (v.box_name||'WowBox').replace(/'/g,'');
       var voucherBtn = '<button class="btn bg bsm" style="margin-left:4px" onclick="showBoxVoucher(\'' + safeCode + '\',\'' + safeName + '\')">'
@@ -1186,7 +1207,7 @@ async function loadUserBoxes(email) {
       var expiryDate  = v.expires_at  ? new Date(v.expires_at).toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'})
         : v.created_at ? new Date(new Date(v.created_at).setFullYear(new Date(v.created_at).getFullYear()+1)).toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'})
         : '';
-      return '<div class="order-card dash-box-card" data-status="' + st + '" style="display:flex;align-items:center;gap:14px">'
+      return '<div class="order-card dash-box-card" data-status="' + st + '" data-vcode="' + v.code + '" style="display:flex;align-items:center;gap:14px">'
         + '<img src="' + imgSrc + '" style="width:58px;height:48px;border-radius:var(--rs);object-fit:cover;flex-shrink:0" alt="">'
         + '<div style="flex:1"><div style="font-size:.9rem;font-weight:600;color:var(--navy);margin-bottom:2px">' + (v.box_name || box.name || 'WowBox') + '</div>'
         + '<div style="font-size:.73rem;color:var(--muted)">Code: ' + v.code + (createdDate ? ' · Purchased ' + createdDate : '') + '</div>'
@@ -1195,7 +1216,7 @@ async function loadUserBoxes(email) {
         + '</div>'
         + '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:7px">'
         + '<span class="sbadge ' + (statusMap[st] || 'sb-p') + '">' + (statusLabel[st] || st) + '</span>'
-        + '<div style="display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end">' + browseBtn + voucherBtn + videoBtn + '</div>'
+        + '<div class="v-actions" style="display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end">' + browseBtn + voucherBtn + videoBtn + '</div>'
         + '</div></div>';
     }).join('');
     var listDiv = document.getElementById('dash-boxes-list');
@@ -9265,12 +9286,12 @@ async function loadUserReviews(email) {
   var doneEl = document.getElementById('dash-reviews-done');
   if (!pendEl) return;
 
-  // Load completed bookings without a review yet
+  // Load used bookings without a review yet
   var bRes = await db_client.from('bookings')
-    .select('id, experience_id, experience_name, completed_at')
-    .eq('user_email', email)
-    .eq('status', 'completed')
-    .order('completed_at', { ascending: false });
+    .select('id, experience_id, experience_name, validated_at, booking_date')
+    .eq('customer_email', email)
+    .in('status', ['used', 'completed'])
+    .order('validated_at', { ascending: false });
 
   var myRevRes = await db_client.from('experience_reviews')
     .select('id, experience_id')
@@ -9318,26 +9339,57 @@ async function loadUserReviews(email) {
   }
 }
 
-async function submitUserReview(expId, bookingId, prefix) {
-  var rating = window._reviewRatings[prefix] || 0;
+async function submitUserReview(expId, bookingId, prefix, expName) {
+  var rating = window._reviewRatings && window._reviewRatings[prefix] || 0;
   var text   = (document.getElementById(prefix+'-text')||{value:''}).value.trim();
-  var name   = (document.getElementById(prefix+'-name')||{value:''}).value.trim();
+  var name   = (document.getElementById(prefix+'-name')||{value:''}).value.trim() || (currentUser && currentUser.displayName) || null;
   if (!rating) { admToast('Please select a star rating.'); return; }
   if (!text)   { admToast('Please write a short review.'); return; }
   try {
     var res = await db_client.from('experience_reviews').insert({
-      experience_id: expId,
-      order_id:      bookingId,
-      user_email:    currentUser.email,
-      display_name:  name || null,
-      rating:        rating,
-      text:          text,
-      status:        'pending',
+      experience_id:   expId,
+      experience_name: expName || expId,
+      order_id:        bookingId,
+      user_email:      currentUser ? currentUser.email : '',
+      display_name:    name || null,
+      rating:          rating,
+      text:            text,
+      status:          'pending',
     });
     if (res.error) throw res.error;
-    admToast('Review submitted — thanks! It will appear after moderation.');
-    loadUserReviews(currentUser.email);
+    admToast('\u2705 Review submitted \u2014 thanks! It will appear after moderation.');
+    if (currentUser) loadUserReviews(currentUser.email);
   } catch(e) { admToast('Error: '+e.message); }
+}
+
+function openReviewFromBox(expId, expName, bookingId, voucherCode) {
+  // Switch to My Reviews tab and pre-fill a review form
+  var allTabs2 = document.querySelectorAll('#my-account .anl');
+  var tabs2    = document.querySelectorAll('.dash-tab');
+  // Navigate to reviews tab
+  var revTab = document.getElementById('dash-reviews');
+  document.querySelectorAll('.dash-tab').forEach(function(t){ t.style.display='none'; });
+  if (revTab) revTab.style.display = 'block';
+  document.querySelectorAll('#my-account .anl').forEach(function(n){ n.classList.remove('on'); });
+  var revNavBtn = document.querySelector('#my-account .anl[data-tab="reviews"], [onclick*="reviews"]');
+  if (revNavBtn) revNavBtn.classList.add('on');
+  // Build inline review form
+  var pendEl = document.getElementById('dash-reviews-pending');
+  if (!pendEl) return;
+  var pid = 'rev-box-'+bookingId;
+  if (document.getElementById(pid+'-text')) { pendEl.scrollIntoView({behavior:'smooth'}); return; }
+  var formHtml = '<div class="ck-card" style="margin-bottom:14px;border:2px solid var(--b300)">'
+    + '<div style="font-size:.88rem;font-weight:600;color:var(--navy);margin-bottom:4px">'
+    + '<i class="fa fa-star" style="color:#f59e0b"></i> Review: '+expName+'</div>'
+    + '<div style="margin-bottom:10px">'+renderStars(0, true, pid)+'</div>'
+    + '<textarea class="fi" id="'+pid+'-text" rows="3" placeholder="Share your experience..." style="margin-bottom:8px;font-size:.82rem"></textarea>'
+    + '<input class="fi" id="'+pid+'-name" placeholder="Display name (e.g. Sarah M.)" style="margin-bottom:10px;font-size:.82rem">'
+    + '<div style="display:flex;gap:8px">'
+    + '<button class="btn bp bsm" onclick="submitUserReview(\''+expId+'\',\''+bookingId+'\',\''+pid+'\',\''+expName+'\');"><i class="fa fa-paper-plane"></i> Submit review</button>'
+    + '<button class="btn bg bsm" onclick="this.closest(\'.ck-card\').remove()">Cancel</button>'
+    + '</div></div>';
+  pendEl.insertAdjacentHTML('afterbegin', '<h3 style="font-size:1rem;color:var(--navy);margin-bottom:14px"><i class="fa fa-star" style="color:#f59e0b"></i> Leave a review</h3>' + formHtml);
+  pendEl.scrollIntoView({behavior:'smooth', block:'nearest'});
 }
 
 // ─────────────────────────────────────────────────────────────
