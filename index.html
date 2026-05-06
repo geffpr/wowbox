@@ -5763,6 +5763,10 @@ tr:hover td{background:var(--b50)}
       <button class="anl"     onclick="switchAdm(this,'adm-coupons')"><i class="fa fa-tag"></i> Coupons</button>
       <button class="anl"     onclick="switchAdm(this,'adm-activate')"><i class="fa fa-box-open"></i> Activate Boxes <span style="background:linear-gradient(135deg,#10b981,#059669);color:#fff;border-radius:99px;padding:1px 7px;font-size:.58rem;font-weight:700;margin-left:auto">RETAIL</span></button>
       <button class="anl"     onclick="switchAdm(this,'adm-cities');renderAdmCities()"><i class="fa fa-map-location-dot"></i> Cities <span id="adm-cities-badge" style="display:none;margin-left:auto;background:var(--b600);color:#fff;border-radius:99px;padding:1px 7px;font-size:.6rem;font-weight:700"></span></button>
+      <div style="height:1px;background:rgba(255,255,255,.08);margin:10px 0"></div>
+      <button class="anl"     onclick="switchAdm(this,'adm-users');admLoadUsers()"><i class="fa fa-users"></i> Users</button>
+      <button class="anl"     onclick="switchAdm(this,'adm-partners-crm');admLoadPartnersCRM()"><i class="fa fa-building"></i> Partners</button>
+      <button class="anl"     onclick="switchAdm(this,'adm-access');admLoadAccessList()"><i class="fa fa-shield-halved"></i> Access Control</button>
       <div style="margin-top:auto;padding-top:14px;border-top:1px solid rgba(255,255,255,.08)">
         <button class="anl" onclick="go('home')"><i class="fa fa-right-from-bracket"></i> Exit Admin</button>
       </div>
@@ -6818,6 +6822,155 @@ tr:hover td{background:var(--b50)}
             <span style="font-size:.75rem;color:var(--muted);margin-left:4px">Green = active · Grey = inactive</span>
           </div>
           <div id="adm-city-map" style="height:400px;width:100%"></div>
+        </div>
+      </div>
+
+      <!-- ══ USERS ══ -->
+      <div id="adm-users" style="display:none">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:12px">
+          <div><h2 style="font-size:1.7rem;color:var(--navy)">Users</h2><p style="color:var(--muted);font-size:.8rem" id="adm-users-subtitle">Loading…</p></div>
+          <button class="btn bg bsm" onclick="admExportUsersCSV()"><i class="fa fa-download"></i> Export CSV</button>
+        </div>
+        <!-- Filters -->
+        <div class="atbl" style="padding:14px 18px;margin-bottom:14px">
+          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
+            <div style="flex:1;min-width:200px">
+              <label style="font-size:.72rem;color:var(--muted);display:block;margin-bottom:4px">Search</label>
+              <input class="fi" id="usr-search" placeholder="Name, email…" oninput="admRenderUsersTable()" style="width:100%;padding:8px 11px;font-size:.82rem">
+            </div>
+            <div>
+              <label style="font-size:.72rem;color:var(--muted);display:block;margin-bottom:4px">Role</label>
+              <select class="fi" id="usr-role" onchange="admRenderUsersTable()" style="padding:8px 11px;font-size:.82rem">
+                <option value="">All roles</option>
+                <option value="customer">Customer</option>
+                <option value="partner">Partner</option>
+                <option value="admin">Admin</option>
+              </select>
+            </div>
+            <div>
+              <label style="font-size:.72rem;color:var(--muted);display:block;margin-bottom:4px">From</label>
+              <input type="date" class="fi" id="usr-from" onchange="admRenderUsersTable()" style="padding:8px 11px;font-size:.82rem">
+            </div>
+            <div>
+              <label style="font-size:.72rem;color:var(--muted);display:block;margin-bottom:4px">To</label>
+              <input type="date" class="fi" id="usr-to" onchange="admRenderUsersTable()" style="padding:8px 11px;font-size:.82rem">
+            </div>
+            <button class="btn bg bsm" onclick="document.getElementById('usr-search').value='';document.getElementById('usr-role').value='';document.getElementById('usr-from').value='';document.getElementById('usr-to').value='';admRenderUsersTable()"><i class="fa fa-xmark"></i> Clear</button>
+          </div>
+        </div>
+        <!-- Split view: table + detail panel -->
+        <div style="display:grid;grid-template-columns:1fr 0px;gap:0;transition:grid-template-columns .25s" id="adm-users-split">
+          <!-- Table -->
+          <div class="atbl" style="overflow-x:auto">
+            <table style="min-width:700px">
+              <thead><tr>
+                <th>User</th><th>Email</th><th>Role</th>
+                <th>Orders</th><th>WB Codes</th><th>BK Codes</th><th>PHYS</th>
+                <th>Last order</th><th>Joined</th>
+              </tr></thead>
+              <tbody id="adm-users-tbody">
+                <tr><td colspan="9" style="text-align:center;padding:32px;color:var(--muted)"><i class="fa fa-circle-notch fa-spin"></i> Loading…</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <!-- Detail panel (hidden by default) -->
+          <div id="adm-user-detail" style="display:none;background:var(--white);border:1px solid var(--border);border-radius:var(--r);padding:20px;overflow-y:auto;max-height:calc(100vh - 200px);min-width:340px">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
+              <h3 style="font-size:1rem;color:var(--navy)" id="usr-detail-name">User</h3>
+              <button class="btn bg bsm" onclick="admCloseUserDetail()"><i class="fa fa-xmark"></i></button>
+            </div>
+            <div id="adm-user-detail-body">Loading…</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══ PARTNERS CRM ══ -->
+      <div id="adm-partners-crm" style="display:none">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:12px">
+          <div><h2 style="font-size:1.7rem;color:var(--navy)">Partners</h2><p style="color:var(--muted);font-size:.8rem" id="adm-partners-crm-subtitle">Loading…</p></div>
+          <button class="btn bg bsm" onclick="admExportPartnersCRMCSV()"><i class="fa fa-download"></i> Export CSV</button>
+        </div>
+        <!-- Filters -->
+        <div class="atbl" style="padding:14px 18px;margin-bottom:14px">
+          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
+            <div style="flex:1;min-width:200px">
+              <label style="font-size:.72rem;color:var(--muted);display:block;margin-bottom:4px">Search</label>
+              <input class="fi" id="pcrm-search" placeholder="Name, email, city…" oninput="admRenderPartnersCRMTable()" style="width:100%;padding:8px 11px;font-size:.82rem">
+            </div>
+            <div>
+              <label style="font-size:.72rem;color:var(--muted);display:block;margin-bottom:4px">Status</label>
+              <select class="fi" id="pcrm-status" onchange="admRenderPartnersCRMTable()" style="padding:8px 11px;font-size:.82rem">
+                <option value="">All statuses</option>
+                <option value="active">Active</option>
+                <option value="pending">Pending</option>
+                <option value="rejected">Rejected</option>
+              </select>
+            </div>
+            <div>
+              <label style="font-size:.72rem;color:var(--muted);display:block;margin-bottom:4px">From</label>
+              <input type="date" class="fi" id="pcrm-from" onchange="admRenderPartnersCRMTable()" style="padding:8px 11px;font-size:.82rem">
+            </div>
+            <div>
+              <label style="font-size:.72rem;color:var(--muted);display:block;margin-bottom:4px">To</label>
+              <input type="date" class="fi" id="pcrm-to" onchange="admRenderPartnersCRMTable()" style="padding:8px 11px;font-size:.82rem">
+            </div>
+            <button class="btn bg bsm" onclick="document.getElementById('pcrm-search').value='';document.getElementById('pcrm-status').value='';document.getElementById('pcrm-from').value='';document.getElementById('pcrm-to').value='';admRenderPartnersCRMTable()"><i class="fa fa-xmark"></i> Clear</button>
+          </div>
+        </div>
+        <!-- Split view: table + detail panel -->
+        <div style="display:grid;grid-template-columns:1fr 0px;gap:0;transition:grid-template-columns .25s" id="adm-pcrm-split">
+          <div class="atbl" style="overflow-x:auto">
+            <table style="min-width:750px">
+              <thead><tr>
+                <th>Partner</th><th>Email</th><th>Type</th><th>City</th>
+                <th>Experiences</th><th>Bookings</th><th>Status</th><th>Joined</th>
+              </tr></thead>
+              <tbody id="adm-pcrm-tbody">
+                <tr><td colspan="8" style="text-align:center;padding:32px;color:var(--muted)"><i class="fa fa-circle-notch fa-spin"></i> Loading…</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <!-- Partner detail panel -->
+          <div id="adm-pcrm-detail" style="display:none;background:var(--white);border:1px solid var(--border);border-radius:var(--r);padding:20px;overflow-y:auto;max-height:calc(100vh - 200px);min-width:360px">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
+              <h3 style="font-size:1rem;color:var(--navy)" id="pcrm-detail-name">Partner</h3>
+              <button class="btn bg bsm" onclick="admClosePCRMDetail()"><i class="fa fa-xmark"></i></button>
+            </div>
+            <div id="adm-pcrm-detail-body">Loading…</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══ ACCESS CONTROL ══ -->
+      <div id="adm-access" style="display:none">
+        <div style="margin-bottom:26px">
+          <h2 style="font-size:1.7rem;color:var(--navy)">Access Control</h2>
+          <p style="color:var(--muted);font-size:.82rem">Grant or revoke admin access without using the Supabase dashboard.</p>
+        </div>
+        <!-- Grant form -->
+        <div class="atbl" style="padding:20px;margin-bottom:22px;background:linear-gradient(135deg,var(--b50),#ede9fe20)">
+          <h3 style="font-size:.95rem;color:var(--navy);margin-bottom:14px"><i class="fa fa-user-shield" style="color:var(--b600)"></i> Grant admin access</h3>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
+            <div style="flex:1;min-width:260px">
+              <label style="font-size:.72rem;color:var(--muted);display:block;margin-bottom:5px">Email address</label>
+              <input class="fi" id="acc-email-input" type="email" placeholder="user@example.com" style="width:100%;padding:9px 12px" onkeydown="if(event.key==='Enter'){admGrantAdmin();}">
+            </div>
+            <button class="btn bp bsm" onclick="admGrantAdmin()" style="white-space:nowrap"><i class="fa fa-shield-halved"></i> Grant Admin</button>
+          </div>
+          <div id="acc-grant-status" style="font-size:.8rem;margin-top:10px"></div>
+        </div>
+        <!-- Current admins table -->
+        <div class="atbl">
+          <div class="atbl-hdr">
+            <h3 style="font-size:.9rem;color:var(--navy)">Current admins</h3>
+            <button class="btn bg bsm" onclick="admLoadAccessList()"><i class="fa fa-rotate"></i> Refresh</button>
+          </div>
+          <table>
+            <thead><tr><th>Name</th><th>Email</th><th>Granted on</th><th>Actions</th></tr></thead>
+            <tbody id="adm-access-tbody">
+              <tr><td colspan="4" style="text-align:center;padding:24px;color:var(--muted)"><i class="fa fa-circle-notch fa-spin"></i> Loading…</td></tr>
+            </tbody>
+          </table>
         </div>
       </div>
 
@@ -11489,7 +11642,7 @@ function filterDashBoxes(status, btn) {
 }
 
 /* ── ADMIN ── */
-const admTabs = ['adm-dash','adm-boxes','adm-db','adm-exp','adm-requests','adm-reviews','adm-orders','adm-usage','adm-comm','adm-pricing','adm-coupons','adm-activate','adm-cities'];
+const admTabs = ['adm-dash','adm-boxes','adm-db','adm-exp','adm-requests','adm-reviews','adm-orders','adm-usage','adm-comm','adm-pricing','adm-coupons','adm-activate','adm-cities','adm-users','adm-partners-crm','adm-access'];
 
 /* ══════════════════════════════════════════════════════════════
    CITY ROLLOUT — GEOGRAPHIC TOGGLE + RADIUS
@@ -15303,6 +15456,588 @@ window.addEventListener('DOMContentLoaded', async () => {
     goFromHash();
   }
 });
+
+/* ═══════════════════════════════════════════════════════════════
+   ADMIN — USERS SECTION
+═══════════════════════════════════════════════════════════════ */
+let _admUsersData = [];
+let _admSelectedUserId = null;
+
+async function admLoadUsers() {
+  document.getElementById('adm-users-subtitle').textContent = 'Loading…';
+  document.getElementById('adm-users-tbody').innerHTML =
+    '<tr><td colspan="9" style="text-align:center;padding:32px;color:var(--muted)"><i class="fa fa-circle-notch fa-spin"></i> Loading…</td></tr>';
+  try {
+    // Load all users
+    const { data: users, error: uErr } = await db_client
+      .from('user_profiles')
+      .select('*')
+      .order('created_at', { ascending: false });
+    if (uErr) throw uErr;
+
+    // Load all vouchers (WB + PHYS codes)
+    const { data: vouchers } = await db_client
+      .from('vouchers')
+      .select('user_id, code, type, status, box_name, used_at, partner_name, recipient_name, recipient_email, is_physical, created_at');
+
+    // Load all bookings (BK codes)
+    const { data: bookings } = await db_client
+      .from('bookings')
+      .select('customer_id, booking_reference, experience_name, partner_name, status, booking_date, created_at, guests, voucher_code');
+
+    // Load all orders
+    const { data: orders } = await db_client
+      .from('orders')
+      .select('user_id, id, amount, box_name, type, status, created_at, recipient_name, recipient_email')
+      .order('created_at', { ascending: false });
+
+    // Assemble enriched user objects
+    _admUsersData = (users || []).map(u => {
+      const uVouchers  = (vouchers  || []).filter(v => v.user_id === u.id);
+      const uBookings  = (bookings  || []).filter(b => b.customer_id === u.id);
+      const uOrders    = (orders    || []).filter(o => o.user_id === u.id);
+      const wbCodes    = uVouchers.filter(v => v.code && v.code.startsWith('WB-'));
+      const physCodes  = uVouchers.filter(v => v.is_physical);
+      const lastOrder  = uOrders[0] || null;
+      return { ...u, _vouchers: uVouchers, _bookings: uBookings, _orders: uOrders,
+               _wbCount: wbCodes.length, _bkCount: uBookings.length, _physCount: physCodes.length,
+               _orderCount: uOrders.length, _lastOrder: lastOrder };
+    });
+
+    document.getElementById('adm-users-subtitle').textContent = _admUsersData.length + ' users';
+    admRenderUsersTable();
+  } catch(e) {
+    document.getElementById('adm-users-tbody').innerHTML =
+      '<tr><td colspan="9" style="color:#ef4444;padding:20px">' + e.message + '</td></tr>';
+  }
+}
+
+function admRenderUsersTable() {
+  const search = (document.getElementById('usr-search')?.value || '').toLowerCase();
+  const role   = document.getElementById('usr-role')?.value  || '';
+  const from   = document.getElementById('usr-from')?.value  || '';
+  const to     = document.getElementById('usr-to')?.value    || '';
+
+  const filtered = _admUsersData.filter(u => {
+    const matchSearch = !search ||
+      (u.full_name || '').toLowerCase().includes(search) ||
+      (u.email     || '').toLowerCase().includes(search);
+    const matchRole = !role || u.role === role;
+    const d = u.created_at ? u.created_at.slice(0,10) : '';
+    const matchFrom = !from || d >= from;
+    const matchTo   = !to   || d <= to;
+    return matchSearch && matchRole && matchFrom && matchTo;
+  });
+
+  const tbody = document.getElementById('adm-users-tbody');
+  if (!filtered.length) {
+    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:28px;color:var(--muted)">No users match your filters.</td></tr>';
+    return;
+  }
+
+  const roleBadge = r => {
+    if (r === 'admin')    return '<span class="sbadge" style="background:#ede9fe;color:#7c3aed">Admin</span>';
+    if (r === 'partner')  return '<span class="sbadge sb-p">Partner</span>';
+    return '<span class="sbadge" style="background:var(--b50);color:var(--b700)">Customer</span>';
+  };
+
+  tbody.innerHTML = filtered.map(u => {
+    const name      = u.full_name || '—';
+    const email     = u.email     || '—';
+    const joined    = u.created_at ? new Date(u.created_at).toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'}) : '—';
+    const lastOrd   = u._lastOrder ? new Date(u._lastOrder.created_at).toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'}) : '—';
+    const sel       = _admSelectedUserId === u.id ? 'background:var(--b50);' : '';
+    return `<tr style="cursor:pointer;${sel}" onclick="admOpenUserDetail('${u.id}')">
+      <td><strong style="font-size:.85rem">${name}</strong></td>
+      <td style="font-size:.78rem;color:var(--muted)">${email}</td>
+      <td>${roleBadge(u.role)}</td>
+      <td style="text-align:center">${u._orderCount}</td>
+      <td style="text-align:center">${u._wbCount}</td>
+      <td style="text-align:center">${u._bkCount}</td>
+      <td style="text-align:center">${u._physCount}</td>
+      <td style="font-size:.78rem">${lastOrd}</td>
+      <td style="font-size:.78rem;color:var(--muted)">${joined}</td>
+    </tr>`;
+  }).join('');
+}
+
+function admOpenUserDetail(userId) {
+  _admSelectedUserId = userId;
+  const u = _admUsersData.find(x => x.id === userId);
+  if (!u) return;
+
+  // Open split view
+  const split  = document.getElementById('adm-users-split');
+  const panel  = document.getElementById('adm-user-detail');
+  split.style.gridTemplateColumns = '1fr 360px';
+  split.style.gap = '14px';
+  panel.style.display = 'block';
+  document.getElementById('usr-detail-name').textContent = u.full_name || u.email || 'User';
+
+  admRenderUsersTable(); // re-render to highlight selected row
+
+  const joined = u.created_at ? new Date(u.created_at).toLocaleDateString('en-ZA',{weekday:'long',day:'numeric',month:'long',year:'numeric'}) : '—';
+
+  const infoRow = (label, value) =>
+    `<div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border);font-size:.82rem">
+      <span style="color:var(--muted);font-size:.75rem;text-transform:uppercase;letter-spacing:.04em">${label}</span>
+      <span style="color:var(--navy);font-weight:500;text-align:right;max-width:200px;word-break:break-all">${value || '—'}</span>
+    </div>`;
+
+  const roleBadge = r => {
+    if (r === 'admin')   return '<span class="sbadge" style="background:#ede9fe;color:#7c3aed">Admin</span>';
+    if (r === 'partner') return '<span class="sbadge sb-p">Partner</span>';
+    return '<span class="sbadge" style="background:var(--b50);color:var(--b700)">Customer</span>';
+  };
+
+  // Orders list
+  const ordersHTML = u._orders.length ? u._orders.slice(0,8).map(o => {
+    const d     = o.created_at ? new Date(o.created_at).toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'}) : '—';
+    const amt   = o.amount ? 'R' + Number(o.amount).toLocaleString('en-ZA') : '—';
+    const recip = o.recipient_name ? `<div style="font-size:.7rem;color:var(--muted)">Gift for: ${o.recipient_name}${o.recipient_email?' ('+o.recipient_email+')':''}</div>` : '';
+    const typeLabel = o.type || '';
+    const typeBadge = typeLabel.toLowerCase().includes('phys') ? '<span style="font-size:.65rem;background:#fef3c7;color:#92400e;padding:1px 6px;border-radius:99px;font-weight:600">PHYS</span> ' : '';
+    return `<div style="padding:8px 0;border-bottom:1px solid var(--border)">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div style="font-size:.8rem;font-weight:600;color:var(--navy)">${typeBadge}${o.box_name || 'Order'}</div>
+        <div style="font-size:.8rem;font-weight:700;color:var(--green)">${amt}</div>
+      </div>
+      <div style="font-size:.72rem;color:var(--muted)">${d} · ${o.status || '—'}</div>
+      ${recip}
+    </div>`;
+  }).join('') : '<div style="font-size:.8rem;color:var(--muted);padding:10px 0">No orders yet.</div>';
+
+  // Vouchers / codes list
+  const codesHTML = u._vouchers.length ? u._vouchers.slice(0,10).map(v => {
+    const codeType = v.is_physical ? '<span style="font-size:.65rem;background:#fef3c7;color:#92400e;padding:1px 5px;border-radius:99px;font-weight:600">PHYS</span>' :
+                     v.code?.startsWith('WB-') ? '<span style="font-size:.65rem;background:var(--b50);color:var(--b700);padding:1px 5px;border-radius:99px;font-weight:600">WB</span>' : '';
+    const statusC = v.status === 'used' ? '#22c55e' : v.status === 'expired' ? '#ef4444' : '#d97706';
+    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid var(--border);font-size:.78rem">
+      <div>${codeType} <span style="font-family:'Courier New',monospace;font-size:.8rem">${v.code || '—'}</span></div>
+      <span style="color:${statusC};font-weight:600;font-size:.72rem">${v.status || '—'}</span>
+    </div>`;
+  }).join('') : '<div style="font-size:.8rem;color:var(--muted);padding:10px 0">No vouchers.</div>';
+
+  // Bookings list
+  const bkHTML = u._bookings.length ? u._bookings.slice(0,8).map(b => {
+    const d = b.booking_date || (b.created_at ? b.created_at.slice(0,10) : '—');
+    const statusC = b.status === 'used' || b.status === 'confirmed' ? '#22c55e' : b.status === 'cancelled' ? '#ef4444' : '#d97706';
+    return `<div style="padding:7px 0;border-bottom:1px solid var(--border)">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div style="font-size:.8rem;font-weight:600;color:var(--navy)">${b.experience_name || '—'}</div>
+        <span style="color:${statusC};font-size:.72rem;font-weight:600">${b.status || '—'}</span>
+      </div>
+      <div style="font-size:.72rem;color:var(--muted)">${d} · ${b.partner_name || '—'}</div>
+      <div style="font-size:.68rem;color:var(--muted);font-family:'Courier New',monospace">${b.booking_reference || ''}</div>
+    </div>`;
+  }).join('') : '<div style="font-size:.8rem;color:var(--muted);padding:10px 0">No bookings.</div>';
+
+  document.getElementById('adm-user-detail-body').innerHTML = `
+    <!-- Profile -->
+    <div style="margin-bottom:18px">
+      ${infoRow('Email', u.email)}
+      ${infoRow('Role', roleBadge(u.role))}
+      ${infoRow('Phone', u.phone)}
+      ${infoRow('Joined', joined)}
+    </div>
+
+    <!-- Orders -->
+    <div style="margin-bottom:18px">
+      <div style="font-size:.75rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:8px">
+        <i class="fa fa-box"></i> Orders (${u._orderCount})
+      </div>
+      ${ordersHTML}
+    </div>
+
+    <!-- Voucher codes -->
+    <div style="margin-bottom:18px">
+      <div style="font-size:.75rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:8px">
+        <i class="fa fa-ticket"></i> Voucher codes (${u._vouchers.length})
+      </div>
+      ${codesHTML}
+    </div>
+
+    <!-- Bookings -->
+    <div style="margin-bottom:18px">
+      <div style="font-size:.75rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:8px">
+        <i class="fa fa-calendar-check"></i> Bookings (${u._bookings.length})
+      </div>
+      ${bkHTML}
+    </div>
+  `;
+}
+
+function admCloseUserDetail() {
+  _admSelectedUserId = null;
+  const split = document.getElementById('adm-users-split');
+  split.style.gridTemplateColumns = '1fr 0px';
+  split.style.gap = '0';
+  document.getElementById('adm-user-detail').style.display = 'none';
+  admRenderUsersTable();
+}
+
+function admExportUsersCSV() {
+  const search = (document.getElementById('usr-search')?.value || '').toLowerCase();
+  const role   = document.getElementById('usr-role')?.value  || '';
+  const from   = document.getElementById('usr-from')?.value  || '';
+  const to     = document.getElementById('usr-to')?.value    || '';
+
+  const filtered = _admUsersData.filter(u => {
+    const matchSearch = !search ||
+      (u.full_name||'').toLowerCase().includes(search) ||
+      (u.email||'').toLowerCase().includes(search);
+    const matchRole = !role || u.role === role;
+    const d = u.created_at ? u.created_at.slice(0,10) : '';
+    return matchSearch && matchRole && (!from || d >= from) && (!to || d <= to);
+  });
+
+  const headers = ['Name','Email','Role','Orders','WB Codes','BK Codes','PHYS','Last Order','Joined'];
+  const rows = filtered.map(u => [
+    u.full_name || '',
+    u.email || '',
+    u.role || '',
+    u._orderCount,
+    u._wbCount,
+    u._bkCount,
+    u._physCount,
+    u._lastOrder ? u._lastOrder.created_at?.slice(0,10) : '',
+    u.created_at?.slice(0,10) || ''
+  ].map(v => '"' + String(v).replace(/"/g,'""') + '"').join(','));
+
+  const csv = [headers.join(','), ...rows].join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url; a.download = 'wowbox-users-' + new Date().toISOString().slice(0,10) + '.csv';
+  a.click(); URL.revokeObjectURL(url);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   ADMIN — PARTNERS CRM SECTION
+═══════════════════════════════════════════════════════════════ */
+let _admPCRMData = [];
+let _admSelectedPartnerId = null;
+
+async function admLoadPartnersCRM() {
+  document.getElementById('adm-partners-crm-subtitle').textContent = 'Loading…';
+  document.getElementById('adm-pcrm-tbody').innerHTML =
+    '<tr><td colspan="8" style="text-align:center;padding:32px;color:var(--muted)"><i class="fa fa-circle-notch fa-spin"></i> Loading…</td></tr>';
+  try {
+    // Partners are users with role = 'partner'
+    const { data: partners, error: pErr } = await db_client
+      .from('user_profiles')
+      .select('*')
+      .eq('role', 'partner')
+      .order('created_at', { ascending: false });
+    if (pErr) throw pErr;
+
+    // Experiences linked to each partner
+    const { data: experiences } = await db_client
+      .from('experiences')
+      .select('id, name, type, status, location, partner_id, price, capacity, booking_type, nights, accessible, certification, description, created_at');
+
+    // Bookings (to count per partner)
+    const { data: bookings } = await db_client
+      .from('bookings')
+      .select('partner_name, status, experience_name, created_at, customer_email, booking_date');
+
+    // Partner requests (application form data)
+    const { data: requests } = await db_client
+      .from('partner_requests')
+      .select('*');
+
+    _admPCRMData = (partners || []).map(p => {
+      const pExps     = (experiences || []).filter(e => e.partner_id === p.id);
+      const pBookings = (bookings    || []).filter(b =>
+        (b.partner_name || '').toLowerCase() === (p.company_name || p.full_name || '').toLowerCase()
+      );
+      const pRequest  = (requests   || []).find(r => r.email === p.email) || null;
+      return { ...p, _experiences: pExps, _bookings: pBookings, _request: pRequest };
+    });
+
+    document.getElementById('adm-partners-crm-subtitle').textContent = _admPCRMData.length + ' partners';
+    admRenderPartnersCRMTable();
+  } catch(e) {
+    document.getElementById('adm-pcrm-tbody').innerHTML =
+      '<tr><td colspan="8" style="color:#ef4444;padding:20px">' + e.message + '</td></tr>';
+  }
+}
+
+function admRenderPartnersCRMTable() {
+  const search = (document.getElementById('pcrm-search')?.value || '').toLowerCase();
+  const status = document.getElementById('pcrm-status')?.value || '';
+  const from   = document.getElementById('pcrm-from')?.value  || '';
+  const to     = document.getElementById('pcrm-to')?.value    || '';
+
+  const filtered = _admPCRMData.filter(p => {
+    const matchSearch = !search ||
+      (p.company_name||p.full_name||'').toLowerCase().includes(search) ||
+      (p.email||'').toLowerCase().includes(search) ||
+      (p.city||'').toLowerCase().includes(search);
+    const matchStatus = !status || (p.partner_status || 'pending') === status;
+    const d = p.created_at ? p.created_at.slice(0,10) : '';
+    return matchSearch && matchStatus && (!from || d >= from) && (!to || d <= to);
+  });
+
+  const tbody = document.getElementById('adm-pcrm-tbody');
+  if (!filtered.length) {
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:28px;color:var(--muted)">No partners match your filters.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = filtered.map(p => {
+    const name    = p.company_name || p.full_name || '—';
+    const email   = p.email || '—';
+    const type    = p.experience_type || p.business_type || '—';
+    const city    = p.city || '—';
+    const joined  = p.created_at ? new Date(p.created_at).toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'}) : '—';
+    const pStatus = p.partner_status || 'pending';
+    const statusBadge = pStatus === 'active'   ? '<span class="sbadge sb-a">Active</span>' :
+                        pStatus === 'rejected' ? '<span class="sbadge" style="background:#fee2e2;color:#991b1b">Rejected</span>' :
+                        '<span class="sbadge sb-p">Pending</span>';
+    const sel = _admSelectedPartnerId === p.id ? 'background:var(--b50);' : '';
+    return `<tr style="cursor:pointer;${sel}" onclick="admOpenPCRMDetail('${p.id}')">
+      <td><strong style="font-size:.85rem">${name}</strong></td>
+      <td style="font-size:.78rem;color:var(--muted)">${email}</td>
+      <td style="font-size:.78rem">${type}</td>
+      <td style="font-size:.78rem">${city}</td>
+      <td style="text-align:center">${p._experiences.length}</td>
+      <td style="text-align:center">${p._bookings.length}</td>
+      <td>${statusBadge}</td>
+      <td style="font-size:.78rem;color:var(--muted)">${joined}</td>
+    </tr>`;
+  }).join('');
+}
+
+function admOpenPCRMDetail(partnerId) {
+  _admSelectedPartnerId = partnerId;
+  const p = _admPCRMData.find(x => x.id === partnerId);
+  if (!p) return;
+
+  const split = document.getElementById('adm-pcrm-split');
+  const panel = document.getElementById('adm-pcrm-detail');
+  split.style.gridTemplateColumns = '1fr 380px';
+  split.style.gap = '14px';
+  panel.style.display = 'block';
+  document.getElementById('pcrm-detail-name').textContent = p.company_name || p.full_name || 'Partner';
+  admRenderPartnersCRMTable();
+
+  const infoRow = (label, value) =>
+    `<div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border);font-size:.82rem">
+      <span style="color:var(--muted);font-size:.75rem;text-transform:uppercase;letter-spacing:.04em">${label}</span>
+      <span style="color:var(--navy);font-weight:500;text-align:right;max-width:220px;word-break:break-all">${value || '—'}</span>
+    </div>`;
+
+  const req = p._request;
+
+  // Experiences
+  const expsHTML = p._experiences.length ? p._experiences.map(e => {
+    const st = e.status === 'active' ? '<span class="sbadge sb-a">Active</span>' : '<span class="sbadge sb-p">Draft</span>';
+    const price = e.price ? 'R' + Number(e.price).toLocaleString('en-ZA') : '—';
+    return `<div style="padding:8px 0;border-bottom:1px solid var(--border)">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">
+        <div style="font-size:.82rem;font-weight:600;color:var(--navy)">${e.name || '—'}</div>
+        ${st}
+      </div>
+      <div style="font-size:.73rem;color:var(--muted)">${e.type || '—'} · ${e.location || '—'}</div>
+      <div style="display:flex;gap:12px;margin-top:4px;flex-wrap:wrap">
+        ${price !== '—' ? `<span style="font-size:.7rem;color:var(--green);font-weight:600">${price}</span>` : ''}
+        ${e.capacity ? `<span style="font-size:.7rem;color:var(--muted)">Cap: ${e.capacity}</span>` : ''}
+        ${e.nights   ? `<span style="font-size:.7rem;color:var(--muted)">${e.nights} nights</span>` : ''}
+        ${e.accessible ? `<span style="font-size:.7rem;color:var(--b600)">♿ PMR</span>` : ''}
+        ${e.certification ? `<span style="font-size:.7rem;color:var(--muted)">📜 ${e.certification}</span>` : ''}
+      </div>
+    </div>`;
+  }).join('') : '<div style="font-size:.8rem;color:var(--muted);padding:10px 0">No experiences yet.</div>';
+
+  // Recent bookings received
+  const bkHTML = p._bookings.length ? p._bookings.slice(0,6).map(b => {
+    const d = b.booking_date || (b.created_at ? b.created_at.slice(0,10) : '—');
+    const statusC = b.status === 'used' || b.status === 'confirmed' ? '#22c55e' : b.status === 'cancelled' ? '#ef4444' : '#d97706';
+    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border);font-size:.78rem">
+      <div>
+        <div style="font-weight:600;color:var(--navy)">${b.experience_name || '—'}</div>
+        <div style="color:var(--muted);font-size:.7rem">${d} · ${b.customer_email || '—'}</div>
+      </div>
+      <span style="color:${statusC};font-weight:600;font-size:.72rem">${b.status || '—'}</span>
+    </div>`;
+  }).join('') : '<div style="font-size:.8rem;color:var(--muted);padding:10px 0">No bookings yet.</div>';
+
+  document.getElementById('adm-pcrm-detail-body').innerHTML = `
+    <!-- Profile info -->
+    <div style="margin-bottom:18px">
+      ${infoRow('Email', p.email)}
+      ${infoRow('Phone', p.phone || req?.phone)}
+      ${infoRow('Contact', p.contact_name || req?.contact_name)}
+      ${infoRow('Type', p.experience_type || p.business_type || req?.experience_type)}
+      ${infoRow('City', p.city || req?.city)}
+      ${infoRow('Province', p.province || req?.province)}
+      ${infoRow('Status', p.partner_status || 'pending')}
+      ${infoRow('Joined', p.created_at ? new Date(p.created_at).toLocaleDateString('en-ZA',{day:'numeric',month:'long',year:'numeric'}) : '—')}
+    </div>
+    ${req?.bio ? `<div style="margin-bottom:16px;padding:10px 12px;background:var(--bg);border-radius:var(--rs);font-size:.8rem;color:var(--slate);line-height:1.6;font-style:italic">"${req.bio}"</div>` : ''}
+
+    <!-- Experiences -->
+    <div style="margin-bottom:18px">
+      <div style="font-size:.75rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:8px">
+        <i class="fa fa-compass"></i> Experiences (${p._experiences.length})
+      </div>
+      ${expsHTML}
+    </div>
+
+    <!-- Bookings received -->
+    <div style="margin-bottom:18px">
+      <div style="font-size:.75rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:8px">
+        <i class="fa fa-calendar-check"></i> Bookings received (${p._bookings.length})
+      </div>
+      ${bkHTML}
+    </div>
+  `;
+}
+
+function admClosePCRMDetail() {
+  _admSelectedPartnerId = null;
+  const split = document.getElementById('adm-pcrm-split');
+  split.style.gridTemplateColumns = '1fr 0px';
+  split.style.gap = '0';
+  document.getElementById('adm-pcrm-detail').style.display = 'none';
+  admRenderPartnersCRMTable();
+}
+
+function admExportPartnersCRMCSV() {
+  const search = (document.getElementById('pcrm-search')?.value || '').toLowerCase();
+  const status = document.getElementById('pcrm-status')?.value || '';
+  const from   = document.getElementById('pcrm-from')?.value  || '';
+  const to     = document.getElementById('pcrm-to')?.value    || '';
+
+  const filtered = _admPCRMData.filter(p => {
+    const matchSearch = !search ||
+      (p.company_name||p.full_name||'').toLowerCase().includes(search) ||
+      (p.email||'').toLowerCase().includes(search) ||
+      (p.city||'').toLowerCase().includes(search);
+    const matchStatus = !status || (p.partner_status || 'pending') === status;
+    const d = p.created_at ? p.created_at.slice(0,10) : '';
+    return matchSearch && matchStatus && (!from || d >= from) && (!to || d <= to);
+  });
+
+  const headers = ['Name','Email','Phone','Type','City','Province','Experiences','Bookings','Status','Joined'];
+  const rows = filtered.map(p => [
+    p.company_name || p.full_name || '',
+    p.email || '',
+    p.phone || '',
+    p.experience_type || p.business_type || '',
+    p.city || '',
+    p.province || '',
+    p._experiences.length,
+    p._bookings.length,
+    p.partner_status || 'pending',
+    p.created_at?.slice(0,10) || ''
+  ].map(v => '"' + String(v).replace(/"/g,'""') + '"').join(','));
+
+  const csv = [headers.join(','), ...rows].join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url; a.download = 'wowbox-partners-' + new Date().toISOString().slice(0,10) + '.csv';
+  a.click(); URL.revokeObjectURL(url);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   ADMIN — ACCESS CONTROL SECTION
+═══════════════════════════════════════════════════════════════ */
+async function admLoadAccessList() {
+  const tbody = document.getElementById('adm-access-tbody');
+  tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:24px;color:var(--muted)"><i class="fa fa-circle-notch fa-spin"></i> Loading…</td></tr>';
+  try {
+    const { data, error } = await db_client
+      .from('user_profiles')
+      .select('id, full_name, email, created_at, role_granted_at')
+      .eq('role', 'admin')
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+
+    if (!data || !data.length) {
+      tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:24px;color:var(--muted)">No admins found.</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = data.map(a => {
+      const name    = a.full_name || '—';
+      const email   = a.email    || '—';
+      const granted = (a.role_granted_at || a.created_at)
+        ? new Date(a.role_granted_at || a.created_at).toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'})
+        : '—';
+      return `<tr>
+        <td><strong style="font-size:.85rem">${name}</strong></td>
+        <td style="font-size:.82rem;color:var(--muted)">${email}</td>
+        <td style="font-size:.82rem">${granted}</td>
+        <td>
+          <button class="btn bsm" style="background:#fee2e2;color:#991b1b;border:1px solid #fca5a5"
+            onclick="admRevokeAdmin('${a.id}','${email}')">
+            <i class="fa fa-user-minus"></i> Revoke
+          </button>
+        </td>
+      </tr>`;
+    }).join('');
+  } catch(e) {
+    tbody.innerHTML = '<tr><td colspan="4" style="color:#ef4444;padding:16px">' + e.message + '</td></tr>';
+  }
+}
+
+async function admGrantAdmin() {
+  const email  = (document.getElementById('acc-email-input')?.value || '').trim().toLowerCase();
+  const status = document.getElementById('acc-grant-status');
+  if (!email) { status.innerHTML = '<span style="color:#d97706">Please enter an email address.</span>'; return; }
+
+  status.innerHTML = '<i class="fa fa-circle-notch fa-spin"></i> Looking up user…';
+
+  try {
+    // Find user by email in user_profiles
+    const { data: users, error: uErr } = await db_client
+      .from('user_profiles')
+      .select('id, full_name, email, role')
+      .eq('email', email);
+    if (uErr) throw uErr;
+
+    if (!users || users.length === 0) {
+      status.innerHTML = '<span style="color:#ef4444"><i class="fa fa-ban"></i> No user found with this email. They must have an account first.</span>';
+      return;
+    }
+    const user = users[0];
+    if (user.role === 'admin') {
+      status.innerHTML = '<span style="color:#d97706"><i class="fa fa-triangle-exclamation"></i> This user is already an admin.</span>';
+      return;
+    }
+
+    // Grant admin
+    const { error: uErr2 } = await db_client
+      .from('user_profiles')
+      .update({ role: 'admin', role_granted_at: new Date().toISOString() })
+      .eq('id', user.id);
+    if (uErr2) throw uErr2;
+
+    status.innerHTML = `<span style="color:var(--green)"><i class="fa fa-circle-check"></i> Admin access granted to <strong>${user.full_name || email}</strong>. They will see the Admin button on next login.</span>`;
+    document.getElementById('acc-email-input').value = '';
+    admLoadAccessList();
+  } catch(e) {
+    status.innerHTML = '<span style="color:#ef4444"><i class="fa fa-xmark"></i> Error: ' + e.message + '</span>';
+  }
+}
+
+async function admRevokeAdmin(userId, email) {
+  if (!confirm('Revoke admin access for ' + email + '?')) return;
+  try {
+    const { error } = await db_client
+      .from('user_profiles')
+      .update({ role: 'customer', role_granted_at: null })
+      .eq('id', userId);
+    if (error) throw error;
+    admToast('Admin access revoked for ' + email);
+    admLoadAccessList();
+  } catch(e) {
+    admToast('Error: ' + e.message);
+  }
+}
 </script>
 <!-- Hidden print area for box codes -->
 <div id="print-area">
