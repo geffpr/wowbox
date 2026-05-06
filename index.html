@@ -1189,7 +1189,7 @@ async function loadUserBoxes(email) {
               revBtn.style.cssText = 'background:#fef3c7;color:#92400e;border:1px solid #fcd34d';
               revBtn.innerHTML = '<i class="fa fa-star"></i> Review';
               revBtn.onclick = function(){
-                openReviewFromBox(bk.experience_id||vc, bk.experience_name||'WowBox experience', bk.id||vc, vc);
+                openReviewFromBox(bk.experience_id||null, bk.experience_name||'WowBox experience', bk.id||null, vc);
               };
               actionsEl.appendChild(revBtn);
             });
@@ -9350,7 +9350,7 @@ async function submitUserReview(expId, bookingId, prefix, expName) {
     var res = await db_client.from('experience_reviews').insert({
       experience_id:   expId,
       experience_name: expName || expId,
-      order_id:        bookingId,
+      order_id:        (bookingId && typeof bookingId === 'string' && bookingId.length > 10 && !bookingId.startsWith('WB-')) ? bookingId : null,
       user_email:      currentUser ? currentUser.email : '',
       display_name:    name || null,
       rating:          rating,
@@ -9546,11 +9546,35 @@ async function admLoadReviews(filter) {
 
 async function admApproveReview(id) {
   try {
-    var res = await db_client.from('experience_reviews')
+    // Fetch review data before approving (to get experience info for partner email)
+    var revRes = await db_client.from('experience_reviews').select('*').eq('id', id).maybeSingle();
+    var rev = revRes.data || {};
+
+    var upd = await db_client.from('experience_reviews')
       .update({ status: 'approved', approved_at: new Date().toISOString() })
       .eq('id', id);
-    if (res.error) throw res.error;
-    admToast('Review approved and published!');
+    if (upd.error) throw upd.error;
+
+    // Send notification to partner if experience has a partner email
+    if (rev.experience_id) {
+      var expRes = await db_client.from('experiences')
+        .select('partner_name, partner_email')
+        .eq('id', rev.experience_id)
+        .maybeSingle();
+      var exp = expRes.data || {};
+      if (exp.partner_email) {
+        sendOrderEmail('review_notification', {
+          partnerEmail:   exp.partner_email,
+          partnerName:    exp.partner_name || 'Partner',
+          experienceName: rev.experience_name || rev.experience_id,
+          reviewRating:   rev.rating || 5,
+          reviewText:     rev.text || '',
+          reviewerName:   rev.display_name || 'A WowBox customer',
+        });
+      }
+    }
+
+    admToast('\u2705 Review approved and published!');
     admLoadReviews('pending');
   } catch(e) { admToast('Error: '+e.message); }
 }
