@@ -13001,7 +13001,7 @@ function admViewRequest(id) {
     + '</div><div class="fg-row">'
     + dc('Phone',r.phone,prev.phone)+dc('Address',r.address,prev.address)+dc('Certification',r.certification,prev.certification)
     + '</div><div class="fg-row">'
-    + dc('Description',r.description?(r.description.substring(0,300)+(r.description.length>300?'...':'')):'',(prev.description||'').substring(0,300))
+    + dc('Description',r.description?(r.description.substring(0,300)+(r.description.length>300?'...':'')):'',(prev.description!==undefined?String(prev.description).substring(0,300):undefined))
     + '</div>'+imgHtml+progHtml+amHtml+'</div></div>';
   detailEl.scrollIntoView({ behavior:'smooth', block:'nearest' });
 }
@@ -14193,11 +14193,15 @@ async function loadPartnerExperiences() {
   listEl.innerHTML = '<div style="text-align:center;padding:32px;color:var(--muted)"><i class="fa fa-spinner fa-spin" style="font-size:1.5rem"></i></div>';
 
   try {
-    // Load approved experiences — match by email OR partner_name
-    var expRes = await db_client.from('experiences')
-      .select('*')
-      .or('partner_email.eq.' + partnerEmail + ',partner_name.eq.' + encodeURIComponent(partnerName))
-      .order('created_at', { ascending: false });
+    // Load approved experiences — two separate queries to avoid + in email breaking .or()
+    var expByEmail = partnerEmail ? await db_client.from('experiences').select('*').eq('partner_email', partnerEmail) : { data: [] };
+    var expByName  = partnerName  ? await db_client.from('experiences').select('*').eq('partner_name',  partnerName)  : { data: [] };
+    var seenIds = new Set();
+    var mergedExps = [];
+    [(expByEmail.data||[]), (expByName.data||[])].forEach(function(arr){
+      arr.forEach(function(e){ if (!seenIds.has(e.id)) { seenIds.add(e.id); mergedExps.push(e); } });
+    });
+    var expRes = { data: mergedExps };
 
     // Load all requests by this partner (pending + approved + rejected)
     var reqRes = await db_client.from('partner_requests')
@@ -14396,6 +14400,12 @@ async function ppSubmitEdit(expId) {
   document.getElementById('adm-modal').style.display = 'none';
 
   try {
+    // Fetch current experience data to store as previous_data
+    var prevData = {};
+    if (expId) {
+      var prevRes = await db_client.from('experiences').select('*').eq('id', expId).maybeSingle();
+      if (prevRes.data) prevData = prevRes.data;
+    }
     var err = await db_client.from('partner_requests').insert({
       experience_name:    name,
       description:        desc,
@@ -14416,8 +14426,9 @@ async function ppSubmitEdit(expId) {
       accessible,
       insolite,
       ...(icalUrl ? { ical_url: icalUrl } : {}),
-      programme:  programme,
-      amenities:  amenitiesList,
+      programme:          programme,
+      amenities:          amenitiesList,
+      previous_data:      prevData,
     });
     if (err.error) throw err.error;
     admToast('✅ Edit submitted for review — WowBox admin will review within 1–2 days');
