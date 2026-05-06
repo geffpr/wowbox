@@ -1189,7 +1189,8 @@ async function loadUserBoxes(email) {
               revBtn.style.cssText = 'background:#fef3c7;color:#92400e;border:1px solid #fcd34d';
               revBtn.innerHTML = '<i class="fa fa-star"></i> Review';
               revBtn.onclick = function(){
-                openReviewFromBox(bk.experience_id||null, bk.experience_name||'WowBox experience', bk.id||null, vc);
+                var bxName = (typeof boxDB !== 'undefined' && boxDB[bk.box_name||''] && boxDB[bk.box_name||''].name) || bk.box_name || '';
+                openReviewFromBox(bk.experience_id||null, bk.experience_name||bxName||'WowBox experience', bk.id||null, vc, bxName);
               };
               actionsEl.appendChild(revBtn);
             });
@@ -9259,9 +9260,13 @@ function buildReviewCard(r, context) {
     }
   }
 
-  var expLine = r.experience_id
-    ? '<div style="font-size:.7rem;color:var(--b600);font-weight:600;margin-bottom:5px"><i class="fa fa-compass"></i> '+(r.experience_name||r.experience_id)+'</div>'
-    : (r.box_id ? '<div style="font-size:.7rem;color:var(--b600);font-weight:600;margin-bottom:5px"><i class="fa fa-gift"></i> Box review</div>' : '');
+  var expLine = '';
+  if (r.experience_id || r.experience_name) {
+    expLine = '<div style="font-size:.75rem;font-weight:600;color:var(--b700);margin-bottom:2px"><i class="fa fa-compass"></i> '+(r.experience_name||r.experience_id)+'</div>'
+      + (r.box_name ? '<div style="font-size:.7rem;color:var(--muted);margin-bottom:5px">via '+r.box_name+'</div>' : '');
+  } else if (r.box_id || r.box_name) {
+    expLine = '<div style="font-size:.75rem;font-weight:600;color:var(--b700);margin-bottom:5px"><i class="fa fa-gift"></i> '+(r.box_name||r.box_id||'WowBox')+'</div>';
+  }
 
   return '<div class="rev-card" style="margin-bottom:14px">'
     + '<div class="rev-head">'
@@ -9340,7 +9345,7 @@ async function loadUserReviews(email) {
   }
 }
 
-async function submitUserReview(expId, bookingId, prefix, expName) {
+async function submitUserReview(expId, bookingId, prefix, expName, boxName) {
   var rating = window._reviewRatings && window._reviewRatings[prefix] || 0;
   var text   = (document.getElementById(prefix+'-text')||{value:''}).value.trim();
   var name   = (document.getElementById(prefix+'-name')||{value:''}).value.trim() || (currentUser && currentUser.displayName) || null;
@@ -9350,6 +9355,7 @@ async function submitUserReview(expId, bookingId, prefix, expName) {
     var res = await db_client.from('experience_reviews').insert({
       experience_id:   expId,
       experience_name: expName || expId,
+      box_name:        boxName || null,
       order_id:        (bookingId && typeof bookingId === 'string' && bookingId.length > 10 && !bookingId.startsWith('WB-')) ? bookingId : null,
       user_email:      currentUser ? currentUser.email : '',
       display_name:    name || null,
@@ -9363,7 +9369,7 @@ async function submitUserReview(expId, bookingId, prefix, expName) {
   } catch(e) { admToast('Error: '+e.message); }
 }
 
-function openReviewFromBox(expId, expName, bookingId, voucherCode) {
+function openReviewFromBox(expId, expName, bookingId, voucherCode, boxName) {
   // Switch to My Reviews tab and pre-fill a review form
   var allTabs2 = document.querySelectorAll('#my-account .anl');
   var tabs2    = document.querySelectorAll('.dash-tab');
@@ -9380,13 +9386,14 @@ function openReviewFromBox(expId, expName, bookingId, voucherCode) {
   var pid = 'rev-box-'+bookingId;
   if (document.getElementById(pid+'-text')) { pendEl.scrollIntoView({behavior:'smooth'}); return; }
   var formHtml = '<div class="ck-card" style="margin-bottom:14px;border:2px solid var(--b300)">'
-    + '<div style="font-size:.88rem;font-weight:600;color:var(--navy);margin-bottom:4px">'
-    + '<i class="fa fa-star" style="color:#f59e0b"></i> Review: '+expName+'</div>'
+    + '<div style="font-size:.88rem;font-weight:600;color:var(--navy);margin-bottom:2px">'
+    + '<i class="fa fa-star" style="color:#f59e0b"></i> '+expName+'</div>'
+    + (boxName ? '<div style="font-size:.72rem;color:var(--muted);margin-bottom:6px">via '+boxName+'</div>' : '')
     + '<div style="margin-bottom:10px">'+renderStars(0, true, pid)+'</div>'
     + '<textarea class="fi" id="'+pid+'-text" rows="3" placeholder="Share your experience..." style="margin-bottom:8px;font-size:.82rem"></textarea>'
     + '<input class="fi" id="'+pid+'-name" placeholder="Display name (e.g. Sarah M.)" style="margin-bottom:10px;font-size:.82rem">'
     + '<div style="display:flex;gap:8px">'
-    + '<button class="btn bp bsm" onclick="submitUserReview(\''+expId+'\',\''+bookingId+'\',\''+pid+'\',\''+expName+'\');"><i class="fa fa-paper-plane"></i> Submit review</button>'
+    + '<button class="btn bp bsm" onclick="submitUserReview(\''+expId+'\',\''+bookingId+'\',\''+pid+'\',\''+expName+'\',\''+( boxName||'')+'\')"><i class="fa fa-paper-plane"></i> Submit review</button>'
     + '<button class="btn bg bsm" onclick="this.closest(\'.ck-card\').remove()">Cancel</button>'
     + '</div></div>';
   pendEl.insertAdjacentHTML('afterbegin', '<h3 style="font-size:1rem;color:var(--navy);margin-bottom:14px"><i class="fa fa-star" style="color:#f59e0b"></i> Leave a review</h3>' + formHtml);
@@ -9539,8 +9546,42 @@ async function admLoadReviews(filter) {
       listEl.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted)"><i class="fa fa-star" style="font-size:2rem;opacity:.2;display:block;margin-bottom:12px"></i><p>No '+filter+' reviews.</p></div>';
       return;
     }
-    listEl.innerHTML = '<div style="margin-bottom:12px;font-size:.82rem;color:var(--muted)">'+revs.length+' '+filter+' review'+(revs.length!==1?'s':'')+'</div>'
-      + revs.map(function(r){ return buildReviewCard(r, 'admin'); }).join('');
+    var statusColor = {pending:'#d97706',approved:'#16a34a',rejected:'#dc2626',flagged:'#f97316'};
+    listEl.innerHTML = '<div style="font-size:.8rem;color:var(--muted);margin-bottom:10px">'+revs.length+' '+filter+' review'+(revs.length!==1?'s':'')+'</div>'
+      + '<table style="width:100%;border-collapse:collapse">'
+      + '<thead><tr style="font-size:.72rem;text-transform:uppercase;color:var(--muted);border-bottom:2px solid var(--border)">'
+      + '<th style="padding:8px 10px;text-align:left;font-weight:700">Reviewer</th>'
+      + '<th style="padding:8px 10px;text-align:left;font-weight:700">Experience</th>'
+      + '<th style="padding:8px 10px;text-align:left;font-weight:700">Box</th>'
+      + '<th style="padding:8px 10px;text-align:center;font-weight:700">Rating</th>'
+      + '<th style="padding:8px 10px;text-align:left;font-weight:700">Review</th>'
+      + '<th style="padding:8px 10px;text-align:left;font-weight:700">Date</th>'
+      + '<th style="padding:8px 10px;text-align:left;font-weight:700">Status</th>'
+      + '<th style="padding:8px 10px;text-align:left;font-weight:700">Actions</th>'
+      + '</tr></thead><tbody>'
+      + revs.map(function(r) {
+          var sc = statusColor[r.status]||'#64748b';
+          var date = r.created_at ? new Date(r.created_at).toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'}) : '—';
+          var stars = '\u2b50'.repeat(Math.min(5,Math.max(0,parseInt(r.rating)||0)));
+          var actions = '';
+          if (r.status === 'pending' || r.status === 'flagged') {
+            actions = '<button class="btn bgreen bsm" onclick="admApproveReview(\''+r.id+'\')"><i class="fa fa-check"></i> Approve</button> '
+              + '<button class="btn bsm" onclick="admRejectReview(\''+r.id+'\')" style="background:#fee2e2;color:#991b1b;border:1px solid #fca5a5"><i class="fa fa-xmark"></i> Reject</button>';
+          } else {
+            actions = '<button class="btn bsm" onclick="admDeleteReview(\''+r.id+'\')" style="background:#fef2f2;color:#ef4444;border:1px solid #fca5a5"><i class="fa fa-trash"></i></button>';
+          }
+          return '<tr style="border-bottom:1px solid var(--border);font-size:.82rem">'
+            + '<td style="padding:10px;font-weight:600;color:var(--navy)">'+(r.display_name||r.user_email||'Anon')+'</td>'
+            + '<td style="padding:10px;color:var(--b700)">'+(r.experience_name||'—')+'</td>'
+            + '<td style="padding:10px;color:var(--muted);font-size:.78rem">'+(r.box_name||'—')+'</td>'
+            + '<td style="padding:10px;text-align:center">'+stars+'</td>'
+            + '<td style="padding:10px;max-width:260px;color:var(--slate)">'+((r.text||'').substring(0,100)+(r.text&&r.text.length>100?'…':''))+'</td>'
+            + '<td style="padding:10px;font-size:.78rem;color:var(--muted)">'+date+'</td>'
+            + '<td style="padding:10px"><span style="font-size:.7rem;font-weight:700;color:'+sc+';background:'+sc+'18;padding:2px 8px;border-radius:99px">'+(r.status||'—')+'</span></td>'
+            + '<td style="padding:10px"><div style="display:flex;gap:5px">'+actions+'</div></td>'
+            + '</tr>';
+        }).join('')
+      + '</tbody></table>';
   } catch(e) { listEl.innerHTML = '<p style="color:#ef4444">Error: '+e.message+'</p>'; }
 }
 
