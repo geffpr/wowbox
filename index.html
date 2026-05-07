@@ -11249,7 +11249,13 @@ async function completeOrderConfirm(paystackRef, total, discount, delivFee) {
         recipient_email:   custEmail || null,
         user_email:        (typeof currentUser !== 'undefined' && currentUser && currentUser.email) ? currentUser.email : (buyerEmail || null),
         user_id:           (typeof currentUser !== 'undefined' && currentUser && currentUser.id) ? currentUser.id : null,
+        coupon_code:       activeCoupon ? activeCoupon.code : null,
       });
+      // Increment coupon used_count after confirmed payment
+      if (activeCoupon && activeCoupon.id) {
+        await db_client.from('coupons').rpc || await db_client.rpc('increment_coupon_usage', { coupon_id: activeCoupon.id }).catch(function(){});
+        await db_client.from('coupons').update({ used_count: (activeCoupon.used_count||0) + 1 }).eq('id', activeCoupon.id);
+      }
       appState.lastVideoToken = videoToken;
       if (videoToken && orderDetailDB[ref]) orderDetailDB[ref].videoToken = videoToken;
 
@@ -12306,7 +12312,7 @@ async function renderAdmin() {
   document.getElementById('adm-dash').style.display = 'block';
   document.querySelectorAll('.anl').forEach((n,i) => n.classList.toggle('on', i===0));
   renderBoxGrids();
-  renderCouponTable();
+  loadCoupons();
   loadOrdersFromSupabase();
   renderUsageTable();
   loadUsageFromSupabase();
@@ -15484,168 +15490,180 @@ function hideProPaymentForm() {
 }
 
 /* ══════════════════════════════════════════════════════════════
-   COUPON SYSTEM
-   couponDB: central store for all coupons.
-   Priority rules for validation:
-     1. Code exists? → else: invalid
-     2. Status active? → else: inactive
-     3. Today ∈ [start_date, end_date]? → else: not yet active / expired
-     4. Flash limit: used_count < max_uses? → else: exhausted
-   applyCoupon() drives checkout discount logic.
+/* ══════════════════════════════════════════════════════════════
+   COUPON SYSTEM — Supabase powered
+   All coupons live in the `coupons` table.
+   Field mapping: description/start_date/end_date/is_flash/limit_per_user
 ══════════════════════════════════════════════════════════════ */
-let couponDB = [
-  { id:1, code:'WELCOME20',   type:'percentage', value:20, desc:'Welcome discount', start:'2025-01-01', end:'2025-12-31', status:'active',   limit_total:500,  limit_user:1, flash:false, flash_max:null, used_count:143 },
-  { id:2, code:'FLASH100',    type:'percentage', value:15, desc:'Flash sale — first 100 customers', start:'2025-04-01', end:'2025-06-30', status:'active', limit_total:100, limit_user:1, flash:true, flash_max:100, used_count:67 },
-  { id:3, code:'SAFARI50',    type:'fixed',      value:50, desc:'Safari box R50 off', start:'2025-03-01', end:'2025-05-31', status:'active',   limit_total:200,  limit_user:null, flash:false, flash_max:null, used_count:22 },
-  { id:4, code:'COUPLES2025', type:'percentage', value:10, desc:'Couples retreat promo', start:'2025-02-01', end:'2025-04-30', status:'inactive', limit_total:null, limit_user:null, flash:false, flash_max:null, used_count:0 },
-  { id:5, code:'BIRTHDAY',    type:'percentage', value:25, desc:'Birthday month offer', start:'2025-01-01', end:'2025-12-31', status:'active',   limit_total:null, limit_user:1, flash:false, flash_max:null, used_count:31 },
-  { id:6, code:'NEWUSER',     type:'fixed',      value:100, desc:'New user first purchase', start:'2025-04-01', end:'2025-07-31', status:'active', limit_total:1000, limit_user:1, flash:false, flash_max:null, used_count:88 },
-  { id:7, code:'FLASHVIP',    type:'percentage', value:30, desc:'VIP flash — only 50 spots!', start:'2025-04-15', end:'2025-04-30', status:'active', limit_total:50, limit_user:1, flash:true, flash_max:50, used_count:49 },
-  { id:8, code:'WINTER10',    type:'percentage', value:10, desc:'Winter special', start:'2025-06-01', end:'2025-08-31', status:'active', limit_total:null, limit_user:null, flash:false, flash_max:null, used_count:0 },
-];
 
-/* Active coupon state in checkout */
+/* Cache for admin panel */
+var _couponsCache = [];
+/* Active coupon in checkout session */
 var activeCoupon = null;
 
-function validateCoupon(code) {
-  const now    = new Date();
-  const nowStr = now.toISOString().slice(0,10);
-  const c      = couponDB.find(x => x.code === code.toUpperCase().trim());
-  if (!c)                                                     return { valid:false, reason:'not_found' };
-  if (c.status !== 'active')                                  return { valid:false, reason:'inactive', coupon:c };
-  if (nowStr < c.start)                                       return { valid:false, reason:'not_yet', coupon:c };
-  if (nowStr > c.end)                                         return { valid:false, reason:'expired', coupon:c };
-  if (c.limit_total !== null && c.used_count >= c.limit_total) return { valid:false, reason:'exhausted', coupon:c };
-  return { valid:true, coupon:c };
+/* ── Load coupons from Supabase (admin panel) ── */
+async function loadCoupons() {
+  var res = await db_client.from('coupons').select('*').order('created_at', { ascending: false });
+  _couponsCache = res.data || [];
+  renderCouponTable();
 }
 
-function applyCoupon() {
+/* ── Render admin coupon table ── */
+function renderCouponTable() {
+  const tbody = document.getElementById('adm-coupon-tbody');
+  if (!tbody) return;
+  const now = new Date().toISOString().slice(0,10);
+  if (!_couponsCache.length) {
+    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:24px;color:var(--muted)">No coupons yet. Create your first one.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = _couponsCache.map(function(c) {
+    var isExpired  = c.end_date < now;
+    var usePct     = c.limit_total ? Math.round(c.used_count / c.limit_total * 100) : 0;
+    var statusBadge = isExpired
+      ? '<span class="sbadge" style="background:#fee2e2;color:#991b1b">Expired</span>'
+      : c.status === 'active'
+        ? '<span class="sbadge sb-a">Active</span>'
+        : '<span class="sbadge sb-p">Inactive</span>';
+    var flashCell = c.is_flash
+      ? '<span class="flash-badge">\u26a1 ' + c.used_count + '/' + c.flash_max + '</span>'
+        + '<div class="flash-bar" style="width:80px;margin-top:4px"><div class="flash-bar-fill" style="width:' + usePct + '%"></div></div>'
+      : '\u2014';
+    return '<tr>'
+      + '<td><code style="font-size:.78rem;color:var(--b700);font-weight:700">' + c.code + '</code>'
+      + '<div style="font-size:.68rem;color:var(--muted)">' + (c.description||'') + '</div></td>'
+      + '<td><span class="tag ' + (c.type==='percentage'?'t-act':'t-hotel') + '" style="font-size:.68rem">' + c.type + '</span></td>'
+      + '<td style="font-weight:700;color:var(--navy)">' + (c.type==='percentage' ? c.value+'%' : 'R'+c.value) + '</td>'
+      + '<td style="font-size:.75rem;color:var(--muted)">' + c.start_date + '<br>\u2192 ' + c.end_date + '</td>'
+      + '<td style="color:var(--b600);font-weight:600">' + (c.used_count||0) + '</td>'
+      + '<td style="color:var(--muted);font-size:.78rem">' + (c.limit_total||'\u221e') + (c.limit_per_user?' ('+c.limit_per_user+'/user)':'') + '</td>'
+      + '<td>' + flashCell + '</td>'
+      + '<td>' + statusBadge + '</td>'
+      + '<td style="white-space:nowrap">'
+      + '<button class="btn bg bsm" onclick="admShowCouponForm(' + c.id + ')"><i class="fa fa-pen"></i></button> '
+      + '<button class="btn bg bsm" style="color:' + (c.status==='active'?'var(--red)':'var(--green)') + '" onclick="admToggleCouponStatus(' + c.id + ',' + JSON.stringify(c.status) + ')">'
+      + '<i class="fa fa-' + (c.status==='active'?'ban':'check') + '"></i></button> '
+      + '<button class="btn bg bsm" style="color:var(--red)" onclick="admDeleteCoupon(' + c.id + ',' + JSON.stringify(c.code) + ')"><i class="fa fa-trash"></i></button>'
+      + '</td></tr>';
+  }).join('');
+}
+
+/* ── Validate coupon live from Supabase (checkout) ── */
+async function validateCouponLive(code, userEmail) {
+  var res = await db_client.from('coupons')
+    .select('*').eq('code', code.toUpperCase().trim()).maybeSingle();
+  if (res.error || !res.data) return { valid: false, reason: 'not_found' };
+  var c = res.data;
+  var now = new Date().toISOString().slice(0,10);
+  if (c.status !== 'active')                                  return { valid: false, reason: 'inactive',   coupon: c };
+  if (now < c.start_date)                                     return { valid: false, reason: 'not_yet',    coupon: c };
+  if (now > c.end_date)                                       return { valid: false, reason: 'expired',    coupon: c };
+  if (c.limit_total !== null && c.used_count >= c.limit_total) return { valid: false, reason: 'exhausted', coupon: c };
+  // Check per-user limit
+  if (c.limit_per_user && userEmail) {
+    var usedRes = await db_client.from('orders')
+      .select('id', { count: 'exact' })
+      .eq('coupon_code', c.code)
+      .eq('customer_email', userEmail);
+    if ((usedRes.count || 0) >= c.limit_per_user) return { valid: false, reason: 'user_limit', coupon: c };
+  }
+  return { valid: true, coupon: c };
+}
+
+/* ── Apply coupon at checkout ── */
+async function applyCoupon() {
   const raw = (document.getElementById('ck-coupon-input')?.value || '').trim().toUpperCase();
   const res = document.getElementById('ck-coupon-result');
   if (!raw) return;
-  const result = validateCoupon(raw);
+  if (res) res.innerHTML = '<span style="color:var(--muted);font-size:.82rem">Checking code\u2026</span>';
+  const userEmail = (typeof currentUser !== 'undefined' && currentUser) ? currentUser.email : null;
+  const result = await validateCouponLive(raw, userEmail);
   if (!result.valid) {
     const msgs = {
       not_found:  'Code <strong>' + raw + '</strong> does not exist.',
       inactive:   'Code <strong>' + raw + '</strong> is currently inactive.',
-      not_yet:    'Code <strong>' + raw + '</strong> is not active yet. Valid from ' + result.coupon?.start + '.',
-      expired:    'Code <strong>' + raw + '</strong> expired on ' + result.coupon?.end + '.',
-      exhausted:  result.coupon?.flash ? 'Flash offer <strong>' + raw + '</strong> has been fully claimed — all ' + result.coupon?.flash_max + ' spots taken!' : 'Code <strong>' + raw + '</strong> has reached its usage limit.',
+      not_yet:    'Code <strong>' + raw + '</strong> is not active yet. Valid from ' + result.coupon?.start_date + '.',
+      expired:    'Code <strong>' + raw + '</strong> expired on ' + result.coupon?.end_date + '.',
+      exhausted:  result.coupon?.is_flash
+        ? 'Flash offer <strong>' + raw + '</strong> has been fully claimed \u2014 all ' + result.coupon?.flash_max + ' spots taken!'
+        : 'Code <strong>' + raw + '</strong> has reached its usage limit.',
+      user_limit: 'You have already used code <strong>' + raw + '</strong>.',
     };
-    res.innerHTML = `<div class="coupon-chip coupon-invalid" style="margin-top:8px"><i class="fa fa-xmark-circle"></i> ${msgs[result.reason] || 'Invalid code.'}</div>`;
+    if (res) res.innerHTML = '<div class="coupon-chip coupon-invalid" style="margin-top:8px"><i class="fa fa-xmark-circle"></i> ' + (msgs[result.reason] || 'Invalid code.') + '</div>';
     activeCoupon = null;
     updateCouponSummary();
     return;
   }
   const c = result.coupon;
-  activeCoupon = c;
-  // Increment used count (in-memory for demo)
-  c.used_count++;
-  const sub = c.type === 'percentage' ? c.value + '% off' : 'R' + c.value + ' off';
-  const flash = c.flash ? `<span class="flash-badge" style="margin-left:6px">⚡ Flash offer — ${c.used_count}/${c.flash_max} claimed</span>` : '';
-  res.innerHTML = `<div class="coupon-chip" style="margin-top:8px"><i class="fa fa-check-circle"></i> <strong>${c.code}</strong> — ${sub} applied ${flash}</div>`;
-  document.getElementById('ck-coupon-remove').style.display = 'inline-flex';
+  // Normalize field names for checkout compatibility
+  activeCoupon = { id: c.id, code: c.code, type: c.type, value: c.value,
+    is_flash: c.is_flash, flash_max: c.flash_max, used_count: c.used_count };
+  const sub   = c.type === 'percentage' ? c.value + '% off' : 'R' + c.value + ' off';
+  const flash = c.is_flash ? '<span class="flash-badge" style="margin-left:6px">\u26a1 Flash offer \u2014 ' + c.used_count + '/' + c.flash_max + ' claimed</span>' : '';
+  if (res) res.innerHTML = '<div class="coupon-chip" style="margin-top:8px"><i class="fa fa-check-circle"></i> <strong>' + c.code + '</strong> \u2014 ' + sub + ' applied ' + flash + '</div>';
+  const removeBtn = document.getElementById('ck-coupon-remove');
+  if (removeBtn) removeBtn.style.display = 'inline-flex';
   updateCouponSummary();
 }
 
 function removeCoupon() {
   activeCoupon = null;
-  document.getElementById('ck-coupon-input').value = '';
-  document.getElementById('ck-coupon-result').innerHTML = '';
-  document.getElementById('ck-coupon-remove').style.display = 'none';
+  var inp = document.getElementById('ck-coupon-input'); if (inp) inp.value = '';
+  var res = document.getElementById('ck-coupon-result'); if (res) res.innerHTML = '';
+  var btn = document.getElementById('ck-coupon-remove'); if (btn) btn.style.display = 'none';
   updateCouponSummary();
 }
 
 function updateCouponSummary() {
   const subtotal = getCartTotal();
-  let discount  = 0;
+  let discount = 0;
   if (activeCoupon) {
     discount = activeCoupon.type === 'percentage'
       ? Math.round(subtotal * activeCoupon.value / 100)
       : Math.min(activeCoupon.value, subtotal);
   }
   const total = subtotal - discount;
-  // Rebuild sidebar rows
-  let rows = appState.cart.map(c => `<div class="sum-row"><span>${c.name} ×${c.qty}</span><span>R${(c.price*c.qty).toLocaleString()}</span></div>`).join('');
+  let rows = appState.cart.map(function(c){ return '<div class="sum-row"><span>' + c.name + ' \xd7' + c.qty + '</span><span>R' + (c.price*c.qty).toLocaleString() + '</span></div>'; }).join('');
   if (discount > 0) {
-    rows += `<div class="sum-row" style="color:var(--green)"><span>🏷️ ${activeCoupon.code} (${activeCoupon.type==='percentage'?activeCoupon.value+'%':'R'+activeCoupon.value} off)</span><span>−R${discount.toLocaleString()}</span></div>`;
+    rows += '<div class="sum-row" style="color:var(--green)"><span>\uD83C\uDFF7\uFE0F ' + activeCoupon.code + ' (' + (activeCoupon.type==='percentage' ? activeCoupon.value+'%' : 'R'+activeCoupon.value) + ' off)</span><span>\u2212R' + discount.toLocaleString() + '</span></div>';
   }
-  const summaryEl = document.getElementById('ck-summary-rows');
-  if (summaryEl) summaryEl.innerHTML = rows;
-  const totalDisp = document.getElementById('ck-total-disp');
-  if (totalDisp) totalDisp.textContent = 'R' + total.toLocaleString();
-  const payBtn = document.getElementById('ck-pay-total');
-  if (payBtn) payBtn.textContent = 'R' + total.toLocaleString();
+  var summaryEl = document.getElementById('ck-summary-rows'); if (summaryEl) summaryEl.innerHTML = rows;
+  var totalDisp = document.getElementById('ck-total-disp'); if (totalDisp) totalDisp.textContent = 'R' + total.toLocaleString();
+  var payBtn    = document.getElementById('ck-pay-total');   if (payBtn)    payBtn.textContent    = 'R' + total.toLocaleString();
 }
 
-/* ── ADMIN COUPON MANAGEMENT ── */
+/* ── Admin coupon state ── */
 let admCouponType = 'percentage';
 let admCouponFlash = false;
 let admEditingCouponId = null;
 
-function renderCouponTable() {
-  const tbody = document.getElementById('adm-coupon-tbody');
-  if (!tbody) return;
-  const now = new Date().toISOString().slice(0,10);
-  tbody.innerHTML = couponDB.map(c => {
-    const isExpired = c.end < now;
-    const isFlash   = c.flash;
-    const usePct    = c.limit_total ? Math.round(c.used_count / c.limit_total * 100) : 0;
-    const statusBadge = isExpired
-      ? '<span class="sbadge" style="background:#fee2e2;color:#991b1b">Expired</span>'
-      : c.status === 'active'
-        ? '<span class="sbadge sb-a">Active</span>'
-        : '<span class="sbadge sb-p">Inactive</span>';
-    const flashCell = isFlash
-      ? `<span class="flash-badge">⚡ ${c.used_count}/${c.flash_max}</span>
-         <div class="flash-bar" style="width:80px;margin-top:4px"><div class="flash-bar-fill" style="width:${usePct}%"></div></div>`
-      : '—';
-    return `<tr>
-      <td><code style="font-size:.78rem;color:var(--b700);font-weight:700">${c.code}</code><div style="font-size:.68rem;color:var(--muted)">${c.desc}</div></td>
-      <td><span class="tag ${c.type==='percentage'?'t-act':'t-hotel'}" style="font-size:.68rem">${c.type}</span></td>
-      <td style="font-weight:700;color:var(--navy)">${c.type==='percentage'?c.value+'%':'R'+c.value}</td>
-      <td style="font-size:.75rem;color:var(--muted)">${c.start}<br>→ ${c.end}</td>
-      <td style="color:var(--b600);font-weight:600">${c.used_count}</td>
-      <td style="color:var(--muted);font-size:.78rem">${c.limit_total || '∞'}${c.limit_user?' ('+c.limit_user+'/user)':''}</td>
-      <td>${flashCell}</td>
-      <td>${statusBadge}</td>
-      <td style="white-space:nowrap">
-        <button class="btn bg bsm" onclick="admShowCouponForm(${c.id})"><i class="fa fa-pen"></i></button>
-        <button class="btn bg bsm" style="margin-left:3px;color:${c.status==='active'?'var(--red)':'var(--green)'}" onclick="admToggleCouponStatus(${c.id})">
-          <i class="fa fa-${c.status==='active'?'ban':'check'}"></i>
-        </button>
-        <button class="btn bg bsm" style="margin-left:3px;color:var(--red)" onclick="admDeleteCoupon(${c.id})"><i class="fa fa-trash"></i></button>
-      </td>
-    </tr>`;
-  }).join('');
-}
-
 function admShowCouponForm(id) {
-  const wrap = document.getElementById('adm-coupon-form-wrap');
+  var wrap = document.getElementById('adm-coupon-form-wrap');
   wrap.style.display = 'block';
   wrap.scrollIntoView({behavior:'smooth',block:'nearest'});
-  admEditingCouponId = id;
+  admEditingCouponId = id || null;
   if (id) {
-    const c = couponDB.find(x => x.id === id);
-    document.getElementById('adm-coupon-form-title').textContent = 'Edit — ' + c.code;
-    document.getElementById('acf-code').value       = c.code;
-    document.getElementById('acf-desc').value       = c.desc;
-    document.getElementById('acf-value').value      = c.value;
-    document.getElementById('acf-start').value      = c.start;
-    document.getElementById('acf-end').value        = c.end;
-    document.getElementById('acf-status').value     = c.status;
+    var c = _couponsCache.find(function(x){ return x.id === id; });
+    if (!c) return;
+    document.getElementById('adm-coupon-form-title').textContent = 'Edit \u2014 ' + c.code;
+    document.getElementById('acf-code').value        = c.code;
+    document.getElementById('acf-desc').value        = c.description || '';
+    document.getElementById('acf-value').value       = c.value;
+    document.getElementById('acf-start').value       = c.start_date;
+    document.getElementById('acf-end').value         = c.end_date;
+    document.getElementById('acf-status').value      = c.status;
     document.getElementById('acf-limit-total').value = c.limit_total || '';
-    document.getElementById('acf-limit-user').value  = c.limit_user  || '';
+    document.getElementById('acf-limit-user').value  = c.limit_per_user || '';
     admSetCouponType(c.type);
-    admCouponFlash = c.flash;
-    const tog = document.getElementById('acf-flash-tog');
-    const fields = document.getElementById('acf-flash-fields');
-    tog.classList.toggle('on', c.flash);
-    fields.style.display = c.flash ? 'block' : 'none';
-    if (c.flash) document.getElementById('acf-flash-max').value = c.flash_max || '';
+    admCouponFlash = c.is_flash || false;
+    var tog    = document.getElementById('acf-flash-tog');
+    var fields = document.getElementById('acf-flash-fields');
+    tog.classList.toggle('on', admCouponFlash);
+    fields.style.display = admCouponFlash ? 'block' : 'none';
+    if (admCouponFlash) document.getElementById('acf-flash-max').value = c.flash_max || '';
   } else {
     document.getElementById('adm-coupon-form-title').textContent = 'Create coupon';
-    ['acf-code','acf-desc','acf-value','acf-start','acf-end','acf-limit-total','acf-limit-user','acf-flash-max'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+    ['acf-code','acf-desc','acf-value','acf-start','acf-end','acf-limit-total','acf-limit-user','acf-flash-max'].forEach(function(fid){ var el = document.getElementById(fid); if (el) el.value = ''; });
     admSetCouponType('percentage');
     admCouponFlash = false;
     document.getElementById('acf-flash-tog').classList.remove('on');
@@ -15653,9 +15671,7 @@ function admShowCouponForm(id) {
     document.getElementById('acf-status').value = 'active';
   }
 }
-function admHideCouponForm() {
-  document.getElementById('adm-coupon-form-wrap').style.display = 'none';
-}
+function admHideCouponForm() { document.getElementById('adm-coupon-form-wrap').style.display = 'none'; }
 function admSetCouponType(t) {
   admCouponType = t;
   document.getElementById('acf-type-pct').classList.toggle('on', t==='percentage');
@@ -15668,60 +15684,60 @@ function admToggleFlash() {
   document.getElementById('acf-flash-fields').style.display = admCouponFlash ? 'block' : 'none';
 }
 function admGenCouponCode() {
-  const words = ['SAVE','DEAL','GIFT','WOW','VIP','SALE','OFF','ENJOY'];
-  const word  = words[Math.floor(Math.random() * words.length)];
-  const num   = Math.floor(10 + Math.random()*90);
-  document.getElementById('acf-code').value = word + num;
+  var words = ['SAVE','DEAL','GIFT','WOW','VIP','SALE','OFF','ENJOY'];
+  document.getElementById('acf-code').value = words[Math.floor(Math.random()*words.length)] + Math.floor(10+Math.random()*90);
 }
 function admUpdateFlashPreview() {
-  const max = parseInt(document.getElementById('acf-flash-max')?.value) || 0;
+  var max = parseInt(document.getElementById('acf-flash-max')?.value) || 0;
   if (!max) return;
   document.getElementById('acf-flash-preview').style.display = 'block';
   document.getElementById('acf-flash-preview-text').textContent = '0/' + max + ' used';
   document.getElementById('acf-flash-bar').style.width = '0%';
 }
-function admSaveCoupon() {
+async function admSaveCoupon() {
   const code  = document.getElementById('acf-code')?.value?.trim()?.toUpperCase();
   const value = parseInt(document.getElementById('acf-value')?.value);
   const start = document.getElementById('acf-start')?.value;
   const end   = document.getElementById('acf-end')?.value;
   if (!code || !value || !start || !end) { admToast('Please fill in all required fields.'); return; }
-  const flashMax = admCouponFlash ? (parseInt(document.getElementById('acf-flash-max')?.value)||null) : null;
-  const entry = {
-    id:           admEditingCouponId || (couponDB.length + 1),
+  const payload = {
     code,
-    type:         admCouponType,
+    description:    document.getElementById('acf-desc')?.value || '',
+    type:           admCouponType,
     value,
-    desc:         document.getElementById('acf-desc')?.value || '',
-    start,
-    end,
-    status:       document.getElementById('acf-status')?.value || 'active',
-    limit_total:  parseInt(document.getElementById('acf-limit-total')?.value)||null,
-    limit_user:   parseInt(document.getElementById('acf-limit-user')?.value)||null,
-    flash:        admCouponFlash,
-    flash_max:    flashMax,
-    used_count:   admEditingCouponId ? (couponDB.find(x=>x.id===admEditingCouponId)?.used_count||0) : 0,
+    start_date:     start,
+    end_date:       end,
+    status:         document.getElementById('acf-status')?.value || 'active',
+    limit_total:    parseInt(document.getElementById('acf-limit-total')?.value)||null,
+    limit_per_user: parseInt(document.getElementById('acf-limit-user')?.value)||null,
+    is_flash:       admCouponFlash,
+    flash_max:      admCouponFlash ? (parseInt(document.getElementById('acf-flash-max')?.value)||null) : null,
   };
+  var res;
   if (admEditingCouponId) {
-    const idx = couponDB.findIndex(x => x.id === admEditingCouponId);
-    if (idx >= 0) couponDB[idx] = entry;
+    res = await db_client.from('coupons').update(payload).eq('id', admEditingCouponId);
   } else {
-    couponDB.push(entry);
+    payload.used_count = 0;
+    res = await db_client.from('coupons').insert(payload);
   }
-  renderCouponTable();
+  if (res.error) { admToast('Error: ' + res.error.message); return; }
   admHideCouponForm();
-  admToast('✅ Coupon ' + code + ' saved successfully');
+  admToast('\u2705 Coupon ' + code + ' saved successfully');
+  await loadCoupons();
 }
-function admToggleCouponStatus(id) {
-  const c = couponDB.find(x => x.id === id);
-  if (c) { c.status = c.status === 'active' ? 'inactive' : 'active'; renderCouponTable(); admToast('Coupon ' + c.code + ' → ' + c.status); }
+async function admToggleCouponStatus(id, currentStatus) {
+  var newStatus = currentStatus === 'active' ? 'inactive' : 'active';
+  var res = await db_client.from('coupons').update({ status: newStatus }).eq('id', id);
+  if (res.error) { admToast('Error: ' + res.error.message); return; }
+  admToast('Coupon \u2192 ' + newStatus);
+  await loadCoupons();
 }
-function admDeleteCoupon(id) {
-  const c = couponDB.find(x => x.id === id);
-  if (!c || !confirm('Delete coupon ' + c.code + '?')) return;
-  couponDB = couponDB.filter(x => x.id !== id);
-  renderCouponTable();
+async function admDeleteCoupon(id, code) {
+  if (!confirm('Delete coupon ' + code + '?')) return;
+  var res = await db_client.from('coupons').delete().eq('id', id);
+  if (res.error) { admToast('Error: ' + res.error.message); return; }
   admToast('Coupon deleted.');
+  await loadCoupons();
 }
 
 /* ══════════════════════════════════════════════════════════════
