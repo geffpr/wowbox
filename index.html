@@ -9437,9 +9437,23 @@ function revCard(rv) {
     <p style="font-size:.8rem;color:var(--slate);line-height:1.6">${rv.comment}</p>
   </div>`;
 }
-function renderProdReviews(boxId) {
-  const revs = reviewsDB[boxId] || [];
-  document.getElementById('prod-rev-grid').innerHTML = revs.slice(0,3).map(rv => revCard(rv)).join('') || '<p style="color:var(--muted);font-size:.82rem">No reviews yet.</p>';
+async function renderProdReviews(boxId) {
+  var grid = document.getElementById('prod-rev-grid');
+  if (!grid) return;
+  grid.innerHTML = '<p style="color:var(--muted);font-size:.82rem">Loading reviews…</p>';
+  try {
+    var res = await db_client.from('experience_reviews')
+      .select('*')
+      .eq('box_id', boxId)
+      .eq('status', 'approved')
+      .order('created_at', { ascending: false })
+      .limit(3);
+    var revs = res.data || [];
+    grid.innerHTML = revs.map(function(r){ return buildReviewCard(r, 'display'); }).join('')
+      || '<p style="color:var(--muted);font-size:.82rem">No reviews yet.</p>';
+  } catch(e) {
+    grid.innerHTML = '<p style="color:var(--muted);font-size:.82rem">No reviews yet.</p>';
+  }
 }
 // Cached reviews for the current box (loaded from Supabase)
 var _cachedBoxReviews = [];
@@ -9636,6 +9650,7 @@ async function loadUserReviews(email) {
           var safeExpNm = (b.experience_name||'').replace(/'/g, "\\'");
           var safeBoxId = (b.box_id||'').replace(/'/g, "\\'");
           var safeBoxNm = (b.box_name||'').replace(/'/g, "\\'");
+          if (document.getElementById('card-rev-box-'+b.id)) return ''; // already rendered by openReviewFromBox
           return '<div class="ck-card" id="card-'+pid+'" style="margin-bottom:14px">'
             + '<div style="font-size:.88rem;font-weight:600;color:var(--navy);margin-bottom:2px">'+(b.experience_name||b.experience_id)+'</div>'
             + (b.box_name ? '<div style="font-size:.72rem;color:var(--muted);margin-bottom:6px">via '+b.box_name+'</div>' : '')
