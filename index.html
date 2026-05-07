@@ -5775,7 +5775,37 @@ tr:hover td{background:var(--b50)}
   </div><!-- /pp-layout -->
 </div>
 
-<!-- Edit experience mini-modal -->
+<!-- Paystack Connect Modal -->
+<div id="pp-paystack-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:600;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(4px)" onclick="if(event.target===this)ppClosePaystackModal()">
+  <div style="background:var(--white);border-radius:var(--rx);padding:32px;max-width:460px;width:100%;box-shadow:var(--xl);position:relative">
+    <button onclick="ppClosePaystackModal()" style="position:absolute;top:14px;right:14px;width:30px;height:30px;border-radius:50%;background:var(--bg);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:.85rem;color:var(--muted)"><i class="fa fa-xmark"></i></button>
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:6px">
+      <div style="width:40px;height:40px;background:#f0fdf4;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="fa fa-money-bill-transfer" style="color:#16a34a;font-size:1.1rem"></i></div>
+      <div>
+        <h3 style="font-size:1.1rem;color:var(--navy);margin:0">Connect bank account</h3>
+        <p style="font-size:.75rem;color:var(--muted);margin:0">For automatic payouts via Paystack</p>
+      </div>
+    </div>
+    <p style="font-size:.78rem;color:var(--muted);line-height:1.6;margin-bottom:20px;padding:10px 12px;background:var(--bg);border-radius:var(--rs);border-left:3px solid var(--b300)">
+      <i class="fa fa-shield-halved" style="color:var(--b400)"></i> Your banking details are securely processed by <strong>Paystack</strong> and never stored on WowBox servers.
+    </p>
+    <div class="fg"><label>Business / account holder name *</label><input class="fi" id="pp-paystack-bizname" placeholder="e.g. Cape Winelands Tours (Pty) Ltd"></div>
+    <div class="fg" style="margin-top:14px">
+      <label>Bank *</label>
+      <select class="fi" id="pp-paystack-bank">
+        <option value="">Loading banks…</option>
+      </select>
+    </div>
+    <div class="fg" style="margin-top:14px"><label>Account number *</label><input class="fi" id="pp-paystack-accnum" type="text" inputmode="numeric" placeholder="e.g. 62012345678"></div>
+    <div id="pp-paystack-modal-msg" style="font-size:.78rem;min-height:18px;margin-top:10px"></div>
+    <div style="display:flex;gap:10px;margin-top:16px">
+      <button class="btn bp" id="pp-paystack-submit-btn" style="flex:1;justify-content:center;padding:12px" onclick="ppSubmitPaystackConnect()"><i class="fa fa-plug"></i> Connect account</button>
+      <button class="btn bg" onclick="ppClosePaystackModal()" style="padding:12px 18px">Cancel</button>
+    </div>
+  </div>
+</div>
+
+
 <div id="pp-edit-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:600;display:none;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(4px)" onclick="if(event.target===this)closeEditModal()">
   <div style="background:var(--white);border-radius:var(--rx);padding:32px;max-width:480px;width:100%;box-shadow:var(--xl);position:relative">
     <button onclick="closeEditModal()" style="position:absolute;top:14px;right:14px;width:30px;height:30px;border-radius:50%;background:var(--bg);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:.85rem;color:var(--muted)"><i class="fa fa-xmark"></i></button>
@@ -9765,9 +9795,81 @@ async function ppChangePassword() {
   }
 }
 
-function ppConnectPaystack() {
-  // Paystack OAuth flow — to be wired once Paystack subaccount API is configured
-  alert('Paystack connection coming soon. Please contact WowBox support to connect your account.');
+async function ppConnectPaystack() {
+  // Open the Paystack connect modal and load banks
+  var modal = document.getElementById('pp-paystack-modal');
+  if (!modal) return;
+  modal.style.display = 'flex';
+
+  // Reset form
+  var msgEl  = document.getElementById('pp-paystack-modal-msg');
+  var btn    = document.getElementById('pp-paystack-submit-btn');
+  var select = document.getElementById('pp-paystack-bank');
+  if (msgEl) msgEl.textContent = '';
+  if (document.getElementById('pp-paystack-bizname')) document.getElementById('pp-paystack-bizname').value = '';
+  if (document.getElementById('pp-paystack-accnum'))  document.getElementById('pp-paystack-accnum').value  = '';
+
+  // Load banks
+  if (select) {
+    select.innerHTML = '<option value="">Loading banks…</option>';
+    select.disabled = true;
+    try {
+      var r    = await fetch('/api/paystack-connect');
+      var data = await r.json();
+      if (data.data && data.data.length > 0) {
+        select.innerHTML = '<option value="">Select your bank</option>'
+          + data.data.map(function(b) { return '<option value="' + b.code + '">' + b.name + '</option>'; }).join('');
+        select.disabled = false;
+      } else {
+        select.innerHTML = '<option value="">Could not load banks — try again</option>';
+      }
+    } catch(e) {
+      select.innerHTML = '<option value="">Could not load banks — try again</option>';
+    }
+  }
+}
+
+async function ppSubmitPaystackConnect() {
+  var msgEl   = document.getElementById('pp-paystack-modal-msg');
+  var btn     = document.getElementById('pp-paystack-submit-btn');
+  var bizname = (document.getElementById('pp-paystack-bizname')?.value || '').trim();
+  var bank    = document.getElementById('pp-paystack-bank')?.value || '';
+  var accnum  = (document.getElementById('pp-paystack-accnum')?.value || '').trim();
+
+  if (!bizname) { if(msgEl){msgEl.style.color='#ef4444';msgEl.textContent='Please enter your business name.';} return; }
+  if (!bank)    { if(msgEl){msgEl.style.color='#ef4444';msgEl.textContent='Please select your bank.';} return; }
+  if (!accnum || accnum.length < 6) { if(msgEl){msgEl.style.color='#ef4444';msgEl.textContent='Please enter a valid account number.';} return; }
+  if (!currentUser?.id) { if(msgEl){msgEl.style.color='#ef4444';msgEl.textContent='You must be signed in.';} return; }
+
+  if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Connecting…'; }
+  if (msgEl) { msgEl.style.color = 'var(--muted)'; msgEl.textContent = 'Verifying account with Paystack…'; }
+
+  try {
+    var res  = await fetch('/api/paystack-connect', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ business_name: bizname, settlement_bank: bank, account_number: accnum, user_id: currentUser.id }),
+    });
+    var data = await res.json();
+
+    if (!res.ok || !data.success) {
+      if (msgEl) { msgEl.style.color = '#ef4444'; msgEl.textContent = data.error || 'Connection failed. Please check your details.'; }
+      if (btn)   { btn.disabled = false; btn.innerHTML = '<i class="fa fa-plug"></i> Connect account'; }
+      return;
+    }
+
+    // Success — close modal & refresh settings panel
+    ppClosePaystackModal();
+    ppLoadSettings();
+  } catch(e) {
+    if (msgEl) { msgEl.style.color = '#ef4444'; msgEl.textContent = 'Network error: ' + e.message; }
+    if (btn)   { btn.disabled = false; btn.innerHTML = '<i class="fa fa-plug"></i> Connect account'; }
+  }
+}
+
+function ppClosePaystackModal() {
+  var modal = document.getElementById('pp-paystack-modal');
+  if (modal) modal.style.display = 'none';
 }
 
 async function ppDisconnectPaystack() {
