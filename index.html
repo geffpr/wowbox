@@ -1186,7 +1186,7 @@ async function loadUserBoxes(email) {
       // Leave a review button for used vouchers — fetch linked booking
       if (st === 'used') {
         (function(vc) {
-          db_client.from('bookings').select('id,experience_id,experience_name')
+          db_client.from('bookings').select('id,experience_id,experience_name,box_id,box_name')
             .eq('voucher_code', vc).in('status',['used','completed']).limit(1).maybeSingle()
             .then(function(bkRes) {
               var card = document.querySelector('[data-vcode="'+vc+'"]');
