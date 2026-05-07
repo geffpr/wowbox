@@ -9691,7 +9691,6 @@ async function submitUserReview(expId, bookingId, prefix, expName, boxName, boxI
       experience_name: expName || expId,
       box_id:          boxId  || null,
       box_name:        boxName || null,
-      order_id:        (bookingId && typeof bookingId === 'string' && bookingId.length > 10 && !bookingId.startsWith('WB-')) ? bookingId : null,
       user_email:      currentUser ? currentUser.email : '',
       display_name:    name || null,
       rating:          rating,
