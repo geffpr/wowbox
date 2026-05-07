@@ -1200,7 +1200,7 @@ async function loadUserBoxes(email) {
               revBtn.innerHTML = '<i class="fa fa-star"></i> Review';
               revBtn.onclick = function(){
                 var bxName = (typeof boxDB !== 'undefined' && boxDB[bk.box_name||''] && boxDB[bk.box_name||''].name) || bk.box_name || '';
-                openReviewFromBox(bk.experience_id||null, bk.experience_name||bxName||'WowBox experience', bk.id||null, vc, bxName);
+                openReviewFromBox(bk.experience_id||null, bk.experience_name||bxName||'WowBox experience', bk.id||null, vc, bxName, bk.box_id||null);
               };
               actionsEl.appendChild(revBtn);
             });
@@ -4061,34 +4061,36 @@ tr:hover td{background:var(--b50)}
     <div style="font-size:.73rem;color:var(--muted);display:flex;align-items:center;gap:5px;margin-bottom:12px">
       <span class="txt-blue" style="cursor:pointer" onclick="go('product')"><i class="fa fa-arrow-left"></i> Back to box</span>
     </div>
-    <h1 id="rev-page-title">Reviews — WowBox Couples Retreat</h1>
+    <h1 id="rev-page-title">Reviews</h1>
     <p>Verified reviews from WowBox customers who experienced this box.</p>
   </div>
   <div class="sec">
     <div style="display:grid;grid-template-columns:260px 1fr;gap:36px">
-      <div>
+      <!-- Left: score + filters -->
+      <div style="min-width:0">
         <div class="rv-score-big">
-          <div class="big-num" id="rev-big-num">4.9</div>
+          <div class="big-num" id="rev-big-num">—</div>
           <div style="color:var(--amber);font-size:1.2rem;margin:6px 0">★★★★★</div>
-          <div style="font-size:.75rem;color:var(--muted)" id="rev-total-cnt">312 reviews</div>
+          <div style="font-size:.75rem;color:var(--muted)" id="rev-total-cnt">Loading…</div>
           <div class="rv-bars" style="margin-top:18px">
-            <div class="rv-bar-row">5★<div class="rv-bar-track"><div class="rv-bar-fill" style="width:75%"></div></div>75%</div>
-            <div class="rv-bar-row">4★<div class="rv-bar-track"><div class="rv-bar-fill" style="width:18%"></div></div>18%</div>
-            <div class="rv-bar-row">3★<div class="rv-bar-track"><div class="rv-bar-fill" style="width:5%"></div></div>5%</div>
-            <div class="rv-bar-row">2★<div class="rv-bar-track"><div class="rv-bar-fill" style="width:2%"></div></div>2%</div>
+            <div class="rv-bar-row">5★<div class="rv-bar-track"><div class="rv-bar-fill" id="rev-bar-fill-5" style="width:0%"></div></div><span id="rev-bar-pct-5">—</span></div>
+            <div class="rv-bar-row">4★<div class="rv-bar-track"><div class="rv-bar-fill" id="rev-bar-fill-4" style="width:0%"></div></div><span id="rev-bar-pct-4">—</span></div>
+            <div class="rv-bar-row">3★<div class="rv-bar-track"><div class="rv-bar-fill" id="rev-bar-fill-3" style="width:0%"></div></div><span id="rev-bar-pct-3">—</span></div>
+            <div class="rv-bar-row">2★<div class="rv-bar-track"><div class="rv-bar-fill" id="rev-bar-fill-2" style="width:0%"></div></div><span id="rev-bar-pct-2">—</span></div>
           </div>
         </div>
         <div style="margin-top:16px">
           <h4 style="font-size:.85rem;color:var(--navy);margin-bottom:10px">Filter by rating</h4>
-          <div style="display:flex;flex-direction:column;gap:4px">
-            <button class="chip on" style="text-align:left" onclick="filterRevs('all',this)">All ratings</button>
-            <button class="chip" style="text-align:left" onclick="filterRevs(5,this)">★★★★★ 5 stars</button>
-            <button class="chip" style="text-align:left" onclick="filterRevs(4,this)">★★★★☆ 4 stars</button>
-            <button class="chip" style="text-align:left" onclick="filterRevs(3,this)">★★★☆☆ 3 stars</button>
+          <div style="display:flex;flex-direction:column;gap:6px">
+            <button class="chip on" style="text-align:left;padding:10px 14px" onclick="filterRevs('all',this)">All ratings</button>
+            <button class="chip" style="text-align:left;padding:10px 14px" onclick="filterRevs(5,this)">★★★★★ 5 stars</button>
+            <button class="chip" style="text-align:left;padding:10px 14px" onclick="filterRevs(4,this)">★★★★☆ 4 stars</button>
+            <button class="chip" style="text-align:left;padding:10px 14px" onclick="filterRevs(3,this)">★★★☆☆ 3 stars</button>
           </div>
         </div>
       </div>
-      <div>
+      <!-- Right: review cards -->
+      <div style="min-width:0">
         <div class="rev-grid" id="rev-page-grid"></div>
       </div>
     </div>
@@ -9299,6 +9301,7 @@ async function confirmExpBooking() {
         booking_reference:  bkRef,
         experience_id:      e.id,
         experience_name:    e.name,
+        box_id:             appState.browseBoxId || null,
         box_name:           (boxDB[appState.browseBoxId] && boxDB[appState.browseBoxId].name) || '',
         partner_name:       e.partner || '',
         partner_email:      e.partnerEmail || '',
@@ -9422,21 +9425,54 @@ function renderProdReviews(boxId) {
   const revs = reviewsDB[boxId] || [];
   document.getElementById('prod-rev-grid').innerHTML = revs.slice(0,3).map(rv => revCard(rv)).join('') || '<p style="color:var(--muted);font-size:.82rem">No reviews yet.</p>';
 }
-function renderReviewsPage() {
+// Cached reviews for the current box (loaded from Supabase)
+var _cachedBoxReviews = [];
+
+async function renderReviewsPage() {
   const bid = appState.currentBoxId;
   const b = boxDB[bid];
   if (b) {
     document.getElementById('rev-page-title').textContent = 'Reviews — ' + b.name;
-    document.getElementById('rev-big-num').textContent = b.rating;
-    document.getElementById('rev-total-cnt').textContent = b.sold + ' reviews';
+  }
+  // Show loading state
+  document.getElementById('rev-page-grid').innerHTML = '<p style="color:var(--muted)">Loading reviews…</p>';
+  try {
+    var res = await db_client.from('experience_reviews')
+      .select('*')
+      .eq('box_id', bid)
+      .eq('status', 'approved')
+      .order('created_at', { ascending: false });
+    _cachedBoxReviews = res.data || [];
+    // Compute stats
+    var total = _cachedBoxReviews.length;
+    var avg   = total ? (_cachedBoxReviews.reduce(function(s,r){ return s+(r.rating||0); },0)/total).toFixed(1) : '—';
+    var dist  = {5:0,4:0,3:0,2:0,1:0};
+    _cachedBoxReviews.forEach(function(r){ if (dist[r.rating]!==undefined) dist[r.rating]++; });
+    // Update header stats
+    var bigNum = document.getElementById('rev-big-num');
+    var totCnt = document.getElementById('rev-total-cnt');
+    if (bigNum) bigNum.textContent = avg;
+    if (totCnt) totCnt.textContent = total + ' review' + (total!==1?'s':'');
+    // Update rating bars
+    [5,4,3,2].forEach(function(star) {
+      var pct = total ? Math.round(dist[star]/total*100) : 0;
+      var fill = document.getElementById('rev-bar-fill-'+star);
+      var label = document.getElementById('rev-bar-pct-'+star);
+      if (fill)  fill.style.width  = pct + '%';
+      if (label) label.textContent = pct + '%';
+    });
+  } catch(e) {
+    console.warn('renderReviewsPage:', e.message);
+    _cachedBoxReviews = [];
   }
   filterRevs('all', null);
 }
+
 function filterRevs(filter, btn) {
   appState.revFilter = filter;
   if (btn) { document.querySelectorAll('#page-reviews .chip').forEach(c=>c.classList.remove('on')); btn.classList.add('on'); }
-  const revs = (reviewsDB[appState.currentBoxId] || []).filter(r => filter === 'all' || r.rating === filter);
-  document.getElementById('rev-page-grid').innerHTML = revs.map(rv => revCard(rv)).join('') || '<p style="color:var(--muted)">No reviews for this rating.</p>';
+  var revs = _cachedBoxReviews.filter(function(r){ return filter === 'all' || r.rating === filter; });
+  document.getElementById('rev-page-grid').innerHTML = revs.map(function(r){ return buildReviewCard(r, 'display'); }).join('') || '<p style="color:var(--muted)">No reviews for this rating.</p>';
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -9555,17 +9591,18 @@ async function loadUserReviews(email) {
 
   // Load used bookings without a review yet
   var bRes = await db_client.from('bookings')
-    .select('id, experience_id, experience_name, validated_at, booking_date')
+    .select('id, experience_id, experience_name, box_id, box_name, validated_at, booking_date')
     .eq('customer_email', email)
     .in('status', ['used', 'completed'])
     .order('validated_at', { ascending: false });
 
   var myRevRes = await db_client.from('experience_reviews')
-    .select('id, experience_id')
+    .select('id, experience_id, box_id')
     .eq('user_email', email);
 
-  var reviewed = new Set((myRevRes.data||[]).map(function(r){ return r.experience_id; }));
-  var toReview = (bRes.data||[]).filter(function(b){ return !reviewed.has(b.experience_id); });
+  // Deduplicate by (experience_id + box_id) — 1 review per experience per box
+  var reviewed = new Set((myRevRes.data||[]).map(function(r){ return r.experience_id + '|' + (r.box_id||''); }));
+  var toReview = (bRes.data||[]).filter(function(b){ return !reviewed.has(b.experience_id + '|' + (b.box_id||'')); });
 
   // Badge
   var badge = document.getElementById('dash-reviews-badge');
@@ -9579,14 +9616,19 @@ async function loadUserReviews(email) {
     pendEl.innerHTML = '<h3 style="font-size:1rem;color:var(--navy);margin-bottom:14px"><i class="fa fa-star" style="color:#f59e0b"></i> Rate your experiences ('+toReview.length+')</h3>'
       + toReview.map(function(b) {
           var pid = 'rev-'+b.id;
-          return '<div class="ck-card" style="margin-bottom:14px">'
-            + '<div style="font-size:.88rem;font-weight:600;color:var(--navy);margin-bottom:4px">'+( b.experience_name||b.experience_id)+'</div>'
-            + '<div style="font-size:.72rem;color:var(--muted);margin-bottom:12px">Completed '+( b.completed_at ? new Date(b.completed_at).toLocaleDateString('en-ZA') : '')+'</div>'
+          var safeExpId = (b.experience_id||'').replace(/'/g, "\\'");
+          var safeExpNm = (b.experience_name||'').replace(/'/g, "\\'");
+          var safeBoxId = (b.box_id||'').replace(/'/g, "\\'");
+          var safeBoxNm = (b.box_name||'').replace(/'/g, "\\'");
+          return '<div class="ck-card" id="card-'+pid+'" style="margin-bottom:14px">'
+            + '<div style="font-size:.88rem;font-weight:600;color:var(--navy);margin-bottom:2px">'+(b.experience_name||b.experience_id)+'</div>'
+            + (b.box_name ? '<div style="font-size:.72rem;color:var(--muted);margin-bottom:6px">via '+b.box_name+'</div>' : '')
+            + '<div style="font-size:.72rem;color:var(--muted);margin-bottom:12px">Completed '+(b.validated_at ? new Date(b.validated_at).toLocaleDateString('en-ZA') : '')+'</div>'
             + '<div style="margin-bottom:10px">'+renderStars(0, true, pid)+'</div>'
             + '<textarea class="fi" id="'+pid+'-text" rows="3" placeholder="Share your experience..." style="margin-bottom:8px;font-size:.82rem"></textarea>'
             + '<div style="font-size:.72rem;color:var(--muted);margin-bottom:8px">Display name (optional)</div>'
             + '<input class="fi" id="'+pid+'-name" placeholder="e.g. Sarah M." style="margin-bottom:10px;font-size:.82rem">'
-            + '<button class="btn bp bsm" onclick="submitUserReview(\''+b.experience_id+'\',\''+b.id+'\',\''+pid+'\')"><i class="fa fa-paper-plane"></i> Submit review</button>'
+            + '<button class="btn bp bsm" onclick="submitUserReview(\''+safeExpId+'\',\''+b.id+'\',\''+pid+'\',\''+safeExpNm+'\',\''+safeBoxNm+'\',\''+safeBoxId+'\')">' + '<i class="fa fa-paper-plane"></i> Submit review</button>'
             + '</div>';
         }).join('');
   } else {
@@ -9606,7 +9648,7 @@ async function loadUserReviews(email) {
   }
 }
 
-async function submitUserReview(expId, bookingId, prefix, expName, boxName) {
+async function submitUserReview(expId, bookingId, prefix, expName, boxName, boxId) {
   var rating = window._reviewRatings && window._reviewRatings[prefix] || 0;
   var text   = (document.getElementById(prefix+'-text')||{value:''}).value.trim();
   var name   = (document.getElementById(prefix+'-name')||{value:''}).value.trim() || (currentUser && currentUser.displayName) || null;
@@ -9616,6 +9658,7 @@ async function submitUserReview(expId, bookingId, prefix, expName, boxName) {
     var res = await db_client.from('experience_reviews').insert({
       experience_id:   expId,
       experience_name: expName || expId,
+      box_id:          boxId  || null,
       box_name:        boxName || null,
       order_id:        (bookingId && typeof bookingId === 'string' && bookingId.length > 10 && !bookingId.startsWith('WB-')) ? bookingId : null,
       user_email:      currentUser ? currentUser.email : '',
@@ -9625,38 +9668,45 @@ async function submitUserReview(expId, bookingId, prefix, expName, boxName) {
       status:          'pending',
     });
     if (res.error) throw res.error;
-    admToast('\u2705 Review submitted \u2014 thanks! It will appear after moderation.');
-    if (currentUser) loadUserReviews(currentUser.email);
+    // Replace the form card with a simple thank-you message
+    var card = document.getElementById('card-'+prefix);
+    if (card) {
+      card.innerHTML = '<div style="display:flex;align-items:center;gap:12px;padding:8px 0">'
+        + '<i class="fa fa-check-circle" style="color:var(--green);font-size:1.4rem"></i>'
+        + '<div><div style="font-size:.88rem;font-weight:600;color:var(--navy)">Thank you for your review!</div>'
+        + '<div style="font-size:.75rem;color:var(--muted)">It will appear publicly after moderation.</div></div></div>';
+    } else {
+      admToast('\u2705 Review submitted — thanks! It will appear after moderation.');
+      if (currentUser) loadUserReviews(currentUser.email);
+    }
   } catch(e) { admToast('Error: '+e.message); }
 }
 
-function openReviewFromBox(expId, expName, bookingId, voucherCode, boxName) {
-  // Switch to My Reviews tab and pre-fill a review form
-  var allTabs2 = document.querySelectorAll('#my-account .anl');
-  var tabs2    = document.querySelectorAll('.dash-tab');
-  // Navigate to reviews tab
+function openReviewFromBox(expId, expName, bookingId, voucherCode, boxName, boxId) {
   var revTab = document.getElementById('dash-reviews');
   document.querySelectorAll('.dash-tab').forEach(function(t){ t.style.display='none'; });
   if (revTab) revTab.style.display = 'block';
   document.querySelectorAll('#my-account .anl').forEach(function(n){ n.classList.remove('on'); });
   var revNavBtn = document.querySelector('#my-account .anl[data-tab="reviews"], [onclick*="reviews"]');
   if (revNavBtn) revNavBtn.classList.add('on');
-  // Build inline review form
   var pendEl = document.getElementById('dash-reviews-pending');
   if (!pendEl) return;
   var pid = 'rev-box-'+bookingId;
   if (document.getElementById(pid+'-text')) { pendEl.scrollIntoView({behavior:'smooth'}); return; }
-  var formHtml = '<div class="ck-card" style="margin-bottom:14px;border:2px solid var(--b300)">'
+  var safeExpId = (expId||'').replace(/'/g, "\\'");
+  var safeExpNm = (expName||'').replace(/'/g, "\\'");
+  var safeBoxNm = (boxName||'').replace(/'/g, "\\'");
+  var safeBoxId = (boxId||'').replace(/'/g, "\\'");
+  var btnSubmit = '<button class="btn bp bsm" onclick="submitUserReview(\''+safeExpId+'\',\''+bookingId+'\',\''+pid+'\',\''+safeExpNm+'\',\''+safeBoxNm+'\',\''+safeBoxId+'\')">'+'<i class="fa fa-paper-plane"></i> Submit review</button>';
+  var btnCancel = '<button class="btn bg bsm" onclick="this.closest(\'.ck-card\').remove()">Cancel</button>';
+  var formHtml = '<div class="ck-card" id="card-'+pid+'" style="margin-bottom:14px;border:2px solid var(--b300)">'
     + '<div style="font-size:.88rem;font-weight:600;color:var(--navy);margin-bottom:2px">'
     + '<i class="fa fa-star" style="color:#f59e0b"></i> '+expName+'</div>'
     + (boxName ? '<div style="font-size:.72rem;color:var(--muted);margin-bottom:6px">via '+boxName+'</div>' : '')
     + '<div style="margin-bottom:10px">'+renderStars(0, true, pid)+'</div>'
     + '<textarea class="fi" id="'+pid+'-text" rows="3" placeholder="Share your experience..." style="margin-bottom:8px;font-size:.82rem"></textarea>'
     + '<input class="fi" id="'+pid+'-name" placeholder="Display name (e.g. Sarah M.)" style="margin-bottom:10px;font-size:.82rem">'
-    + '<div style="display:flex;gap:8px">'
-    + '<button class="btn bp bsm" onclick="submitUserReview(\''+expId+'\',\''+bookingId+'\',\''+pid+'\',\''+expName+'\',\''+( boxName||'')+'\')"><i class="fa fa-paper-plane"></i> Submit review</button>'
-    + '<button class="btn bg bsm" onclick="this.closest(\'.ck-card\').remove()">Cancel</button>'
-    + '</div></div>';
+    + '<div style="display:flex;gap:8px">'+btnSubmit+btnCancel+'</div></div>';
   pendEl.insertAdjacentHTML('afterbegin', '<h3 style="font-size:1rem;color:var(--navy);margin-bottom:14px"><i class="fa fa-star" style="color:#f59e0b"></i> Leave a review</h3>' + formHtml);
   pendEl.scrollIntoView({behavior:'smooth', block:'nearest'});
 }
