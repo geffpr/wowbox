@@ -2958,8 +2958,12 @@ tr:hover td{background:var(--b50)}
 
   /* ── Reviews ── */
   .rev-grid { grid-template-columns: 1fr; }
-  #page-reviews .sec > div { grid-template-columns: 1fr; gap: 20px; }
-  .rv-score-big { padding: 18px; }
+  #page-reviews .sec > div { grid-template-columns: 1fr; gap: 16px; }
+  .rv-score-big { padding: 14px; display: flex; align-items: flex-start; gap: 14px; }
+  .rv-score-big .big-num { font-size: 2.6rem; flex-shrink: 0; }
+  .rv-score-big > div:first-child { display: flex; flex-direction: column; align-items: center; flex-shrink: 0; }
+  .rv-bars { flex: 1; margin-top: 0 !important; }
+  #page-reviews .chip { padding: 8px 12px; font-size: .78rem; }
 
   /* ── Cart ── */
   .cart-layout { grid-template-columns: 1fr; padding: 16px; gap: 16px; }
@@ -2996,8 +3000,14 @@ tr:hover td{background:var(--b50)}
   .lc { padding: 28px 18px; }
 
   /* ── Partner page ── */
-  .pp-layout { grid-template-columns: 1fr; }
-  .pp-sb { display: none; }
+  .pp-layout { grid-template-columns: 1fr; display: flex; flex-direction: column; }
+  .pp-sb { display: flex; flex-direction: row; overflow-x: auto; overflow-y: hidden;
+    min-height: auto; padding: 8px 10px; gap: 4px; -webkit-overflow-scrolling: touch;
+    scrollbar-width: none; white-space: nowrap; }
+  .pp-sb::-webkit-scrollbar { display: none; }
+  .pp-sb-logo { display: none; }
+  .pp-nav { flex-shrink: 0; padding: 7px 12px; font-size: .75rem; width: auto;
+    border-radius: 99px; white-space: nowrap; }
   .pp-main { padding: 20px 16px; }
   .pp-kpis { grid-template-columns: 1fr 1fr; gap: 10px; }
   .pp-pro-feature { flex-wrap: wrap; }
@@ -3005,8 +3015,14 @@ tr:hover td{background:var(--b50)}
   .pp-card { padding: 18px; }
 
   /* ── Admin ── */
-  .adm-layout { grid-template-columns: 1fr; }
-  .adm-sb { display: none; }
+  .adm-layout { grid-template-columns: 1fr; display: flex; flex-direction: column; }
+  .adm-sb { display: flex; flex-direction: row; overflow-x: auto; overflow-y: hidden;
+    min-height: auto; padding: 8px 10px; gap: 4px; -webkit-overflow-scrolling: touch;
+    scrollbar-width: none; white-space: nowrap; }
+  .adm-sb::-webkit-scrollbar { display: none; }
+  .adm-logo { display: none; }
+  .anl { flex-shrink: 0; padding: 7px 12px; font-size: .75rem; width: auto;
+    border-radius: 99px; white-space: nowrap; }
   .adm-main { padding: 20px 16px; }
   .astats { grid-template-columns: 1fr 1fr; gap: 10px; }
   .astat { padding: 14px; }
