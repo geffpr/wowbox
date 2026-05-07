@@ -6640,10 +6640,10 @@ tr:hover td{background:var(--b50)}
 
         <!-- Stats row -->
         <div class="astats" style="margin-bottom:22px">
-          <div class="astat"><div class="astat-ico" style="background:var(--b100)"><i class="fa fa-tag" style="color:var(--b600)"></i></div><div class="astat-val">8</div><div class="astat-lbl">Active coupons</div></div>
-          <div class="astat"><div class="astat-ico" style="background:#d1fae5"><i class="fa fa-chart-bar" style="color:var(--green)"></i></div><div class="astat-val">247</div><div class="astat-lbl">Total uses this month</div></div>
-          <div class="astat"><div class="astat-ico" style="background:#fef3c7"><i class="fa fa-sack-dollar" style="color:#d97706"></i></div><div class="astat-val">R18,420</div><div class="astat-lbl">Discount given (month)</div></div>
-          <div class="astat"><div class="astat-ico" style="background:#fce7f3"><i class="fa fa-bolt" style="color:#db2777"></i></div><div class="astat-val">2</div><div class="astat-lbl">Flash offers active</div></div>
+          <div class="astat"><div class="astat-ico" style="background:var(--b100)"><i class="fa fa-tag" style="color:var(--b600)"></i></div><div class="astat-val" id="coup-kpi-active">—</div><div class="astat-lbl">Active coupons</div></div>
+          <div class="astat"><div class="astat-ico" style="background:#d1fae5"><i class="fa fa-chart-bar" style="color:var(--green)"></i></div><div class="astat-val" id="coup-kpi-uses">—</div><div class="astat-lbl">Total uses this month</div></div>
+          <div class="astat"><div class="astat-ico" style="background:#fef3c7"><i class="fa fa-sack-dollar" style="color:#d97706"></i></div><div class="astat-val" id="coup-kpi-discount">—</div><div class="astat-lbl">Discount given (month)</div></div>
+          <div class="astat"><div class="astat-ico" style="background:#fce7f3"><i class="fa fa-bolt" style="color:#db2777"></i></div><div class="astat-val" id="coup-kpi-flash">—</div><div class="astat-lbl">Flash offers active</div></div>
         </div>
 
         <!-- Coupon table -->
@@ -15506,6 +15506,24 @@ async function loadCoupons() {
   var res = await db_client.from('coupons').select('*').order('created_at', { ascending: false });
   _couponsCache = res.data || [];
   renderCouponTable();
+  // Update KPI indicators
+  var now = new Date().toISOString().slice(0,10);
+  var monthStart = now.slice(0,7) + '-01';
+  var active  = _couponsCache.filter(function(c){ return c.status==='active' && c.end_date >= now; }).length;
+  var flash   = _couponsCache.filter(function(c){ return c.is_flash && c.status==='active' && c.end_date >= now; }).length;
+  // Uses & discount this month: fetch from orders
+  var ordRes  = await db_client.from('orders')
+    .select('discount_amount, coupon_code')
+    .not('coupon_code', 'is', null)
+    .gte('created_at', monthStart);
+  var monthOrders = ordRes.data || [];
+  var totalUses    = monthOrders.length;
+  var totalDiscount = monthOrders.reduce(function(s,o){ return s + (o.discount_amount||0); }, 0);
+  var setKpi = function(id, val) { var el = document.getElementById(id); if (el) el.textContent = val; };
+  setKpi('coup-kpi-active',   active);
+  setKpi('coup-kpi-uses',     totalUses);
+  setKpi('coup-kpi-discount', 'R' + totalDiscount.toLocaleString());
+  setKpi('coup-kpi-flash',    flash);
 }
 
 /* ── Render admin coupon table ── */
@@ -15554,10 +15572,12 @@ async function validateCouponLive(code, userEmail) {
     .select('*').eq('code', code.toUpperCase().trim()).maybeSingle();
   if (res.error || !res.data) return { valid: false, reason: 'not_found' };
   var c = res.data;
-  var now = new Date().toISOString().slice(0,10);
+  var now       = new Date().toISOString().slice(0,10);
+  var startDate = (c.start_date||'').slice(0,10);
+  var endDate   = (c.end_date||'').slice(0,10);
   if (c.status !== 'active')                                  return { valid: false, reason: 'inactive',   coupon: c };
-  if (now < c.start_date)                                     return { valid: false, reason: 'not_yet',    coupon: c };
-  if (now > c.end_date)                                       return { valid: false, reason: 'expired',    coupon: c };
+  if (now < startDate)                                        return { valid: false, reason: 'not_yet',    coupon: { ...c, start_date: startDate } };
+  if (now > endDate)                                          return { valid: false, reason: 'expired',    coupon: { ...c, end_date: endDate } };
   if (c.limit_total !== null && c.used_count >= c.limit_total) return { valid: false, reason: 'exhausted', coupon: c };
   // Check per-user limit
   if (c.limit_per_user && userEmail) {
