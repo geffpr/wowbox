@@ -5727,7 +5727,15 @@ tr:hover td{background:var(--b50)}
             <div class="fg"><label>Full name</label><input class="fi" id="pp-set-fullname" placeholder="Your full name"></div>
             <div class="fg"><label>Business name</label><input class="fi" id="pp-set-bizname" placeholder="Your business name"></div>
             <div class="fg"><label>Phone</label><input class="fi" id="pp-set-phone" placeholder="+27 00 000 0000"></div>
-            <div class="fg"><label>Email <span style="font-size:.7rem;color:var(--muted)">(cannot be changed)</span></label><input class="fi" id="pp-set-email" disabled style="opacity:.5;cursor:not-allowed"></div>
+            <div class="fg" style="grid-column:1/-1">
+              <label>Email</label>
+              <div style="display:flex;gap:8px;align-items:center">
+                <input class="fi" type="email" id="pp-set-email" placeholder="your@email.com" style="flex:1">
+                <button class="btn bp bsm" onclick="ppUpdateEmail()" style="white-space:nowrap"><i class="fa fa-envelope"></i> Update email</button>
+              </div>
+              <div style="font-size:.72rem;color:var(--muted);margin-top:4px">A confirmation link will be sent to both your current and new email address.</div>
+              <span id="pp-set-email-msg" style="font-size:.78rem"></span>
+            </div>
           </div>
           <button class="btn bp bsm" style="margin-top:16px" onclick="ppSaveProfile()"><i class="fa fa-floppy-disk"></i> Save changes</button>
           <span id="pp-set-profile-msg" style="font-size:.78rem;margin-left:12px"></span>
@@ -9685,6 +9693,48 @@ async function ppLoadSettings() {
       if (sub)   sub.textContent = 'Account: ' + d.paystack_account_id + (d.paystack_connected_at ? ' · Since ' + d.paystack_connected_at.slice(0,10) : '');
       if (btn)   { btn.innerHTML = '<i class="fa fa-plug-circle-xmark"></i> Disconnect'; btn.onclick = ppDisconnectPaystack; btn.className = 'btn bsm'; btn.style.background='#fee2e2'; btn.style.color='#ef4444'; }
     }
+  }
+}
+
+async function ppUpdateEmail() {
+  var msgEl = document.getElementById('pp-set-email-msg');
+  var newEmail = document.getElementById('pp-set-email').value.trim();
+  if (!newEmail || !newEmail.includes('@')) {
+    if (msgEl) { msgEl.style.color='#ef4444'; msgEl.textContent='Please enter a valid email address.'; }
+    return;
+  }
+  var res = await db_client.auth.updateUser({ email: newEmail });
+  if (msgEl) {
+    if (res.error) { msgEl.style.color='#ef4444'; msgEl.textContent='Error: ' + res.error.message; }
+    else { msgEl.style.color='#22c55e'; msgEl.textContent='Confirmation emails sent. Please check both inboxes to confirm the change.'; }
+  }
+}
+
+async function admUpdatePartnerEmail(userId) {
+  var msgEl = document.getElementById('pcrm-email-msg');
+  var newEmail = document.getElementById('pcrm-new-email').value.trim();
+  if (!newEmail || !newEmail.includes('@')) {
+    if (msgEl) { msgEl.style.color='#ef4444'; msgEl.textContent='Please enter a valid email address.'; }
+    return;
+  }
+  if (msgEl) { msgEl.style.color='var(--muted)'; msgEl.textContent='Updating…'; }
+  try {
+    var session = await db_client.auth.getSession();
+    var token = session.data.session?.access_token;
+    var res = await fetch('https://gfqxuygfkzgmotnxrlwb.supabase.co/functions/v1/update-user-email', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify({ user_id: userId, new_email: newEmail })
+    });
+    var data = await res.json();
+    if (data.error) {
+      if (msgEl) { msgEl.style.color='#ef4444'; msgEl.textContent='Error: ' + data.error; }
+    } else {
+      if (msgEl) { msgEl.style.color='#22c55e'; msgEl.textContent='Email updated successfully ✓'; }
+      admLoadPartnersCRM();
+    }
+  } catch(err) {
+    if (msgEl) { msgEl.style.color='#ef4444'; msgEl.textContent='Error: ' + err.message; }
   }
 }
 
@@ -16043,6 +16093,18 @@ function admOpenPCRMDetail(partnerId) {
         <i class="fa fa-calendar-check"></i> Bookings received (${p._bookings.length})
       </div>
       ${bkHTML}
+    </div>
+
+    <!-- Edit email -->
+    <div style="margin-top:18px;padding-top:16px;border-top:1px solid var(--border)">
+      <div style="font-size:.75rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:10px">
+        <i class="fa fa-envelope"></i> Update email
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input class="fi" type="email" id="pcrm-new-email" placeholder="New email address" value="${p.email || ''}" style="flex:1;padding:8px 11px;font-size:.82rem">
+        <button class="btn bp bsm" onclick="admUpdatePartnerEmail('${p.id}')" style="white-space:nowrap"><i class="fa fa-floppy-disk"></i> Save</button>
+      </div>
+      <span id="pcrm-email-msg" style="font-size:.75rem;margin-top:6px;display:block"></span>
     </div>
   `;
 }
