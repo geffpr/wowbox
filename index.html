@@ -15507,7 +15507,7 @@ async function loadCoupons() {
   _couponsCache = res.data || [];
   renderCouponTable();
   // Update KPI indicators
-  var now = new Date().toISOString().slice(0,10);
+  var _n = new Date(); var now = _n.getFullYear()+'-'+String(_n.getMonth()+1).padStart(2,'0')+'-'+String(_n.getDate()).padStart(2,'0');
   var monthStart = now.slice(0,7) + '-01';
   var active  = _couponsCache.filter(function(c){ return c.status==='active' && c.end_date >= now; }).length;
   var flash   = _couponsCache.filter(function(c){ return c.is_flash && c.status==='active' && c.end_date >= now; }).length;
@@ -15572,9 +15572,10 @@ async function validateCouponLive(code, userEmail) {
     .select('*').eq('code', code.toUpperCase().trim()).maybeSingle();
   if (res.error || !res.data) return { valid: false, reason: 'not_found' };
   var c = res.data;
-  var now       = new Date().toISOString().slice(0,10);
+  var _d = new Date(); var now = _d.getFullYear()+'-'+String(_d.getMonth()+1).padStart(2,'0')+'-'+String(_d.getDate()).padStart(2,'0');
   var startDate = (c.start_date||'').slice(0,10);
   var endDate   = (c.end_date||'').slice(0,10);
+  console.log('[COUPON DEBUG] now:', now, '| startDate:', startDate, '| endDate:', endDate, '| status:', c.status, '| raw start_date:', c.start_date);
   if (c.status !== 'active')                                  return { valid: false, reason: 'inactive',   coupon: c };
   if (now < startDate)                                        return { valid: false, reason: 'not_yet',    coupon: { ...c, start_date: startDate } };
   if (now > endDate)                                          return { valid: false, reason: 'expired',    coupon: { ...c, end_date: endDate } };
