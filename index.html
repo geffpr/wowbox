@@ -9319,6 +9319,7 @@ async function confirmExpBooking() {
         experience_name:    e.name,
         box_id:             appState.browseBoxId || null,
         box_name:           (boxDB[appState.browseBoxId] && boxDB[appState.browseBoxId].name) || '',
+        box_price:          (boxDB[appState.browseBoxId] && boxDB[appState.browseBoxId].price) || e.price || 0,
         partner_name:       e.partner || '',
         partner_email:      e.partnerEmail || '',
         customer_email:     custEmail,
@@ -11232,6 +11233,8 @@ async function completeOrderConfirm(paystackRef, total, discount, delivFee) {
         customer_name:     buyerName,
         customer_email:    buyerEmail || null,
         total_amount:      total,
+        boxes_subtotal:    realBoxItems.reduce(function(s,c){ return s + c.price * c.qty; }, 0),
+        video_message_amount: hasVideoMsg ? (APP_PRICES.video_message || 49) : 0,
         discount_amount:   discount || 0,
         delivery_type:     ct,
         delivery_fee:      delivFee || 0,
@@ -11783,6 +11786,10 @@ async function validateVoucher() {
     var platformAmount = parseFloat((boxPrice * platformRate / 100).toFixed(2));
     var partnerPayout  = parseFloat((boxPrice - platformAmount).toFixed(2));
 
+    // ── Commission: generate transaction ref (persisted + displayed) ──
+    var txRef = 'TXN-' + Date.now().toString(36).toUpperCase()
+              + '-' + Math.random().toString(36).substring(2,6).toUpperCase();
+
     // ── Commission: INSERT entry into Supabase ──
     try {
       await db_client.from('commission_entries').insert({
@@ -11795,6 +11802,7 @@ async function validateVoucher() {
         partner_payout:    partnerPayout,
         payout_status:     'pending',
         validated_at:      usedAt,
+        transaction_ref:   txRef,
       });
     } catch(insErr) { console.warn('commission_entries insert failed:', insErr.message); }
 
@@ -11808,6 +11816,7 @@ async function validateVoucher() {
       boxPrice:      boxPrice,
       platformRate:  platformRate,
       partnerPayout: partnerPayout,
+      txRef:         txRef,
     }, raw);
     resEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   } catch(err) {
@@ -11816,7 +11825,7 @@ async function validateVoucher() {
 }
 
 function renderValidationResult(type, entry, code) {
-  const txRef = 'TXN-' + Date.now().toString(36).toUpperCase();
+  const txRef = (entry && entry.txRef) ? entry.txRef : ('TXN-' + Date.now().toString(36).toUpperCase());
   if (type === 'success') {
     const partnerPct  = 100 - (entry.platformRate || 35);
     const boxPrice    = Number(entry.boxPrice || 0);
