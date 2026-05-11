@@ -11747,13 +11747,67 @@ async function validateVoucher() {
       }).eq('code', bk.voucher_code);
     }
 
+    // ── Commission: lookup rate (experience → partner → global) ──
+    var platformRate = 35; // fallback
+    try {
+      // 1. Experience-level override (highest priority)
+      if (bk.experience_id) {
+        var rExp = await db_client.from('commission_rates')
+          .select('platform_rate')
+          .eq('rate_type', 'experience')
+          .eq('target_id', String(bk.experience_id))
+          .maybeSingle();
+        if (rExp.data) { platformRate = Number(rExp.data.platform_rate); }
+        else {
+          // 2. Partner-level override
+          var rPart = await db_client.from('commission_rates')
+            .select('platform_rate')
+            .eq('rate_type', 'partner')
+            .eq('target_id', currentEmail)
+            .maybeSingle();
+          if (rPart.data) { platformRate = Number(rPart.data.platform_rate); }
+          else {
+            // 3. Global default
+            var rGlob = await db_client.from('commission_rates')
+              .select('platform_rate')
+              .eq('rate_type', 'global')
+              .maybeSingle();
+            if (rGlob.data) { platformRate = Number(rGlob.data.platform_rate); }
+          }
+        }
+      }
+    } catch(rateErr) { console.warn('commission rate lookup failed, using 35%:', rateErr.message); }
+
+    // ── Commission: calculate amounts ──
+    var boxPrice       = Number(bk.box_price) || 0;
+    var platformAmount = parseFloat((boxPrice * platformRate / 100).toFixed(2));
+    var partnerPayout  = parseFloat((boxPrice - platformAmount).toFixed(2));
+
+    // ── Commission: INSERT entry into Supabase ──
+    try {
+      await db_client.from('commission_entries').insert({
+        booking_reference: raw,
+        partner_email:     currentEmail,
+        partner_name:      partnerName,
+        box_price:         boxPrice,
+        platform_rate:     platformRate,
+        platform_amount:   platformAmount,
+        partner_payout:    partnerPayout,
+        payout_status:     'pending',
+        validated_at:      usedAt,
+      });
+    } catch(insErr) { console.warn('commission_entries insert failed:', insErr.message); }
+
     resEl.innerHTML = renderValidationResult('success', {
-      boxName:    bk.box_name || '—',
-      userId:     bk.customer_name || bk.customer_email || '—',
-      experience: bk.experience_name || '—',
-      partner:    partnerName,
-      bookingDate: bk.booking_date || '—',
-      guests:     bk.guests || '2',
+      boxName:       bk.box_name || '—',
+      userId:        bk.customer_name || bk.customer_email || '—',
+      experience:    bk.experience_name || '—',
+      partner:       partnerName,
+      bookingDate:   bk.booking_date || '—',
+      guests:        bk.guests || '2',
+      boxPrice:      boxPrice,
+      platformRate:  platformRate,
+      partnerPayout: partnerPayout,
     }, raw);
     resEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   } catch(err) {
@@ -11764,10 +11818,10 @@ async function validateVoucher() {
 function renderValidationResult(type, entry, code) {
   const txRef = 'TXN-' + Date.now().toString(36).toUpperCase();
   if (type === 'success') {
-    const globalRate = parseInt(document.getElementById('comm-global')?.value || 35);
-    const partnerPct = 100 - globalRate;
-    const grossEst   = 971.35; // demo value
-    const payout     = (grossEst * partnerPct / 100).toFixed(2);
+    const partnerPct  = 100 - (entry.platformRate || 35);
+    const boxPrice    = Number(entry.boxPrice || 0);
+    const payout      = Number(entry.partnerPayout || 0).toFixed(2);
+    const grossDisp   = boxPrice > 0 ? 'R' + boxPrice.toLocaleString('en-ZA', {minimumFractionDigits:2, maximumFractionDigits:2}) : '—';
     return `<div style="background:#d1fae5;border:1.5px solid #6ee7b7;border-radius:var(--r);padding:20px">
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
         <i class="fa fa-circle-check" style="color:var(--green);font-size:1.3rem"></i>
@@ -11777,7 +11831,7 @@ function renderValidationResult(type, entry, code) {
         <div><span style="font-size:.68rem;font-weight:700;text-transform:uppercase;color:#065f46;opacity:.7">Code</span><div style="font-family:'Courier New',monospace;font-size:.85rem;font-weight:700;color:#065f46">${code}</div></div>
         <div><span style="font-size:.68rem;font-weight:700;text-transform:uppercase;color:#065f46;opacity:.7">Experience</span><div style="font-size:.82rem;color:#065f46">${entry.experience||'—'}</div></div>
         <div><span style="font-size:.68rem;font-weight:700;text-transform:uppercase;color:#065f46;opacity:.7">Customer</span><div style="font-size:.82rem;color:#065f46">${entry.userId}</div></div>
-        <div><span style="font-size:.68rem;font-weight:700;text-transform:uppercase;color:#065f46;opacity:.7">Status</span><div style="font-size:.82rem;font-weight:700;color:#065f46">✅ Marked as used</div></div>
+        <div><span style="font-size:.68rem;font-weight:700;text-transform:uppercase;color:#065f46;opacity:.7">Box price</span><div style="font-size:.82rem;color:#065f46">${grossDisp}</div></div>
         <div><span style="font-size:.68rem;font-weight:700;text-transform:uppercase;color:#065f46;opacity:.7">Your payout (${partnerPct}%)</span><div style="font-size:1rem;font-weight:700;color:#065f46">R${payout}</div></div>
         <div><span style="font-size:.68rem;font-weight:700;text-transform:uppercase;color:#065f46;opacity:.7">Processed in</span><div style="font-size:.82rem;color:#065f46">2 business days</div></div>
       </div>
