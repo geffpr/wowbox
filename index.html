@@ -5019,6 +5019,7 @@ tr:hover td{background:var(--b50)}
 
       <button class="pp-nav on" onclick="switchPP(this,'pp-overview')"><i class="fa fa-gauge"></i> Overview</button>
       <button class="pp-nav" onclick="switchPP(this,'pp-validate')"><i class="fa fa-qrcode"></i> Validate Voucher</button>
+      <button class="pp-nav" onclick="switchPP(this,'pp-payouts');ppLoadPayouts()"><i class="fa fa-money-bill-transfer"></i> My Payouts</button>
       <button class="pp-nav" onclick="switchPP(this,'pp-experiences')"><i class="fa fa-compass"></i> My Experiences</button>
       <button class="pp-nav" onclick="switchPP(this,'pp-subscription')"><i class="fa fa-credit-card"></i> My Subscription</button>
       <button class="pp-nav" onclick="switchPP(this,'pp-plan')"><i class="fa fa-crown"></i> Plan &amp; Features</button>
@@ -5168,18 +5169,80 @@ tr:hover td{background:var(--b50)}
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;max-width:560px;margin-top:22px">
           <div class="pp-kpi">
             <div class="pp-kpi-ico" style="background:var(--b100)"><i class="fa fa-check" style="color:var(--b600)"></i></div>
-            <div class="pp-kpi-val">47</div>
+            <div class="pp-kpi-val" id="pp-val-count">—</div>
             <div class="pp-kpi-lbl">Validated this month</div>
           </div>
           <div class="pp-kpi">
             <div class="pp-kpi-ico" style="background:#d1fae5"><i class="fa fa-coins" style="color:var(--green)"></i></div>
-            <div class="pp-kpi-val">R45,621</div>
+            <div class="pp-kpi-val" id="pp-val-revenue">—</div>
             <div class="pp-kpi-lbl">Revenue this month</div>
           </div>
           <div class="pp-kpi">
             <div class="pp-kpi-ico" style="background:#fef3c7"><i class="fa fa-clock" style="color:#d97706"></i></div>
-            <div class="pp-kpi-val">R2,914</div>
+            <div class="pp-kpi-val" id="pp-val-pending">—</div>
             <div class="pp-kpi-lbl">Payout pending</div>
+          </div>
+        </div>
+      </div>
+
+
+      <!-- ═══ SECTION: MY PAYOUTS ═══ -->
+      <div id="pp-payouts" class="pp-sec">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px">
+          <div>
+            <h2 style="font-size:1.75rem;color:var(--navy);margin-bottom:3px">My Payouts</h2>
+            <p style="color:var(--muted);font-size:.82rem">Track your earnings and payout history from validated experiences.</p>
+          </div>
+        </div>
+        <div class="pp-kpis" style="margin-bottom:22px">
+          <div class="pp-kpi">
+            <div class="pp-kpi-ico" style="background:#fef3c7"><i class="fa fa-clock" style="color:#d97706"></i></div>
+            <div class="pp-kpi-val" id="pp-pay-pending">—</div>
+            <div class="pp-kpi-lbl">Pending payout</div>
+          </div>
+          <div class="pp-kpi">
+            <div class="pp-kpi-ico" style="background:#d1fae5"><i class="fa fa-circle-check" style="color:var(--green)"></i></div>
+            <div class="pp-kpi-val" id="pp-pay-paid">—</div>
+            <div class="pp-kpi-lbl">Total paid out</div>
+          </div>
+          <div class="pp-kpi">
+            <div class="pp-kpi-ico" style="background:var(--b100)"><i class="fa fa-percent" style="color:var(--b600)"></i></div>
+            <div class="pp-kpi-val" id="pp-pay-rate">—</div>
+            <div class="pp-kpi-lbl">Your payout rate</div>
+          </div>
+          <div class="pp-kpi">
+            <div class="pp-kpi-ico" style="background:#ede9fe"><i class="fa fa-receipt" style="color:#7c3aed"></i></div>
+            <div class="pp-kpi-val" id="pp-pay-count">—</div>
+            <div class="pp-kpi-lbl">Total validations</div>
+          </div>
+        </div>
+        <div class="pp-table-wrap">
+          <div class="pp-table-hdr" style="flex-wrap:wrap;gap:10px">
+            <h4>Payout history</h4>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+              <select class="fi" id="pp-pay-period" style="font-size:.78rem;padding:6px 10px;width:auto" onchange="ppLoadPayouts()">
+                <option value="1">This month</option>
+                <option value="3" selected>Last 3 months</option>
+                <option value="6">Last 6 months</option>
+                <option value="0">All time</option>
+              </select>
+              <select class="fi" id="pp-pay-status" style="font-size:.78rem;padding:6px 10px;width:auto" onchange="ppLoadPayouts()">
+                <option value="">All statuses</option>
+                <option value="pending">Pending</option>
+                <option value="paid">Paid</option>
+                <option value="on_hold">On hold</option>
+              </select>
+            </div>
+          </div>
+          <div style="overflow-x:auto">
+            <table>
+              <thead>
+                <tr><th>TXN ref</th><th>Booking ref</th><th>Experience</th><th>Date</th><th>Box price</th><th>Your rate</th><th>Your payout</th><th>Status</th></tr>
+              </thead>
+              <tbody id="pp-pay-tbody">
+                <tr><td colspan="8" style="text-align:center;padding:24px;color:var(--muted)">Loading...</td></tr>
+              </tbody>
+            </table>
           </div>
         </div>
       </div>
@@ -6509,17 +6572,37 @@ tr:hover td{background:var(--b50)}
           </table>
         </div>
 
-        <!-- Commission calculation preview -->
+        <!-- Commission payouts table -->
         <div class="atbl">
-          <div class="atbl-hdr"><h3>📊 Commission payouts — April 2025</h3></div>
-          <table>
-            <thead><tr><th>Partner</th><th>Validations</th><th>Gross revenue</th><th>Effective rate</th><th>Platform</th><th>Partner payout</th><th>Status</th></tr></thead>
-            <tbody>
-              <tr><td><strong>Vineyard Hotels</strong></td><td>187</td><td>R280,500</td><td><span style="color:var(--b600);font-weight:600">30% <small style="color:var(--muted)">(partner override)</small></span></td><td style="color:var(--b600)">R84,150</td><td style="color:var(--green);font-weight:600">R196,350</td><td><span class="sbadge sb-a">Paid</span></td></tr>
-              <tr><td><strong>Ananda Wellness</strong></td><td>98</td><td>R147,000</td><td><span style="color:var(--muted)">35% <small>(global)</small></span></td><td style="color:var(--b600)">R51,450</td><td style="color:var(--green);font-weight:600">R95,550</td><td><span class="sbadge sb-p">Pending</span></td></tr>
-              <tr><td><strong>Wild Horizons</strong></td><td>76</td><td>R684,000</td><td><span style="color:var(--b600);font-weight:600">25% <small style="color:var(--muted)">(partner override)</small></span></td><td style="color:var(--b600)">R171,000</td><td style="color:var(--green);font-weight:600">R513,000</td><td><span class="sbadge sb-a">Paid</span></td></tr>
-            </tbody>
-          </table>
+          <div class="atbl-hdr" style="flex-wrap:wrap;gap:10px">
+            <h3 id="adm-comm-title">Commission payouts</h3>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+              <select class="fi" id="adm-comm-period" style="font-size:.78rem;padding:6px 10px;width:auto" onchange="loadAdminCommissionPayouts()">
+                <option value="1">This month</option>
+                <option value="3" selected>Last 3 months</option>
+                <option value="6">Last 6 months</option>
+                <option value="0">All time</option>
+              </select>
+              <select class="fi" id="adm-comm-partner" style="font-size:.78rem;padding:6px 10px;width:auto" onchange="loadAdminCommissionPayouts()">
+                <option value="">All partners</option>
+              </select>
+              <select class="fi" id="adm-comm-status" style="font-size:.78rem;padding:6px 10px;width:auto" onchange="loadAdminCommissionPayouts()">
+                <option value="">All statuses</option>
+                <option value="pending">Pending</option>
+                <option value="paid">Paid</option>
+                <option value="on_hold">On hold</option>
+              </select>
+            </div>
+          </div>
+          <div style="overflow-x:auto">
+            <table>
+              <thead><tr><th>Partner</th><th>Validations</th><th>Gross revenue</th><th>Eff. rate</th><th>Platform keeps</th><th>Partner payout</th><th>Status</th><th>Action</th></tr></thead>
+              <tbody id="adm-comm-tbody">
+                <tr><td colspan="8" style="text-align:center;padding:28px;color:var(--muted)">Loading...</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div id="adm-comm-summary" style="padding:14px 18px;border-top:1px solid var(--border);font-size:.8rem;color:var(--muted);display:flex;gap:24px;flex-wrap:wrap"></div>
         </div>
       </div>
 
@@ -11796,6 +11879,7 @@ async function validateVoucher() {
         booking_reference: raw,
         partner_email:     currentEmail,
         partner_name:      partnerName,
+        experience_name:   bk.experience_name || '',
         box_price:         boxPrice,
         platform_rate:     platformRate,
         platform_amount:   platformAmount,
@@ -12368,6 +12452,7 @@ function switchAdm(btn, tab) {
   renderAdmPartnerApps();
   if (tab === 'adm-orders') loadOrdersFromSupabase();
   if (tab === 'adm-usage')  { renderUsageTable(); loadUsageFromSupabase(); }
+  if (tab === 'adm-comm')   loadAdminCommissionPayouts();
 }
 
 async function renderAdmin() {
@@ -14776,30 +14861,230 @@ async function loadPartnerPortalData() {
     } else { set('pp-kpi-rating','—'); set('pp-kpi-rating-chg','No experiences yet'); }
   } catch(e) { console.warn('loadPartnerPortalData rating:', e.message); }
 
-  // ── Recent validations ──
+  // ── Recent validations (with real payout from commission_entries) ──
   const tbody = document.getElementById('pp-recent-tbody');
   if (!tbody) return;
   try {
-    const valR = await db_client.from('bookings').select('id,customer_name,customer_email,experience_name,booking_date,created_at,status').eq('partner_email',email).order('created_at',{ascending:false}).limit(5);
+    const valR = await db_client.from('bookings')
+      .select('id,booking_reference,customer_name,customer_email,experience_name,booking_date,created_at,status')
+      .eq('partner_email', email).eq('status','used')
+      .order('created_at',{ascending:false}).limit(5);
     const rows = valR.data || [];
     if (!rows.length) {
       tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--muted)">No validations yet.</td></tr>';
+    } else {
+      const refs = rows.map(function(b){ return b.booking_reference; }).filter(Boolean);
+      var payoutMap = {};
+      if (refs.length) {
+        const ceR = await db_client.from('commission_entries').select('booking_reference,partner_payout,payout_status').in('booking_reference', refs);
+        (ceR.data||[]).forEach(function(ce){ payoutMap[ce.booking_reference] = ce; });
+      }
+      tbody.innerHTML = rows.map(function(b) {
+        const raw = b.booking_date || b.created_at || '';
+        const ds  = raw ? new Date(raw).toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'}) : '—';
+        const ref = b.booking_reference || (b.id ? 'BK-'+b.id.toString().substring(0,8).toUpperCase() : '—');
+        const ce  = payoutMap[b.booking_reference] || null;
+        const payoutDisp = ce ? '<span style="color:var(--green);font-weight:600">R'+Number(ce.partner_payout).toLocaleString('en-ZA',{minimumFractionDigits:2})+'</span>' : '<span style="color:var(--muted)">—</span>';
+        const paid = ce ? ce.payout_status==='paid' : false;
+        return '<tr>'
+          +'<td><code style="font-size:.75rem">'+ref+'</code></td>'
+          +'<td>'+(b.customer_name||b.customer_email||'—')+'</td>'
+          +'<td>'+(b.experience_name||'—')+'</td>'
+          +'<td>'+ds+'</td>'
+          +'<td>'+payoutDisp+'</td>'
+          +'<td><span class="'+(paid?'ps-active':'ps-pending')+'">'+(paid?'Paid':'Pending')+'</span></td>'
+          +'</tr>';
+      }).join('');
+    }
+  } catch(e) { tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--muted)">Could not load.</td></tr>'; }
+
+  // ── Validate-page KPIs from commission_entries ──
+  try {
+    const mStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+    const ceMonthR = await db_client.from('commission_entries').select('partner_payout,payout_status').eq('partner_email',email).gte('validated_at',mStart);
+    const ceAllPendR = await db_client.from('commission_entries').select('partner_payout').eq('partner_email',email).eq('payout_status','pending');
+    const ceMonth = ceMonthR.data||[];
+    const monthRev = ceMonth.reduce(function(s,r){return s+Number(r.partner_payout);},0);
+    const pendingAmt = (ceAllPendR.data||[]).reduce(function(s,r){return s+Number(r.partner_payout);},0);
+    const setV2 = function(id,v){var el=document.getElementById(id);if(el)el.textContent=v;};
+    setV2('pp-val-count',   ceMonth.length.toString());
+    setV2('pp-val-revenue', 'R'+monthRev.toLocaleString('en-ZA',{minimumFractionDigits:2,maximumFractionDigits:2}));
+    setV2('pp-val-pending', 'R'+pendingAmt.toLocaleString('en-ZA',{minimumFractionDigits:2,maximumFractionDigits:2}));
+  } catch(e){ console.warn('validate KPIs:',e.message); }
+}
+
+
+/* ================================================================
+   PARTNER PAYOUTS
+================================================================ */
+async function ppLoadPayouts() {
+  const email = appState.partnerEmail || (currentUser && currentUser.email) || '';
+  if (!email) return;
+  const months  = parseInt(document.getElementById('pp-pay-period')?.value  || '3');
+  const status  = document.getElementById('pp-pay-status')?.value  || '';
+  const tbody   = document.getElementById('pp-pay-tbody');
+  if (tbody) tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--muted)">Loading...</td></tr>';
+  const setV = function(id,v){ var el=document.getElementById(id); if(el) el.textContent=v; };
+  const fmt  = function(n){ return 'R'+Number(n||0).toLocaleString('en-ZA',{minimumFractionDigits:2,maximumFractionDigits:2}); };
+  try {
+    const allR = await db_client.from('commission_entries').select('partner_payout,payout_status,platform_rate').eq('partner_email', email);
+    const all  = allR.data || [];
+    const pendingAmt = all.filter(function(r){return r.payout_status==='pending';}).reduce(function(s,r){return s+Number(r.partner_payout);},0);
+    const paidAmt    = all.filter(function(r){return r.payout_status==='paid';}).reduce(function(s,r){return s+Number(r.partner_payout);},0);
+    setV('pp-pay-pending', fmt(pendingAmt));
+    setV('pp-pay-paid',    fmt(paidAmt));
+    setV('pp-pay-count',   all.length.toString());
+    var appliedRate = 35;
+    const rPart = await db_client.from('commission_rates').select('platform_rate').eq('rate_type','partner').eq('target_id',email).maybeSingle();
+    if (rPart.data) { appliedRate = Number(rPart.data.platform_rate); }
+    else {
+      const rGlob = await db_client.from('commission_rates').select('platform_rate').eq('rate_type','global').maybeSingle();
+      if (rGlob.data) appliedRate = Number(rGlob.data.platform_rate);
+    }
+    setV('pp-pay-rate', (100 - appliedRate) + '%');
+    var q = db_client.from('commission_entries')
+      .select('transaction_ref,booking_reference,experience_name,partner_payout,box_price,platform_rate,payout_status,validated_at')
+      .eq('partner_email', email)
+      .order('validated_at', { ascending: false });
+    if (months > 0) {
+      var since = new Date(); since.setMonth(since.getMonth() - months);
+      q = q.gte('validated_at', since.toISOString());
+    }
+    if (status) q = q.eq('payout_status', status);
+    const { data: rows, error } = await q;
+    if (error) throw error;
+    if (!tbody) return;
+    if (!rows || !rows.length) {
+      tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:28px;color:var(--muted)">No payouts found for this period.</td></tr>';
       return;
     }
-    tbody.innerHTML = rows.map(function(b) {
-      const raw = b.booking_date || b.created_at || '';
-      const ds = raw ? new Date(raw).toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'}) : '—';
-      const ref = b.id ? ('BK-'+b.id.toString().substring(0,8).toUpperCase()) : '—';
-      const paid = b.status==='validated'||b.status==='confirmed'||b.status==='paid';
-      return '<tr><td><code style="font-size:.75rem">'+ref+'</code></td>'
-        +'<td>'+(b.customer_name||b.customer_email||'—')+'</td>'
-        +'<td>'+(b.experience_name||'—')+'</td>'
-        +'<td>'+ds+'</td>'
-        +'<td style="color:var(--muted);font-size:.78rem">—</td>'
-        +'<td><span class="'+(paid?'ps-active':'ps-pending')+'">'+(paid?'Paid':'Pending')+'</span></td>'
+    tbody.innerHTML = rows.map(function(r) {
+      const ds  = r.validated_at ? new Date(r.validated_at).toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'}) : '-';
+      const pct = 100 - (Number(r.platform_rate) || 35);
+      const sc  = r.payout_status==='paid'?'ps-active':r.payout_status==='on_hold'?'ps-hold':'ps-pending';
+      const sl  = r.payout_status==='paid'?'Paid':r.payout_status==='on_hold'?'On hold':'Pending';
+      return '<tr>'
+        +'<td><code style="font-size:.7rem;color:var(--b600)">'+(r.transaction_ref||'-')+'</code></td>'
+        +'<td><code style="font-size:.7rem">'+(r.booking_reference||'-')+'</code></td>'
+        +'<td style="font-size:.8rem">'+(r.experience_name||'-')+'</td>'
+        +'<td style="font-size:.8rem">'+ds+'</td>'
+        +'<td style="font-size:.82rem">'+fmt(r.box_price)+'</td>'
+        +'<td style="font-size:.82rem;color:var(--b600);font-weight:600">'+pct+'%</td>'
+        +'<td style="font-weight:700;color:var(--green)">'+fmt(r.partner_payout)+'</td>'
+        +'<td><span class="'+sc+'">'+sl+'</span></td>'
         +'</tr>';
     }).join('');
-  } catch(e) { tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--muted)">Could not load.</td></tr>'; }
+  } catch(e) {
+    console.warn('ppLoadPayouts:', e.message);
+    if (tbody) tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--muted)">Could not load payout data.</td></tr>';
+  }
+}
+
+/* ================================================================
+   ADMIN - COMMISSION PAYOUTS
+================================================================ */
+async function loadAdminCommissionPayouts() {
+  const tbody   = document.getElementById('adm-comm-tbody');
+  const summary = document.getElementById('adm-comm-summary');
+  const title   = document.getElementById('adm-comm-title');
+  const months  = parseInt(document.getElementById('adm-comm-period')?.value  || '3');
+  const partner = document.getElementById('adm-comm-partner')?.value || '';
+  const status  = document.getElementById('adm-comm-status')?.value  || '';
+  if (tbody) tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:28px;color:var(--muted)">Loading...</td></tr>';
+  const fmt = function(n){ return 'R'+Number(n||0).toLocaleString('en-ZA',{minimumFractionDigits:2,maximumFractionDigits:2}); };
+  try {
+    var q = db_client.from('commission_entries')
+      .select('id,partner_name,partner_email,box_price,platform_rate,platform_amount,partner_payout,payout_status,validated_at,transaction_ref')
+      .order('validated_at', { ascending: false });
+    if (months > 0) {
+      var since = new Date(); since.setMonth(since.getMonth() - months);
+      q = q.gte('validated_at', since.toISOString());
+    }
+    if (partner) q = q.eq('partner_email', partner);
+    if (status)  q = q.eq('payout_status', status);
+    const { data: rows, error } = await q;
+    if (error) throw error;
+    const entries = rows || [];
+    const partnerSel = document.getElementById('adm-comm-partner');
+    if (partnerSel && partnerSel.options.length <= 1) {
+      const allP = await db_client.from('commission_entries').select('partner_name,partner_email');
+      const unique = {};
+      (allP.data||[]).forEach(function(r){ unique[r.partner_email] = r.partner_name; });
+      Object.keys(unique).forEach(function(em) {
+        const o = document.createElement('option');
+        o.value = em; o.textContent = unique[em];
+        partnerSel.appendChild(o);
+      });
+    }
+    var groups = {};
+    entries.forEach(function(r) {
+      const key = r.partner_email;
+      if (!groups[key]) groups[key] = { name: r.partner_name, email: r.partner_email, rows: [] };
+      groups[key].rows.push(r);
+    });
+    if (!Object.keys(groups).length) {
+      if (tbody) tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:28px;color:var(--muted)">No commission entries found.</td></tr>';
+      if (summary) summary.innerHTML = '';
+      return;
+    }
+    var totalPlatform = 0, totalPayout = 0, totalGross = 0;
+    var html = '';
+    Object.values(groups).forEach(function(g) {
+      const validations = g.rows.length;
+      const gross       = g.rows.reduce(function(s,r){return s+Number(r.box_price);},0);
+      const platformAmt = g.rows.reduce(function(s,r){return s+Number(r.platform_amount);},0);
+      const payoutAmt   = g.rows.reduce(function(s,r){return s+Number(r.partner_payout);},0);
+      const rates       = [...new Set(g.rows.map(function(r){return Number(r.platform_rate);}))];
+      const rateLabel   = rates.length===1 ? rates[0]+'%' : rates.join('% / ')+'%';
+      const rateNote    = rates.length>1 ? ' <small style="color:var(--muted)">(mixed)</small>' : (rates[0]!==35 ? ' <small style="color:var(--muted)">(override)</small>' : ' <small style="color:var(--muted)">(global)</small>');
+      const allPaid     = g.rows.every(function(r){return r.payout_status==='paid';});
+      const anyPending  = g.rows.some(function(r){return r.payout_status==='pending';});
+      const statusHtml  = allPaid ? '<span class="sbadge sb-a">Paid</span>' : anyPending ? '<span class="sbadge sb-p">Pending</span>' : '<span class="sbadge sb-w">On hold</span>';
+      const pendingIds  = g.rows.filter(function(r){return r.payout_status==='pending';}).map(function(r){return r.id;});
+      const actionBtn   = pendingIds.length
+        ? '<button class="btn bg bsm" onclick="admMarkPaid('+JSON.stringify(pendingIds)+',this)" style="font-size:.72rem"><i class="fa fa-check"></i> Mark paid</button>'
+        : '<span style="color:var(--muted);font-size:.75rem">-</span>';
+      totalGross    += gross;
+      totalPlatform += platformAmt;
+      totalPayout   += payoutAmt;
+      html += '<tr>'
+        +'<td><strong>'+g.name+'</strong><div style="font-size:.7rem;color:var(--muted)">'+g.email+'</div></td>'
+        +'<td>'+validations+'</td>'
+        +'<td>'+fmt(gross)+'</td>'
+        +'<td style="color:var(--b600);font-weight:600">'+rateLabel+rateNote+'</td>'
+        +'<td style="color:var(--b600)">'+fmt(platformAmt)+'</td>'
+        +'<td style="color:var(--green);font-weight:700">'+fmt(payoutAmt)+'</td>'
+        +'<td>'+statusHtml+'</td>'
+        +'<td>'+actionBtn+'</td>'
+        +'</tr>';
+    });
+    if (tbody) tbody.innerHTML = html;
+    const periodLabel = months===0?'All time':months===1?'This month':'Last '+months+' months';
+    if (title) title.textContent = 'Commission payouts - ' + periodLabel;
+    if (summary) summary.innerHTML = ''
+      +'<span><strong>Gross revenue:</strong> '+fmt(totalGross)+'</span>'
+      +'<span><strong>Platform keeps:</strong> <span style="color:var(--b600)">'+fmt(totalPlatform)+'</span></span>'
+      +'<span><strong>Total to partners:</strong> <span style="color:var(--green);font-weight:700">'+fmt(totalPayout)+'</span></span>'
+      +'<span style="color:var(--muted)">'+entries.length+' validations - '+Object.keys(groups).length+' partners</span>';
+  } catch(e) {
+    console.warn('loadAdminCommissionPayouts:', e.message);
+    if (tbody) tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--muted)">Could not load commission data.</td></tr>';
+  }
+}
+
+async function admMarkPaid(ids, btn) {
+  if (!ids || !ids.length) return;
+  if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i>'; }
+  try {
+    await db_client.from('commission_entries')
+      .update({ payout_status: 'paid', paid_at: new Date().toISOString() })
+      .in('id', ids);
+    admToast('Payouts marked as paid: ' + ids.length);
+    loadAdminCommissionPayouts();
+  } catch(e) {
+    admToast('Error: ' + e.message);
+    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa fa-check"></i> Mark paid'; }
+  }
 }
 
 function toggleAddForm() {
