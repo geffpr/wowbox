@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /dashboard
+Disallow: /partner
+Disallow: /checkout
+Disallow: /cart
+
+Sitemap: https://wowbox.co.za/sitemap.xml
