@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en-ZA">
+<html lang="en">
 <head>
 <!-- Connexion Supabase -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.0/dist/umd/supabase.js"></script>
@@ -1266,12 +1266,6 @@ db_client.auth.onAuthStateChange(function(event, session) {
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>WowBox — Offer Unforgettable Experiences</title>
-<script type="application/ld+json">
-{"@context":"https://schema.org","@type":"Organization","name":"WowBox","url":"https://wowbox.co.za","logo":"https://wowbox.co.za/logo.png","description":"Premium curated gift experience boxes across South Africa — couples retreats, adventures, wellness and more.","sameAs":["https://www.instagram.com/wowbox.co.za","https://www.facebook.com/wowboxsa"]}
-</script>
-<script type="application/ld+json">
-{"@context":"https://schema.org","@type":"WebSite","name":"WowBox","url":"https://wowbox.co.za","potentialAction":{"@type":"SearchAction","target":{"@type":"EntryPoint","urlTemplate":"https://wowbox.co.za/browse?q={search_term_string}"},"query-input":"required name=search_term_string"}}
-</script>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 <link rel="icon" type="image/png" href="/favicon-96x96.png" sizes="96x96" />
@@ -1287,9 +1281,6 @@ db_client.auth.onAuthStateChange(function(event, session) {
 <meta id="og-description" property="og:description" content="Curated gift boxes for couples, adventurers and dreamers across South Africa.">
 <meta id="og-image"       property="og:image"       content="https://wowbox.co.za/og-default.jpg">
 <meta id="og-url"         property="og:url"         content="https://wowbox.co.za">
-<meta name="description" content="Curated gift boxes for unforgettable experiences across South Africa — couples retreats, adventures, wellness &amp; more. From R899.">
-<link rel="canonical" href="https://wowbox.co.za">
-<link rel="alternate" hreflang="en-ZA" href="https://wowbox.co.za">
 <meta name="twitter:card" content="summary_large_image">
 <meta id="tw-title"       name="twitter:title"      content="WowBox — Offer Unforgettable Experiences">
 <meta id="tw-description" name="twitter:description" content="Curated gift boxes for couples, adventurers and dreamers across South Africa.">
@@ -3501,7 +3492,7 @@ tr:hover td{background:var(--b50)}
 <!-- ═══════════════════════════ PAGE: HOME ═══════════════════════════ -->
 <div id="page-home" class="page">
   <div class="hero">
-    <div class="hero-bg" id="hero-bg-el"></div>
+    <div class="hero-bg"></div>
     <div class="hero-ov"></div>
     <div class="hero-c">
       <div class="eyebrow"><i class="fa fa-star"></i> Premium Gift Experiences</div>
@@ -5946,7 +5937,6 @@ tr:hover td{background:var(--b50)}
       <button class="anl"     onclick="switchAdm(this,'adm-users');admLoadUsers()"><i class="fa fa-users"></i> Users</button>
       <button class="anl"     onclick="switchAdm(this,'adm-partners-crm');admLoadPartnersCRM()"><i class="fa fa-building"></i> Partners</button>
       <button class="anl"     onclick="switchAdm(this,'adm-access');admLoadAccessList()"><i class="fa fa-shield-halved"></i> Access Control</button>
-      <button class="anl"     onclick="switchAdm(this,'adm-settings');admLoadSettings()"><i class="fa fa-sliders"></i> Settings</button>
       <div style="margin-top:auto;padding-top:14px;border-top:1px solid rgba(255,255,255,.08)">
         <button class="anl" onclick="go('home')"><i class="fa fa-right-from-bracket"></i> Exit Admin</button>
       </div>
@@ -7182,78 +7172,6 @@ tr:hover td{background:var(--b50)}
         </div>
       </div>
 
-      <!-- ══ SETTINGS PANEL ══ -->
-      <div id="adm-settings" style="display:none">
-        <div style="margin-bottom:26px">
-          <h2 style="font-size:1.7rem;color:var(--navy)">Site Settings</h2>
-          <p style="color:var(--muted);font-size:.82rem">Manage visual and SEO settings without touching the code.</p>
-        </div>
-
-        <!-- Hero Image -->
-        <div class="atbl" style="padding:20px;margin-bottom:22px">
-          <h3 style="font-size:.95rem;color:var(--navy);margin-bottom:4px"><i class="fa fa-image" style="color:var(--b600)"></i> Homepage hero image</h3>
-          <p style="font-size:.75rem;color:var(--muted);margin-bottom:16px">Image affichée en plein écran sur la page d'accueil. Recommandé : 1920×1080px, moins de 3 Mo.</p>
-
-          <!-- Preview actuelle -->
-          <div style="margin-bottom:16px">
-            <p style="font-size:.75rem;color:var(--muted);margin-bottom:8px;font-weight:600;text-transform:uppercase;letter-spacing:.04em">Aperçu actuel</p>
-            <div id="settings-hero-preview" style="width:100%;height:220px;border-radius:var(--rs);background:#e2e8f0 url('https://images.unsplash.com/photo-1571896349842-33c89424de2d?q=80&w=1920&auto=format&fit=crop') center/cover;position:relative;overflow:hidden">
-              <div style="position:absolute;inset:0;background:linear-gradient(to bottom,rgba(5,15,40,.5),rgba(5,15,40,.3))"></div>
-              <span id="settings-hero-src-label" style="position:absolute;bottom:10px;left:12px;font-size:.65rem;color:rgba(255,255,255,.7);background:rgba(0,0,0,.4);padding:2px 8px;border-radius:4px">Chargement…</span>
-            </div>
-          </div>
-
-          <!-- Upload -->
-          <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
-            <div style="flex:1;min-width:240px">
-              <label style="font-size:.72rem;color:var(--muted);display:block;margin-bottom:5px">Choisir une nouvelle image</label>
-              <input type="file" id="settings-hero-file" accept="image/*" style="font-size:.8rem;padding:7px 0" onchange="settingsPreviewLocal(this)">
-            </div>
-            <button class="btn bp bsm" onclick="settingsUploadHero()" id="settings-hero-upload-btn" disabled><i class="fa fa-cloud-arrow-up"></i> Uploader &amp; appliquer</button>
-          </div>
-
-          <!-- URL manuelle -->
-          <div style="margin-top:14px">
-            <label style="font-size:.72rem;color:var(--muted);display:block;margin-bottom:5px">— ou coller une URL directement —</label>
-            <div style="display:flex;gap:8px">
-              <input class="fi" type="url" id="settings-hero-url" placeholder="https://images.unsplash.com/..." style="flex:1;padding:8px 12px;font-size:.8rem">
-              <button class="btn bp bsm" onclick="settingsSaveHeroUrl()"><i class="fa fa-floppy-disk"></i> Sauvegarder</button>
-            </div>
-          </div>
-
-          <div id="settings-hero-status" style="font-size:.8rem;margin-top:12px;min-height:20px"></div>
-        </div>
-
-        <!-- SEO / OG -->
-        <div class="atbl" style="padding:20px;margin-bottom:22px">
-          <h3 style="font-size:.95rem;color:var(--navy);margin-bottom:4px"><i class="fa fa-magnifying-glass" style="color:var(--b600)"></i> SEO &amp; partage social</h3>
-          <p style="font-size:.75rem;color:var(--muted);margin-bottom:16px">Titre et description par défaut (page d'accueil et liens partagés sans page spécifique).</p>
-
-          <div style="display:grid;gap:14px">
-            <div>
-              <label style="font-size:.72rem;color:var(--muted);display:block;margin-bottom:5px">Titre du site (title + og:title)</label>
-              <input class="fi" type="text" id="settings-seo-title" placeholder="WowBox — Offer Unforgettable Experiences" style="width:100%;padding:9px 12px;font-size:.85rem" maxlength="70">
-              <p style="font-size:.68rem;color:var(--muted);margin-top:3px">Idéal : 50–60 caractères. <span id="settings-seo-title-count">0</span>/60</p>
-            </div>
-            <div>
-              <label style="font-size:.72rem;color:var(--muted);display:block;margin-bottom:5px">Description (meta description + og:description)</label>
-              <textarea class="fi" id="settings-seo-desc" rows="3" placeholder="Curated gift boxes for unforgettable experiences..." style="width:100%;padding:9px 12px;font-size:.85rem;resize:vertical" maxlength="160"></textarea>
-              <p style="font-size:.68rem;color:var(--muted);margin-top:3px">Idéal : 140–160 caractères. <span id="settings-seo-desc-count">0</span>/160</p>
-            </div>
-            <div>
-              <label style="font-size:.72rem;color:var(--muted);display:block;margin-bottom:5px">Image OG par défaut (1200×630px recommandé)</label>
-              <input class="fi" type="url" id="settings-og-image" placeholder="https://wowbox.co.za/og-default.jpg" style="width:100%;padding:9px 12px;font-size:.85rem">
-            </div>
-          </div>
-          <div style="margin-top:16px;display:flex;gap:10px">
-            <button class="btn bp bsm" onclick="settingsSaveSEO()"><i class="fa fa-floppy-disk"></i> Sauvegarder SEO</button>
-            <button class="btn bg bsm" onclick="admLoadSettings()"><i class="fa fa-rotate"></i> Recharger</button>
-          </div>
-          <div id="settings-seo-status" style="font-size:.8rem;margin-top:10px;min-height:20px"></div>
-        </div>
-
-      </div><!-- /adm-settings -->
-
     </div><!-- /adm-main -->
   </div>
 </div>
@@ -7564,6 +7482,8 @@ const boxDB = {
   'chill-day':      { name:'WowBox Chill Day',            price:899,  db:'Relaxation & Leisure',  cnt:'280',   img:'https://images.unsplash.com/photo-1540555700478-4be289fbecef?q=80&w=800&auto=format&fit=crop',  badge:'😌 Chill',      rating:4.5, sold:334, desc:'Sometimes all you need is a perfect day off. Beach picnics, whale watching, afternoon teas, lazy day spas, and slow brunch experiences — for the gift of pure relaxation.'},
   'signature':      { name:'WowBox Signature Experience', price:3499, db:'Exclusive Dining',      cnt:'156',   img:'https://images.unsplash.com/photo-1414235077428-338989a2e8c0?q=80&w=800&auto=format&fit=crop',  badge:'⭐ Signature',  rating:5.0, sold:74,  desc:'The WowBox signature selection. Michelin-standard restaurants, private chef experiences, exclusive wine events, and intimate culinary journeys curated by South Africa\'s top food critics.'},
 };
+/* Reset fake rating/sold — real values come from Supabase boxes table */
+Object.values(boxDB).forEach(function(b) { b.rating = 0; b.sold = 0; });
 
 var expDB = [
   { id:'vineyard-retreat', name:'The Vineyard Retreat',       reservation_type:'accommodation', type:'hotel',      box:'couples-retreat',   lat:-33.9249, lng:18.8641, loc:'Stellenbosch',    rating:4.9, rv:187, img:'https://images.unsplash.com/photo-1559508551-44bff1de756b?q=80&w=800&auto=format&fit=crop', img2:'https://images.unsplash.com/photo-1571003123894-1f0594d2b5d9?q=80&w=400', img3:'https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?q=80&w=400', partner:'Vineyard Hotels',        tags:['Breakfast','Champagne','Spa access','Pool'],           desc:'Nestled among 300 hectares of century-old vineyards, The Vineyard Retreat is one of the Western Cape\'s most celebrated luxury escapes. Your stay includes a private suite with vineyard views, access to the infinity pool, a couples\' wine tasting session at sunset, and a gourmet farm breakfast each morning. The award-winning spa offers bespoke treatments for two.' },
@@ -7581,18 +7501,7 @@ var expDB = [
   { id:'city-rooftop-dinner',   name:'Cape Town Sunset Cruise',    reservation_type:'event',         type:'activity',   box:'celebration',       lat:-33.9055, lng:18.4195, loc:'Cape Town V&A',    rating:4.9, rv:89,  img:'https://images.unsplash.com/photo-1502680390469-be75c86b636f?q=80&w=800&auto=format&fit=crop', img2:'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?q=80&w=400', img3:'https://images.unsplash.com/photo-1499244571948-7ccddb3583f1?q=80&w=400', partner:'Cape Luxury Yachts',     tags:['Sunset sailing','Champagne','Live music','2h cruise'],   desc:'Board a luxury catamaran from the V&A Waterfront for a 2-hour sunset cruise with Table Mountain as your backdrop. Enjoy a chilled glass of champagne, live acoustic music, and spectacular 360° views of Cape Town\'s iconic coastline as the sun dips below the horizon.' },
 ];
 
-const reviewsDB = {
-  'couples-retreat': [
-    { user:'Sarah M.',    rating:5, date:'Mar 2025', comment:'Absolutely magical — the Vineyard Retreat exceeded every expectation. The champagne on arrival set the tone perfectly. We\'ll definitely be back!', verified:true, exp:'The Vineyard Retreat' },
-    { user:'James K.',    rating:5, date:'Feb 2025', comment:'Best gift I\'ve ever given my wife. The booking process was seamless and the box itself was beautifully packaged. 10/10 experience.', verified:true, exp:'Clifton Ocean Suites' },
-    { user:'Nomsa D.',    rating:4, date:'Feb 2025', comment:'Stunning hotel and wonderful stay. Only wish the checkout was a little later — but the experience itself was flawless. Highly recommend WowBox.', verified:true, exp:'The Vineyard Retreat' },
-    { user:'David P.',    rating:5, date:'Jan 2025', comment:'Surprised my partner for our anniversary. She was speechless when she opened the box. The whole concept is brilliant. The stay at Clifton was world class.', verified:true, exp:'Clifton Ocean Suites' },
-    { user:'Aisha T.',    rating:5, date:'Jan 2025', comment:'WowBox made planning so easy. I picked the box, sent it, and my husband chose the experience himself. We had the most romantic weekend!', verified:true, exp:'The Vineyard Retreat' },
-    { user:'Lindi B.',    rating:3, date:'Dec 2024', comment:'Nice concept but took a while to activate. Once activated the experience was great. Just improve the user interface a bit.', verified:true, exp:'Clifton Ocean Suites' },
-  ],
-  'reset':[ { user:'Zanele M.', rating:5, date:'Mar 2025', comment:'The Ananda spa was absolutely divine. 90 minutes of pure bliss. The champagne tea afterwards was such a beautiful touch. Already planning to go back!', verified:true, exp:'Ananda Couples Spa' }, { user:'Priya S.', rating:4, date:'Feb 2025', comment:'Perfect self-care gift. The spa was clean, professional, and the therapists were incredible. Would have given 5 stars but the parking was a hassle.', verified:true, exp:'Ananda Couples Spa' } ],
-  'signature':[ { user:'Michael R.',rating:5, date:'Mar 2025', comment:'The Test Kitchen is unlike anything I\'ve experienced. 20 courses of pure artistry. Worth every cent. The WowBox packaging made it an even more special gift to give.', verified:true, exp:'The Test Kitchen' }, { user:'Claudette F.', rating:5, date:'Jan 2025', comment:'Gifted this to my mother for her 60th birthday. She was brought to tears — happy ones! The restaurant was exceptional. WowBox is now my go-to for special occasion gifts.', verified:true, exp:'The Test Kitchen' } ],
-};
+/* reviewsDB removed — reviews come from Supabase experience_reviews table */
 
 var admDatabases = [
   { id:'romantic-getaways',  icon:'💑', name:'Romantic Getaways',    cnt:0, boxes:'Couples Retreat',         bg:'#fce7f3' },
@@ -8308,8 +8217,17 @@ function loadProduct(boxId) {
   document.getElementById('prod-exp-note').textContent = isSurprise
     ? '🎰 Spin the wheel below to preview random experiences'
     : appState.boxActivated ? '✅ Your box is active — click "Book" to reserve an experience.' : '🔒 Browse experiences — purchase or activate a box to book.';
-  document.getElementById('prod-stars-r').innerHTML = '★★★★★ ' + b.rating + ' <span style="color:var(--muted)">·</span>';
-  document.getElementById('prod-rev-count-r').textContent = b.sold + ' reviews';
+  var starsEl    = document.getElementById('prod-stars-r');
+  var revCountEl = document.getElementById('prod-rev-count-r');
+  if (starsEl && revCountEl) {
+    if (b.rating && b.sold && b.sold > 0) {
+      starsEl.innerHTML   = '★★★★★ ' + b.rating + ' <span style="color:var(--muted)">·</span>';
+      revCountEl.textContent = b.sold + ' reviews';
+    } else {
+      starsEl.innerHTML   = '';
+      revCountEl.textContent = '';
+    }
+  }
   appState.priceBase = b.price;
   document.getElementById('qty-v').textContent = '1';
   document.getElementById('qty-total').textContent = 'R' + b.price.toLocaleString();
@@ -8349,8 +8267,10 @@ function loadProduct(boxId) {
 
   renderProdReviews(boxId);
   document.getElementById('rev-page-title').textContent = 'Reviews — ' + b.name;
-  document.getElementById('rev-big-num').textContent = b.rating;
-  document.getElementById('rev-total-cnt').textContent = b.sold + ' reviews';
+  var bigNum  = document.getElementById('rev-big-num');
+  var totCnt  = document.getElementById('rev-total-cnt');
+  if (bigNum)  bigNum.textContent  = (b.rating && b.sold > 0) ? b.rating : '—';
+  if (totCnt)  totCnt.textContent  = (b.sold && b.sold > 0)   ? b.sold + ' reviews' : 'No reviews yet';
 }
 function swapImg(el, src) {
   document.querySelectorAll('.gthumb').forEach(t => t.classList.remove('on'));
@@ -9591,18 +9511,7 @@ function switchExpTab(tab, btn) {
 /* ══════════════════════════════════════════════════════════════
    REVIEWS
 ══════════════════════════════════════════════════════════════ */
-function revCard(rv) {
-  const stars = '★'.repeat(rv.rating)+'☆'.repeat(5-rv.rating);
-  return `<div class="rev-card">
-    <div class="rev-head">
-      <div class="rev-av">${rv.user.charAt(0)}</div>
-      <div><div style="font-size:.85rem;font-weight:600;color:var(--navy)">${rv.user}</div><div style="font-size:.7rem;color:var(--muted)">${rv.date}${rv.verified?' · ✅ Verified purchase':''}</div></div>
-      <div style="margin-left:auto;color:var(--amber);font-size:.78rem">${stars}</div>
-    </div>
-    ${rv.exp ? `<div style="font-size:.7rem;color:var(--b600);font-weight:600;margin-bottom:7px"><i class="fa fa-map-pin"></i> ${rv.exp}</div>` : ''}
-    <p style="font-size:.8rem;color:var(--slate);line-height:1.6">${rv.comment}</p>
-  </div>`;
-}
+/* revCard removed — use buildReviewCard() with Supabase data instead */
 async function renderProdReviews(boxId) {
   var grid = document.getElementById('prod-rev-grid');
   if (!grid) return;
@@ -12252,7 +12161,7 @@ function filterDashBoxes(status, btn) {
 }
 
 /* ── ADMIN ── */
-const admTabs = ['adm-dash','adm-boxes','adm-db','adm-exp','adm-requests','adm-reviews','adm-orders','adm-usage','adm-comm','adm-pricing','adm-coupons','adm-activate','adm-cities','adm-users','adm-partners-crm','adm-access','adm-settings'];
+const admTabs = ['adm-dash','adm-boxes','adm-db','adm-exp','adm-requests','adm-reviews','adm-orders','adm-usage','adm-comm','adm-pricing','adm-coupons','adm-activate','adm-cities','adm-users','adm-partners-crm','adm-access'];
 
 /* ══════════════════════════════════════════════════════════════
    CITY ROLLOUT — GEOGRAPHIC TOGGLE + RADIUS
@@ -12535,7 +12444,6 @@ function switchAdm(btn, tab) {
   if (tab === 'adm-orders') loadOrdersFromSupabase();
   if (tab === 'adm-usage')  { renderUsageTable(); loadUsageFromSupabase(); }
   if (tab === 'adm-comm')   loadAdminCommissionPayouts();
-  if (tab === 'adm-settings') admLoadSettings();
 }
 
 async function renderAdmin() {
@@ -16202,7 +16110,6 @@ window.addEventListener('DOMContentLoaded', async () => {
   loadAppPrices();
   renderBoxGrids();
   loadProduct('couples-retreat');
-  loadSiteSettingsOnStartup();
 
   var currentPath = window.location.pathname;
 
@@ -16936,189 +16843,6 @@ async function admRunSchemaDiag() {
   }
   report += '=== Copy and paste this result to Claude ===';
   out.textContent = report;
-}
-
-/* ══════════════════════════════════════════════════════════════
-   SITE SETTINGS — Hero image & SEO
-══════════════════════════════════════════════════════════════ */
-
-/* Load settings from Supabase site_settings table */
-async function admLoadSettings() {
-  var heroPreview  = document.getElementById('settings-hero-preview');
-  var heroSrcLabel = document.getElementById('settings-hero-src-label');
-  var seoTitle     = document.getElementById('settings-seo-title');
-  var seoDesc      = document.getElementById('settings-seo-desc');
-  var ogImage      = document.getElementById('settings-og-image');
-  var heroUrlInput = document.getElementById('settings-hero-url');
-
-  try {
-    var { data, error } = await db_client.from('site_settings').select('key,value');
-    if (error) {
-      /* Table might not exist yet — show defaults and invite creation */
-      if (heroSrcLabel) heroSrcLabel.textContent = 'Default (Unsplash)';
-      if (seoTitle) seoTitle.value = 'WowBox — Offer Unforgettable Experiences';
-      if (seoDesc)  seoDesc.value  = 'Curated gift boxes for unforgettable experiences across South Africa — couples retreats, adventures, wellness & more. From R899.';
-      if (ogImage)  ogImage.value  = 'https://wowbox.co.za/og-default.jpg';
-      settingsUpdateCounters();
-      return;
-    }
-    var settings = {};
-    (data || []).forEach(function(r){ settings[r.key] = r.value; });
-
-    var heroUrl = settings['hero_image_url'] || 'https://images.unsplash.com/photo-1571896349842-33c89424de2d?q=80&w=1920&auto=format&fit=crop';
-    if (heroPreview)  heroPreview.style.backgroundImage  = "url('" + heroUrl + "')";
-    if (heroUrlInput) heroUrlInput.value = heroUrl;
-    if (heroSrcLabel) heroSrcLabel.textContent = settings['hero_image_url'] ? 'Image personnalisée' : 'Default (Unsplash)';
-
-    /* Apply to live hero too */
-    var heroBgEl = document.getElementById('hero-bg-el');
-    if (heroBgEl && settings['hero_image_url']) heroBgEl.style.backgroundImage = "url('" + settings['hero_image_url'] + "')";
-
-    if (seoTitle) seoTitle.value = settings['seo_title'] || 'WowBox — Offer Unforgettable Experiences';
-    if (seoDesc)  seoDesc.value  = settings['seo_desc']  || 'Curated gift boxes for unforgettable experiences across South Africa — couples retreats, adventures, wellness & more. From R899.';
-    if (ogImage)  ogImage.value  = settings['og_image']  || 'https://wowbox.co.za/og-default.jpg';
-    settingsUpdateCounters();
-  } catch(e) {
-    console.warn('admLoadSettings:', e.message);
-    if (heroSrcLabel) heroSrcLabel.textContent = 'Default (Unsplash)';
-    settingsUpdateCounters();
-  }
-}
-
-/* Ensure site_settings table exists (upsert helper) */
-async function settingsUpsert(key, value) {
-  /* Try update first, then insert */
-  var { error: upErr } = await db_client.from('site_settings').upsert({ key: key, value: value }, { onConflict: 'key' });
-  return upErr;
-}
-
-/* Preview locally before upload */
-function settingsPreviewLocal(input) {
-  var btn = document.getElementById('settings-hero-upload-btn');
-  var preview = document.getElementById('settings-hero-preview');
-  if (!input.files || !input.files[0]) { if(btn) btn.disabled = true; return; }
-  var reader = new FileReader();
-  reader.onload = function(e) {
-    if (preview) preview.style.backgroundImage = "url('" + e.target.result + "')";
-    if (btn) btn.disabled = false;
-    var label = document.getElementById('settings-hero-src-label');
-    if (label) label.textContent = 'Prévisualisation locale (non sauvegardée)';
-  };
-  reader.readAsDataURL(input.files[0]);
-}
-
-/* Upload to Supabase Storage and save URL */
-async function settingsUploadHero() {
-  var fileInput = document.getElementById('settings-hero-file');
-  var statusEl  = document.getElementById('settings-hero-status');
-  var btn       = document.getElementById('settings-hero-upload-btn');
-  if (!fileInput || !fileInput.files || !fileInput.files[0]) return;
-  var file = fileInput.files[0];
-  if (file.size > 5 * 1024 * 1024) {
-    if (statusEl) statusEl.innerHTML = '<span style="color:#dc2626"><i class="fa fa-xmark-circle"></i> Fichier trop volumineux (max 5 Mo)</span>';
-    return;
-  }
-  if (statusEl) statusEl.innerHTML = '<i class="fa fa-circle-notch fa-spin"></i> Upload en cours…';
-  if (btn) btn.disabled = true;
-  var ext = file.name.split('.').pop();
-  var path = 'hero/hero-' + Date.now() + '.' + ext;
-  try {
-    var { data: upData, error: upErr } = await db_client.storage.from('site-assets').upload(path, file, { upsert: true, contentType: file.type });
-    if (upErr) throw upErr;
-    var { data: urlData } = db_client.storage.from('site-assets').getPublicUrl(path);
-    var publicUrl = urlData.publicUrl;
-    var saveErr = await settingsUpsert('hero_image_url', publicUrl);
-    if (saveErr) throw saveErr;
-    /* Apply live */
-    var heroBgEl = document.getElementById('hero-bg-el');
-    if (heroBgEl) heroBgEl.style.backgroundImage = "url('" + publicUrl + "')";
-    var preview = document.getElementById('settings-hero-preview');
-    if (preview) preview.style.backgroundImage = "url('" + publicUrl + "')";
-    var label = document.getElementById('settings-hero-src-label');
-    if (label) label.textContent = 'Image personnalisée ✓';
-    if (statusEl) statusEl.innerHTML = '<span style="color:var(--green)"><i class="fa fa-check-circle"></i> Image uploadée et appliquée avec succès !</span>';
-    admToast('Hero image updated ✓');
-  } catch(e) {
-    if (statusEl) statusEl.innerHTML = '<span style="color:#dc2626"><i class="fa fa-xmark-circle"></i> Erreur : ' + e.message + '</span>';
-  }
-  if (btn) btn.disabled = false;
-}
-
-/* Save hero image from URL input */
-async function settingsSaveHeroUrl() {
-  var urlInput = document.getElementById('settings-hero-url');
-  var statusEl = document.getElementById('settings-hero-status');
-  var url = (urlInput ? urlInput.value : '').trim();
-  if (!url) { if (statusEl) statusEl.innerHTML = '<span style="color:#dc2626">URL vide</span>'; return; }
-  if (statusEl) statusEl.innerHTML = '<i class="fa fa-circle-notch fa-spin"></i> Sauvegarde…';
-  try {
-    var err = await settingsUpsert('hero_image_url', url);
-    if (err) throw err;
-    var heroBgEl = document.getElementById('hero-bg-el');
-    if (heroBgEl) heroBgEl.style.backgroundImage = "url('" + url + "')";
-    var preview = document.getElementById('settings-hero-preview');
-    if (preview) preview.style.backgroundImage = "url('" + url + "')";
-    var label = document.getElementById('settings-hero-src-label');
-    if (label) label.textContent = 'Image personnalisée ✓';
-    if (statusEl) statusEl.innerHTML = '<span style="color:var(--green)"><i class="fa fa-check-circle"></i> URL sauvegardée et appliquée !</span>';
-    admToast('Hero image updated ✓');
-  } catch(e) {
-    if (statusEl) statusEl.innerHTML = '<span style="color:#dc2626"><i class="fa fa-xmark-circle"></i> Erreur : ' + e.message + '</span>';
-  }
-}
-
-/* Save SEO meta settings */
-async function settingsSaveSEO() {
-  var titleVal = (document.getElementById('settings-seo-title')?.value || '').trim();
-  var descVal  = (document.getElementById('settings-seo-desc')?.value  || '').trim();
-  var ogImg    = (document.getElementById('settings-og-image')?.value   || '').trim();
-  var statusEl = document.getElementById('settings-seo-status');
-  if (!titleVal || !descVal) { if (statusEl) statusEl.innerHTML = '<span style="color:#dc2626">Titre et description requis</span>'; return; }
-  if (statusEl) statusEl.innerHTML = '<i class="fa fa-circle-notch fa-spin"></i> Sauvegarde…';
-  try {
-    var e1 = await settingsUpsert('seo_title', titleVal);
-    var e2 = await settingsUpsert('seo_desc',  descVal);
-    var e3 = ogImg ? await settingsUpsert('og_image', ogImg) : null;
-    if (e1 || e2 || e3) throw (e1 || e2 || e3);
-    /* Apply live */
-    document.title = titleVal;
-    var descMeta = document.querySelector('meta[name="description"]');
-    if (descMeta) descMeta.setAttribute('content', descVal);
-    updateOGTags({ title: titleVal, desc: descVal, img: ogImg || undefined });
-    if (statusEl) statusEl.innerHTML = '<span style="color:var(--green)"><i class="fa fa-check-circle"></i> SEO sauvegardé et appliqué !</span>';
-    admToast('SEO settings saved ✓');
-  } catch(e) {
-    if (statusEl) statusEl.innerHTML = '<span style="color:#dc2626"><i class="fa fa-xmark-circle"></i> Erreur : ' + e.message + '</span>';
-  }
-}
-
-/* Live char counters for SEO fields */
-function settingsUpdateCounters() {
-  var titleEl = document.getElementById('settings-seo-title');
-  var descEl  = document.getElementById('settings-seo-desc');
-  var tCount  = document.getElementById('settings-seo-title-count');
-  var dCount  = document.getElementById('settings-seo-desc-count');
-  if (titleEl && tCount) {
-    tCount.textContent = titleEl.value.length;
-    tCount.style.color = titleEl.value.length > 60 ? '#dc2626' : 'var(--muted)';
-    titleEl.oninput = function() { tCount.textContent = this.value.length; tCount.style.color = this.value.length > 60 ? '#dc2626' : 'var(--muted)'; };
-  }
-  if (descEl && dCount) {
-    dCount.textContent = descEl.value.length;
-    dCount.style.color = descEl.value.length > 160 ? '#dc2626' : 'var(--muted)';
-    descEl.oninput = function() { dCount.textContent = this.value.length; dCount.style.color = this.value.length > 160 ? '#dc2626' : 'var(--muted)'; };
-  }
-}
-
-/* Load hero image on startup */
-async function loadSiteSettingsOnStartup() {
-  try {
-    var { data, error } = await db_client.from('site_settings').select('key,value').eq('key','hero_image_url').limit(1);
-    if (!error && data && data.length > 0 && data[0].value) {
-      var heroBgEl = document.getElementById('hero-bg-el');
-      if (heroBgEl) heroBgEl.style.backgroundImage = "url('" + data[0].value + "')";
-    }
-  } catch(e) { /* silently fail — default CSS image stays */ }
 }
 </script>
 <!-- Hidden print area for box codes -->
