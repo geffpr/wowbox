@@ -5264,7 +5264,7 @@ tr:hover td{background:var(--b50)}
             <div class="fg"><label>Experience name *</label><input class="fi" id="pp-new-name" placeholder="e.g. Vineyard Sunset Dinner"></div>
             <div class="fg">
               <label>Type *</label>
-              <select class="fi" id="pp-new-type">
+              <select class="fi" id="pp-new-type" onchange="ppNewTypeChange(this.value)">
                 <option value="">— Select —</option>
                 <option value="accommodation">🏨 Accommodation</option>
                 <option value="dining">🍽️ Dining</option>
@@ -5396,13 +5396,40 @@ tr:hover td{background:var(--b50)}
             <div class="fg"><label>Certification <span style="font-weight:400;color:var(--muted)">(optional)</span></label>
               <input class="fi" id="pp-new-certification" placeholder="e.g. Eat Out, AA, Fair Trade…">
             </div>
-            <div class="fg" style="display:flex;align-items:center;gap:12px;padding-top:22px">
+          <div class="fg" style="display:flex;align-items:center;gap:12px;padding-top:22px">
               <input type="checkbox" id="pp-new-accessible" style="width:16px;height:16px;cursor:pointer">
               <label for="pp-new-accessible" style="cursor:pointer;font-size:.82rem">♿ PMR accessible</label>
               <input type="checkbox" id="pp-new-insolite" style="width:16px;height:16px;cursor:pointer;margin-left:8px">
               <label for="pp-new-insolite" style="cursor:pointer;font-size:.82rem">🌟 Insolite</label>
             </div>
           </div>
+
+          <!-- Dynamic booking options — shown based on type -->
+          <div id="pp-new-dynamic-fields" style="display:none;border-top:1px solid var(--border);padding-top:14px;margin-top:4px">
+            <p style="font-size:.72rem;font-weight:600;color:var(--b600);text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px"><i class="fa fa-sliders"></i> Booking form options</p>
+            <div id="pp-new-time-slots-wrap" style="display:none">
+              <div class="fg">
+                <label>Available time slots <span style="font-weight:400;color:var(--muted)">(one per line)</span></label>
+                <textarea class="fi" id="pp-new-time-slots" rows="4" style="resize:vertical;font-size:.8rem" placeholder="12:00 — Lunch&#10;18:00 — Dinner&#10;19:00 — Dinner"></textarea>
+                <p style="font-size:.68rem;color:var(--muted);margin-top:3px">Leave empty for default slots.</p>
+              </div>
+            </div>
+            <div id="pp-new-treatments-wrap" style="display:none">
+              <div class="fg">
+                <label>Treatment options <span style="font-weight:400;color:var(--muted)">(one per line)</span></label>
+                <textarea class="fi" id="pp-new-treatments" rows="4" style="resize:vertical;font-size:.8rem" placeholder="Swedish Massage&#10;Deep Tissue Massage&#10;Couples Massage"></textarea>
+                <p style="font-size:.68rem;color:var(--muted);margin-top:3px">Leave empty for default treatments.</p>
+              </div>
+            </div>
+            <div id="pp-new-sessions-wrap" style="display:none">
+              <div class="fg">
+                <label>Session options <span style="font-weight:400;color:var(--muted)">(one per line)</span></label>
+                <textarea class="fi" id="pp-new-sessions" rows="3" style="resize:vertical;font-size:.8rem" placeholder="Morning (07:00–12:00)&#10;Afternoon (13:00–17:00)&#10;Full day"></textarea>
+                <p style="font-size:.68rem;color:var(--muted);margin-top:3px">Leave empty for default sessions.</p>
+              </div>
+            </div>
+          </div>
+
           <div class="fg">
             <label>🔗 iCal sync URL <span style="font-weight:400;color:var(--muted)">(optional — sync from Google Calendar, Airbnb, Booking.com…)</span></label>
             <input class="fi" id="pp-new-ical" placeholder="webcal:// or https://... link to your .ics calendar">
@@ -6281,6 +6308,40 @@ tr:hover td{background:var(--b50)}
                 <label>Amenities</label>
                 <div id="aef-amenities-wrap"></div>
               </div>
+
+              <!-- ── Dynamic booking fields (shown per reservation type) ── -->
+              <div id="aef-dynamic-fields" style="display:none;border-top:1px solid var(--border);padding-top:14px;margin-top:4px">
+                <p style="font-size:.72rem;font-weight:600;color:var(--b600);text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px"><i class="fa fa-sliders"></i> Booking form options</p>
+
+                <!-- time_slots — dining + wellness -->
+                <div id="aef-time-slots-wrap" style="display:none">
+                  <div class="fg">
+                    <label>Available time slots <span style="font-weight:400;color:var(--muted)">(one per line — e.g. 12:00 — Lunch)</span></label>
+                    <textarea class="fi" id="aef-time-slots" rows="4" style="resize:vertical;font-size:.8rem" placeholder="12:00 — Lunch&#10;13:00 — Lunch&#10;18:00 — Dinner&#10;19:00 — Dinner"></textarea>
+                    <p style="font-size:.68rem;color:var(--muted);margin-top:3px">Leave empty to use default slots. Each line = one option in the booking form.</p>
+                  </div>
+                </div>
+
+                <!-- treatments — wellness only -->
+                <div id="aef-treatments-wrap" style="display:none">
+                  <div class="fg">
+                    <label>Treatment options <span style="font-weight:400;color:var(--muted)">(one per line)</span></label>
+                    <textarea class="fi" id="aef-treatments" rows="4" style="resize:vertical;font-size:.8rem" placeholder="Swedish Massage&#10;Deep Tissue Massage&#10;Couples Massage&#10;Hot Stone Therapy"></textarea>
+                    <p style="font-size:.68rem;color:var(--muted);margin-top:3px">Leave empty to use default treatments.</p>
+                  </div>
+                </div>
+
+                <!-- sessions — activity only -->
+                <div id="aef-sessions-wrap" style="display:none">
+                  <div class="fg">
+                    <label>Session options <span style="font-weight:400;color:var(--muted)">(one per line)</span></label>
+                    <textarea class="fi" id="aef-sessions" rows="3" style="resize:vertical;font-size:.8rem" placeholder="Morning (07:00–12:00)&#10;Afternoon (13:00–17:00)&#10;Full day"></textarea>
+                    <p style="font-size:.68rem;color:var(--muted);margin-top:3px">Leave empty to use default sessions.</p>
+                  </div>
+                </div>
+              </div>
+              <!-- ── /Dynamic booking fields ── -->
+
               <div class="fg">
                 <label>🔗 iCal sync URL <span style="font-weight:400;color:var(--muted)">(optional)</span></label>
                 <div style="display:flex;gap:8px">
@@ -7482,8 +7543,6 @@ const boxDB = {
   'chill-day':      { name:'WowBox Chill Day',            price:899,  db:'Relaxation & Leisure',  cnt:'280',   img:'https://images.unsplash.com/photo-1540555700478-4be289fbecef?q=80&w=800&auto=format&fit=crop',  badge:'😌 Chill',      rating:4.5, sold:334, desc:'Sometimes all you need is a perfect day off. Beach picnics, whale watching, afternoon teas, lazy day spas, and slow brunch experiences — for the gift of pure relaxation.'},
   'signature':      { name:'WowBox Signature Experience', price:3499, db:'Exclusive Dining',      cnt:'156',   img:'https://images.unsplash.com/photo-1414235077428-338989a2e8c0?q=80&w=800&auto=format&fit=crop',  badge:'⭐ Signature',  rating:5.0, sold:74,  desc:'The WowBox signature selection. Michelin-standard restaurants, private chef experiences, exclusive wine events, and intimate culinary journeys curated by South Africa\'s top food critics.'},
 };
-/* Reset fake rating/sold — real values come from Supabase boxes table */
-Object.values(boxDB).forEach(function(b) { b.rating = 0; b.sold = 0; });
 
 var expDB = [
   { id:'vineyard-retreat', name:'The Vineyard Retreat',       reservation_type:'accommodation', type:'hotel',      box:'couples-retreat',   lat:-33.9249, lng:18.8641, loc:'Stellenbosch',    rating:4.9, rv:187, img:'https://images.unsplash.com/photo-1559508551-44bff1de756b?q=80&w=800&auto=format&fit=crop', img2:'https://images.unsplash.com/photo-1571003123894-1f0594d2b5d9?q=80&w=400', img3:'https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?q=80&w=400', partner:'Vineyard Hotels',        tags:['Breakfast','Champagne','Spa access','Pool'],           desc:'Nestled among 300 hectares of century-old vineyards, The Vineyard Retreat is one of the Western Cape\'s most celebrated luxury escapes. Your stay includes a private suite with vineyard views, access to the infinity pool, a couples\' wine tasting session at sunset, and a gourmet farm breakfast each morning. The award-winning spa offers bespoke treatments for two.' },
@@ -7501,7 +7560,18 @@ var expDB = [
   { id:'city-rooftop-dinner',   name:'Cape Town Sunset Cruise',    reservation_type:'event',         type:'activity',   box:'celebration',       lat:-33.9055, lng:18.4195, loc:'Cape Town V&A',    rating:4.9, rv:89,  img:'https://images.unsplash.com/photo-1502680390469-be75c86b636f?q=80&w=800&auto=format&fit=crop', img2:'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?q=80&w=400', img3:'https://images.unsplash.com/photo-1499244571948-7ccddb3583f1?q=80&w=400', partner:'Cape Luxury Yachts',     tags:['Sunset sailing','Champagne','Live music','2h cruise'],   desc:'Board a luxury catamaran from the V&A Waterfront for a 2-hour sunset cruise with Table Mountain as your backdrop. Enjoy a chilled glass of champagne, live acoustic music, and spectacular 360° views of Cape Town\'s iconic coastline as the sun dips below the horizon.' },
 ];
 
-/* reviewsDB removed — reviews come from Supabase experience_reviews table */
+const reviewsDB = {
+  'couples-retreat': [
+    { user:'Sarah M.',    rating:5, date:'Mar 2025', comment:'Absolutely magical — the Vineyard Retreat exceeded every expectation. The champagne on arrival set the tone perfectly. We\'ll definitely be back!', verified:true, exp:'The Vineyard Retreat' },
+    { user:'James K.',    rating:5, date:'Feb 2025', comment:'Best gift I\'ve ever given my wife. The booking process was seamless and the box itself was beautifully packaged. 10/10 experience.', verified:true, exp:'Clifton Ocean Suites' },
+    { user:'Nomsa D.',    rating:4, date:'Feb 2025', comment:'Stunning hotel and wonderful stay. Only wish the checkout was a little later — but the experience itself was flawless. Highly recommend WowBox.', verified:true, exp:'The Vineyard Retreat' },
+    { user:'David P.',    rating:5, date:'Jan 2025', comment:'Surprised my partner for our anniversary. She was speechless when she opened the box. The whole concept is brilliant. The stay at Clifton was world class.', verified:true, exp:'Clifton Ocean Suites' },
+    { user:'Aisha T.',    rating:5, date:'Jan 2025', comment:'WowBox made planning so easy. I picked the box, sent it, and my husband chose the experience himself. We had the most romantic weekend!', verified:true, exp:'The Vineyard Retreat' },
+    { user:'Lindi B.',    rating:3, date:'Dec 2024', comment:'Nice concept but took a while to activate. Once activated the experience was great. Just improve the user interface a bit.', verified:true, exp:'Clifton Ocean Suites' },
+  ],
+  'reset':[ { user:'Zanele M.', rating:5, date:'Mar 2025', comment:'The Ananda spa was absolutely divine. 90 minutes of pure bliss. The champagne tea afterwards was such a beautiful touch. Already planning to go back!', verified:true, exp:'Ananda Couples Spa' }, { user:'Priya S.', rating:4, date:'Feb 2025', comment:'Perfect self-care gift. The spa was clean, professional, and the therapists were incredible. Would have given 5 stars but the parking was a hassle.', verified:true, exp:'Ananda Couples Spa' } ],
+  'signature':[ { user:'Michael R.',rating:5, date:'Mar 2025', comment:'The Test Kitchen is unlike anything I\'ve experienced. 20 courses of pure artistry. Worth every cent. The WowBox packaging made it an even more special gift to give.', verified:true, exp:'The Test Kitchen' }, { user:'Claudette F.', rating:5, date:'Jan 2025', comment:'Gifted this to my mother for her 60th birthday. She was brought to tears — happy ones! The restaurant was exceptional. WowBox is now my go-to for special occasion gifts.', verified:true, exp:'The Test Kitchen' } ],
+};
 
 var admDatabases = [
   { id:'romantic-getaways',  icon:'💑', name:'Romantic Getaways',    cnt:0, boxes:'Couples Retreat',         bg:'#fce7f3' },
@@ -8217,17 +8287,8 @@ function loadProduct(boxId) {
   document.getElementById('prod-exp-note').textContent = isSurprise
     ? '🎰 Spin the wheel below to preview random experiences'
     : appState.boxActivated ? '✅ Your box is active — click "Book" to reserve an experience.' : '🔒 Browse experiences — purchase or activate a box to book.';
-  var starsEl    = document.getElementById('prod-stars-r');
-  var revCountEl = document.getElementById('prod-rev-count-r');
-  if (starsEl && revCountEl) {
-    if (b.rating && b.sold && b.sold > 0) {
-      starsEl.innerHTML   = '★★★★★ ' + b.rating + ' <span style="color:var(--muted)">·</span>';
-      revCountEl.textContent = b.sold + ' reviews';
-    } else {
-      starsEl.innerHTML   = '';
-      revCountEl.textContent = '';
-    }
-  }
+  document.getElementById('prod-stars-r').innerHTML = '★★★★★ ' + b.rating + ' <span style="color:var(--muted)">·</span>';
+  document.getElementById('prod-rev-count-r').textContent = b.sold + ' reviews';
   appState.priceBase = b.price;
   document.getElementById('qty-v').textContent = '1';
   document.getElementById('qty-total').textContent = 'R' + b.price.toLocaleString();
@@ -8267,10 +8328,8 @@ function loadProduct(boxId) {
 
   renderProdReviews(boxId);
   document.getElementById('rev-page-title').textContent = 'Reviews — ' + b.name;
-  var bigNum  = document.getElementById('rev-big-num');
-  var totCnt  = document.getElementById('rev-total-cnt');
-  if (bigNum)  bigNum.textContent  = (b.rating && b.sold > 0) ? b.rating : '—';
-  if (totCnt)  totCnt.textContent  = (b.sold && b.sold > 0)   ? b.sold + ' reviews' : 'No reviews yet';
+  document.getElementById('rev-big-num').textContent = b.rating;
+  document.getElementById('rev-total-cnt').textContent = b.sold + ' reviews';
 }
 function swapImg(el, src) {
   document.querySelectorAll('.gthumb').forEach(t => t.classList.remove('on'));
@@ -8858,21 +8917,29 @@ function buildGuestOptions(cap, defaultVal) {
 const rtConfig = {
   accommodation: {
     icon:'🏨', label:'Accommodation',  cls:'rt-accommodation',
-    form: (cap) => `
+    form: (opts) => {
+      var cap    = (opts && opts.cap)    ? opts.cap    : 2;
+      var nights = (opts && opts.nights) ? opts.nights : 0;
+      var nightsBadge = nights > 0
+        ? `<div style="margin-bottom:10px;padding:7px 12px;background:var(--b50);border:1px solid var(--b200);border-radius:var(--rs);font-size:.75rem;color:var(--b700)"><i class="fa fa-moon" style="color:var(--b400)"></i> Fixed duration: <strong>${nights} night${nights>1?'s':''}</strong> — check-out will be set automatically</div>`
+        : '';
+      return `
+      ${nightsBadge}
       <div class="fg-row">
-        <div class="fg"><label>Guest 1 — Full name *</label><input class="fi" id="bk-g1" placeholder="e.g. My Account"></div>
+        <div class="fg"><label>Guest 1 — Full name *</label><input class="fi" id="bk-g1" placeholder="e.g. Sarah Khumalo"></div>
         <div class="fg"><label>Guest 2 (optional)</label><input class="fi" id="bk-g2" placeholder="e.g. Sipho Khumalo"></div>
       </div>
       <div class="fg-row">
         <div class="fg"><label>Check-in *</label><input class="fi" type="date" id="bk-ci" onchange="calcNights()"></div>
-        <div class="fg"><label>Check-out *</label><input class="fi" type="date" id="bk-co" onchange="calcNights()"></div>
+        <div class="fg"><label>Check-out *</label><input class="fi" type="date" id="bk-co" onchange="calcNights()" ${nights>0?'readonly style="background:var(--b50);cursor:not-allowed"':''}></div>
       </div>
       <div class="nights-calc" id="nights-disp"><i class="fa fa-moon" style="color:var(--b400)"></i> Select dates to calculate nights</div>
       <div class="fg"><label>Number of guests</label><select class="fi" id="bk-guests">${buildGuestOptions(cap,2)}</select></div>
       <div class="opt-section"><h5>Optional</h5>
         <div class="fg"><label>Occasion</label><select class="fi" id="bk-occasion"><option value="">—</option><option>Anniversary</option><option>Birthday</option><option>Honeymoon</option><option>Proposal</option></select></div>
         <div class="fg" style="margin-bottom:0"><label>Special requests</label><textarea class="fi" id="bk-notes" rows="2" style="resize:vertical" placeholder="e.g. high floor, champagne on arrival…"></textarea></div>
-      </div>`,
+      </div>`;
+    },
     collect: () => ({
       guest1:    document.getElementById('bk-g1')?.value   || '',
       guest2:    document.getElementById('bk-g2')?.value   || '',
@@ -8885,11 +8952,15 @@ const rtConfig = {
   },
   dining: {
     icon:'🍽️', label:'Dining',  cls:'rt-dining',
-    form: (cap) => `
+    form: (opts) => {
+      var cap        = (opts && opts.cap)        ? opts.cap        : 8;
+      var timeSlots  = (opts && opts.time_slots && opts.time_slots.length) ? opts.time_slots : ['12:00 — Lunch','13:00 — Lunch','18:00 — Dinner','19:00 — Dinner','20:00 — Dinner','20:30 — Dinner'];
+      var timeOpts   = timeSlots.map(function(t){ return '<option>'+t+'</option>'; }).join('');
+      return `
       <div class="fg"><label>Name for reservation *</label><input class="fi" id="bk-g1" placeholder="Full name"></div>
       <div class="fg-row">
         <div class="fg"><label>Date *</label><input class="fi" type="date" id="bk-date"></div>
-        <div class="fg"><label>Preferred time *</label><select class="fi" id="bk-time"><option>12:00 — Lunch</option><option>13:00 — Lunch</option><option>18:00 — Dinner</option><option>19:00 — Dinner</option><option>20:00 — Dinner</option><option>20:30 — Dinner</option></select></div>
+        <div class="fg"><label>Preferred time *</label><select class="fi" id="bk-time">${timeOpts}</select></div>
       </div>
       <div class="fg-row">
         <div class="fg"><label>Number of guests *</label><select class="fi" id="bk-guests">${buildGuestOptions(cap,2)}</select></div>
@@ -8898,7 +8969,8 @@ const rtConfig = {
       <div class="fg"><label>Dietary requirements</label><input class="fi" id="bk-diet" placeholder="Vegetarian, nut allergy, halal…"></div>
       <div class="opt-section"><h5>Optional</h5>
         <div class="fg" style="margin-bottom:0"><label>Additional notes</label><textarea class="fi" id="bk-notes" rows="2" style="resize:vertical" placeholder="Special seating, birthday cake…"></textarea></div>
-      </div>`,
+      </div>`;
+    },
     collect: () => ({
       guest1:   document.getElementById('bk-g1')?.value       || '',
       date:     document.getElementById('bk-date')?.value     || '',
@@ -8911,20 +8983,27 @@ const rtConfig = {
   },
   wellness: {
     icon:'🧖', label:'Wellness',  cls:'rt-wellness',
-    form: (cap) => `
+    form: (opts) => {
+      var cap        = (opts && opts.cap)        ? Math.min(opts.cap, 2) : 2;
+      var timeSlots  = (opts && opts.time_slots && opts.time_slots.length) ? opts.time_slots : ['09:00','10:00','11:00','14:00','15:00','16:00'];
+      var treatments = (opts && opts.treatments && opts.treatments.length) ? opts.treatments : ['Let the spa decide','Swedish Massage','Deep Tissue Massage','Couples Massage','Signature Facial','Hot Stone Therapy','Full Spa Day Package'];
+      var timeOpts  = timeSlots.map(function(t){ return '<option>'+t+'</option>'; }).join('');
+      var treatOpts = treatments.map(function(t,i){ return '<option'+(i===0?' value=""':'')+'>'+t+'</option>'; }).join('');
+      return `
       <div class="fg"><label>Name *</label><input class="fi" id="bk-g1" placeholder="Full name"></div>
       <div class="fg"><label>2nd guest (couples treatment)</label><input class="fi" id="bk-g2" placeholder="Optional"></div>
       <div class="fg-row">
         <div class="fg"><label>Date *</label><input class="fi" type="date" id="bk-date"></div>
-        <div class="fg"><label>Preferred time *</label><select class="fi" id="bk-time"><option>09:00</option><option>10:00</option><option>11:00</option><option>14:00</option><option>15:00</option><option>16:00</option></select></div>
+        <div class="fg"><label>Preferred time *</label><select class="fi" id="bk-time">${timeOpts}</select></div>
       </div>
       <div class="fg-row">
-        <div class="fg"><label>Number of people</label><select class="fi" id="bk-guests">${buildGuestOptions(Math.min(cap||2,2),1)}</select></div>
-        <div class="fg"><label>Treatment type (optional)</label><select class="fi" id="bk-treatment"><option value="">Let the spa decide</option><option>Swedish Massage</option><option>Deep Tissue Massage</option><option>Couples Massage</option><option>Signature Facial</option><option>Hot Stone Therapy</option><option>Full Spa Day Package</option></select></div>
+        <div class="fg"><label>Number of people</label><select class="fi" id="bk-guests">${buildGuestOptions(cap,1)}</select></div>
+        <div class="fg"><label>Treatment type (optional)</label><select class="fi" id="bk-treatment">${treatOpts}</select></div>
       </div>
       <div class="opt-section"><h5>Health & preferences</h5>
         <div class="fg" style="margin-bottom:0"><label>Notes for therapist</label><textarea class="fi" id="bk-notes" rows="2" style="resize:vertical" placeholder="Injuries, pregnancy, pressure preference, allergies…"></textarea></div>
-      </div>`,
+      </div>`;
+    },
     collect: () => ({
       guest1:     document.getElementById('bk-g1')?.value         || '',
       guest2:     document.getElementById('bk-g2')?.value         || '',
@@ -8937,17 +9016,22 @@ const rtConfig = {
   },
   activity: {
     icon:'🏄', label:'Activity',  cls:'rt-activity',
-    form: (cap) => `
+    form: (opts) => {
+      var cap      = (opts && opts.cap)      ? opts.cap      : 10;
+      var sessions = (opts && opts.sessions && opts.sessions.length) ? opts.sessions : ['No preference','Morning (07:00–12:00)','Afternoon (13:00–17:00)','Full day','Sunrise'];
+      var sessionOpts = sessions.map(function(s,i){ return '<option'+(i===0?' value=""':'')+'>'+s+'</option>'; }).join('');
+      return `
       <div class="fg"><label>Lead participant *</label><input class="fi" id="bk-g1" placeholder="Full name"></div>
       <div class="fg-row">
         <div class="fg"><label>Date *</label><input class="fi" type="date" id="bk-date"></div>
-        <div class="fg"><label>Session (optional)</label><select class="fi" id="bk-session"><option value="">No preference</option><option>Morning (07:00–12:00)</option><option>Afternoon (13:00–17:00)</option><option>Full day</option><option>Sunrise</option></select></div>
+        <div class="fg"><label>Session (optional)</label><select class="fi" id="bk-session">${sessionOpts}</select></div>
       </div>
       <div class="fg"><label>Number of participants</label><select class="fi" id="bk-guests">${buildGuestOptions(cap,2)}</select></div>
       <div class="opt-section"><h5>Optional</h5>
         <div class="fg"><label>Fitness / experience level</label><select class="fi" id="bk-level"><option value="">Not specified</option><option>Beginner</option><option>Intermediate</option><option>Advanced</option></select></div>
         <div class="fg" style="margin-bottom:0"><label>Notes</label><textarea class="fi" id="bk-notes" rows="2" style="resize:vertical" placeholder="Medical conditions, group info, transport needs…"></textarea></div>
-      </div>`,
+      </div>`;
+    },
     collect: () => ({
       guest1:   document.getElementById('bk-g1')?.value       || '',
       date:     document.getElementById('bk-date')?.value     || '',
@@ -8959,17 +9043,24 @@ const rtConfig = {
   },
   rental: {
     icon:'🚗', label:'Rental',  cls:'rt-rental',
-    form: (cap) => `
+    form: (opts) => {
+      var nights = (opts && opts.nights) ? opts.nights : 0;
+      var nightsBadge = nights > 0
+        ? `<div style="margin-bottom:10px;padding:7px 12px;background:var(--b50);border:1px solid var(--b200);border-radius:var(--rs);font-size:.75rem;color:var(--b700)"><i class="fa fa-calendar" style="color:var(--b400)"></i> Fixed duration: <strong>${nights} day${nights>1?'s':''}</strong> — return date will be set automatically</div>`
+        : '';
+      return `
+      ${nightsBadge}
       <div class="fg"><label>Name *</label><input class="fi" id="bk-g1" placeholder="Full name as on ID/licence"></div>
       <div class="fg-row">
         <div class="fg"><label>Start date *</label><input class="fi" type="date" id="bk-ci" onchange="calcNights()"></div>
-        <div class="fg"><label>End / return date *</label><input class="fi" type="date" id="bk-co" onchange="calcNights()"></div>
+        <div class="fg"><label>End / return date *</label><input class="fi" type="date" id="bk-co" onchange="calcNights()" ${nights>0?'readonly style="background:var(--b50);cursor:not-allowed"':''}></div>
       </div>
       <div class="nights-calc" id="nights-disp"><i class="fa fa-calendar" style="color:var(--b400)"></i> Select dates to calculate duration</div>
       <div class="opt-section"><h5>Options &amp; extras</h5>
         <div class="fg"><label>Pickup location</label><input class="fi" id="bk-pickup" placeholder="Address or depot name"></div>
         <div class="fg" style="margin-bottom:0"><label>Special requests / options</label><textarea class="fi" id="bk-notes" rows="2" style="resize:vertical" placeholder="Child seat, GPS, specific route…"></textarea></div>
-      </div>`,
+      </div>`;
+    },
     collect: () => ({
       guest1:   document.getElementById('bk-g1')?.value     || '',
       start:    document.getElementById('bk-ci')?.value     || '',
@@ -8980,7 +9071,9 @@ const rtConfig = {
   },
   event: {
     icon:'🎉', label:'Event',  cls:'rt-event',
-    form: (cap) => `
+    form: (opts) => {
+      var cap = (opts && opts.cap) ? opts.cap : 10;
+      return `
       <div class="fg"><label>Name *</label><input class="fi" id="bk-g1" placeholder="Full name"></div>
       <div class="fg-row">
         <div class="fg"><label>Preferred date *</label><input class="fi" type="date" id="bk-date"></div>
@@ -8988,7 +9081,8 @@ const rtConfig = {
       </div>
       <div class="opt-section"><h5>Preferences &amp; special requests</h5>
         <div class="fg" style="margin-bottom:0"><label>Notes</label><textarea class="fi" id="bk-notes" rows="3" style="resize:vertical" placeholder="Dietary needs, accessibility, occasion details, any special requirements…"></textarea></div>
-      </div>`,
+      </div>`;
+    },
     collect: () => ({
       guest1:  document.getElementById('bk-g1')?.value      || '',
       date:    document.getElementById('bk-date')?.value    || '',
@@ -9026,6 +9120,10 @@ async function initBookingDatePickers(expId) {
   var today   = new Date().toISOString().slice(0,10);
   var opts    = { minDate: today, disable: blocked, dateFormat: 'Y-m-d' };
 
+  // Get fixed nights from current experience
+  var exp    = expDB.find(function(x){ return x.id === expId; });
+  var nights = exp && exp.duration_nights ? parseInt(exp.duration_nights) || 0 : 0;
+
   // Single date picker (dining, wellness, activity, event)
   var bdEl = document.getElementById('bk-date');
   if (bdEl && window.flatpickr) {
@@ -9040,14 +9138,33 @@ async function initBookingDatePickers(expId) {
     if (ciEl._flatpickr) ciEl._flatpickr.destroy();
     flatpickr(ciEl, Object.assign({}, opts, {
       onChange: function(sel, dateStr) {
-        if (coEl && coEl._flatpickr) coEl._flatpickr.set('minDate', dateStr || today);
+        if (!dateStr) return;
+        if (nights > 0) {
+          // Fixed duration — auto-set checkout and lock it
+          var d = new Date(dateStr);
+          d.setDate(d.getDate() + nights);
+          var checkoutStr = d.toISOString().slice(0,10);
+          if (coEl._flatpickr) {
+            coEl._flatpickr.set('minDate', checkoutStr);
+            coEl._flatpickr.set('maxDate', checkoutStr);
+            coEl._flatpickr.setDate(checkoutStr);
+          }
+        } else {
+          if (coEl && coEl._flatpickr) coEl._flatpickr.set('minDate', dateStr);
+        }
         if (typeof calcNights === 'function') calcNights();
       }
     }));
   }
   if (coEl && window.flatpickr) {
     if (coEl._flatpickr) coEl._flatpickr.destroy();
-    flatpickr(coEl, Object.assign({}, opts, {
+    var coOpts = Object.assign({}, opts);
+    if (nights > 0) {
+      // Checkout controlled by checkin — lock range
+      coOpts.minDate = today;
+      coOpts.maxDate = null;
+    }
+    flatpickr(coEl, Object.assign(coOpts, {
       onChange: function(){ if (typeof calcNights === 'function') calcNights(); }
     }));
   }
@@ -9100,21 +9217,33 @@ async function admSyncIcal() {
 
 function buildBookingForm(rt) {
   const cfg = rtConfig[rt] || rtConfig.activity;
-  // Get capacity from current experience
-  var cap = 2; // default: duo
   var exp = expDB.find(function(x){ return x.id === appState.currentExpId; });
-  if (exp && exp.capacity) cap = parseInt(exp.capacity) || 2;
-  return cfg.form(cap);
+  var opts = {
+    cap:        exp && exp.capacity        ? parseInt(exp.capacity)        || 2 : 2,
+    nights:     exp && exp.duration_nights ? parseInt(exp.duration_nights) || 0 : 0,
+    time_slots: exp && exp.time_slots      ? exp.time_slots  : null,
+    treatments: exp && exp.treatments      ? exp.treatments  : null,
+    sessions:   exp && exp.sessions        ? exp.sessions    : null,
+  };
+  return cfg.form(opts);
 }
 
-// Reload booking form after fetching fresh capacity from Supabase
+// Reload booking form after fetching fresh config from Supabase
 async function refreshBookingFormCapacity(rt, containerId) {
   if (!appState.currentExpId) return;
   try {
-    var res = await db_client.from('experiences').select('capacity').eq('id', appState.currentExpId).maybeSingle();
-    if (res.data && res.data.capacity) {
+    var res = await db_client.from('experiences')
+      .select('capacity,duration_nights,time_slots,treatments,sessions')
+      .eq('id', appState.currentExpId).maybeSingle();
+    if (res.data) {
       var exp = expDB.find(function(x){ return x.id === appState.currentExpId; });
-      if (exp) exp.capacity = res.data.capacity;
+      if (exp) {
+        if (res.data.capacity)        exp.capacity        = res.data.capacity;
+        if (res.data.duration_nights) exp.duration_nights = res.data.duration_nights;
+        if (res.data.time_slots)      exp.time_slots      = res.data.time_slots;
+        if (res.data.treatments)      exp.treatments      = res.data.treatments;
+        if (res.data.sessions)        exp.sessions        = res.data.sessions;
+      }
       var container = document.getElementById(containerId);
       if (container) container.innerHTML = buildBookingForm(rt);
       if (window.flatpickr) initBookingDatePickers(appState.currentExpId);
@@ -9511,7 +9640,18 @@ function switchExpTab(tab, btn) {
 /* ══════════════════════════════════════════════════════════════
    REVIEWS
 ══════════════════════════════════════════════════════════════ */
-/* revCard removed — use buildReviewCard() with Supabase data instead */
+function revCard(rv) {
+  const stars = '★'.repeat(rv.rating)+'☆'.repeat(5-rv.rating);
+  return `<div class="rev-card">
+    <div class="rev-head">
+      <div class="rev-av">${rv.user.charAt(0)}</div>
+      <div><div style="font-size:.85rem;font-weight:600;color:var(--navy)">${rv.user}</div><div style="font-size:.7rem;color:var(--muted)">${rv.date}${rv.verified?' · ✅ Verified purchase':''}</div></div>
+      <div style="margin-left:auto;color:var(--amber);font-size:.78rem">${stars}</div>
+    </div>
+    ${rv.exp ? `<div style="font-size:.7rem;color:var(--b600);font-weight:600;margin-bottom:7px"><i class="fa fa-map-pin"></i> ${rv.exp}</div>` : ''}
+    <p style="font-size:.8rem;color:var(--slate);line-height:1.6">${rv.comment}</p>
+  </div>`;
+}
 async function renderProdReviews(boxId) {
   var grid = document.getElementById('prod-rev-grid');
   if (!grid) return;
@@ -9948,6 +10088,18 @@ async function ppChangePassword() {
     if (res.error) { msgEl.style.color='#ef4444'; msgEl.textContent='Error: ' + res.error.message; }
     else           { msgEl.style.color='#22c55e'; msgEl.textContent='Password updated ✓'; document.getElementById('pp-set-pw1').value=''; document.getElementById('pp-set-pw2').value=''; setTimeout(()=>{ msgEl.textContent=''; }, 3000); }
   }
+}
+
+function ppNewTypeChange(rt) {
+  var dynWrap   = document.getElementById('pp-new-dynamic-fields');
+  var tsWrap    = document.getElementById('pp-new-time-slots-wrap');
+  var treatWrap = document.getElementById('pp-new-treatments-wrap');
+  var sessWrap  = document.getElementById('pp-new-sessions-wrap');
+  var showDyn   = ['dining','wellness','activity'].includes(rt);
+  if (dynWrap)   dynWrap.style.display   = showDyn ? 'block' : 'none';
+  if (tsWrap)    tsWrap.style.display    = ['dining','wellness'].includes(rt) ? 'block' : 'none';
+  if (treatWrap) treatWrap.style.display = rt === 'wellness' ? 'block' : 'none';
+  if (sessWrap)  sessWrap.style.display  = rt === 'activity' ? 'block' : 'none';
 }
 
 async function ppConnectPaystack() {
@@ -13519,6 +13671,10 @@ function admShowExpForm(expId) {
   el = document.getElementById('aef-insolite');     if(el) el.checked = !!(d?.insolite);
   el = document.getElementById('aef-ical');         if(el) el.value   = d?.ical_url||'';
   el = document.getElementById('aef-ical-status');  if(el) el.textContent = '';
+  // Dynamic booking fields
+  el = document.getElementById('aef-time-slots'); if(el) el.value = (d?.time_slots||[]).join('\n');
+  el = document.getElementById('aef-treatments'); if(el) el.value = (d?.treatments||[]).join('\n');
+  el = document.getElementById('aef-sessions');   if(el) el.value = (d?.sessions||[]).join('\n');
   // Programme & Amenities
   var progWrap = document.getElementById('aef-programme-wrap');
   if (progWrap) progWrap.innerHTML = buildProgrammeFields('aef', d && d.programme ? d.programme : []);
@@ -13545,6 +13701,16 @@ function admExpTypeNote() {
   } else {
     note.style.display = 'none';
   }
+  // Show/hide dynamic booking fields based on type
+  var dynWrap      = document.getElementById('aef-dynamic-fields');
+  var timeSlotsWrap = document.getElementById('aef-time-slots-wrap');
+  var treatWrap    = document.getElementById('aef-treatments-wrap');
+  var sessWrap     = document.getElementById('aef-sessions-wrap');
+  var showDyn = ['dining','wellness','activity'].includes(rt);
+  if (dynWrap)       dynWrap.style.display       = showDyn ? 'block' : 'none';
+  if (timeSlotsWrap) timeSlotsWrap.style.display  = ['dining','wellness'].includes(rt) ? 'block' : 'none';
+  if (treatWrap)     treatWrap.style.display      = rt === 'wellness'  ? 'block' : 'none';
+  if (sessWrap)      sessWrap.style.display       = rt === 'activity'  ? 'block' : 'none';
 }
 function admAddExpImg() {
   const input = document.getElementById('aef-img-input');
@@ -13647,6 +13813,21 @@ async function admSaveExp() {
     programme:          collectProgramme('aef'),
     amenities:          collectAmenities('aef'),
     ...(icalUrl ? { ical_url: icalUrl } : {}),
+    time_slots: (function(){
+      var el = document.getElementById('aef-time-slots');
+      if (!el || !el.value.trim()) return null;
+      return el.value.split('\n').map(function(s){ return s.trim(); }).filter(Boolean);
+    })(),
+    treatments: (function(){
+      var el = document.getElementById('aef-treatments');
+      if (!el || !el.value.trim()) return null;
+      return el.value.split('\n').map(function(s){ return s.trim(); }).filter(Boolean);
+    })(),
+    sessions: (function(){
+      var el = document.getElementById('aef-sessions');
+      if (!el || !el.value.trim()) return null;
+      return el.value.split('\n').map(function(s){ return s.trim(); }).filter(Boolean);
+    })(),
   };
 
   try {
@@ -15143,6 +15324,21 @@ async function submitNewExp() {
       ...(icalUrl ? { ical_url: icalUrl } : {}),
       programme:  programme,
       amenities:  amenitiesList,
+      time_slots: (function(){
+        var el = document.getElementById('pp-new-time-slots');
+        if (!el || !el.value.trim()) return null;
+        return el.value.split('\n').map(function(s){ return s.trim(); }).filter(Boolean);
+      })(),
+      treatments: (function(){
+        var el = document.getElementById('pp-new-treatments');
+        if (!el || !el.value.trim()) return null;
+        return el.value.split('\n').map(function(s){ return s.trim(); }).filter(Boolean);
+      })(),
+      sessions: (function(){
+        var el = document.getElementById('pp-new-sessions');
+        if (!el || !el.value.trim()) return null;
+        return el.value.split('\n').map(function(s){ return s.trim(); }).filter(Boolean);
+      })(),
     });
     if (error) throw error;
   } catch(e) {
