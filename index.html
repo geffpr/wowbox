@@ -1206,9 +1206,10 @@ async function loadUserBoxes(email) {
             });
         })(v.code);
       }
-      var safeCode = v.code;
-      var safeName = (v.box_name||'WowBox').replace(/'/g,'');
-      var voucherBtn = '<button class="btn bg bsm" style="margin-left:4px" onclick="showBoxVoucher(\'' + safeCode + '\',\'' + safeName + '\')">'
+      var safeCode  = v.code;
+      var safeName  = (v.box_name||'WowBox').replace(/'/g,'');
+      var safeBkRef = (v.booking_reference||'').replace(/'/g,'');
+      var voucherBtn = '<button class="btn bg bsm" style="margin-left:4px" onclick="showBoxVoucher(\''  + safeCode + '\',\''  + safeName + '\',\''  + safeBkRef + '\')">'
         + '<i class="fa fa-ticket"></i> Voucher</button>';
       // Video button — only if this box's order has a video (recipient side)
       var videoToken = v.order_id ? videoMap[v.order_id] : null;
@@ -5264,7 +5265,7 @@ tr:hover td{background:var(--b50)}
             <div class="fg"><label>Experience name *</label><input class="fi" id="pp-new-name" placeholder="e.g. Vineyard Sunset Dinner"></div>
             <div class="fg">
               <label>Type *</label>
-              <select class="fi" id="pp-new-type" onchange="ppNewTypeChange(this.value)">
+              <select class="fi" id="pp-new-type">
                 <option value="">— Select —</option>
                 <option value="accommodation">🏨 Accommodation</option>
                 <option value="dining">🍽️ Dining</option>
@@ -5396,40 +5397,13 @@ tr:hover td{background:var(--b50)}
             <div class="fg"><label>Certification <span style="font-weight:400;color:var(--muted)">(optional)</span></label>
               <input class="fi" id="pp-new-certification" placeholder="e.g. Eat Out, AA, Fair Trade…">
             </div>
-          <div class="fg" style="display:flex;align-items:center;gap:12px;padding-top:22px">
+            <div class="fg" style="display:flex;align-items:center;gap:12px;padding-top:22px">
               <input type="checkbox" id="pp-new-accessible" style="width:16px;height:16px;cursor:pointer">
               <label for="pp-new-accessible" style="cursor:pointer;font-size:.82rem">♿ PMR accessible</label>
               <input type="checkbox" id="pp-new-insolite" style="width:16px;height:16px;cursor:pointer;margin-left:8px">
               <label for="pp-new-insolite" style="cursor:pointer;font-size:.82rem">🌟 Insolite</label>
             </div>
           </div>
-
-          <!-- Dynamic booking options — shown based on type -->
-          <div id="pp-new-dynamic-fields" style="display:none;border-top:1px solid var(--border);padding-top:14px;margin-top:4px">
-            <p style="font-size:.72rem;font-weight:600;color:var(--b600);text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px"><i class="fa fa-sliders"></i> Booking form options</p>
-            <div id="pp-new-time-slots-wrap" style="display:none">
-              <div class="fg">
-                <label>Available time slots <span style="font-weight:400;color:var(--muted)">(one per line)</span></label>
-                <textarea class="fi" id="pp-new-time-slots" rows="4" style="resize:vertical;font-size:.8rem" placeholder="12:00 — Lunch&#10;18:00 — Dinner&#10;19:00 — Dinner"></textarea>
-                <p style="font-size:.68rem;color:var(--muted);margin-top:3px">Leave empty for default slots.</p>
-              </div>
-            </div>
-            <div id="pp-new-treatments-wrap" style="display:none">
-              <div class="fg">
-                <label>Treatment options <span style="font-weight:400;color:var(--muted)">(one per line)</span></label>
-                <textarea class="fi" id="pp-new-treatments" rows="4" style="resize:vertical;font-size:.8rem" placeholder="Swedish Massage&#10;Deep Tissue Massage&#10;Couples Massage"></textarea>
-                <p style="font-size:.68rem;color:var(--muted);margin-top:3px">Leave empty for default treatments.</p>
-              </div>
-            </div>
-            <div id="pp-new-sessions-wrap" style="display:none">
-              <div class="fg">
-                <label>Session options <span style="font-weight:400;color:var(--muted)">(one per line)</span></label>
-                <textarea class="fi" id="pp-new-sessions" rows="3" style="resize:vertical;font-size:.8rem" placeholder="Morning (07:00–12:00)&#10;Afternoon (13:00–17:00)&#10;Full day"></textarea>
-                <p style="font-size:.68rem;color:var(--muted);margin-top:3px">Leave empty for default sessions.</p>
-              </div>
-            </div>
-          </div>
-
           <div class="fg">
             <label>🔗 iCal sync URL <span style="font-weight:400;color:var(--muted)">(optional — sync from Google Calendar, Airbnb, Booking.com…)</span></label>
             <input class="fi" id="pp-new-ical" placeholder="webcal:// or https://... link to your .ics calendar">
@@ -6308,40 +6282,6 @@ tr:hover td{background:var(--b50)}
                 <label>Amenities</label>
                 <div id="aef-amenities-wrap"></div>
               </div>
-
-              <!-- ── Dynamic booking fields (shown per reservation type) ── -->
-              <div id="aef-dynamic-fields" style="display:none;border-top:1px solid var(--border);padding-top:14px;margin-top:4px">
-                <p style="font-size:.72rem;font-weight:600;color:var(--b600);text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px"><i class="fa fa-sliders"></i> Booking form options</p>
-
-                <!-- time_slots — dining + wellness -->
-                <div id="aef-time-slots-wrap" style="display:none">
-                  <div class="fg">
-                    <label>Available time slots <span style="font-weight:400;color:var(--muted)">(one per line — e.g. 12:00 — Lunch)</span></label>
-                    <textarea class="fi" id="aef-time-slots" rows="4" style="resize:vertical;font-size:.8rem" placeholder="12:00 — Lunch&#10;13:00 — Lunch&#10;18:00 — Dinner&#10;19:00 — Dinner"></textarea>
-                    <p style="font-size:.68rem;color:var(--muted);margin-top:3px">Leave empty to use default slots. Each line = one option in the booking form.</p>
-                  </div>
-                </div>
-
-                <!-- treatments — wellness only -->
-                <div id="aef-treatments-wrap" style="display:none">
-                  <div class="fg">
-                    <label>Treatment options <span style="font-weight:400;color:var(--muted)">(one per line)</span></label>
-                    <textarea class="fi" id="aef-treatments" rows="4" style="resize:vertical;font-size:.8rem" placeholder="Swedish Massage&#10;Deep Tissue Massage&#10;Couples Massage&#10;Hot Stone Therapy"></textarea>
-                    <p style="font-size:.68rem;color:var(--muted);margin-top:3px">Leave empty to use default treatments.</p>
-                  </div>
-                </div>
-
-                <!-- sessions — activity only -->
-                <div id="aef-sessions-wrap" style="display:none">
-                  <div class="fg">
-                    <label>Session options <span style="font-weight:400;color:var(--muted)">(one per line)</span></label>
-                    <textarea class="fi" id="aef-sessions" rows="3" style="resize:vertical;font-size:.8rem" placeholder="Morning (07:00–12:00)&#10;Afternoon (13:00–17:00)&#10;Full day"></textarea>
-                    <p style="font-size:.68rem;color:var(--muted);margin-top:3px">Leave empty to use default sessions.</p>
-                  </div>
-                </div>
-              </div>
-              <!-- ── /Dynamic booking fields ── -->
-
               <div class="fg">
                 <label>🔗 iCal sync URL <span style="font-weight:400;color:var(--muted)">(optional)</span></label>
                 <div style="display:flex;gap:8px">
@@ -8917,29 +8857,21 @@ function buildGuestOptions(cap, defaultVal) {
 const rtConfig = {
   accommodation: {
     icon:'🏨', label:'Accommodation',  cls:'rt-accommodation',
-    form: (opts) => {
-      var cap    = (opts && opts.cap)    ? opts.cap    : 2;
-      var nights = (opts && opts.nights) ? opts.nights : 0;
-      var nightsBadge = nights > 0
-        ? `<div style="margin-bottom:10px;padding:7px 12px;background:var(--b50);border:1px solid var(--b200);border-radius:var(--rs);font-size:.75rem;color:var(--b700)"><i class="fa fa-moon" style="color:var(--b400)"></i> Fixed duration: <strong>${nights} night${nights>1?'s':''}</strong> — check-out will be set automatically</div>`
-        : '';
-      return `
-      ${nightsBadge}
+    form: (cap) => `
       <div class="fg-row">
-        <div class="fg"><label>Guest 1 — Full name *</label><input class="fi" id="bk-g1" placeholder="e.g. Sarah Khumalo"></div>
+        <div class="fg"><label>Guest 1 — Full name *</label><input class="fi" id="bk-g1" placeholder="e.g. My Account"></div>
         <div class="fg"><label>Guest 2 (optional)</label><input class="fi" id="bk-g2" placeholder="e.g. Sipho Khumalo"></div>
       </div>
       <div class="fg-row">
         <div class="fg"><label>Check-in *</label><input class="fi" type="date" id="bk-ci" onchange="calcNights()"></div>
-        <div class="fg"><label>Check-out *</label><input class="fi" type="date" id="bk-co" onchange="calcNights()" ${nights>0?'readonly style="background:var(--b50);cursor:not-allowed"':''}></div>
+        <div class="fg"><label>Check-out *</label><input class="fi" type="date" id="bk-co" onchange="calcNights()"></div>
       </div>
       <div class="nights-calc" id="nights-disp"><i class="fa fa-moon" style="color:var(--b400)"></i> Select dates to calculate nights</div>
       <div class="fg"><label>Number of guests</label><select class="fi" id="bk-guests">${buildGuestOptions(cap,2)}</select></div>
       <div class="opt-section"><h5>Optional</h5>
         <div class="fg"><label>Occasion</label><select class="fi" id="bk-occasion"><option value="">—</option><option>Anniversary</option><option>Birthday</option><option>Honeymoon</option><option>Proposal</option></select></div>
         <div class="fg" style="margin-bottom:0"><label>Special requests</label><textarea class="fi" id="bk-notes" rows="2" style="resize:vertical" placeholder="e.g. high floor, champagne on arrival…"></textarea></div>
-      </div>`;
-    },
+      </div>`,
     collect: () => ({
       guest1:    document.getElementById('bk-g1')?.value   || '',
       guest2:    document.getElementById('bk-g2')?.value   || '',
@@ -8952,15 +8884,11 @@ const rtConfig = {
   },
   dining: {
     icon:'🍽️', label:'Dining',  cls:'rt-dining',
-    form: (opts) => {
-      var cap        = (opts && opts.cap)        ? opts.cap        : 8;
-      var timeSlots  = (opts && opts.time_slots && opts.time_slots.length) ? opts.time_slots : ['12:00 — Lunch','13:00 — Lunch','18:00 — Dinner','19:00 — Dinner','20:00 — Dinner','20:30 — Dinner'];
-      var timeOpts   = timeSlots.map(function(t){ return '<option>'+t+'</option>'; }).join('');
-      return `
+    form: (cap) => `
       <div class="fg"><label>Name for reservation *</label><input class="fi" id="bk-g1" placeholder="Full name"></div>
       <div class="fg-row">
         <div class="fg"><label>Date *</label><input class="fi" type="date" id="bk-date"></div>
-        <div class="fg"><label>Preferred time *</label><select class="fi" id="bk-time">${timeOpts}</select></div>
+        <div class="fg"><label>Preferred time *</label><select class="fi" id="bk-time"><option>12:00 — Lunch</option><option>13:00 — Lunch</option><option>18:00 — Dinner</option><option>19:00 — Dinner</option><option>20:00 — Dinner</option><option>20:30 — Dinner</option></select></div>
       </div>
       <div class="fg-row">
         <div class="fg"><label>Number of guests *</label><select class="fi" id="bk-guests">${buildGuestOptions(cap,2)}</select></div>
@@ -8969,8 +8897,7 @@ const rtConfig = {
       <div class="fg"><label>Dietary requirements</label><input class="fi" id="bk-diet" placeholder="Vegetarian, nut allergy, halal…"></div>
       <div class="opt-section"><h5>Optional</h5>
         <div class="fg" style="margin-bottom:0"><label>Additional notes</label><textarea class="fi" id="bk-notes" rows="2" style="resize:vertical" placeholder="Special seating, birthday cake…"></textarea></div>
-      </div>`;
-    },
+      </div>`,
     collect: () => ({
       guest1:   document.getElementById('bk-g1')?.value       || '',
       date:     document.getElementById('bk-date')?.value     || '',
@@ -8983,27 +8910,20 @@ const rtConfig = {
   },
   wellness: {
     icon:'🧖', label:'Wellness',  cls:'rt-wellness',
-    form: (opts) => {
-      var cap        = (opts && opts.cap)        ? Math.min(opts.cap, 2) : 2;
-      var timeSlots  = (opts && opts.time_slots && opts.time_slots.length) ? opts.time_slots : ['09:00','10:00','11:00','14:00','15:00','16:00'];
-      var treatments = (opts && opts.treatments && opts.treatments.length) ? opts.treatments : ['Let the spa decide','Swedish Massage','Deep Tissue Massage','Couples Massage','Signature Facial','Hot Stone Therapy','Full Spa Day Package'];
-      var timeOpts  = timeSlots.map(function(t){ return '<option>'+t+'</option>'; }).join('');
-      var treatOpts = treatments.map(function(t,i){ return '<option'+(i===0?' value=""':'')+'>'+t+'</option>'; }).join('');
-      return `
+    form: (cap) => `
       <div class="fg"><label>Name *</label><input class="fi" id="bk-g1" placeholder="Full name"></div>
       <div class="fg"><label>2nd guest (couples treatment)</label><input class="fi" id="bk-g2" placeholder="Optional"></div>
       <div class="fg-row">
         <div class="fg"><label>Date *</label><input class="fi" type="date" id="bk-date"></div>
-        <div class="fg"><label>Preferred time *</label><select class="fi" id="bk-time">${timeOpts}</select></div>
+        <div class="fg"><label>Preferred time *</label><select class="fi" id="bk-time"><option>09:00</option><option>10:00</option><option>11:00</option><option>14:00</option><option>15:00</option><option>16:00</option></select></div>
       </div>
       <div class="fg-row">
-        <div class="fg"><label>Number of people</label><select class="fi" id="bk-guests">${buildGuestOptions(cap,1)}</select></div>
-        <div class="fg"><label>Treatment type (optional)</label><select class="fi" id="bk-treatment">${treatOpts}</select></div>
+        <div class="fg"><label>Number of people</label><select class="fi" id="bk-guests">${buildGuestOptions(Math.min(cap||2,2),1)}</select></div>
+        <div class="fg"><label>Treatment type (optional)</label><select class="fi" id="bk-treatment"><option value="">Let the spa decide</option><option>Swedish Massage</option><option>Deep Tissue Massage</option><option>Couples Massage</option><option>Signature Facial</option><option>Hot Stone Therapy</option><option>Full Spa Day Package</option></select></div>
       </div>
       <div class="opt-section"><h5>Health & preferences</h5>
         <div class="fg" style="margin-bottom:0"><label>Notes for therapist</label><textarea class="fi" id="bk-notes" rows="2" style="resize:vertical" placeholder="Injuries, pregnancy, pressure preference, allergies…"></textarea></div>
-      </div>`;
-    },
+      </div>`,
     collect: () => ({
       guest1:     document.getElementById('bk-g1')?.value         || '',
       guest2:     document.getElementById('bk-g2')?.value         || '',
@@ -9016,22 +8936,17 @@ const rtConfig = {
   },
   activity: {
     icon:'🏄', label:'Activity',  cls:'rt-activity',
-    form: (opts) => {
-      var cap      = (opts && opts.cap)      ? opts.cap      : 10;
-      var sessions = (opts && opts.sessions && opts.sessions.length) ? opts.sessions : ['No preference','Morning (07:00–12:00)','Afternoon (13:00–17:00)','Full day','Sunrise'];
-      var sessionOpts = sessions.map(function(s,i){ return '<option'+(i===0?' value=""':'')+'>'+s+'</option>'; }).join('');
-      return `
+    form: (cap) => `
       <div class="fg"><label>Lead participant *</label><input class="fi" id="bk-g1" placeholder="Full name"></div>
       <div class="fg-row">
         <div class="fg"><label>Date *</label><input class="fi" type="date" id="bk-date"></div>
-        <div class="fg"><label>Session (optional)</label><select class="fi" id="bk-session">${sessionOpts}</select></div>
+        <div class="fg"><label>Session (optional)</label><select class="fi" id="bk-session"><option value="">No preference</option><option>Morning (07:00–12:00)</option><option>Afternoon (13:00–17:00)</option><option>Full day</option><option>Sunrise</option></select></div>
       </div>
       <div class="fg"><label>Number of participants</label><select class="fi" id="bk-guests">${buildGuestOptions(cap,2)}</select></div>
       <div class="opt-section"><h5>Optional</h5>
         <div class="fg"><label>Fitness / experience level</label><select class="fi" id="bk-level"><option value="">Not specified</option><option>Beginner</option><option>Intermediate</option><option>Advanced</option></select></div>
         <div class="fg" style="margin-bottom:0"><label>Notes</label><textarea class="fi" id="bk-notes" rows="2" style="resize:vertical" placeholder="Medical conditions, group info, transport needs…"></textarea></div>
-      </div>`;
-    },
+      </div>`,
     collect: () => ({
       guest1:   document.getElementById('bk-g1')?.value       || '',
       date:     document.getElementById('bk-date')?.value     || '',
@@ -9043,24 +8958,17 @@ const rtConfig = {
   },
   rental: {
     icon:'🚗', label:'Rental',  cls:'rt-rental',
-    form: (opts) => {
-      var nights = (opts && opts.nights) ? opts.nights : 0;
-      var nightsBadge = nights > 0
-        ? `<div style="margin-bottom:10px;padding:7px 12px;background:var(--b50);border:1px solid var(--b200);border-radius:var(--rs);font-size:.75rem;color:var(--b700)"><i class="fa fa-calendar" style="color:var(--b400)"></i> Fixed duration: <strong>${nights} day${nights>1?'s':''}</strong> — return date will be set automatically</div>`
-        : '';
-      return `
-      ${nightsBadge}
+    form: (cap) => `
       <div class="fg"><label>Name *</label><input class="fi" id="bk-g1" placeholder="Full name as on ID/licence"></div>
       <div class="fg-row">
         <div class="fg"><label>Start date *</label><input class="fi" type="date" id="bk-ci" onchange="calcNights()"></div>
-        <div class="fg"><label>End / return date *</label><input class="fi" type="date" id="bk-co" onchange="calcNights()" ${nights>0?'readonly style="background:var(--b50);cursor:not-allowed"':''}></div>
+        <div class="fg"><label>End / return date *</label><input class="fi" type="date" id="bk-co" onchange="calcNights()"></div>
       </div>
       <div class="nights-calc" id="nights-disp"><i class="fa fa-calendar" style="color:var(--b400)"></i> Select dates to calculate duration</div>
       <div class="opt-section"><h5>Options &amp; extras</h5>
         <div class="fg"><label>Pickup location</label><input class="fi" id="bk-pickup" placeholder="Address or depot name"></div>
         <div class="fg" style="margin-bottom:0"><label>Special requests / options</label><textarea class="fi" id="bk-notes" rows="2" style="resize:vertical" placeholder="Child seat, GPS, specific route…"></textarea></div>
-      </div>`;
-    },
+      </div>`,
     collect: () => ({
       guest1:   document.getElementById('bk-g1')?.value     || '',
       start:    document.getElementById('bk-ci')?.value     || '',
@@ -9071,9 +8979,7 @@ const rtConfig = {
   },
   event: {
     icon:'🎉', label:'Event',  cls:'rt-event',
-    form: (opts) => {
-      var cap = (opts && opts.cap) ? opts.cap : 10;
-      return `
+    form: (cap) => `
       <div class="fg"><label>Name *</label><input class="fi" id="bk-g1" placeholder="Full name"></div>
       <div class="fg-row">
         <div class="fg"><label>Preferred date *</label><input class="fi" type="date" id="bk-date"></div>
@@ -9081,8 +8987,7 @@ const rtConfig = {
       </div>
       <div class="opt-section"><h5>Preferences &amp; special requests</h5>
         <div class="fg" style="margin-bottom:0"><label>Notes</label><textarea class="fi" id="bk-notes" rows="3" style="resize:vertical" placeholder="Dietary needs, accessibility, occasion details, any special requirements…"></textarea></div>
-      </div>`;
-    },
+      </div>`,
     collect: () => ({
       guest1:  document.getElementById('bk-g1')?.value      || '',
       date:    document.getElementById('bk-date')?.value    || '',
@@ -9120,10 +9025,6 @@ async function initBookingDatePickers(expId) {
   var today   = new Date().toISOString().slice(0,10);
   var opts    = { minDate: today, disable: blocked, dateFormat: 'Y-m-d' };
 
-  // Get fixed nights from current experience
-  var exp    = expDB.find(function(x){ return x.id === expId; });
-  var nights = exp && exp.duration_nights ? parseInt(exp.duration_nights) || 0 : 0;
-
   // Single date picker (dining, wellness, activity, event)
   var bdEl = document.getElementById('bk-date');
   if (bdEl && window.flatpickr) {
@@ -9138,33 +9039,14 @@ async function initBookingDatePickers(expId) {
     if (ciEl._flatpickr) ciEl._flatpickr.destroy();
     flatpickr(ciEl, Object.assign({}, opts, {
       onChange: function(sel, dateStr) {
-        if (!dateStr) return;
-        if (nights > 0) {
-          // Fixed duration — auto-set checkout and lock it
-          var d = new Date(dateStr);
-          d.setDate(d.getDate() + nights);
-          var checkoutStr = d.toISOString().slice(0,10);
-          if (coEl._flatpickr) {
-            coEl._flatpickr.set('minDate', checkoutStr);
-            coEl._flatpickr.set('maxDate', checkoutStr);
-            coEl._flatpickr.setDate(checkoutStr);
-          }
-        } else {
-          if (coEl && coEl._flatpickr) coEl._flatpickr.set('minDate', dateStr);
-        }
+        if (coEl && coEl._flatpickr) coEl._flatpickr.set('minDate', dateStr || today);
         if (typeof calcNights === 'function') calcNights();
       }
     }));
   }
   if (coEl && window.flatpickr) {
     if (coEl._flatpickr) coEl._flatpickr.destroy();
-    var coOpts = Object.assign({}, opts);
-    if (nights > 0) {
-      // Checkout controlled by checkin — lock range
-      coOpts.minDate = today;
-      coOpts.maxDate = null;
-    }
-    flatpickr(coEl, Object.assign(coOpts, {
+    flatpickr(coEl, Object.assign({}, opts, {
       onChange: function(){ if (typeof calcNights === 'function') calcNights(); }
     }));
   }
@@ -9217,33 +9099,21 @@ async function admSyncIcal() {
 
 function buildBookingForm(rt) {
   const cfg = rtConfig[rt] || rtConfig.activity;
+  // Get capacity from current experience
+  var cap = 2; // default: duo
   var exp = expDB.find(function(x){ return x.id === appState.currentExpId; });
-  var opts = {
-    cap:        exp && exp.capacity        ? parseInt(exp.capacity)        || 2 : 2,
-    nights:     exp && exp.duration_nights ? parseInt(exp.duration_nights) || 0 : 0,
-    time_slots: exp && exp.time_slots      ? exp.time_slots  : null,
-    treatments: exp && exp.treatments      ? exp.treatments  : null,
-    sessions:   exp && exp.sessions        ? exp.sessions    : null,
-  };
-  return cfg.form(opts);
+  if (exp && exp.capacity) cap = parseInt(exp.capacity) || 2;
+  return cfg.form(cap);
 }
 
-// Reload booking form after fetching fresh config from Supabase
+// Reload booking form after fetching fresh capacity from Supabase
 async function refreshBookingFormCapacity(rt, containerId) {
   if (!appState.currentExpId) return;
   try {
-    var res = await db_client.from('experiences')
-      .select('capacity,duration_nights,time_slots,treatments,sessions')
-      .eq('id', appState.currentExpId).maybeSingle();
-    if (res.data) {
+    var res = await db_client.from('experiences').select('capacity').eq('id', appState.currentExpId).maybeSingle();
+    if (res.data && res.data.capacity) {
       var exp = expDB.find(function(x){ return x.id === appState.currentExpId; });
-      if (exp) {
-        if (res.data.capacity)        exp.capacity        = res.data.capacity;
-        if (res.data.duration_nights) exp.duration_nights = res.data.duration_nights;
-        if (res.data.time_slots)      exp.time_slots      = res.data.time_slots;
-        if (res.data.treatments)      exp.treatments      = res.data.treatments;
-        if (res.data.sessions)        exp.sessions        = res.data.sessions;
-      }
+      if (exp) exp.capacity = res.data.capacity;
       var container = document.getElementById(containerId);
       if (container) container.innerHTML = buildBookingForm(rt);
       if (window.flatpickr) initBookingDatePickers(appState.currentExpId);
@@ -9563,9 +9433,10 @@ async function confirmExpBooking() {
       // UPDATE voucher status → booked
       if (finalCode) {
         await db_client.from('vouchers').update({
-          status:     'booked',
-          booked_at:  new Date().toISOString(),
-          booking_id: bookingId,
+          status:            'booked',
+          booked_at:         new Date().toISOString(),
+          booking_id:        bookingId,
+          booking_reference: bkRef,
         }).eq('code', finalCode);
       }
 
@@ -10088,18 +9959,6 @@ async function ppChangePassword() {
     if (res.error) { msgEl.style.color='#ef4444'; msgEl.textContent='Error: ' + res.error.message; }
     else           { msgEl.style.color='#22c55e'; msgEl.textContent='Password updated ✓'; document.getElementById('pp-set-pw1').value=''; document.getElementById('pp-set-pw2').value=''; setTimeout(()=>{ msgEl.textContent=''; }, 3000); }
   }
-}
-
-function ppNewTypeChange(rt) {
-  var dynWrap   = document.getElementById('pp-new-dynamic-fields');
-  var tsWrap    = document.getElementById('pp-new-time-slots-wrap');
-  var treatWrap = document.getElementById('pp-new-treatments-wrap');
-  var sessWrap  = document.getElementById('pp-new-sessions-wrap');
-  var showDyn   = ['dining','wellness','activity'].includes(rt);
-  if (dynWrap)   dynWrap.style.display   = showDyn ? 'block' : 'none';
-  if (tsWrap)    tsWrap.style.display    = ['dining','wellness'].includes(rt) ? 'block' : 'none';
-  if (treatWrap) treatWrap.style.display = rt === 'wellness' ? 'block' : 'none';
-  if (sessWrap)  sessWrap.style.display  = rt === 'activity' ? 'block' : 'none';
 }
 
 async function ppConnectPaystack() {
@@ -11040,21 +10899,28 @@ function goMyAccount(){
   else { go('login'); setNL('nl-login'); }
 }
 
-function showBoxVoucher(code, boxName) {
+function showBoxVoucher(code, boxName, bkRef) {
   var modal = document.createElement('div');
   modal.id = 'box-voucher-modal';
   modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
-  // Store code/name on modal for button access
   modal.dataset.code    = code;
   modal.dataset.boxname = boxName || 'WowBox';
+  var bkBlock = bkRef ? (
+    '<div style="margin-top:12px;background:#f0fdf4;border:2px dashed #86efac;border-radius:12px;padding:18px">'
+    + '<div style="font-size:.7rem;font-weight:700;text-transform:uppercase;color:#16a34a;margin-bottom:6px"><i class="fa fa-calendar-check"></i> Booking reference</div>'
+    + '<div style="font-family:monospace;font-size:1.3rem;font-weight:700;color:#15803d;letter-spacing:.08em">' + bkRef + '</div>'
+    + '<div style="font-size:.68rem;color:#4ade80;margin-top:4px">Present this code at the venue on arrival</div>'
+    + '</div>'
+  ) : '';
   modal.innerHTML = '<div style="background:#fff;border-radius:16px;padding:32px;max-width:440px;width:100%;text-align:center">'
     + '<div style="font-size:1.2rem;font-weight:700;color:var(--navy);margin-bottom:6px">Your WowBox Voucher</div>'
-    + '<div style="font-size:.85rem;color:var(--muted);margin-bottom:24px">' + (boxName||'WowBox') + '</div>'
-    + '<div style="background:var(--b50);border:2px dashed var(--b300);border-radius:12px;padding:24px;margin-bottom:20px">'
-    + '<div style="font-size:.7rem;font-weight:700;text-transform:uppercase;color:var(--b500);margin-bottom:8px">Your voucher code</div>'
+    + '<div style="font-size:.85rem;color:var(--muted);margin-bottom:20px">' + (boxName||'WowBox') + '</div>'
+    + '<div style="background:var(--b50);border:2px dashed var(--b300);border-radius:12px;padding:20px">'
+    + '<div style="font-size:.7rem;font-weight:700;text-transform:uppercase;color:var(--b500);margin-bottom:6px">Voucher code</div>'
     + '<div style="font-family:monospace;font-size:1.6rem;font-weight:700;color:var(--b700);letter-spacing:.08em">' + code + '</div>'
     + '</div>'
-    + '<div style="display:flex;gap:10px;justify-content:center;margin-bottom:16px">'
+    + bkBlock
+    + '<div style="display:flex;gap:10px;justify-content:center;margin:20px 0 16px">'
     + '<button type="button" class="btn bp bsm" onclick="printBoxVoucher(document.getElementById(\'box-voucher-modal\').dataset.code,document.getElementById(\'box-voucher-modal\').dataset.boxname)"><i class="fa fa-print"></i> Print</button>'
     + '<button type="button" class="btn bg bsm" onclick="emailBoxVoucher(document.getElementById(\'box-voucher-modal\').dataset.code)"><i class="fa fa-envelope"></i> Send by email</button>'
     + '</div>'
@@ -13671,10 +13537,6 @@ function admShowExpForm(expId) {
   el = document.getElementById('aef-insolite');     if(el) el.checked = !!(d?.insolite);
   el = document.getElementById('aef-ical');         if(el) el.value   = d?.ical_url||'';
   el = document.getElementById('aef-ical-status');  if(el) el.textContent = '';
-  // Dynamic booking fields
-  el = document.getElementById('aef-time-slots'); if(el) el.value = (d?.time_slots||[]).join('\n');
-  el = document.getElementById('aef-treatments'); if(el) el.value = (d?.treatments||[]).join('\n');
-  el = document.getElementById('aef-sessions');   if(el) el.value = (d?.sessions||[]).join('\n');
   // Programme & Amenities
   var progWrap = document.getElementById('aef-programme-wrap');
   if (progWrap) progWrap.innerHTML = buildProgrammeFields('aef', d && d.programme ? d.programme : []);
@@ -13701,16 +13563,6 @@ function admExpTypeNote() {
   } else {
     note.style.display = 'none';
   }
-  // Show/hide dynamic booking fields based on type
-  var dynWrap      = document.getElementById('aef-dynamic-fields');
-  var timeSlotsWrap = document.getElementById('aef-time-slots-wrap');
-  var treatWrap    = document.getElementById('aef-treatments-wrap');
-  var sessWrap     = document.getElementById('aef-sessions-wrap');
-  var showDyn = ['dining','wellness','activity'].includes(rt);
-  if (dynWrap)       dynWrap.style.display       = showDyn ? 'block' : 'none';
-  if (timeSlotsWrap) timeSlotsWrap.style.display  = ['dining','wellness'].includes(rt) ? 'block' : 'none';
-  if (treatWrap)     treatWrap.style.display      = rt === 'wellness'  ? 'block' : 'none';
-  if (sessWrap)      sessWrap.style.display       = rt === 'activity'  ? 'block' : 'none';
 }
 function admAddExpImg() {
   const input = document.getElementById('aef-img-input');
@@ -13813,21 +13665,6 @@ async function admSaveExp() {
     programme:          collectProgramme('aef'),
     amenities:          collectAmenities('aef'),
     ...(icalUrl ? { ical_url: icalUrl } : {}),
-    time_slots: (function(){
-      var el = document.getElementById('aef-time-slots');
-      if (!el || !el.value.trim()) return null;
-      return el.value.split('\n').map(function(s){ return s.trim(); }).filter(Boolean);
-    })(),
-    treatments: (function(){
-      var el = document.getElementById('aef-treatments');
-      if (!el || !el.value.trim()) return null;
-      return el.value.split('\n').map(function(s){ return s.trim(); }).filter(Boolean);
-    })(),
-    sessions: (function(){
-      var el = document.getElementById('aef-sessions');
-      if (!el || !el.value.trim()) return null;
-      return el.value.split('\n').map(function(s){ return s.trim(); }).filter(Boolean);
-    })(),
   };
 
   try {
@@ -15324,21 +15161,6 @@ async function submitNewExp() {
       ...(icalUrl ? { ical_url: icalUrl } : {}),
       programme:  programme,
       amenities:  amenitiesList,
-      time_slots: (function(){
-        var el = document.getElementById('pp-new-time-slots');
-        if (!el || !el.value.trim()) return null;
-        return el.value.split('\n').map(function(s){ return s.trim(); }).filter(Boolean);
-      })(),
-      treatments: (function(){
-        var el = document.getElementById('pp-new-treatments');
-        if (!el || !el.value.trim()) return null;
-        return el.value.split('\n').map(function(s){ return s.trim(); }).filter(Boolean);
-      })(),
-      sessions: (function(){
-        var el = document.getElementById('pp-new-sessions');
-        if (!el || !el.value.trim()) return null;
-        return el.value.split('\n').map(function(s){ return s.trim(); }).filter(Boolean);
-      })(),
     });
     if (error) throw error;
   } catch(e) {
