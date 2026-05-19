@@ -1206,10 +1206,9 @@ async function loadUserBoxes(email) {
             });
         })(v.code);
       }
-      var safeCode  = v.code;
-      var safeName  = (v.box_name||'WowBox').replace(/'/g,'');
-      var safeBkRef = (v.booking_reference||'').replace(/'/g,'');
-      var voucherBtn = '<button class="btn bg bsm" style="margin-left:4px" onclick="showBoxVoucher(\''  + safeCode + '\',\''  + safeName + '\',\''  + safeBkRef + '\')">'
+      var safeCode = v.code;
+      var safeName = (v.box_name||'WowBox').replace(/'/g,'');
+      var voucherBtn = '<button class="btn bg bsm" style="margin-left:4px" onclick="showBoxVoucher(\'' + safeCode + '\',\'' + safeName + '\')">'
         + '<i class="fa fa-ticket"></i> Voucher</button>';
       // Video button — only if this box's order has a video (recipient side)
       var videoToken = v.order_id ? videoMap[v.order_id] : null;
@@ -9433,10 +9432,9 @@ async function confirmExpBooking() {
       // UPDATE voucher status → booked
       if (finalCode) {
         await db_client.from('vouchers').update({
-          status:            'booked',
-          booked_at:         new Date().toISOString(),
-          booking_id:        bookingId,
-          booking_reference: bkRef,
+          status:     'booked',
+          booked_at:  new Date().toISOString(),
+          booking_id: bookingId,
         }).eq('code', finalCode);
       }
 
@@ -10805,7 +10803,7 @@ async function plSubmitPartner() {
           order: {
             id:    'PARTNER-' + Date.now(),
             name:  contact,
-            email: 'geff.pr@gmail.com',
+            email: 'admin',
             type:  'Partner Application',
             total: '',
             date:  new Date().toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'}),
@@ -10821,7 +10819,8 @@ async function plSubmitPartner() {
     } catch(e3) { console.warn('notification email:', e3.message); }
 
     if (sucEl) {
-      sucEl.innerHTML = '<strong>Application submitted!</strong> We will review your listing within 24 hours and contact you at <strong>' + email + '</strong>.';
+      sucEl.innerHTML = '<strong>Application submitted!</strong> We will review your listing within 1–2 business days and contact you at <strong>' + email + '</strong>.'
+        + '<br><br><i class="fa fa-envelope" style="color:#059669"></i> <strong>Important:</strong> Please check your inbox for a confirmation email from Supabase and click the link to activate your account — you will need this to log in once approved.';
       sucEl.style.display = 'block';
     }
     // Clear form
@@ -10899,28 +10898,21 @@ function goMyAccount(){
   else { go('login'); setNL('nl-login'); }
 }
 
-function showBoxVoucher(code, boxName, bkRef) {
+function showBoxVoucher(code, boxName) {
   var modal = document.createElement('div');
   modal.id = 'box-voucher-modal';
   modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  // Store code/name on modal for button access
   modal.dataset.code    = code;
   modal.dataset.boxname = boxName || 'WowBox';
-  var bkBlock = bkRef ? (
-    '<div style="margin-top:12px;background:#f0fdf4;border:2px dashed #86efac;border-radius:12px;padding:18px">'
-    + '<div style="font-size:.7rem;font-weight:700;text-transform:uppercase;color:#16a34a;margin-bottom:6px"><i class="fa fa-calendar-check"></i> Booking reference</div>'
-    + '<div style="font-family:monospace;font-size:1.3rem;font-weight:700;color:#15803d;letter-spacing:.08em">' + bkRef + '</div>'
-    + '<div style="font-size:.68rem;color:#4ade80;margin-top:4px">Present this code at the venue on arrival</div>'
-    + '</div>'
-  ) : '';
   modal.innerHTML = '<div style="background:#fff;border-radius:16px;padding:32px;max-width:440px;width:100%;text-align:center">'
     + '<div style="font-size:1.2rem;font-weight:700;color:var(--navy);margin-bottom:6px">Your WowBox Voucher</div>'
-    + '<div style="font-size:.85rem;color:var(--muted);margin-bottom:20px">' + (boxName||'WowBox') + '</div>'
-    + '<div style="background:var(--b50);border:2px dashed var(--b300);border-radius:12px;padding:20px">'
-    + '<div style="font-size:.7rem;font-weight:700;text-transform:uppercase;color:var(--b500);margin-bottom:6px">Voucher code</div>'
+    + '<div style="font-size:.85rem;color:var(--muted);margin-bottom:24px">' + (boxName||'WowBox') + '</div>'
+    + '<div style="background:var(--b50);border:2px dashed var(--b300);border-radius:12px;padding:24px;margin-bottom:20px">'
+    + '<div style="font-size:.7rem;font-weight:700;text-transform:uppercase;color:var(--b500);margin-bottom:8px">Your voucher code</div>'
     + '<div style="font-family:monospace;font-size:1.6rem;font-weight:700;color:var(--b700);letter-spacing:.08em">' + code + '</div>'
     + '</div>'
-    + bkBlock
-    + '<div style="display:flex;gap:10px;justify-content:center;margin:20px 0 16px">'
+    + '<div style="display:flex;gap:10px;justify-content:center;margin-bottom:16px">'
     + '<button type="button" class="btn bp bsm" onclick="printBoxVoucher(document.getElementById(\'box-voucher-modal\').dataset.code,document.getElementById(\'box-voucher-modal\').dataset.boxname)"><i class="fa fa-print"></i> Print</button>'
     + '<button type="button" class="btn bg bsm" onclick="emailBoxVoucher(document.getElementById(\'box-voucher-modal\').dataset.code)"><i class="fa fa-envelope"></i> Send by email</button>'
     + '</div>'
