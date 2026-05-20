@@ -7982,7 +7982,7 @@ function renderBrowse() {
   const cardHTML = (e) => `
     <div class="browse-ecard" onclick="appState.expContext='booking';appState.currentBoxId='${bid}';loadExp('${e.id}');go('expdetail')">
       <div class="browse-ecard-img" style="position:relative">
-        <img src="${e.img}&h=192&auto=format&fit=crop" loading="lazy">
+        <img src="${e.img.includes('?') ? e.img + '&h=192&auto=format&fit=crop' : e.img}" loading="lazy">
         <button class="wl-exp-btn" data-id="${e.id}" onclick="wlToggleExp('${e.id}',event)" style="position:absolute;top:8px;right:8px;background:rgba(0,0,0,.3);border:none;border-radius:50%;width:30px;height:30px;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:2">${wlHasExp(e.id)?'<i class="fa fa-heart" style="color:#ef4444"></i>':'<i class="fa fa-heart" style="color:rgba(255,255,255,.65)"></i>'}</button>
       </div>
       <div class="browse-ecard-info">
@@ -8087,7 +8087,7 @@ async function renderBoxGrids() {
   try {
     const [boxRes, dbRes, linkRes] = await Promise.all([
       db_client.from('boxes').select('*').eq('is_active', true).order('sold_count', { ascending: false }),
-      db_client.from('experience_databases').select('id, name, experience_count'),
+      db_client.from('databases').select('id, name, experience_count'),
       db_client.from('box_database_links').select('box_id, database_id')
     ]);
     if (!boxRes.error && boxRes.data && boxRes.data.length > 0) {
@@ -8431,7 +8431,7 @@ async function fetchProductExps(boxId) {
     var [r1, rLinks, dbsRes] = await Promise.all([
       db_client.from('experiences').select('*').eq('is_active', true).eq('box_id', boxId),
       db_client.from('box_database_links').select('database_id').eq('box_id', boxId),
-      db_client.from('experience_databases').select('id,name,icon').eq('is_active', true)
+      db_client.from('databases').select('id,name,icon').eq('is_active', true)
     ]);
 
     var direct = r1.data || [];
@@ -8627,7 +8627,7 @@ function renderExpList() {
     <div class="ecard ecard-nav" data-expid="${e.id}" style="position:relative">
       <button class="wl-exp-btn" data-id="${e.id}" style="position:absolute;top:8px;left:8px;background:rgba(0,0,0,.35);border:none;border-radius:50%;width:28px;height:28px;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:5">${wlHasExp(e.id)?'<i class="fa fa-heart" style="color:#ef4444"></i>':'<i class="fa fa-heart" style="color:rgba(255,255,255,.65)"></i>'}</button>
       <div class="ecard-img">
-        <img src="${e.img}&h=160&auto=format&fit=crop" loading="lazy">
+        <img src="${e.img.includes('?') ? e.img + '&h=160&auto=format&fit=crop' : e.img}" loading="lazy">
       </div>
       <div class="ecard-info">
         <h4>${e.name}</h4>
@@ -8713,7 +8713,7 @@ function buildRichInfoWindow(e, context) {
   ">
     <div style="
       height:120px;
-      background:url('${e.img}&h=240&auto=format&fit=crop') center/cover no-repeat;
+      background:url('${e.img.includes('?') ? e.img + '&h=240&auto=format&fit=crop' : e.img}') center/cover no-repeat;
       position:relative;
     ">
       <div style="
@@ -13187,8 +13187,8 @@ async function admSaveDatabase() {
   try {
     var payload = { id: dbId, name: name, icon: icon, color: color, is_active: true };
     var res = isNew
-      ? await db_client.from('experience_databases').insert(payload)
-      : await db_client.from('experience_databases').update({ name: name, icon: icon, color: color }).eq('id', dbId);
+      ? await db_client.from('databases').insert(payload)
+      : await db_client.from('databases').update({ name: name, icon: icon, color: color }).eq('id', dbId);
 
     if (res.error) throw new Error(res.error.message);
 
@@ -13244,7 +13244,7 @@ function admDbFilterList() { admDbRenderList(); }
 async function loadAdmDatabases() {
   try {
     var [dbRes, countRes, linkRes] = await Promise.all([
-      db_client.from('experience_databases').select('id,name,icon,color,experience_count').eq('is_active', true).order('name'),
+      db_client.from('databases').select('id,name,icon,color,experience_count').eq('is_active', true).order('name'),
       db_client.from('experience_database_links').select('database_id'),
       db_client.from('box_database_links').select('box_id,database_id')
     ]);
@@ -14402,7 +14402,7 @@ function previewSpin() {
       card.classList.add(isLocked ? 'tsr-locked' : 'tsr-reveal');
       card.innerHTML = `
         <div class="tsr-img">
-          <img src="${exp.img}&w=400&auto=format&fit=crop" alt="${isLocked ? '' : exp.name}" loading="lazy">
+          <img src="${exp.img.includes('?') ? exp.img + '&w=400&auto=format&fit=crop' : exp.img}" alt="${isLocked ? '' : exp.name}" loading="lazy">
           ${isLocked ? `<div class="tsr-lock-overlay"><div class="tsr-lock-icon"><i class="fa fa-lock"></i></div><div class="tsr-lock-text">Locked</div></div>` : ''}
         </div>
         <div class="tsr-body">
@@ -14568,7 +14568,7 @@ function showResults() {
     const isJackpot = e.rarity === 'jackpot';
     return `<div class="rsl-card${isJackpot?' jackpot-glow':''}" id="rsl-${i}" onclick="selectResult('${e.id}',${i})">
       <div class="rsl-check"><i class="fa fa-check"></i></div>
-      <div class="rsl-img"><img src="${e.img}&w=600&h=380&auto=format&fit=crop" alt="${e.name}" loading="lazy"></div>
+      <div class="rsl-img"><img src="${e.img.includes('?') ? e.img + '&w=600&h=380&auto=format&fit=crop' : e.img}" alt="${e.name}" loading="lazy"></div>
       <div class="rsl-body">
         <div class="rsl-rarity" style="background:${bg};color:${clr}">${rariLabel[e.rarity]}</div>
         <div class="rsl-name">${e.name}</div>
@@ -14613,7 +14613,7 @@ function selectResult(expId, slotIdx) {
   const abar = document.getElementById('rsl-action-bar');
   const cfbf = document.getElementById('confirm-choice-btn-fallback');
   if (exp && bar) {
-    document.getElementById('rsl-confirm-img').src  = exp.img + '&w=200&h=160&auto=format&fit=crop';
+    document.getElementById('rsl-confirm-img').src  = (exp.img.includes('?') ? exp.img + '&w=200&h=160&auto=format&fit=crop' : exp.img);
     document.getElementById('rsl-confirm-name').textContent = exp.name;
     document.getElementById('rsl-confirm-meta').textContent = exp.loc + ' · ' + exp.reservation_type;
     bar.style.display  = 'flex';
