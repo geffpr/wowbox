@@ -2123,7 +2123,6 @@ nav{position:sticky;top:0;z-index:300;background:rgba(255,255,255,.95);
 .am i{color:var(--b500);width:14px;font-size:.8rem}
 
 /* ─── REVIEWS ─── */
-.rev-page-layout{display:grid;grid-template-columns:260px 1fr;gap:36px}
 .rev-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px}
 .rev-card{background:var(--white);border:1px solid var(--border);border-radius:var(--r);padding:18px}
 .rev-head{display:flex;align-items:center;gap:11px;margin-bottom:10px}
@@ -2959,16 +2958,12 @@ tr:hover td{background:var(--b50)}
 
   /* ── Reviews ── */
   .rev-grid { grid-template-columns: 1fr; }
-  .rev-page-layout { grid-template-columns: 1fr; gap: 20px; }
-  #page-reviews h1 { font-size: 1.4rem; }
-  #page-reviews p { font-size: .85rem; }
-  .rv-score-big { padding: 16px; display: flex; align-items: flex-start; gap: 16px; }
-  .rv-score-big .big-num { font-size: 2.8rem; flex-shrink: 0; }
+  #page-reviews .sec > div { grid-template-columns: 1fr; gap: 16px; }
+  .rv-score-big { padding: 14px; display: flex; align-items: flex-start; gap: 14px; }
+  .rv-score-big .big-num { font-size: 2.6rem; flex-shrink: 0; }
   .rv-score-big > div:first-child { display: flex; flex-direction: column; align-items: center; flex-shrink: 0; }
   .rv-bars { flex: 1; margin-top: 0 !important; }
-  #page-reviews .sec > div:not(.rev-page-layout) { grid-template-columns: 1fr; }
-  #page-reviews [style*="flex-direction:column"] { display: grid !important; grid-template-columns: 1fr 1fr; gap: 6px; }
-  #page-reviews .chip { padding: 9px 12px; font-size: .78rem; text-align: left; }
+  #page-reviews .chip { padding: 8px 12px; font-size: .78rem; }
 
   /* ── Cart ── */
   .cart-layout { grid-template-columns: 1fr; padding: 16px; gap: 16px; }
@@ -4086,7 +4081,7 @@ tr:hover td{background:var(--b50)}
     <p>Verified reviews from WowBox customers who experienced this box.</p>
   </div>
   <div class="sec">
-    <div class="rev-page-layout">
+    <div style="display:grid;grid-template-columns:260px 1fr;gap:36px">
       <!-- Left: score + filters -->
       <div style="min-width:0">
         <div class="rv-score-big">
@@ -8092,7 +8087,7 @@ async function renderBoxGrids() {
   try {
     const [boxRes, dbRes, linkRes] = await Promise.all([
       db_client.from('boxes').select('*').eq('is_active', true).order('sold_count', { ascending: false }),
-      db_client.from('databases').select('id, name, experience_count'),
+      db_client.from('experience_databases').select('id, name, experience_count'),
       db_client.from('box_database_links').select('box_id, database_id')
     ]);
     if (!boxRes.error && boxRes.data && boxRes.data.length > 0) {
@@ -8436,7 +8431,7 @@ async function fetchProductExps(boxId) {
     var [r1, rLinks, dbsRes] = await Promise.all([
       db_client.from('experiences').select('*').eq('is_active', true).eq('box_id', boxId),
       db_client.from('box_database_links').select('database_id').eq('box_id', boxId),
-      db_client.from('databases').select('id,name,icon').eq('is_active', true)
+      db_client.from('experience_databases').select('id,name,icon').eq('is_active', true)
     ]);
 
     var direct = r1.data || [];
@@ -13192,8 +13187,8 @@ async function admSaveDatabase() {
   try {
     var payload = { id: dbId, name: name, icon: icon, color: color, is_active: true };
     var res = isNew
-      ? await db_client.from('databases').insert(payload)
-      : await db_client.from('databases').update({ name: name, icon: icon, color: color }).eq('id', dbId);
+      ? await db_client.from('experience_databases').insert(payload)
+      : await db_client.from('experience_databases').update({ name: name, icon: icon, color: color }).eq('id', dbId);
 
     if (res.error) throw new Error(res.error.message);
 
@@ -13249,7 +13244,7 @@ function admDbFilterList() { admDbRenderList(); }
 async function loadAdmDatabases() {
   try {
     var [dbRes, countRes, linkRes] = await Promise.all([
-      db_client.from('databases').select('id,name,icon,color,experience_count').eq('is_active', true).order('name'),
+      db_client.from('experience_databases').select('id,name,icon,color,experience_count').eq('is_active', true).order('name'),
       db_client.from('experience_database_links').select('database_id'),
       db_client.from('box_database_links').select('box_id,database_id')
     ]);
