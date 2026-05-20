@@ -3980,7 +3980,8 @@ tr:hover td{background:var(--b50)}
         <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:22px">
           <span style="font-size:.82rem;color:var(--slate);display:flex;align-items:center;gap:5px" id="exp-loc-disp"><i class="fa fa-location-dot" style="color:var(--b400)"></i> </span>
           <span style="font-size:.82rem;color:var(--slate);display:flex;align-items:center;gap:5px" id="exp-partner-disp"><i class="fa fa-building" style="color:var(--b400)"></i> </span>
-          <span style="font-size:.82rem;color:var(--slate);display:flex;align-items:center;gap:5px"><i class="fa fa-users" style="color:var(--b400)"></i> 2 guests</span>
+          <span style="font-size:.82rem;color:var(--slate);display:flex;align-items:center;gap:5px" id="exp-guests-disp"><i class="fa fa-users" style="color:var(--b400)"></i> </span>
+          <span style="font-size:.82rem;color:var(--slate);display:flex;align-items:center;gap:5px;display:none" id="exp-duration-disp"><i class="fa fa-moon" style="color:var(--b400)"></i> </span>
         </div>
         <p id="exp-desc-full" style="color:var(--slate);font-size:.88rem;line-height:1.8;margin-bottom:0"></p>
       </div>
@@ -7982,7 +7983,7 @@ function renderBrowse() {
   const cardHTML = (e) => `
     <div class="browse-ecard" onclick="appState.expContext='booking';appState.currentBoxId='${bid}';loadExp('${e.id}');go('expdetail')">
       <div class="browse-ecard-img" style="position:relative">
-        <img src="${e.img.includes('?') ? e.img + '&h=192&auto=format&fit=crop' : e.img}" loading="lazy">
+        <img src="${e.img}&h=192&auto=format&fit=crop" loading="lazy">
         <button class="wl-exp-btn" data-id="${e.id}" onclick="wlToggleExp('${e.id}',event)" style="position:absolute;top:8px;right:8px;background:rgba(0,0,0,.3);border:none;border-radius:50%;width:30px;height:30px;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:2">${wlHasExp(e.id)?'<i class="fa fa-heart" style="color:#ef4444"></i>':'<i class="fa fa-heart" style="color:rgba(255,255,255,.65)"></i>'}</button>
       </div>
       <div class="browse-ecard-info">
@@ -8627,7 +8628,7 @@ function renderExpList() {
     <div class="ecard ecard-nav" data-expid="${e.id}" style="position:relative">
       <button class="wl-exp-btn" data-id="${e.id}" style="position:absolute;top:8px;left:8px;background:rgba(0,0,0,.35);border:none;border-radius:50%;width:28px;height:28px;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:5">${wlHasExp(e.id)?'<i class="fa fa-heart" style="color:#ef4444"></i>':'<i class="fa fa-heart" style="color:rgba(255,255,255,.65)"></i>'}</button>
       <div class="ecard-img">
-        <img src="${e.img.includes('?') ? e.img + '&h=160&auto=format&fit=crop' : e.img}" loading="lazy">
+        <img src="${e.img}&h=160&auto=format&fit=crop" loading="lazy">
       </div>
       <div class="ecard-info">
         <h4>${e.name}</h4>
@@ -8713,7 +8714,7 @@ function buildRichInfoWindow(e, context) {
   ">
     <div style="
       height:120px;
-      background:url('${e.img.includes('?') ? e.img + '&h=240&auto=format&fit=crop' : e.img}') center/cover no-repeat;
+      background:url('${e.img}&h=240&auto=format&fit=crop') center/cover no-repeat;
       position:relative;
     ">
       <div style="
@@ -9173,18 +9174,49 @@ function loadExp(expId) {
 
   // Overview
   document.getElementById('exp-title').textContent = e.name;
-  const stars = '★'.repeat(Math.floor(e.rating)) + (e.rating%1?'½':'');
-  document.getElementById('exp-stars').innerHTML = `<span style="color:var(--amber)">${stars}</span> ${e.rating}`;
-  document.getElementById('exp-rating-cnt').textContent = `(${e.rv} reviews)`;
   const badge = document.getElementById('exp-type-badge');
   badge.className = 'rtype-badge ' + cfg.cls;
   badge.textContent = cfg.icon + ' ' + cfg.label;
   document.getElementById('exp-loc-disp').innerHTML = `<i class="fa fa-location-dot" style="color:var(--b400)"></i> ${e.loc}`;
   document.getElementById('exp-partner-disp').innerHTML = `<i class="fa fa-building" style="color:var(--b400)"></i> ${e.partner}`;
   document.getElementById('exp-desc-full').textContent = e.desc;
-  document.getElementById('exp-rev-cnt').textContent = e.rv;
-  document.getElementById('exp-rv-num').textContent = e.rating;
-  document.getElementById('exp-rv-total').textContent = e.rv + ' reviews';
+
+  // Capacity — dynamic from Supabase
+  var guestsEl = document.getElementById('exp-guests-disp');
+  if (guestsEl) {
+    var capStr = e.capacity ? capLabel(e.capacity) : '';
+    guestsEl.innerHTML = capStr ? `<i class="fa fa-users" style="color:var(--b400)"></i> ${capStr}` : '';
+    guestsEl.style.display = capStr ? 'flex' : 'none';
+  }
+
+  // Duration — dynamic from Supabase
+  var durEl = document.getElementById('exp-duration-disp');
+  if (durEl) {
+    var nights = parseInt(e.duration_nights) || 0;
+    if (nights > 0) {
+      durEl.innerHTML = `<i class="fa fa-moon" style="color:var(--b400)"></i> ${nights} night${nights > 1 ? 's' : ''}`;
+      durEl.style.display = 'flex';
+    } else if (nights === 0 && e.duration_nights !== undefined && e.duration_nights !== null) {
+      durEl.innerHTML = `<i class="fa fa-sun" style="color:var(--b400)"></i> Day trip`;
+      durEl.style.display = 'flex';
+    } else {
+      durEl.style.display = 'none';
+    }
+  }
+
+  // Rating — only show if real data exists, no fake 4.5 fallback
+  var hasRealRating = e.rating && e.rating > 0 && e._fromSupabase;
+  var starsHtml = hasRealRating
+    ? `<span style="color:var(--amber)">${'★'.repeat(Math.floor(e.rating))}${e.rating % 1 ? '½' : ''}</span> ${e.rating}`
+    : '<span style="color:var(--muted);font-size:.8rem">No reviews yet</span>';
+  document.getElementById('exp-stars').innerHTML = starsHtml;
+
+  // Review count — from real Supabase data or 0
+  var rvCount = e._fromSupabase ? (e.rv || 0) : 0;
+  document.getElementById('exp-rating-cnt').textContent = rvCount > 0 ? `(${rvCount} reviews)` : '';
+  document.getElementById('exp-rev-cnt').textContent = rvCount;
+  document.getElementById('exp-rv-num').textContent = hasRealRating ? e.rating : '—';
+  document.getElementById('exp-rv-total').textContent = rvCount > 0 ? `${rvCount} reviews` : 'No reviews yet';
 
   // Programme: use Supabase data if available, fallback to hardcoded
   var progData = (e.programme && e.programme.length) ? e.programme : (programs[rt] || programs.activity);
@@ -14402,7 +14434,7 @@ function previewSpin() {
       card.classList.add(isLocked ? 'tsr-locked' : 'tsr-reveal');
       card.innerHTML = `
         <div class="tsr-img">
-          <img src="${exp.img.includes('?') ? exp.img + '&w=400&auto=format&fit=crop' : exp.img}" alt="${isLocked ? '' : exp.name}" loading="lazy">
+          <img src="${exp.img}&w=400&auto=format&fit=crop" alt="${isLocked ? '' : exp.name}" loading="lazy">
           ${isLocked ? `<div class="tsr-lock-overlay"><div class="tsr-lock-icon"><i class="fa fa-lock"></i></div><div class="tsr-lock-text">Locked</div></div>` : ''}
         </div>
         <div class="tsr-body">
@@ -14568,7 +14600,7 @@ function showResults() {
     const isJackpot = e.rarity === 'jackpot';
     return `<div class="rsl-card${isJackpot?' jackpot-glow':''}" id="rsl-${i}" onclick="selectResult('${e.id}',${i})">
       <div class="rsl-check"><i class="fa fa-check"></i></div>
-      <div class="rsl-img"><img src="${e.img.includes('?') ? e.img + '&w=600&h=380&auto=format&fit=crop' : e.img}" alt="${e.name}" loading="lazy"></div>
+      <div class="rsl-img"><img src="${e.img}&w=600&h=380&auto=format&fit=crop" alt="${e.name}" loading="lazy"></div>
       <div class="rsl-body">
         <div class="rsl-rarity" style="background:${bg};color:${clr}">${rariLabel[e.rarity]}</div>
         <div class="rsl-name">${e.name}</div>
@@ -14613,7 +14645,7 @@ function selectResult(expId, slotIdx) {
   const abar = document.getElementById('rsl-action-bar');
   const cfbf = document.getElementById('confirm-choice-btn-fallback');
   if (exp && bar) {
-    document.getElementById('rsl-confirm-img').src  = (exp.img.includes('?') ? exp.img + '&w=200&h=160&auto=format&fit=crop' : exp.img);
+    document.getElementById('rsl-confirm-img').src  = exp.img + '&w=200&h=160&auto=format&fit=crop';
     document.getElementById('rsl-confirm-name').textContent = exp.name;
     document.getElementById('rsl-confirm-meta').textContent = exp.loc + ' · ' + exp.reservation_type;
     bar.style.display  = 'flex';
