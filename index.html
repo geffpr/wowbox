@@ -4034,7 +4034,7 @@ tr:hover td{background:var(--b50)}
 
         <!-- ── BUY PANEL (PRE-PURCHASE ONLY) ── -->
         <div id="exp-buy-panel">
-          <button class="btn bp block" onclick="addBoxFromExp()" style="margin-bottom:10px">
+          <button class="btn bp block" onclick="openBuyBoxModal()" style="margin-bottom:10px">
             <i class="fa fa-cart-shopping"></i> Buy this box — <span id="exp-buy-price"></span>
           </button>
           <button class="btn bg block" onclick="go('activation')">
@@ -9539,10 +9539,124 @@ async function cancelBooking(voucherCode, bookingDate) {
   }
 }
 
-function addBoxFromExp() {
-  const e = expDB.find(x => x.id === appState.currentExpId);
-  if (e && e.box) { addToCart(e.box, 'ebox'); go('cart'); }
+/* ══════════════════════════════════════════════════════════════
+   BUY BOX MODAL — from experience page pre-purchase
+══════════════════════════════════════════════════════════════ */
+var _bbmBoxId = null;
+var _bbmType  = 'ebox';
+var _bbmVidOn = false;
+var _bbmMsgOn = false;
+
+function openBuyBoxModal() {
+  var e = expDB.find(function(x){ return x.id === appState.currentExpId; });
+  if (!e || !e.box) return;
+  _bbmBoxId = e.box;
+  _bbmType = 'ebox'; _bbmVidOn = false; _bbmMsgOn = false;
+  var b = boxDB[_bbmBoxId];
+  if (!b) return;
+  document.getElementById('bbm-box-name').textContent     = b.name;
+  document.getElementById('bbm-box-name-sum').textContent  = b.name;
+  document.getElementById('bbm-price-sum').textContent     = 'R' + b.price.toLocaleString();
+  document.getElementById('bbm-vid-price').textContent     = '+R' + APP_PRICES.video_message;
+  document.getElementById('bbm-vid-price-sum').textContent = '+R' + APP_PRICES.video_message;
+  var eboxLbl = document.getElementById('bbm-ebox-lbl');
+  var physLbl = document.getElementById('bbm-phys-lbl');
+  if (eboxLbl) { eboxLbl.style.border = '2px solid var(--b400)'; eboxLbl.style.background = 'var(--b50)'; }
+  if (physLbl) { physLbl.style.border = '2px solid var(--border)'; physLbl.style.background = ''; }
+  var r = document.querySelector('input[name="bbm-type"][value="ebox"]');
+  if (r) r.checked = true;
+  var togMsg = document.getElementById('bbm-tog-msg');
+  if (togMsg) togMsg.classList.remove('on');
+  document.getElementById('bbm-area-msg').style.display = 'none';
+  document.getElementById('bbm-personal-msg').value = '';
+  var togVid = document.getElementById('bbm-tog-vid');
+  if (togVid) togVid.classList.remove('on');
+  document.getElementById('bbm-area-vid').style.display = 'none';
+  document.getElementById('bbm-delivery-row').style.display = 'none';
+  document.getElementById('bbm-video-row').style.display    = 'none';
+  bbmUpdateTotal();
+  document.getElementById('buy-box-modal').style.display = 'flex';
+  document.body.style.overflow = 'hidden';
 }
+
+function closeBuyBoxModal() {
+  document.getElementById('buy-box-modal').style.display = 'none';
+  document.body.style.overflow = '';
+}
+
+function bbmSelectType(type) {
+  _bbmType = type;
+  var eboxLbl = document.getElementById('bbm-ebox-lbl');
+  var physLbl = document.getElementById('bbm-phys-lbl');
+  if (type === 'ebox') {
+    if (eboxLbl) { eboxLbl.style.border = '2px solid var(--b400)'; eboxLbl.style.background = 'var(--b50)'; }
+    if (physLbl) { physLbl.style.border = '2px solid var(--border)'; physLbl.style.background = ''; }
+    document.getElementById('bbm-delivery-row').style.display = 'none';
+  } else {
+    if (physLbl) { physLbl.style.border = '2px solid var(--b400)'; physLbl.style.background = 'var(--b50)'; }
+    if (eboxLbl) { eboxLbl.style.border = '2px solid var(--border)'; eboxLbl.style.background = ''; }
+    document.getElementById('bbm-delivery-row').style.display = 'flex';
+  }
+  bbmUpdateTotal();
+}
+
+function bbmTogMsg() {
+  _bbmMsgOn = !_bbmMsgOn;
+  var tog = document.getElementById('bbm-tog-msg');
+  var area = document.getElementById('bbm-area-msg');
+  if (tog)  _bbmMsgOn ? tog.classList.add('on') : tog.classList.remove('on');
+  if (area) area.style.display = _bbmMsgOn ? 'block' : 'none';
+}
+
+function bbmTogVid() {
+  _bbmVidOn = !_bbmVidOn;
+  var tog  = document.getElementById('bbm-tog-vid');
+  var area = document.getElementById('bbm-area-vid');
+  var row  = document.getElementById('bbm-video-row');
+  if (tog)  _bbmVidOn ? tog.classList.add('on') : tog.classList.remove('on');
+  if (area) area.style.display = _bbmVidOn ? 'block' : 'none';
+  if (row)  row.style.display  = _bbmVidOn ? 'flex'  : 'none';
+  bbmUpdateTotal();
+}
+
+function bbmUpdateTotal() {
+  if (!_bbmBoxId) return;
+  var b = boxDB[_bbmBoxId];
+  if (!b) return;
+  var total = b.price;
+  if (_bbmType === 'physical') total += 99;
+  if (_bbmVidOn)               total += APP_PRICES.video_message;
+  var el = document.getElementById('bbm-total');
+  if (el) el.textContent = 'R' + total.toLocaleString();
+}
+
+function bbmAddToCart() {
+  if (!_bbmBoxId) return;
+  addToCart(_bbmBoxId, _bbmType);
+  var msg = (document.getElementById('bbm-personal-msg')?.value || '').trim();
+  if (_bbmMsgOn && msg) {
+    var prodMsg = document.getElementById('ck-personal-msg');
+    if (prodMsg) prodMsg.value = msg;
+    var togMsg = document.getElementById('tog-msg');
+    if (togMsg) togMsg.classList.add('on');
+    var areaMsg = document.getElementById('area-msg');
+    if (areaMsg) areaMsg.style.display = 'block';
+  }
+  if (_bbmVidOn) {
+    if (!appState.cart.find(function(c){ return c.id === 'video-message'; })) {
+      appState.cart.push({ id:'video-message', boxId:'video-message', name:'🎬 Video message', type:'addon', price:APP_PRICES.video_message, qty:1, img:'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=400' });
+    }
+    var togVid = document.getElementById('tog-vid');
+    if (togVid && !togVid.classList.contains('on')) togVid.classList.add('on');
+    var areaVid = document.getElementById('area-vid');
+    if (areaVid) areaVid.style.display = 'block';
+    updateCartBadge();
+  }
+  closeBuyBoxModal();
+  go('cart');
+}
+
+function addBoxFromExp() { openBuyBoxModal(); }
 function switchExpTab(tab, btn) {
   ['overview','programme','amenities','reviews'].forEach(t => document.getElementById('exp-tab-'+t).style.display = t===tab?'block':'none');
   document.querySelectorAll('#page-expdetail .tab').forEach(b => b.classList.remove('on'));
@@ -17029,6 +17143,82 @@ async function admRunSchemaDiag() {
 })();
 </script>
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+
+<!-- ══ BUY BOX MODAL (from experience page) ══ -->
+<div id="buy-box-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9999;align-items:center;justify-content:center;padding:20px">
+  <div style="background:#fff;border-radius:20px;max-width:480px;width:100%;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.25)">
+    <div style="padding:24px 28px 0;display:flex;align-items:center;justify-content:space-between">
+      <div>
+        <p style="font-size:.7rem;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--b500);margin-bottom:3px">Complete your order</p>
+        <h3 id="bbm-box-name" style="font-size:1.1rem;color:var(--navy);margin:0"></h3>
+      </div>
+      <button onclick="closeBuyBoxModal()" style="background:var(--b50);border:none;border-radius:50%;width:32px;height:32px;cursor:pointer;font-size:1rem;color:var(--muted)">✕</button>
+    </div>
+    <div style="padding:20px 28px 28px">
+      <!-- Delivery type -->
+      <p style="font-size:.78rem;font-weight:600;color:var(--navy);margin-bottom:10px">Delivery type</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:20px">
+        <label id="bbm-ebox-lbl" style="border:2px solid var(--b400);border-radius:12px;padding:12px 14px;cursor:pointer;background:var(--b50)">
+          <input type="radio" name="bbm-type" value="ebox" checked style="margin-right:6px" onchange="bbmSelectType('ebox')">
+          <strong style="font-size:.85rem;color:var(--navy)">E-Box</strong>
+          <div style="font-size:.72rem;color:var(--muted);margin-top:3px">Instant digital delivery</div>
+          <div style="font-size:.72rem;color:var(--b600);font-weight:600;margin-top:2px">Free</div>
+        </label>
+        <label id="bbm-phys-lbl" style="border:2px solid var(--border);border-radius:12px;padding:12px 14px;cursor:pointer">
+          <input type="radio" name="bbm-type" value="physical" style="margin-right:6px" onchange="bbmSelectType('physical')">
+          <strong style="font-size:.85rem;color:var(--navy)">Physical Box</strong>
+          <div style="font-size:.72rem;color:var(--muted);margin-top:3px">Shipped to recipient</div>
+          <div style="font-size:.72rem;color:var(--b600);font-weight:600;margin-top:2px">+R99 delivery</div>
+        </label>
+      </div>
+      <!-- Personal message -->
+      <div style="border-top:1px solid var(--border);padding-top:16px;margin-bottom:16px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+          <div>
+            <p style="font-size:.82rem;font-weight:600;color:var(--navy);margin:0">Personal message</p>
+            <p style="font-size:.7rem;color:var(--muted);margin:2px 0 0">Add a heartfelt note to your gift</p>
+          </div>
+          <div class="tog" id="bbm-tog-msg" onclick="bbmTogMsg()"></div>
+        </div>
+        <div id="bbm-area-msg" style="display:none">
+          <textarea class="fi" id="bbm-personal-msg" rows="3" placeholder="Write your heartfelt message..." style="resize:vertical;font-size:.82rem"></textarea>
+        </div>
+      </div>
+      <!-- Video message -->
+      <div style="border-top:1px solid var(--border);padding-top:16px;margin-bottom:24px">
+        <div style="display:flex;align-items:center;justify-content:space-between">
+          <div>
+            <p style="font-size:.82rem;font-weight:600;color:var(--navy);margin:0">🎬 Video message</p>
+            <p style="font-size:.7rem;color:var(--muted);margin:2px 0 0">Record or upload a personal video — <span id="bbm-vid-price"></span></p>
+          </div>
+          <div class="tog" id="bbm-tog-vid" onclick="bbmTogVid()"></div>
+        </div>
+        <div id="bbm-area-vid" style="display:none;margin-top:10px;padding:10px;background:var(--b50);border-radius:8px;font-size:.75rem;color:var(--muted)">
+          <i class="fa fa-circle-info" style="color:var(--b400)"></i> You'll upload or record your video on the next step.
+        </div>
+      </div>
+      <!-- Summary + CTA -->
+      <div style="background:var(--b50);border-radius:12px;padding:14px 16px;margin-bottom:16px">
+        <div style="display:flex;justify-content:space-between;font-size:.82rem;color:var(--muted);margin-bottom:6px">
+          <span id="bbm-box-name-sum"></span><span id="bbm-price-sum"></span>
+        </div>
+        <div id="bbm-delivery-row" style="display:none;justify-content:space-between;font-size:.82rem;color:var(--muted);margin-bottom:6px">
+          <span>Physical delivery</span><span>+R99</span>
+        </div>
+        <div id="bbm-video-row" style="display:none;justify-content:space-between;font-size:.82rem;color:var(--muted);margin-bottom:6px">
+          <span>Video message</span><span id="bbm-vid-price-sum"></span>
+        </div>
+        <div style="border-top:1px solid var(--border);margin:8px 0"></div>
+        <div style="display:flex;justify-content:space-between;font-size:.9rem;font-weight:700;color:var(--navy)">
+          <span>Total</span><span id="bbm-total"></span>
+        </div>
+      </div>
+      <button class="btn bp block" onclick="bbmAddToCart()" style="font-size:.95rem;padding:14px">
+        <i class="fa fa-cart-shopping"></i> Add to cart
+      </button>
+    </div>
+  </div>
+</div>
 
 </body>
 </html>
