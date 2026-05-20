@@ -13804,7 +13804,7 @@ function admReqRow(r) {
   var rowBg = isEdit && isPending ? 'background:#eff6ff' : isApproved ? 'background:#f0fdf4;opacity:.85' : '';
   return '<tr style="' + rowBg + '" id="req-row-' + r.id + '">'
     + '<td><strong style="font-size:.85rem;color:var(--navy)">' + (r.experience_name||'') + '</strong>'
-    + (isEdit ? '<br><span style="font-size:.68rem;color:#1d4ed8;font-weight:600">Edit request</span>' : '') + '</td>'
+    + (isEdit && isPending ? '<br><span style="font-size:.68rem;color:#1d4ed8;font-weight:600">Edit request</span>' : '') + '</td>'
     + '<td style="font-size:.8rem">' + (typeMap[r.category]||r.category||'') + '</td>'
     + '<td style="font-size:.8rem;color:var(--muted)">' + (r.partner_name||'') + '</td>'
     + '<td style="font-size:.75rem;color:var(--muted)">' + dateStr + '</td>'
@@ -13833,30 +13833,11 @@ function admViewRequest(id) {
   var hdrBg = isPending ? (isEdit?'linear-gradient(135deg,#eff6ff,#dbeafe)':'linear-gradient(135deg,#fffbeb,#fef3c7)') : isApproved ? 'linear-gradient(135deg,#d1fae5,#a7f3d0)' : 'linear-gradient(135deg,#fee2e2,#fecaca)';
   var typeMap = {dining:'Dining',wellness:'Wellness',activity:'Activity',accommodation:'Accommodation',rental:'Rental',event:'Event'};
   var prev = r.previous_data || {};
-  /* String comparison — treats null/undefined/"null" as empty */
   function dc(label, newVal, oldVal) {
-    var norm = function(v){ return (v === null || v === undefined || v === 'null') ? '' : String(v).trim(); };
-    var changed = isEdit && oldVal !== undefined && norm(oldVal) !== norm(newVal);
+    var changed = isEdit && oldVal!==undefined && String(oldVal)!==String(newVal||'');
     var s = changed ? 'background:#fef2f2;border:1.5px solid #fca5a5;border-radius:6px;padding:4px 8px;' : '';
-    var b = changed ? '<span style="font-size:.6rem;background:#dc2626;color:#fff;padding:1px 5px;border-radius:99px;margin-left:5px">CHANGED</span><div style="font-size:.7rem;color:#6b7280;text-decoration:line-through">Was: '+norm(oldVal)+'</div>' : '';
-    return '<div class="fg" style="'+s+'"><label style="font-size:.65rem;font-weight:700;text-transform:uppercase;color:var(--muted)">'+label+b+'</label><div style="font-size:.85rem;color:var(--navy)">'+(newVal||'')+'</div></div>';
-  }
-  /* Boolean comparison */
-  function dcBool(label, newVal, oldVal) {
-    var nNew = Boolean(newVal), nOld = (oldVal === null || oldVal === undefined) ? false : Boolean(oldVal);
-    var changed = isEdit && oldVal !== undefined && nOld !== nNew;
-    var s = changed ? 'background:#fef2f2;border:1.5px solid #fca5a5;border-radius:6px;padding:4px 8px;' : '';
-    var b = changed ? '<span style="font-size:.6rem;background:#dc2626;color:#fff;padding:1px 5px;border-radius:99px;margin-left:5px">CHANGED</span><div style="font-size:.7rem;color:#6b7280;text-decoration:line-through">Was: '+(nOld?'Yes':'No')+'</div>' : '';
-    return '<div class="fg" style="'+s+'"><label style="font-size:.65rem;font-weight:700;text-transform:uppercase;color:var(--muted)">'+label+b+'</label><div style="font-size:.85rem;color:var(--navy)">'+(nNew?'✅ Yes':'—')+'</div></div>';
-  }
-  /* Array comparison */
-  function dcArr(label, newArr, oldArr) {
-    var norm = function(a){ return Array.isArray(a) ? a.slice().sort().join(',') : (a||''); };
-    var changed = isEdit && oldArr !== undefined && norm(oldArr) !== norm(newArr);
-    var s = changed ? 'background:#fef2f2;border:1.5px solid #fca5a5;border-radius:6px;padding:4px 8px;' : '';
-    var b = changed ? '<span style="font-size:.6rem;background:#dc2626;color:#fff;padding:1px 5px;border-radius:99px;margin-left:5px">CHANGED</span><div style="font-size:.7rem;color:#6b7280;text-decoration:line-through">Was: '+(Array.isArray(oldArr)&&oldArr.length?oldArr.join(', '):'(empty)')+'</div>' : '';
-    var display = Array.isArray(newArr) && newArr.length ? newArr.join(', ') : '(none)';
-    return '<div class="fg" style="'+s+'"><label style="font-size:.65rem;font-weight:700;text-transform:uppercase;color:var(--muted)">'+label+b+'</label><div style="font-size:.85rem;color:var(--navy)">'+display+'</div></div>';
+    var b = changed ? '<span style="font-size:.6rem;background:#dc2626;color:#fff;padding:1px 5px;border-radius:99px;margin-left:5px">CHANGED</span><div style="font-size:.7rem;color:#6b7280;text-decoration:line-through">Was: '+oldVal+'</div>' : '';
+    return '<div class="fg" style="'+s+'"><label style="font-size:.65rem;font-weight:700;text-transform:uppercase;color:var(--muted)">'+label+b+'</label><div style="font-size:.85rem;color:var(--navy)">'+( newVal||'')+ '</div></div>';
   }
   var imgHtml = '';
   if (r.image_url) {
@@ -13886,25 +13867,20 @@ function admViewRequest(id) {
   detailEl.innerHTML = '<div class="atbl"><div class="atbl-hdr" style="background:'+hdrBg+'">'
     + '<div style="display:flex;align-items:center;gap:10px"><button class="btn bg bsm" onclick="document.getElementById(\'adm-req-detail\').style.display=\'none\'"><i class="fa fa-arrow-left"></i> Back</button>'
     + '<strong style="color:var(--navy)">'+( r.experience_name||'')+'</strong>'
-    + (isEdit?'<span style="font-size:.7rem;background:#dbeafe;color:#1d4ed8;padding:2px 8px;border-radius:99px;font-weight:600">Edit request</span>':'')
+    + (isEdit&&isPending?'<span style="font-size:.7rem;background:#dbeafe;color:#1d4ed8;padding:2px 8px;border-radius:99px;font-weight:600">Edit request</span>':'')
     + '</div><div style="display:flex;gap:8px;flex-wrap:wrap">'+actions+'</div></div>'
     + '<div class="afsec"><div class="fg-row">'
     + dc('Name',r.experience_name,prev.experience_name)+dc('Type',typeMap[r.category]||r.category,prev.category)+dc('Partner',r.partner_name,prev.partner_name)
     + '</div><div class="fg-row">'
     + dc('City',r.city,prev.city)+dc('Province',r.province,prev.province)+dc('Capacity',r.capacity,prev.capacity)
     + '</div><div class="fg-row">'
+    + dc('Booking type',r.booking_type,prev.booking_type)+dc('Nights',r.duration_nights,prev.duration_nights)+dc('Price (R)',r.price,prev.price)
     + '</div><div class="fg-row">'
     + dc('Phone',r.phone,prev.phone)+dc('Address',r.address,prev.address)+dc('Certification',r.certification,prev.certification)
     + '</div><div class="fg-row">'
-    + '</div><div class="fg-row">'
-    + dcBool('PMR Accessible',r.accessible,prev.accessible)+dcBool('Insolite',r.insolite,prev.insolite)
-    + '</div>'
-    + (r.time_slots||prev.time_slots ? '<div class="fg-row">'+dcArr('Time slots',r.time_slots,prev.time_slots)+'</div>' : '')
-    + (r.treatments||prev.treatments ? '<div class="fg-row">'+dcArr('Treatments',r.treatments,prev.treatments)+'</div>' : '')
-    + (r.sessions||prev.sessions     ? '<div class="fg-row">'+dcArr('Sessions',r.sessions,prev.sessions)+'</div>' : '')
-    + '<div class="fg-row">'
+    + dc('Description',r.description?(r.description.substring(0,300)+(r.description.length>300?'...':'')):'',(prev.description!==undefined?String(prev.description).substring(0,300):undefined))
     + '</div>'+imgHtml+progHtml+amHtml+'</div></div>';
-    + '</div>'+imgHtml+progHtml+amHtml+'</div></div>';
+  detailEl.scrollIntoView({ behavior:'smooth', block:'nearest' });
 }
 
 async function admApproveRequest(btn) {
@@ -13982,11 +13958,15 @@ async function admConfirmApprove(id) {
         description:      req.description,
         reservation_type: req.category || 'activity',
         location:         req.city || '',
+        city:             req.city || '',
+        address:          req.address || null,
+        phone:            req.phone   || null,
         image_url:        req.image_url || '',
         image_urls:       req.image_urls || [],
         partner_email:    req.partner_email || '',
         capacity:         req.capacity || null,
         province:         req.province || '',
+        price:            req.price    || null,
         booking_type:     req.booking_type || 'on_site',
         duration_nights:  req.duration_nights || 0,
         category:         req.category || '',
@@ -13997,6 +13977,9 @@ async function admConfirmApprove(id) {
         insolite:         req.insolite || false,
         programme:        req.programme || [],
         amenities:        req.amenities || [],
+        time_slots:       req.time_slots || null,
+        treatments:       req.treatments || null,
+        sessions:         req.sessions   || null,
         ...(req.ical_url ? { ical_url: req.ical_url } : {}),
       }).eq('id', req.experience_id || expId);
     } else {
@@ -14064,6 +14047,8 @@ async function admConfirmApprove(id) {
     var b2 = document.getElementById('adm-req-count-badge'); if (b2) { b2.textContent = pending + ' pending review'; b2.style.display = pending ? '' : 'none'; }
 
     admToast('✅ "' + req.experience_name + '" ' + (isEdit?'edit approved':'approved and live'));
+    // Close detail and reload list
+    setTimeout(function(){ admLoadRequestsList(); }, 800);
   } catch(e) {
     if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa fa-check-circle"></i> Approve &amp; add to DB'; }
     admToast('Error: ' + (e.message||'unknown'));
@@ -15517,31 +15502,11 @@ async function ppSubmitEdit(expId) {
   document.getElementById('adm-modal').style.display = 'none';
 
   try {
-    // Fetch current experience data — Supabase has priority, expDB fills nulls
+    // Fetch current experience data to store as previous_data
     var prevData = {};
     if (expId) {
       var prevRes = await db_client.from('experiences').select('*').eq('id', expId).maybeSingle();
-      if (prevRes.data) {
-        var expEntry = expDB.find(function(x){ return x.id === expId; }) || {};
-        // Start with Supabase, fill nulls/undefined from expDB
-        prevData = Object.assign({}, prevRes.data);
-        if (!prevData.reservation_type)   prevData.reservation_type   = expEntry.reservation_type || expEntry.type || null;
-        if (!prevData.city)               prevData.city               = expEntry.city || expEntry.loc || null;
-        if (!prevData.province)           prevData.province           = expEntry.province || null;
-        if (prevData.capacity   == null)  prevData.capacity           = expEntry.capacity || null;
-        if (!prevData.description)        prevData.description        = expEntry.desc || null;
-        if (prevData.price      == null)  prevData.price              = expEntry.price || null;
-        if (!prevData.phone)              prevData.phone              = expEntry.phone || null;
-        if (!prevData.address)            prevData.address            = expEntry.address || null;
-        if (!prevData.certification)      prevData.certification      = expEntry.certification || null;
-        if (!prevData.booking_type)       prevData.booking_type       = expEntry.booking_type || 'on_site';
-        if (prevData.duration_nights == null) prevData.duration_nights = expEntry.duration_nights || 0;
-        if (prevData.accessible  == null) prevData.accessible         = expEntry.accessible  || false;
-        if (prevData.insolite    == null) prevData.insolite           = expEntry.insolite    || false;
-        if (!prevData.time_slots)         prevData.time_slots         = expEntry.time_slots  || null;
-        if (!prevData.treatments)         prevData.treatments         = expEntry.treatments  || null;
-        if (!prevData.sessions)           prevData.sessions           = expEntry.sessions    || null;
-      }
+      if (prevRes.data) prevData = prevRes.data;
     }
     var err = await db_client.from('partner_requests').insert({
       experience_name:    name,
