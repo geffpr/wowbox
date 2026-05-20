@@ -1537,8 +1537,50 @@ async function renderAnalytics(period) {
 ══════════════════════════════════════════════════════════════ */
 let calState = {};   // key: 'YYYY-MM-DD' → {status:'open'|'limited'|'blocked', cap:4}
 let calYear, calMonth;
+var calBookedDates = {}; // {date: count} — filled from bookings table
 
-function renderCalendar() {
+async function renderCalendar() {
+  const email = appState.partnerEmail || (currentUser && currentUser.email) || '';
+  /* Load availability from Supabase on first render */
+  if (email && !calState._loaded) {
+    try {
+      var res = await db_client.from('partner_availability').select('date,status,capacity').eq('partner_email', email);
+      calState = {};
+      (res.data || []).forEach(function(r){ calState[r.date] = { status: r.status, cap: r.capacity }; });
+      calState._loaded = true;
+    } catch(e) { console.warn('calLoad:', e.message); }
+  }
+  /* Load confirmed bookings for partner to show on calendar */
+  if (email) {
+    try {
+      var now2 = new Date();
+      var monthStart = new Date(calYear || now2.getFullYear(), calMonth !== undefined ? calMonth : now2.getMonth(), 1).toISOString().slice(0,10);
+      var monthEnd   = new Date(calYear || now2.getFullYear(), (calMonth !== undefined ? calMonth : now2.getMonth())+1, 0).toISOString().slice(0,10);
+      var bkRes = await db_client.from('bookings')
+        .select('booking_date,checkin_date,checkout_date,guest_count')
+        .eq('partner_email', email)
+        .neq('status', 'cancelled')
+        .or('booking_date.gte.'+monthStart+',checkin_date.gte.'+monthStart);
+      calBookedDates = {};
+      (bkRes.data || []).forEach(function(b) {
+        var dates = [];
+        if (b.checkin_date) {
+          var end = b.checkout_date || b.checkin_date;
+          for (var d = new Date(b.checkin_date); d <= new Date(end); d.setDate(d.getDate()+1))
+            dates.push(d.toISOString().slice(0,10));
+        } else if (b.booking_date) {
+          dates = [b.booking_date];
+        }
+        dates.forEach(function(dt){
+          calBookedDates[dt] = (calBookedDates[dt] || 0) + (b.guest_count || 1);
+        });
+      });
+    } catch(e) { console.warn('calBookings:', e.message); }
+  }
+  renderCalendarGrid();
+}
+
+function renderCalendarGrid() {
   const now = new Date();
   if (!calYear)            calYear  = now.getFullYear();
   if (calMonth === undefined) calMonth = now.getMonth();
@@ -1548,29 +1590,34 @@ function renderCalendar() {
   const grid = document.getElementById('cal-grid');
   if (!grid) return;
   const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-  let html = days.map(d => `<div class="cal-hdr-cell">${d}</div>`).join('');
-  const firstDay     = new Date(calYear, calMonth, 1).getDay();
-  const daysInMonth  = new Date(calYear, calMonth+1, 0).getDate();
-  for (let i = 0; i < firstDay; i++) html += `<div class="cal-day-cell day-empty"></div>`;
+  let html = days.map(function(d){ return '<div class="cal-hdr-cell">'+d+'</div>'; }).join('');
+  const firstDay    = new Date(calYear, calMonth, 1).getDay();
+  const daysInMonth = new Date(calYear, calMonth+1, 0).getDate();
+  for (let i = 0; i < firstDay; i++) html += '<div class="cal-day-cell day-empty"></div>';
   for (let d = 1; d <= daysInMonth; d++) {
-    const key   = `${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-    const state = calState[key];
-    const today = d === now.getDate() && calMonth === now.getMonth() && calYear === now.getFullYear();
+    const key    = calYear+'-'+String(calMonth+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+    const state  = calState[key];
+    const booked = calBookedDates[key];
+    const isToday = d === now.getDate() && calMonth === now.getMonth() && calYear === now.getFullYear();
     let cls = 'cal-day-cell';
-    if (today)  cls += ' day-today';
-    if (state)  cls += ' day-' + state.status;
+    if (isToday)          cls += ' day-today';
+    if (state)            cls += ' day-' + state.status;
+    else if (booked)      cls += ' day-booked';
     const dot = state
-      ? `<div style="width:5px;height:5px;border-radius:50%;background:${state.status==='blocked'?'#ef4444':state.status==='limited'?'#f59e0b':'#22c55e'}"></div>`
+      ? '<div style="width:5px;height:5px;border-radius:50%;background:'+(state.status==='blocked'?'#ef4444':state.status==='limited'?'#f59e0b':'#22c55e')+'"></div>'
+      : booked
+      ? '<div style="width:5px;height:5px;border-radius:50%;background:#3b82f6"></div>'
       : '';
-    html += `<div class="${cls}" onclick="calToggleDay('${key}',${d})">${d}${dot}</div>`;
+    const bookedBadge = booked ? '<div style="font-size:8px;color:#1d4ed8;font-weight:600">'+booked+'bk</div>' : '';
+    html += '<div class="'+cls+'" onclick="calToggleDay(\''+key+'\','+d+')">'+d+dot+bookedBadge+'</div>';
   }
   grid.innerHTML = html;
 }
 
-function calToggleDay(key, d) {
+async function calToggleDay(key, d) {
   const cycle = ['open','limited','blocked'];
   const cur   = calState[key];
-  if (!cur) {
+  if (!cur || cur === true) {
     calState[key] = {status:'open', cap:parseInt(document.getElementById('cal-default-cap')?.value)||4};
   } else {
     const idx = cycle.indexOf(cur.status);
@@ -1578,11 +1625,26 @@ function calToggleDay(key, d) {
     else calState[key].status = cycle[idx + 1];
   }
   const state  = calState[key];
+  const booked = calBookedDates[key] || 0;
   const detail = document.getElementById('cal-day-detail');
-  if (detail) detail.innerHTML = state
-    ? `<strong>${key}</strong><br>Status: <strong>${state.status}</strong><br>Capacity: ${state.cap} guests`
-    : `<strong>${key}</strong><br>Status: Open (default)`;
-  renderCalendar();
+  if (detail) detail.innerHTML = '<strong>'+key+'</strong><br>'
+    + 'Status: <strong>'+(state ? state.status : 'Open (default)')+'</strong><br>'
+    + (state ? 'Capacity: '+state.cap+' guests<br>' : '')
+    + (booked ? '<span style="color:#1d4ed8;font-weight:600">'+booked+' booking(s) confirmed</span>' : '');
+  renderCalendarGrid();
+  /* Save to Supabase */
+  const email = appState.partnerEmail || (currentUser && currentUser.email) || '';
+  if (!email) return;
+  try {
+    if (state) {
+      await db_client.from('partner_availability').upsert(
+        { partner_email: email, date: key, status: state.status, capacity: state.cap },
+        { onConflict: 'partner_email,date' }
+      );
+    } else {
+      await db_client.from('partner_availability').delete().eq('partner_email', email).eq('date', key);
+    }
+  } catch(e) { console.warn('calSave:', e.message); }
 }
 
 function calPrevMonth() {
@@ -1593,15 +1655,34 @@ function calNextMonth() {
   if (++calMonth > 11) { calMonth = 0; calYear++; }
   renderCalendar();
 }
-function calBlockRange() {
+
+async function calBlockRange() {
   const s = prompt('Block from (YYYY-MM-DD):');
   const e = prompt('Block to (YYYY-MM-DD):');
   if (!s || !e) return;
+  const email = appState.partnerEmail || (currentUser && currentUser.email) || '';
+  var rows = [];
   for (let d = new Date(s); d <= new Date(e); d.setDate(d.getDate()+1)) {
-    calState[d.toISOString().slice(0,10)] = {status:'blocked', cap:0};
+    var key = d.toISOString().slice(0,10);
+    calState[key] = {status:'blocked', cap:0};
+    if (email) rows.push({ partner_email: email, date: key, status: 'blocked', capacity: 0 });
   }
-  renderCalendar();
-  admToast('Date range blocked successfully.');
+  renderCalendarGrid();
+  if (rows.length && email) {
+    try { await db_client.from('partner_availability').upsert(rows, { onConflict: 'partner_email,date' }); } catch(ex) {}
+  }
+  admToast('Date range blocked.');
+}
+
+async function calClearAll() {
+  if (!confirm('Reset all calendar dates to default?')) return;
+  const email = appState.partnerEmail || (currentUser && currentUser.email) || '';
+  calState = { _loaded: true };
+  renderCalendarGrid();
+  if (email) {
+    try { await db_client.from('partner_availability').delete().eq('partner_email', email); } catch(e) {}
+  }
+  admToast('Calendar reset.');
 }
 function calClearAll() {
   if (!confirm('Reset all calendar dates to default?')) return;
@@ -3244,6 +3325,7 @@ tr:hover td{background:var(--b50)}
 .cal-day-cell.day-blocked{background:#fee2e2;border-color:#fca5a5;color:#991b1b}
 .cal-day-cell.day-limited{background:#fef3c7;border-color:#fcd34d;color:#92400e}
 .cal-day-cell.day-open{background:#d1fae5;border-color:#6ee7b7;color:#065f46}
+.cal-day-cell.day-booked{background:#dbeafe;border-color:#93c5fd;color:#1e40af}
 .cal-day-cell.day-empty{opacity:.25;pointer-events:none;border-style:dashed}
 .cal-legend{display:flex;gap:14px;flex-wrap:wrap;margin-top:10px;font-size:.73rem;color:var(--slate)}
 .cal-legend-item{display:flex;align-items:center;gap:5px}
@@ -5721,14 +5803,10 @@ tr:hover td{background:var(--b50)}
         </div>
       </div>
 
-      <!-- ═══ PRO: CALENDAR ═══ -->
+      <!-- ═══ CALENDAR ═══ -->
       <div id="pp-calendar" class="pp-sec">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:12px">
           <div><h2 style="font-size:1.75rem;color:var(--navy);margin-bottom:3px">Availability Calendar</h2><p style="color:var(--muted);font-size:.82rem">Click any date to cycle: Open → Limited → Blocked → Default.</p></div>
-          <select class="fi" id="cal-exp-select" style="width:auto;padding:7px 12px;font-size:.78rem" onchange="renderCalendar()">
-            <option value="vineyard">The Vineyard Retreat</option>
-            <option value="wine">Estate Wine Tasting</option>
-          </select>
         </div>
 
         <!-- iCal sync panel -->
@@ -5759,6 +5837,7 @@ tr:hover td{background:var(--b50)}
               <div class="cal-legend-item"><div class="cal-legend-swatch" style="background:#d1fae5;border:1px solid #6ee7b7"></div>Open</div>
               <div class="cal-legend-item"><div class="cal-legend-swatch" style="background:#fef3c7;border:1px solid #fcd34d"></div>Limited</div>
               <div class="cal-legend-item"><div class="cal-legend-swatch" style="background:#fee2e2;border:1px solid #fca5a5"></div>Blocked</div>
+              <div class="cal-legend-item"><div class="cal-legend-swatch" style="background:#dbeafe;border:1px solid #93c5fd"></div>Booked</div>
             </div>
           </div>
           <div>
@@ -9082,18 +9161,56 @@ const rtConfig = {
    iCAL SYNC + AVAILABILITY DATE PICKER
 ══════════════════════════════════════════════════════════════ */
 
-// Load blocked dates from Supabase availability table, return array of date strings
+// Load blocked dates from Supabase — iCal + partner manual + fully booked
 async function loadBlockedDates(expId) {
   if (!expId || typeof db_client === 'undefined') return [];
   try {
     var today = new Date().toISOString().slice(0,10);
-    var res = await db_client.from('availability')
-      .select('date')
+
+    // 1. iCal blocked dates
+    var icalRes = await db_client.from('availability')
+      .select('date').eq('experience_id', expId)
+      .eq('status', 'blocked').gte('date', today);
+    var blocked = (icalRes.data || []).map(function(r){ return r.date; });
+
+    // 2. Partner manual blocked dates
+    var exp = expDB.find(function(x){ return x.id === expId; });
+    if (exp && exp.partnerEmail) {
+      var partRes = await db_client.from('partner_availability')
+        .select('date').eq('partner_email', exp.partnerEmail)
+        .eq('status', 'blocked').gte('date', today);
+      (partRes.data || []).forEach(function(r){
+        if (!blocked.includes(r.date)) blocked.push(r.date);
+      });
+    }
+
+    // 3. Fully-booked dates (confirmed bookings at capacity)
+    var capacity = exp ? parseInt(exp.capacity) || 999 : 999;
+    var bkRes = await db_client.from('bookings')
+      .select('checkin_date,checkout_date,booking_date,guest_count')
       .eq('experience_id', expId)
-      .eq('status', 'blocked')
-      .gte('date', today);
-    if (res.error || !res.data) return [];
-    return res.data.map(function(r){ return r.date; });
+      .neq('status', 'cancelled')
+      .gte('checkin_date', today);
+    if (bkRes.data && bkRes.data.length) {
+      var dateLoad = {};
+      bkRes.data.forEach(function(b) {
+        var dates = [];
+        if (b.checkin_date && b.checkout_date) {
+          for (var d = new Date(b.checkin_date); d <= new Date(b.checkout_date); d.setDate(d.getDate()+1))
+            dates.push(d.toISOString().slice(0,10));
+        } else if (b.booking_date) {
+          dates = [b.booking_date];
+        }
+        dates.forEach(function(dt){
+          dateLoad[dt] = (dateLoad[dt] || 0) + (b.guest_count || 1);
+        });
+      });
+      Object.keys(dateLoad).forEach(function(dt){
+        if (dateLoad[dt] >= capacity && !blocked.includes(dt)) blocked.push(dt);
+      });
+    }
+
+    return blocked;
   } catch(e) {
     console.warn('loadBlockedDates:', e.message);
     return [];
