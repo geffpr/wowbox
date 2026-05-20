@@ -9215,13 +9215,30 @@ async function loadBlockedDates(expId) {
   if (!expId || typeof db_client === 'undefined') return [];
   try {
     var today = new Date().toISOString().slice(0,10);
-    var res = await db_client.from('availability')
+
+    // 1. iCal blocked dates (experience-level)
+    var icalRes = await db_client.from('availability')
       .select('date')
       .eq('experience_id', expId)
       .eq('status', 'blocked')
       .gte('date', today);
-    if (res.error || !res.data) return [];
-    return res.data.map(function(r){ return r.date; });
+    var icalDates = (icalRes.data || []).map(function(r){ return r.date; });
+
+    // 2. Partner manual blocked dates (partner-level calendar)
+    var exp = expDB.find(function(x){ return x.id === expId; });
+    var partnerDates = [];
+    if (exp && exp.partnerEmail) {
+      var partRes = await db_client.from('partner_availability')
+        .select('date')
+        .eq('partner_email', exp.partnerEmail)
+        .eq('status', 'blocked')
+        .gte('date', today);
+      partnerDates = (partRes.data || []).map(function(r){ return r.date; });
+    }
+
+    // Merge and deduplicate
+    var all = icalDates.concat(partnerDates.filter(function(d){ return !icalDates.includes(d); }));
+    return all;
   } catch(e) {
     console.warn('loadBlockedDates:', e.message);
     return [];
