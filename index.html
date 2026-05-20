@@ -5220,18 +5220,18 @@ tr:hover td{background:var(--b50)}
           <div class="pp-table-hdr" style="flex-wrap:wrap;gap:10px">
             <h4>Payout history</h4>
             <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-              <select class="fi" id="pp-pay-period" style="font-size:.78rem;padding:6px 10px;width:auto" onchange="ppLoadPayouts()">
-                <option value="1">This month</option>
-                <option value="3" selected>Last 3 months</option>
-                <option value="6">Last 6 months</option>
-                <option value="0">All time</option>
-              </select>
+              <div style="display:flex;align-items:center;gap:6px">
+                <input class="fi" type="date" id="pp-pay-from" style="font-size:.78rem;padding:6px 10px;width:130px" onchange="ppLoadPayouts()" placeholder="From">
+                <span style="font-size:.75rem;color:var(--muted)">→</span>
+                <input class="fi" type="date" id="pp-pay-to" style="font-size:.78rem;padding:6px 10px;width:130px" onchange="ppLoadPayouts()" placeholder="To">
+              </div>
               <select class="fi" id="pp-pay-status" style="font-size:.78rem;padding:6px 10px;width:auto" onchange="ppLoadPayouts()">
                 <option value="">All statuses</option>
                 <option value="pending">Pending</option>
                 <option value="paid">Paid</option>
                 <option value="on_hold">On hold</option>
               </select>
+              <button class="btn bg bsm" onclick="ppExportPayoutsCSV()" title="Export to CSV"><i class="fa fa-download"></i> Export CSV</button>
             </div>
           </div>
           <div style="overflow-x:auto">
@@ -14920,10 +14920,11 @@ async function loadPartnerPortalData() {
 async function ppLoadPayouts() {
   const email = appState.partnerEmail || (currentUser && currentUser.email) || '';
   if (!email) return;
-  const months  = parseInt(document.getElementById('pp-pay-period')?.value  || '3');
-  const status  = document.getElementById('pp-pay-status')?.value  || '';
+  const fromVal = document.getElementById('pp-pay-from')?.value || '';
+  const toVal   = document.getElementById('pp-pay-to')?.value   || '';
+  const status  = document.getElementById('pp-pay-status')?.value || '';
   const tbody   = document.getElementById('pp-pay-tbody');
-  if (tbody) tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--muted)">Loading...</td></tr>';
+  if (tbody) tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--muted)"><i class="fa fa-circle-notch fa-spin"></i> Loading…</td></tr>';
   const setV = function(id,v){ var el=document.getElementById(id); if(el) el.textContent=v; };
   const fmt  = function(n){ return 'R'+Number(n||0).toLocaleString('en-ZA',{minimumFractionDigits:2,maximumFractionDigits:2}); };
   try {
@@ -14946,13 +14947,12 @@ async function ppLoadPayouts() {
       .select('transaction_ref,booking_reference,experience_name,partner_payout,box_price,platform_rate,payout_status,validated_at')
       .eq('partner_email', email)
       .order('validated_at', { ascending: false });
-    if (months > 0) {
-      var since = new Date(); since.setMonth(since.getMonth() - months);
-      q = q.gte('validated_at', since.toISOString());
-    }
-    if (status) q = q.eq('payout_status', status);
+    if (fromVal) q = q.gte('validated_at', fromVal);
+    if (toVal)   q = q.lte('validated_at', toVal + 'T23:59:59');
+    if (status)  q = q.eq('payout_status', status);
     const { data: rows, error } = await q;
     if (error) throw error;
+    ppPayoutsCache = rows || [];
     if (!tbody) return;
     if (!rows || !rows.length) {
       tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:28px;color:var(--muted)">No payouts found for this period.</td></tr>';
@@ -14963,22 +14963,51 @@ async function ppLoadPayouts() {
       const pct = 100 - (Number(r.platform_rate) || 35);
       const sc  = r.payout_status==='paid'?'ps-active':r.payout_status==='on_hold'?'ps-hold':'ps-pending';
       const sl  = r.payout_status==='paid'?'Paid':r.payout_status==='on_hold'?'On hold':'Pending';
-      return '<tr>'
-        +'<td><code style="font-size:.7rem;color:var(--b600)">'+(r.transaction_ref||'-')+'</code></td>'
-        +'<td><code style="font-size:.7rem">'+(r.booking_reference||'-')+'</code></td>'
-        +'<td style="font-size:.8rem">'+(r.experience_name||'-')+'</td>'
-        +'<td style="font-size:.8rem">'+ds+'</td>'
-        +'<td style="font-size:.82rem">'+fmt(r.box_price)+'</td>'
-        +'<td style="font-size:.82rem;color:var(--b600);font-weight:600">'+pct+'%</td>'
-        +'<td style="font-weight:700;color:var(--green)">'+fmt(r.partner_payout)+'</td>'
-        +'<td><span class="'+sc+'">'+sl+'</span></td>'
-        +'</tr>';
+      return '<tr>'        +'<td><code style="font-size:.7rem;color:var(--b600)">'+(r.transaction_ref||'-')+'</code></td>'        +'<td><code style="font-size:.7rem">'+(r.booking_reference||'-')+'</code></td>'        +'<td style="font-size:.8rem">'+(r.experience_name||'-')+'</td>'        +'<td style="font-size:.8rem">'+ds+'</td>'        +'<td style="font-size:.82rem">'+fmt(r.box_price)+'</td>'        +'<td style="font-size:.82rem;color:var(--b600);font-weight:600">'+pct+'%</td>'        +'<td style="font-weight:700;color:var(--green)">'+fmt(r.partner_payout)+'</td>'        +'<td><span class="'+sc+'">'+(r.payout_status==='paid'?'Paid':r.payout_status==='on_hold'?'On hold':'Pending')+'</span></td>'        +'</tr>';
     }).join('');
   } catch(e) {
     console.warn('ppLoadPayouts:', e.message);
     if (tbody) tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--muted)">Could not load payout data.</td></tr>';
   }
 }
+
+var ppPayoutsCache = [];
+
+function ppExportPayoutsCSV() {
+  if (!ppPayoutsCache || !ppPayoutsCache.length) {
+    admToast('No data to export.');
+    return;
+  }
+  const fmt = function(n){ return 'R'+Number(n||0).toFixed(2); };
+  const headers = ['TXN Ref','Booking Ref','Experience','Date','Box Price','Your Rate %','Your Payout','Status'];
+  const rows = ppPayoutsCache.map(function(r) {
+    const ds  = r.validated_at ? new Date(r.validated_at).toLocaleDateString('en-ZA') : '';
+    const pct = 100 - (Number(r.platform_rate) || 35);
+    const status = r.payout_status==='paid'?'Paid':r.payout_status==='on_hold'?'On hold':'Pending';
+    return [
+      r.transaction_ref  || '',
+      r.booking_reference|| '',
+      (r.experience_name || '').replace(/,/g,';'),
+      ds,
+      fmt(r.box_price),
+      pct + '%',
+      fmt(r.partner_payout),
+      status
+    ].join(',');
+  });
+  const csv = [headers.join(','), ...rows].join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  const from = document.getElementById('pp-pay-from')?.value || '';
+  const to   = document.getElementById('pp-pay-to')?.value   || '';
+  const suffix = from && to ? '_' + from + '_to_' + to : '_all';
+  a.href     = url;
+  a.download = 'wowbox_payouts' + suffix + '.csv';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 
 /* ================================================================
    ADMIN - COMMISSION PAYOUTS
