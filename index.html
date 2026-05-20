@@ -16023,8 +16023,8 @@ function updatePlanLockedUI() {
   document.querySelectorAll('.pp-open-row').forEach(el => {
     el.style.display = pro ? 'block' : 'none';
   });
-  // Sidebar Pro nav buttons: unlock when pro
-  ['pp-nav-analytics','pp-nav-calendar','pp-nav-boost','pp-nav-reporting'].forEach(id => {
+  // Sidebar Pro nav buttons: unlock when pro (Boost and Reporting only)
+  ['pp-nav-boost','pp-nav-reporting'].forEach(id => {
     const btn = document.getElementById(id);
     if (!btn) return;
     if (pro) {
