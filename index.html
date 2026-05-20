@@ -2123,6 +2123,7 @@ nav{position:sticky;top:0;z-index:300;background:rgba(255,255,255,.95);
 .am i{color:var(--b500);width:14px;font-size:.8rem}
 
 /* ─── REVIEWS ─── */
+.rev-page-layout{display:grid;grid-template-columns:260px 1fr;gap:36px}
 .rev-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px}
 .rev-card{background:var(--white);border:1px solid var(--border);border-radius:var(--r);padding:18px}
 .rev-head{display:flex;align-items:center;gap:11px;margin-bottom:10px}
@@ -2958,12 +2959,16 @@ tr:hover td{background:var(--b50)}
 
   /* ── Reviews ── */
   .rev-grid { grid-template-columns: 1fr; }
-  #page-reviews .sec > div { grid-template-columns: 1fr; gap: 16px; }
-  .rv-score-big { padding: 14px; display: flex; align-items: flex-start; gap: 14px; }
-  .rv-score-big .big-num { font-size: 2.6rem; flex-shrink: 0; }
+  .rev-page-layout { grid-template-columns: 1fr; gap: 20px; }
+  #page-reviews h1 { font-size: 1.4rem; }
+  #page-reviews p { font-size: .85rem; }
+  .rv-score-big { padding: 16px; display: flex; align-items: flex-start; gap: 16px; }
+  .rv-score-big .big-num { font-size: 2.8rem; flex-shrink: 0; }
   .rv-score-big > div:first-child { display: flex; flex-direction: column; align-items: center; flex-shrink: 0; }
   .rv-bars { flex: 1; margin-top: 0 !important; }
-  #page-reviews .chip { padding: 8px 12px; font-size: .78rem; }
+  #page-reviews .sec > div:not(.rev-page-layout) { grid-template-columns: 1fr; }
+  #page-reviews [style*="flex-direction:column"] { display: grid !important; grid-template-columns: 1fr 1fr; gap: 6px; }
+  #page-reviews .chip { padding: 9px 12px; font-size: .78rem; text-align: left; }
 
   /* ── Cart ── */
   .cart-layout { grid-template-columns: 1fr; padding: 16px; gap: 16px; }
@@ -4081,7 +4086,7 @@ tr:hover td{background:var(--b50)}
     <p>Verified reviews from WowBox customers who experienced this box.</p>
   </div>
   <div class="sec">
-    <div style="display:grid;grid-template-columns:260px 1fr;gap:36px">
+    <div class="rev-page-layout">
       <!-- Left: score + filters -->
       <div style="min-width:0">
         <div class="rv-score-big">
@@ -10803,7 +10808,7 @@ async function plSubmitPartner() {
           order: {
             id:    'PARTNER-' + Date.now(),
             name:  contact,
-            email: 'admin',
+            email: 'geff.pr@gmail.com',
             type:  'Partner Application',
             total: '',
             date:  new Date().toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'}),
@@ -10819,8 +10824,7 @@ async function plSubmitPartner() {
     } catch(e3) { console.warn('notification email:', e3.message); }
 
     if (sucEl) {
-      sucEl.innerHTML = '<strong>Application submitted!</strong> We will review your listing within 1–2 business days and contact you at <strong>' + email + '</strong>.'
-        + '<br><br><i class="fa fa-envelope" style="color:#059669"></i> <strong>Important:</strong> Please check your inbox for a confirmation email from Supabase and click the link to activate your account — you will need this to log in once approved.';
+      sucEl.innerHTML = '<strong>Application submitted!</strong> We will review your listing within 24 hours and contact you at <strong>' + email + '</strong>.';
       sucEl.style.display = 'block';
     }
     // Clear form
