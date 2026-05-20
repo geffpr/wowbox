@@ -1400,53 +1400,137 @@ function setAnalyticsPeriod(period, btn) {
   renderAnalytics(period);
 }
 
-function renderAnalytics(period) {
+async function renderAnalytics(period) {
   period = period || anPeriod;
-  const d = analyticsData[period] || analyticsData['7d'];
-  // KPIs
+  anPeriod = period;
+  const email = appState.partnerEmail || (currentUser && currentUser.email) || '';
+  if (!email) return;
+  const fmt = function(n){ return 'R'+Number(n||0).toLocaleString('en-ZA',{minimumFractionDigits:0,maximumFractionDigits:0}); };
+  const now = new Date();
+  let fromDate;
+  if      (period === '7d')  fromDate = new Date(now - 7*86400000);
+  else if (period === '30d') fromDate = new Date(now - 30*86400000);
+  else                       fromDate = new Date(now - 90*86400000);
+  const fromStr = fromDate.toISOString().slice(0,10);
   const kpiEl = document.getElementById('an-kpi-grid');
-  if (kpiEl) kpiEl.innerHTML = [
-    {val:'R'+d.rev.toLocaleString(), lbl:'Total Revenue', chg:'+12.4%', up:true, bg:'#fef3c7', ico:'fa-sack-dollar', c:'#d97706'},
-    {val:d.bk, lbl:'Bookings', chg:'+8 vs prev period', up:true, bg:'#dbeafe', ico:'fa-calendar-check', c:'#2563eb'},
-    {val:d.views.toLocaleString(), lbl:'Profile views', chg:'', up:true, bg:'#ede9fe', ico:'fa-eye', c:'#7c3aed'},
-    {val:d.cvr+'%', lbl:'Conversion rate', chg:'', up:true, bg:'#d1fae5', ico:'fa-arrow-trend-up', c:'#059669'},
-  ].map(k =>
-    `<div class="an-kpi-card">
-      <div class="pp-kpi-ico" style="background:${k.bg};margin-bottom:8px"><i class="fa ${k.ico}" style="color:${k.c}"></i></div>
-      <div class="an-kpi-val">${k.val}</div>
-      <div class="an-kpi-lbl">${k.lbl}</div>
-      ${k.chg ? `<div class="an-kpi-chg chg-up">&#8593; ${k.chg}</div>` : ''}
-    </div>`).join('');
-
-  // Bar chart
-  const chartEl  = document.getElementById('an-bar-chart');
-  const labelsEl = document.getElementById('an-bar-labels');
-  if (chartEl) {
-    const max = Math.max(...d.bars);
-    chartEl.innerHTML = d.bars.map((v,i) =>
-      `<div class="an-bar-col">
-        <div class="an-bar${i===d.bars.length-1?' hl':''}" style="height:${Math.round(v/max*100)}%" title="R${v.toLocaleString()}"></div>
-      </div>`).join('');
-    if (labelsEl) labelsEl.innerHTML = d.labels.map(l =>
-      `<div class="an-bar-lbl" style="flex:1;text-align:center">${l}</div>`).join('');
+  const insEl = document.getElementById('an-insights-row');
+  const tbEl  = document.getElementById('an-bookings-tbody');
+  const bdEl  = document.getElementById('an-exp-breakdown');
+  if (kpiEl) kpiEl.innerHTML = '<div style="color:var(--muted);font-size:.82rem;padding:12px"><i class="fa fa-circle-notch fa-spin"></i> Loading real data\u2026</div>';
+  if (tbEl)  tbEl.innerHTML  = '<tr><td colspan="6" style="text-align:center;padding:20px;color:var(--muted)"><i class="fa fa-circle-notch fa-spin"></i> Loading\u2026</td></tr>';
+  try {
+    const [ceRes, bkRes] = await Promise.all([
+      db_client.from('commission_entries').select('*').eq('partner_email',email).gte('validated_at',fromStr).order('validated_at',{ascending:false}),
+      db_client.from('bookings').select('*').eq('partner_email',email).gte('created_at',fromStr).order('created_at',{ascending:false}),
+    ]);
+    var expIds = [];
+    (bkRes.data||[]).forEach(function(b){ if(b.experience_id && !expIds.includes(b.experience_id)) expIds.push(b.experience_id); });
+    var rvData = [];
+    if (expIds.length) {
+      var rvRes = await db_client.from('experience_reviews').select('rating,experience_id,created_at').in('experience_id', expIds);
+      rvData = rvRes.data || [];
+    }
+    const commissions = ceRes.data || [];
+    const bookings    = bkRes.data || [];
+    const totalRevenue  = commissions.reduce(function(s,r){ return s+Number(r.partner_payout); },0);
+    const totalBookings = bookings.length;
+    const cancelled     = bookings.filter(function(b){ return b.cancelled_at; }).length;
+    const cancelRate    = totalBookings > 0 ? Math.round(cancelled/totalBookings*100) : 0;
+    const avgRating     = rvData.length ? (rvData.reduce(function(s,r){ return s+r.rating; },0)/rvData.length).toFixed(1) : null;
+    if (kpiEl) kpiEl.innerHTML = [
+      {val: fmt(totalRevenue), lbl:'Your payout',      bg:'#fef3c7', ico:'fa-sack-dollar',    c:'#d97706'},
+      {val: totalBookings,     lbl:'Bookings',          bg:'#dbeafe', ico:'fa-calendar-check', c:'#2563eb'},
+      {val: avgRating ? '\u2605'+avgRating : '\u2014', lbl:'Avg rating', bg:'#ede9fe', ico:'fa-star', c:'#7c3aed'},
+      {val: cancelRate+'%',   lbl:'Cancellation rate', bg:'#fee2e2', ico:'fa-ban',            c:'#dc2626'},
+    ].map(function(k){
+      return '<div class="an-kpi-card">'
+        +'<div class="pp-kpi-ico" style="background:'+k.bg+';margin-bottom:8px"><i class="fa '+k.ico+'" style="color:'+k.c+'"></i></div>'
+        +'<div class="an-kpi-val">'+k.val+'</div>'
+        +'<div class="an-kpi-lbl">'+k.lbl+'</div>'
+        +'</div>';
+    }).join('');
+    var leadTimes = bookings.filter(function(b){ return b.checkin_date; }).map(function(b){
+      return Math.round((new Date(b.checkin_date)-new Date(b.created_at))/86400000);
+    }).filter(function(d){ return d>0; });
+    var avgLead = leadTimes.length ? Math.round(leadTimes.reduce(function(s,d){ return s+d; },0)/leadTimes.length) : null;
+    var dayCounts = {}; var dayNames = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+    bookings.forEach(function(b){ var d=new Date(b.created_at).getDay(); dayCounts[d]=(dayCounts[d]||0)+1; });
+    var topDayEntry = Object.entries(dayCounts).sort(function(a,b){ return b[1]-a[1]; })[0];
+    var topDay = topDayEntry ? dayNames[parseInt(topDayEntry[0])] : null;
+    var boxCounts = {};
+    bookings.forEach(function(b){ if(b.box_name) boxCounts[b.box_name]=(boxCounts[b.box_name]||0)+1; });
+    var topBox = Object.entries(boxCounts).sort(function(a,b){ return b[1]-a[1]; })[0];
+    var totalGuests = bookings.reduce(function(s,b){ return s+(b.guest_count||1); },0);
+    var avgGroup = totalBookings > 0 ? (totalGuests/totalBookings).toFixed(1) : null;
+    if (insEl) insEl.innerHTML = [
+      {label:'Avg booking lead time', val: avgLead ? avgLead+' days ahead' : '\u2014', ico:'fa-hourglass-half', c:'#0891b2'},
+      {label:'Most popular day',      val: topDay  || '\u2014',                         ico:'fa-calendar-star',  c:'#7c3aed'},
+      {label:'Top WowBox source',     val: topBox  ? topBox[0].replace('WowBox ','') : '\u2014', ico:'fa-box-open', c:'#059669'},
+      {label:'Avg group size',        val: avgGroup ? avgGroup+' guests' : '\u2014',    ico:'fa-users',          c:'#d97706'},
+      {label:'Reviews received',      val: rvData.length || '\u2014',                  ico:'fa-star-half-stroke',c:'#f59e0b'},
+      {label:'Cancelled bookings',    val: cancelled+' ('+cancelRate+'%)',             ico:'fa-ban',             c:'#dc2626'},
+    ].map(function(ins){
+      return '<div class="pp-card" style="margin-bottom:0;padding:14px 16px">'
+        +'<div style="display:flex;align-items:center;gap:10px">'
+        +'<div style="width:34px;height:34px;border-radius:8px;background:var(--b50);display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="fa '+ins.ico+'" style="color:'+ins.c+';font-size:.85rem"></i></div>'
+        +'<div><div style="font-size:.72rem;color:var(--muted);margin-bottom:2px">'+ins.label+'</div>'
+        +'<div style="font-size:.9rem;font-weight:700;color:var(--navy)">'+ins.val+'</div></div>'
+        +'</div></div>';
+    }).join('');
+    const chartEl  = document.getElementById('an-bar-chart');
+    const labelsEl = document.getElementById('an-bar-labels');
+    if (chartEl) {
+      var buckets = {};
+      commissions.forEach(function(c){
+        var d = new Date(c.validated_at);
+        var key;
+        if (period==='7d')       key = d.toLocaleDateString('en-ZA',{weekday:'short'});
+        else if(period==='30d')  key = 'W'+(Math.ceil(d.getDate()/7));
+        else                     key = d.toLocaleDateString('en-ZA',{month:'short'});
+        buckets[key] = (buckets[key]||0) + Number(c.partner_payout);
+      });
+      var keys = Object.keys(buckets); var vals = keys.map(function(k){ return buckets[k]; });
+      var max  = Math.max.apply(null, vals.concat([1]));
+      chartEl.innerHTML = vals.map(function(v){
+        return '<div class="an-bar-col"><div class="an-bar" style="height:'+Math.round(v/max*100)+'%" title="'+fmt(v)+'"></div></div>';
+      }).join('');
+      if (labelsEl) labelsEl.innerHTML = keys.map(function(l){
+        return '<div class="an-bar-lbl" style="flex:1;text-align:center">'+l+'</div>';
+      }).join('');
+    }
+    var expRevenue = {};
+    commissions.forEach(function(c){ var n=c.experience_name||'Unknown'; expRevenue[n]=(expRevenue[n]||0)+Number(c.partner_payout); });
+    var expEntries = Object.entries(expRevenue).sort(function(a,b){ return b[1]-a[1]; });
+    var maxRev = expEntries.length ? expEntries[0][1] : 1;
+    if (bdEl) bdEl.innerHTML = expEntries.length ? expEntries.map(function(e){
+      return '<div class="an-exp-row">'
+        +'<div style="flex:1"><div style="display:flex;justify-content:space-between;font-size:.78rem;margin-bottom:4px">'
+        +'<span style="font-weight:500;color:var(--navy)">'+e[0]+'</span>'
+        +'<span style="color:var(--green);font-weight:600">'+fmt(e[1])+'</span>'
+        +'</div><div class="an-exp-bar-track"><div class="an-exp-bar-fill" style="width:'+Math.round(e[1]/maxRev*100)+'%"></div></div></div>'
+        +'</div>';
+    }).join('') : '<p style="font-size:.8rem;color:var(--muted)">No revenue data yet.</p>';
+    if (tbEl) tbEl.innerHTML = bookings.length ? bookings.slice(0,10).map(function(b){
+      var ds = new Date(b.created_at).toLocaleDateString('en-ZA',{day:'numeric',month:'short'});
+      var st = b.cancelled_at ? '<span class="sbadge sb-c">Cancelled</span>'
+             : b.validated_at ? '<span class="sbadge sb-a">Validated</span>'
+             : '<span class="sbadge sb-p">Pending</span>';
+      var payout = commissions.find(function(c){ return c.booking_reference===b.booking_reference; });
+      return '<tr>'
+        +'<td style="font-size:.8rem">'+(b.experience_name||'-')+'</td>'
+        +'<td style="font-size:.8rem">'+(b.guest_name||'-')+'</td>'
+        +'<td style="font-size:.8rem">'+ds+'</td>'
+        +'<td style="font-size:.78rem;color:var(--muted)">'+(b.box_name||'-').replace('WowBox ','')+'</td>'
+        +'<td style="font-weight:600;color:var(--green)">'+(payout?fmt(payout.partner_payout):'\u2014')+'</td>'
+        +'<td>'+st+'</td>'
+        +'</tr>';
+    }).join('') : '<tr><td colspan="6" style="text-align:center;padding:20px;color:var(--muted)">No bookings for this period.</td></tr>';
+  } catch(e) {
+    console.warn('renderAnalytics:', e.message);
+    if (kpiEl) kpiEl.innerHTML = '<div style="color:#dc2626;font-size:.82rem;padding:12px">Could not load analytics data.</div>';
   }
-
-  // By experience
-  const bdEl = document.getElementById('an-exp-breakdown');
-  if (bdEl) bdEl.innerHTML = [
-    {name:'The Vineyard Retreat', pct:72, rev:'R33,014'},
-    {name:'Estate Wine Tasting',  pct:28, rev:'R12,607'},
-  ].map(e =>
-    `<div class="an-exp-row">
-      <div style="flex:1">
-        <div style="display:flex;justify-content:space-between;font-size:.78rem;margin-bottom:4px">
-          <span style="font-weight:500;color:var(--navy)">${e.name}</span>
-          <span style="color:var(--green);font-weight:600">${e.rev}</span>
-        </div>
-        <div class="an-exp-bar-track"><div class="an-exp-bar-fill" style="width:${e.pct}%"></div></div>
-      </div>
-    </div>`).join('');
 }
+
 
 /* ══════════════════════════════════════════════════════════════
    PRO CALENDAR MODULE
@@ -5605,10 +5689,10 @@ tr:hover td{background:var(--b50)}
         </div>
       </div>
 
-      <!-- ═══ PRO: ANALYTICS ═══ -->
+      <!-- ═══ ANALYTICS ═══ -->
       <div id="pp-analytics" class="pp-sec">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:12px">
-          <div><h2 style="font-size:1.75rem;color:var(--navy);margin-bottom:3px">Advanced Analytics</h2><p style="color:var(--muted);font-size:.82rem">Revenue and performance data for your experiences.</p></div>
+          <div><h2 style="font-size:1.75rem;color:var(--navy);margin-bottom:3px">Analytics</h2><p style="color:var(--muted);font-size:.82rem">Real performance data from your WowBox bookings.</p></div>
           <div class="an-period-bar">
             <button class="an-period-btn on" id="anp-7d"  onclick="setAnalyticsPeriod('7d',this)">7 days</button>
             <button class="an-period-btn"    id="anp-30d" onclick="setAnalyticsPeriod('30d',this)">30 days</button>
@@ -5616,6 +5700,7 @@ tr:hover td{background:var(--b50)}
           </div>
         </div>
         <div class="an-kpi-grid" id="an-kpi-grid"></div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:20px" id="an-insights-row"></div>
         <div style="display:grid;grid-template-columns:1fr 290px;gap:18px;margin-bottom:22px">
           <div class="pp-card" style="margin-bottom:0">
             <h3 style="font-size:.95rem;color:var(--navy);margin-bottom:14px">Revenue over time</h3>
@@ -5623,18 +5708,15 @@ tr:hover td{background:var(--b50)}
             <div style="display:flex;gap:4px;margin-top:4px" id="an-bar-labels"></div>
           </div>
           <div class="pp-card" style="margin-bottom:0">
-            <h3 style="font-size:.95rem;color:var(--navy);margin-bottom:14px">By experience</h3>
+            <h3 style="font-size:.95rem;color:var(--navy);margin-bottom:14px">Revenue by experience</h3>
             <div id="an-exp-breakdown"></div>
           </div>
         </div>
         <div class="pp-table-wrap">
           <div class="pp-table-hdr"><h4>Recent bookings</h4></div>
-          <table><thead><tr><th>Experience</th><th>Guest</th><th>Date</th><th>Revenue</th><th>Status</th></tr></thead>
+          <table><thead><tr><th>Experience</th><th>Guest</th><th>Date</th><th>Box</th><th>Payout</th><th>Status</th></tr></thead>
           <tbody id="an-bookings-tbody">
-            <tr><td>The Vineyard Retreat</td><td>Amahle D.</td><td>10 May 2025</td><td style="color:var(--green);font-weight:600">R971</td><td><span class="sbadge sb-a">Paid</span></td></tr>
-            <tr><td>Estate Wine Tasting</td><td>James K.</td><td>8 May 2025</td><td style="color:var(--green);font-weight:600">R620</td><td><span class="sbadge sb-a">Paid</span></td></tr>
-            <tr><td>The Vineyard Retreat</td><td>Sipho K.</td><td>5 May 2025</td><td style="color:var(--green);font-weight:600">R971</td><td><span class="sbadge sb-a">Paid</span></td></tr>
-            <tr><td>The Vineyard Retreat</td><td>Fatima N.</td><td>2 May 2025</td><td style="color:#d97706;font-weight:600">R971</td><td><span class="sbadge sb-p">Pending</span></td></tr>
+            <tr><td colspan="6" style="text-align:center;padding:20px;color:var(--muted)">Loading…</td></tr>
           </tbody></table>
         </div>
       </div>
