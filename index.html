@@ -3914,6 +3914,7 @@ tr:hover td{background:var(--b50)}
               <i class="fa fa-qrcode" style="color:var(--b400)"></i> A QR code will be printed inside your physical box for the recipient to scan and watch.
             </div>
           </div>
+          <div id="area-vid-anchor" style="display:none"></div>
         </div>
 
         <button class="btn bp block" id="add-cart-btn" onclick="addCurrentToCart();go('cart')"><i class="fa fa-cart-shopping"></i> Add to cart</button>
@@ -8407,24 +8408,7 @@ function vidHandleDrop(e) {
   if (file) vidHandleFile(file);
 }
 
-function bbmAfterFileSelect() {
-  /* Called after drop on modal zone — file handled by vidHandleFile */
-}
 
-function bbmClearVid() {
-  appState.videoFile = null;
-  var inp = document.getElementById('ck-video-file');
-  if (inp) inp.value = '';
-  var bbmZone   = document.getElementById('bbm-upload-zone');
-  var bbmStatus = document.getElementById('bbm-vid-status');
-  var bbmErr    = document.getElementById('bbm-vid-err');
-  var bbmDate   = document.getElementById('bbm-date-row');
-  if (bbmZone)   bbmZone.style.display   = '';
-  if (bbmStatus) bbmStatus.style.display = 'none';
-  if (bbmErr)    bbmErr.style.display    = 'none';
-  if (bbmDate)   bbmDate.style.display   = 'none';
-  vidClearFile();
-}
 
 function vidClearFile() {
   appState.videoFile = null;
@@ -9626,6 +9610,18 @@ function openBuyBoxModal() {
 }
 
 function closeBuyBoxModal() {
+  /* Restore #area-vid to product page if it was moved into modal */
+  if (_bbmVidOn) {
+    var areaVid = document.getElementById('area-vid');
+    var anchor  = document.getElementById('area-vid-anchor');
+    if (areaVid && anchor) {
+      anchor.parentNode.insertBefore(areaVid, anchor);
+      areaVid.style.display = 'none';
+      areaVid.style.padding = '10px 0 4px';
+    }
+    var bbmContainer = document.getElementById('bbm-area-vid');
+    if (bbmContainer) bbmContainer.style.display = 'none';
+  }
   document.getElementById('buy-box-modal').style.display = 'none';
   document.body.style.overflow = '';
 }
@@ -9659,12 +9655,51 @@ function bbmTogMsg() {
 
 function bbmTogVid() {
   _bbmVidOn = !_bbmVidOn;
-  var tog  = document.getElementById('bbm-tog-vid');
-  var area = document.getElementById('bbm-area-vid');
-  var row  = document.getElementById('bbm-video-row');
-  if (tog)  _bbmVidOn ? tog.classList.add('on') : tog.classList.remove('on');
-  if (area) area.style.display = _bbmVidOn ? 'block' : 'none';
-  if (row)  row.style.display  = _bbmVidOn ? 'flex'  : 'none';
+  var tog          = document.getElementById('bbm-tog-vid');
+  var bbmContainer = document.getElementById('bbm-area-vid');
+  var areaVid      = document.getElementById('area-vid');
+  var anchor       = document.getElementById('area-vid-anchor');
+  var row          = document.getElementById('bbm-video-row');
+
+  if (_bbmVidOn) {
+    if (tog) tog.classList.add('on');
+    /* Move real #area-vid into modal container */
+    if (areaVid && bbmContainer) {
+      bbmContainer.appendChild(areaVid);
+      bbmContainer.style.display = 'block';
+      areaVid.style.display = 'block';
+      areaVid.style.padding = '0';
+    }
+    /* Show the date row based on delivery type */
+    var vidDateRow = document.getElementById('vid-date-row');
+    if (vidDateRow) vidDateRow.style.display = _bbmType === 'ebox' ? 'block' : 'none';
+    if (row) row.style.display = 'flex';
+    /* Add video-message to cart */
+    if (!appState.cart.find(function(c){ return c.id === 'video-message'; })) {
+      appState.cart.push({ id:'video-message', boxId:'video-message', name:'🎬 Video message', type:'addon', price:APP_PRICES.video_message, qty:1, img:'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=400' });
+    }
+    /* Sync product page toggle */
+    var togVid = document.getElementById('tog-vid');
+    if (togVid) togVid.classList.add('on');
+    updateCartBadge();
+  } else {
+    if (tog) tog.classList.remove('on');
+    /* Move #area-vid back to its original place on product page */
+    if (areaVid && anchor) {
+      anchor.parentNode.insertBefore(areaVid, anchor);
+      areaVid.style.display = 'none';
+      areaVid.style.padding = '10px 0 4px';
+    }
+    if (bbmContainer) bbmContainer.style.display = 'none';
+    if (row) row.style.display = 'none';
+    /* Remove from cart */
+    appState.cart = appState.cart.filter(function(c){ return c.id !== 'video-message'; });
+    /* Sync product page toggle */
+    var togVid = document.getElementById('tog-vid');
+    if (togVid) togVid.classList.remove('on');
+    vidClearFile();
+    updateCartBadge();
+  }
   bbmUpdateTotal();
 }
 
@@ -9681,7 +9716,9 @@ function bbmUpdateTotal() {
 
 function bbmAddToCart() {
   if (!_bbmBoxId) return;
+  /* 1. Add box with chosen delivery type */
   addToCart(_bbmBoxId, _bbmType);
+  /* 2. Personal message — sync to product page fields */
   var msg = (document.getElementById('bbm-personal-msg')?.value || '').trim();
   if (_bbmMsgOn && msg) {
     var prodMsg = document.getElementById('ck-personal-msg');
@@ -9691,22 +9728,10 @@ function bbmAddToCart() {
     var areaMsg = document.getElementById('area-msg');
     if (areaMsg) areaMsg.style.display = 'block';
   }
+  /* 3. Video already in cart from bbmTogVid — sync scheduled date */
   if (_bbmVidOn) {
-    if (!appState.cart.find(function(c){ return c.id === 'video-message'; })) {
-      appState.cart.push({ id:'video-message', boxId:'video-message', name:'🎬 Video message', type:'addon', price:APP_PRICES.video_message, qty:1, img:'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=400' });
-    }
-    var togVid = document.getElementById('tog-vid');
-    if (togVid && !togVid.classList.contains('on')) togVid.classList.add('on');
-    var areaVid = document.getElementById('area-vid');
-    if (areaVid) areaVid.style.display = 'block';
-    /* Sync scheduled date from modal to product page field */
-    var bbmDate = document.getElementById('bbm-scheduled-date');
-    var prodDate = document.getElementById('ck-scheduled-date');
-    if (bbmDate && prodDate && bbmDate.value) {
-      prodDate.value = bbmDate.value;
-      appState.scheduledDate = bbmDate.value;
-    }
-    updateCartBadge();
+    var ckDate = document.getElementById('ck-scheduled-date');
+    if (ckDate && ckDate.value) appState.scheduledDate = ckDate.value;
   }
   closeBuyBoxModal();
   go('cart');
@@ -17249,34 +17274,8 @@ async function admRunSchemaDiag() {
           </div>
           <div class="tog" id="bbm-tog-vid" onclick="bbmTogVid()"></div>
         </div>
-        <div id="bbm-area-vid" style="display:none;margin-top:12px">
-          <!-- Upload zone — triggers existing #ck-video-file input -->
-          <div id="bbm-upload-zone"
-            onclick="document.getElementById('ck-video-file').click()"
-            ondragover="event.preventDefault();this.style.background='var(--b100)'"
-            ondragleave="this.style.background='var(--b50)'"
-            ondrop="vidHandleDrop(event);bbmAfterFileSelect()"
-            style="border:2px dashed var(--b300);border-radius:var(--r);padding:16px 12px;text-align:center;cursor:pointer;background:var(--b50)">
-            <i class="fa fa-video" style="font-size:1.3rem;color:var(--b400);margin-bottom:5px;display:block"></i>
-            <div style="font-size:.8rem;font-weight:600;color:var(--navy)">Click or drag to upload</div>
-            <div style="font-size:.68rem;color:var(--muted);margin-top:2px">MP4, MOV or WebM · Max 100 MB · Max 120 sec</div>
-          </div>
-          <!-- Status after file selected -->
-          <div id="bbm-vid-status" style="display:none;margin-top:8px;padding:9px 12px;background:var(--b50);border:1px solid var(--b200);border-radius:var(--rs);display:none;align-items:center;gap:10px">
-            <i class="fa fa-circle-check" style="color:var(--green);font-size:1rem;flex-shrink:0"></i>
-            <div style="flex:1;min-width:0">
-              <div id="bbm-vid-name" style="font-size:.78rem;font-weight:600;color:var(--navy);white-space:nowrap;overflow:hidden;text-overflow:ellipsis"></div>
-              <div id="bbm-vid-meta" style="font-size:.68rem;color:var(--muted)"></div>
-            </div>
-            <button class="btn bg bsm" style="flex-shrink:0" onclick="bbmClearVid()"><i class="fa fa-xmark"></i></button>
-          </div>
-          <div id="bbm-vid-err" style="display:none;font-size:.72rem;color:#dc2626;margin-top:6px;padding:7px 10px;background:#fef2f2;border:1px solid #fecaca;border-radius:var(--rs)"></div>
-          <!-- Scheduled date for E-box -->
-          <div id="bbm-date-row" style="display:none;margin-top:10px">
-            <label style="font-size:.75rem;font-weight:600;color:var(--navy);display:block;margin-bottom:4px"><i class="fa fa-calendar-days" style="color:var(--b500)"></i> Choose delivery date</label>
-            <input type="date" class="fi" id="bbm-scheduled-date" style="font-size:.82rem">
-            <div style="font-size:.67rem;color:var(--muted);margin-top:4px"><i class="fa fa-circle-info" style="color:var(--b400)"></i> Leave blank to send immediately after purchase.</div>
-          </div>
+        <div id="bbm-area-vid" style="display:none;margin-top:10px">
+          <!-- #area-vid from product page is moved here when toggled on -->
         </div>
       </div>
       <!-- Summary + CTA -->
