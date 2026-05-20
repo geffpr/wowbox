@@ -8341,14 +8341,22 @@ function vidHandleFile(file) {
   const errEl  = document.getElementById('vid-file-err');
   const zone   = document.getElementById('vid-upload-zone');
   const prev   = document.getElementById('vid-file-preview');
-  if (errEl) errEl.style.display = 'none';
+  const bbmErr = document.getElementById('bbm-vid-err');
+  if (errEl)  errEl.style.display  = 'none';
+  if (bbmErr) bbmErr.style.display = 'none';
   if (!file) return;
   const allowed = ['video/mp4','video/quicktime','video/webm'];
   if (!allowed.includes(file.type)) {
-    if (errEl) { errEl.textContent = 'Invalid file type. Please upload an MP4, MOV, or WebM video.'; errEl.style.display = 'block'; } return;
+    var msg = 'Invalid file type. Please upload an MP4, MOV, or WebM video.';
+    if (errEl)  { errEl.textContent  = msg; errEl.style.display  = 'block'; }
+    if (bbmErr) { bbmErr.textContent = msg; bbmErr.style.display = 'block'; }
+    return;
   }
   if (file.size > 100 * 1024 * 1024) {
-    if (errEl) { errEl.textContent = 'File is too large. Maximum size is 100 MB.'; errEl.style.display = 'block'; } return;
+    var msg = 'File is too large. Maximum size is 100 MB.';
+    if (errEl)  { errEl.textContent  = msg; errEl.style.display  = 'block'; }
+    if (bbmErr) { bbmErr.textContent = msg; bbmErr.style.display = 'block'; }
+    return;
   }
   const url = URL.createObjectURL(file);
   const vid = document.createElement('video');
@@ -8356,20 +8364,39 @@ function vidHandleFile(file) {
   vid.onloadedmetadata = () => {
     URL.revokeObjectURL(url);
     if (vid.duration > 120) {
-      if (errEl) { errEl.textContent = 'Video is too long. Maximum duration is 2 minutes.'; errEl.style.display = 'block'; }
+      var msg = 'Video is too long. Maximum duration is 2 minutes.';
+      if (errEl)  { errEl.textContent  = msg; errEl.style.display  = 'block'; }
+      if (bbmErr) { bbmErr.textContent = msg; bbmErr.style.display = 'block'; }
       appState.videoFile = null; return;
     }
     appState.videoFile = file;
     const sizeMB = (file.size / 1024 / 1024).toFixed(1);
     const secs   = Math.round(vid.duration);
+    // Update product page preview
     const nameEl = document.getElementById('vid-file-name');
     const metaEl = document.getElementById('vid-file-meta');
     if (nameEl) nameEl.textContent = file.name;
     if (metaEl) metaEl.textContent = sizeMB + ' MB \u00b7 ' + secs + 's';
     if (zone) zone.style.display = 'none';
     if (prev) prev.style.display = 'flex';
+    // Update modal preview
+    var bbmZone   = document.getElementById('bbm-upload-zone');
+    var bbmStatus = document.getElementById('bbm-vid-status');
+    var bbmName   = document.getElementById('bbm-vid-name');
+    var bbmMeta   = document.getElementById('bbm-vid-meta');
+    var bbmDate   = document.getElementById('bbm-date-row');
+    if (bbmZone)   bbmZone.style.display   = 'none';
+    if (bbmStatus) bbmStatus.style.display = 'flex';
+    if (bbmName)   bbmName.textContent     = file.name;
+    if (bbmMeta)   bbmMeta.textContent     = sizeMB + ' MB \u00b7 ' + secs + 's';
+    if (bbmDate)   bbmDate.style.display   = _bbmType === 'ebox' ? 'block' : 'none';
   };
-  vid.onerror = () => { URL.revokeObjectURL(url); if (errEl) { errEl.textContent = 'Could not read video file.'; errEl.style.display = 'block'; } };
+  vid.onerror = () => {
+    URL.revokeObjectURL(url);
+    var msg = 'Could not read video file.';
+    if (errEl)  { errEl.textContent  = msg; errEl.style.display  = 'block'; }
+    if (bbmErr) { bbmErr.textContent = msg; bbmErr.style.display = 'block'; }
+  };
 }
 
 function vidHandleDrop(e) {
@@ -8378,6 +8405,25 @@ function vidHandleDrop(e) {
   if (z) z.style.background = 'var(--b50)';
   const file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
   if (file) vidHandleFile(file);
+}
+
+function bbmAfterFileSelect() {
+  /* Called after drop on modal zone — file handled by vidHandleFile */
+}
+
+function bbmClearVid() {
+  appState.videoFile = null;
+  var inp = document.getElementById('ck-video-file');
+  if (inp) inp.value = '';
+  var bbmZone   = document.getElementById('bbm-upload-zone');
+  var bbmStatus = document.getElementById('bbm-vid-status');
+  var bbmErr    = document.getElementById('bbm-vid-err');
+  var bbmDate   = document.getElementById('bbm-date-row');
+  if (bbmZone)   bbmZone.style.display   = '';
+  if (bbmStatus) bbmStatus.style.display = 'none';
+  if (bbmErr)    bbmErr.style.display    = 'none';
+  if (bbmDate)   bbmDate.style.display   = 'none';
+  vidClearFile();
 }
 
 function vidClearFile() {
@@ -9597,6 +9643,9 @@ function bbmSelectType(type) {
     if (eboxLbl) { eboxLbl.style.border = '2px solid var(--border)'; eboxLbl.style.background = ''; }
     document.getElementById('bbm-delivery-row').style.display = 'flex';
   }
+  /* Show/hide scheduled date based on type (only for ebox + video) */
+  var bbmDate = document.getElementById('bbm-date-row');
+  if (bbmDate && appState.videoFile) bbmDate.style.display = type === 'ebox' ? 'block' : 'none';
   bbmUpdateTotal();
 }
 
@@ -9650,6 +9699,13 @@ function bbmAddToCart() {
     if (togVid && !togVid.classList.contains('on')) togVid.classList.add('on');
     var areaVid = document.getElementById('area-vid');
     if (areaVid) areaVid.style.display = 'block';
+    /* Sync scheduled date from modal to product page field */
+    var bbmDate = document.getElementById('bbm-scheduled-date');
+    var prodDate = document.getElementById('ck-scheduled-date');
+    if (bbmDate && prodDate && bbmDate.value) {
+      prodDate.value = bbmDate.value;
+      appState.scheduledDate = bbmDate.value;
+    }
     updateCartBadge();
   }
   closeBuyBoxModal();
@@ -17193,8 +17249,34 @@ async function admRunSchemaDiag() {
           </div>
           <div class="tog" id="bbm-tog-vid" onclick="bbmTogVid()"></div>
         </div>
-        <div id="bbm-area-vid" style="display:none;margin-top:10px;padding:10px;background:var(--b50);border-radius:8px;font-size:.75rem;color:var(--muted)">
-          <i class="fa fa-circle-info" style="color:var(--b400)"></i> You'll upload or record your video on the next step.
+        <div id="bbm-area-vid" style="display:none;margin-top:12px">
+          <!-- Upload zone — triggers existing #ck-video-file input -->
+          <div id="bbm-upload-zone"
+            onclick="document.getElementById('ck-video-file').click()"
+            ondragover="event.preventDefault();this.style.background='var(--b100)'"
+            ondragleave="this.style.background='var(--b50)'"
+            ondrop="vidHandleDrop(event);bbmAfterFileSelect()"
+            style="border:2px dashed var(--b300);border-radius:var(--r);padding:16px 12px;text-align:center;cursor:pointer;background:var(--b50)">
+            <i class="fa fa-video" style="font-size:1.3rem;color:var(--b400);margin-bottom:5px;display:block"></i>
+            <div style="font-size:.8rem;font-weight:600;color:var(--navy)">Click or drag to upload</div>
+            <div style="font-size:.68rem;color:var(--muted);margin-top:2px">MP4, MOV or WebM · Max 100 MB · Max 120 sec</div>
+          </div>
+          <!-- Status after file selected -->
+          <div id="bbm-vid-status" style="display:none;margin-top:8px;padding:9px 12px;background:var(--b50);border:1px solid var(--b200);border-radius:var(--rs);display:none;align-items:center;gap:10px">
+            <i class="fa fa-circle-check" style="color:var(--green);font-size:1rem;flex-shrink:0"></i>
+            <div style="flex:1;min-width:0">
+              <div id="bbm-vid-name" style="font-size:.78rem;font-weight:600;color:var(--navy);white-space:nowrap;overflow:hidden;text-overflow:ellipsis"></div>
+              <div id="bbm-vid-meta" style="font-size:.68rem;color:var(--muted)"></div>
+            </div>
+            <button class="btn bg bsm" style="flex-shrink:0" onclick="bbmClearVid()"><i class="fa fa-xmark"></i></button>
+          </div>
+          <div id="bbm-vid-err" style="display:none;font-size:.72rem;color:#dc2626;margin-top:6px;padding:7px 10px;background:#fef2f2;border:1px solid #fecaca;border-radius:var(--rs)"></div>
+          <!-- Scheduled date for E-box -->
+          <div id="bbm-date-row" style="display:none;margin-top:10px">
+            <label style="font-size:.75rem;font-weight:600;color:var(--navy);display:block;margin-bottom:4px"><i class="fa fa-calendar-days" style="color:var(--b500)"></i> Choose delivery date</label>
+            <input type="date" class="fi" id="bbm-scheduled-date" style="font-size:.82rem">
+            <div style="font-size:.67rem;color:var(--muted);margin-top:4px"><i class="fa fa-circle-info" style="color:var(--b400)"></i> Leave blank to send immediately after purchase.</div>
+          </div>
         </div>
       </div>
       <!-- Summary + CTA -->
