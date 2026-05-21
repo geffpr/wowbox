@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en-ZA">
 <head>
 <!-- Connexion Supabase -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.0/dist/umd/supabase.js"></script>
@@ -1265,7 +1265,33 @@ db_client.auth.onAuthStateChange(function(event, session) {
 <script src="https://js.paystack.co/v1/inline.js"></script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
+<meta name="description" content="WowBox — Curated gift experience boxes for couples, adventurers and dreamers across South Africa. Give the gift of unforgettable moments.">
+<link rel="canonical" href="https://wowbox.co.za/">
+<link rel="alternate" hreflang="en-ZA" href="https://wowbox.co.za/">
+<link rel="alternate" hreflang="en" href="https://wowbox.co.za/">
 <title>WowBox — Offer Unforgettable Experiences</title>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Organization",
+      "name": "WowBox",
+      "url": "https://wowbox.co.za",
+      "logo": "https://wowbox.co.za/favicon-96x96.png",
+      "description": "Curated gift experience boxes across South Africa",
+      "contactPoint": { "@type": "ContactPoint", "email": "hello@wowbox.co.za", "contactType": "customer service" },
+      "sameAs": []
+    },
+    {
+      "@type": "WebSite",
+      "name": "WowBox",
+      "url": "https://wowbox.co.za",
+      "potentialAction": { "@type": "SearchAction", "target": "https://wowbox.co.za/?q={search_term_string}", "query-input": "required name=search_term_string" }
+    }
+  ]
+}
+</script>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 <link rel="icon" type="image/png" href="/favicon-96x96.png" sizes="96x96" />
@@ -16124,11 +16150,45 @@ async function admDeleteCoupon(id, code) {
 /* ══════════════════════════════════════════════════════════════
    INIT
 ══════════════════════════════════════════════════════════════ */
+/* ── Site Settings — load hero image + SEO from Supabase on startup ── */
+async function loadSiteSettingsOnStartup() {
+  try {
+    var res = await db_client.from('site_settings').select('key,value');
+    if (res.error || !res.data) return;
+    var settings = {};
+    res.data.forEach(function(r){ settings[r.key] = r.value; });
+    /* Hero background image */
+    if (settings.hero_image_url) {
+      var heroBg = document.querySelector('.hero-bg');
+      if (heroBg) heroBg.style.background = "url('"+settings.hero_image_url+"') center/cover";
+    }
+    /* SEO meta tags */
+    if (settings.seo_title) {
+      document.title = settings.seo_title;
+      var ogTitle = document.getElementById('og-title');
+      if (ogTitle) ogTitle.setAttribute('content', settings.seo_title);
+    }
+    if (settings.seo_description) {
+      var metaDesc = document.querySelector('meta[name="description"]');
+      if (metaDesc) metaDesc.setAttribute('content', settings.seo_description);
+      var ogDesc = document.getElementById('og-description');
+      if (ogDesc) ogDesc.setAttribute('content', settings.seo_description);
+    }
+    if (settings.og_image_url) {
+      var ogImg = document.getElementById('og-image');
+      if (ogImg) ogImg.setAttribute('content', settings.og_image_url);
+    }
+  } catch(e) {
+    console.warn('loadSiteSettingsOnStartup:', e.message);
+  }
+}
+
 window.addEventListener('DOMContentLoaded', async () => {
   appState.priceBase = 1499;
 
   loadCartFromStorage();
   loadAppPrices();
+  loadSiteSettingsOnStartup();
   renderBoxGrids();
   loadProduct('couples-retreat');
 
