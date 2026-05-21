@@ -5963,6 +5963,7 @@ tr:hover td{background:var(--b50)}
       <button class="anl"     onclick="switchAdm(this,'adm-users');admLoadUsers()"><i class="fa fa-users"></i> Users</button>
       <button class="anl"     onclick="switchAdm(this,'adm-partners-crm');admLoadPartnersCRM()"><i class="fa fa-building"></i> Partners</button>
       <button class="anl"     onclick="switchAdm(this,'adm-access');admLoadAccessList()"><i class="fa fa-shield-halved"></i> Access Control</button>
+      <button class="anl"     onclick="switchAdm(this,'adm-settings')"><i class="fa fa-gear"></i> Settings</button>
       <div style="margin-top:auto;padding-top:14px;border-top:1px solid rgba(255,255,255,.08)">
         <button class="anl" onclick="go('home')"><i class="fa fa-right-from-bracket"></i> Exit Admin</button>
       </div>
@@ -7195,6 +7196,52 @@ tr:hover td{background:var(--b50)}
           <p style="font-size:.78rem;color:#92400e;margin-bottom:12px">Inspect real column names from your Supabase tables so the Users section can join data correctly.</p>
           <button class="btn bsm" style="background:#fef3c7;color:#92400e;border:1px solid #fcd34d" onclick="admRunSchemaDiag()"><i class="fa fa-play"></i> Run diagnostic</button>
           <pre id="adm-diag-out" style="display:none;margin-top:14px;background:#1e293b;color:#e2e8f0;padding:16px;border-radius:var(--rs);font-size:.72rem;overflow-x:auto;white-space:pre-wrap;max-height:500px;overflow-y:auto"></pre>
+        </div>
+      </div>
+
+      <!-- ═══ ADMIN SETTINGS ═══ -->
+      <div id="adm-settings" style="display:none">
+        <div style="margin-bottom:26px">
+          <h2 style="font-size:1.7rem;color:var(--navy)">Site Settings</h2>
+          <p style="color:var(--muted);font-size:.82rem">Manage the hero background image and global SEO settings.</p>
+        </div>
+
+        <!-- Hero Image -->
+        <div class="atbl" style="padding:20px;margin-bottom:22px">
+          <h3 style="font-size:.95rem;color:var(--navy);margin-bottom:14px"><i class="fa fa-image" style="color:var(--b600)"></i> Hero Background Image</h3>
+          <div style="display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap">
+            <div style="flex:1;min-width:260px">
+              <label style="font-size:.72rem;color:var(--muted);display:block;margin-bottom:5px">Upload a new image (JPG/PNG, recommended 1920×1080)</label>
+              <input type="file" id="adm-hero-file" accept="image/*" class="fi" style="width:100%;padding:8px">
+              <div id="adm-hero-status" style="font-size:.75rem;color:var(--muted);margin-top:6px"></div>
+              <button class="btn bp bsm" style="margin-top:10px" onclick="admSaveHeroImage()"><i class="fa fa-upload"></i> Upload & Apply</button>
+            </div>
+            <div>
+              <label style="font-size:.72rem;color:var(--muted);display:block;margin-bottom:5px">Current hero image</label>
+              <img id="adm-hero-preview" src="" alt="Hero preview" style="width:280px;max-width:100%;height:140px;object-fit:cover;border-radius:var(--rs);border:1.5px solid var(--border)">
+            </div>
+          </div>
+        </div>
+
+        <!-- SEO Settings -->
+        <div class="atbl" style="padding:20px;margin-bottom:22px">
+          <h3 style="font-size:.95rem;color:var(--navy);margin-bottom:14px"><i class="fa fa-magnifying-glass" style="color:var(--b600)"></i> SEO Settings</h3>
+          <div class="fg" style="margin-bottom:12px">
+            <label style="font-size:.72rem;color:var(--muted);display:block;margin-bottom:5px">Site title</label>
+            <input class="fi" id="adm-seo-title" type="text" placeholder="WowBox — Offer Unforgettable Experiences">
+          </div>
+          <div class="fg" style="margin-bottom:12px">
+            <label style="font-size:.72rem;color:var(--muted);display:block;margin-bottom:5px">Meta description (160 chars max)</label>
+            <textarea class="fi" id="adm-seo-desc" rows="2" maxlength="160" placeholder="Curated gift experience boxes across South Africa…" style="resize:vertical"></textarea>
+          </div>
+          <div class="fg" style="margin-bottom:16px">
+            <label style="font-size:.72rem;color:var(--muted);display:block;margin-bottom:5px">OG / Social share image URL</label>
+            <input class="fi" id="adm-seo-og" type="url" placeholder="https://wowbox.co.za/og-default.jpg">
+          </div>
+          <div style="display:flex;gap:10px;align-items:center">
+            <button class="btn bp bsm" onclick="admSaveSiteSettings()"><i class="fa fa-floppy-disk"></i> Save SEO settings</button>
+            <span id="adm-seo-status" style="font-size:.78rem;color:var(--muted)"></span>
+          </div>
         </div>
       </div>
 
@@ -12208,7 +12255,7 @@ function filterDashBoxes(status, btn) {
 }
 
 /* ── ADMIN ── */
-const admTabs = ['adm-dash','adm-boxes','adm-db','adm-exp','adm-requests','adm-reviews','adm-orders','adm-usage','adm-comm','adm-pricing','adm-coupons','adm-activate','adm-cities','adm-users','adm-partners-crm','adm-access'];
+const admTabs = ['adm-dash','adm-boxes','adm-db','adm-exp','adm-requests','adm-reviews','adm-orders','adm-usage','adm-comm','adm-pricing','adm-coupons','adm-activate','adm-cities','adm-users','adm-partners-crm','adm-access','adm-settings'];
 
 /* ══════════════════════════════════════════════════════════════
    CITY ROLLOUT — GEOGRAPHIC TOGGLE + RADIUS
@@ -12490,7 +12537,8 @@ function switchAdm(btn, tab) {
   renderAdmPartnerApps();
   if (tab === 'adm-orders') loadOrdersFromSupabase();
   if (tab === 'adm-usage')  { renderUsageTable(); loadUsageFromSupabase(); }
-  if (tab === 'adm-comm')   loadAdminCommissionPayouts();
+  if (tab === 'adm-comm')     loadAdminCommissionPayouts();
+  if (tab === 'adm-settings') admLoadSiteSettings();
 }
 
 async function renderAdmin() {
@@ -16834,6 +16882,82 @@ async function admLoadAccessList() {
     }).join('');
   } catch(e) {
     tbody.innerHTML = '<tr><td colspan="4" style="color:#ef4444;padding:16px">' + e.message + '</td></tr>';
+  }
+}
+
+/* ── Admin Site Settings ── */
+async function admLoadSiteSettings() {
+  try {
+    var res = await db_client.from('site_settings').select('key,value');
+    if (res.error || !res.data) return;
+    var s = {};
+    res.data.forEach(function(r){ s[r.key] = r.value; });
+    var titleEl = document.getElementById('adm-seo-title');
+    var descEl  = document.getElementById('adm-seo-desc');
+    var ogEl    = document.getElementById('adm-seo-og');
+    var prevEl  = document.getElementById('adm-hero-preview');
+    if (titleEl && s.seo_title)       titleEl.value = s.seo_title;
+    if (descEl  && s.seo_description) descEl.value  = s.seo_description;
+    if (ogEl    && s.og_image_url)    ogEl.value    = s.og_image_url;
+    if (prevEl) prevEl.src = s.hero_image_url || 'https://images.unsplash.com/photo-1571896349842-33c89424de2d?q=80&w=800&auto=format&fit=crop';
+  } catch(e) { console.warn('admLoadSiteSettings:', e.message); }
+}
+
+async function admSaveHeroImage() {
+  var fileEl   = document.getElementById('adm-hero-file');
+  var statusEl = document.getElementById('adm-hero-status');
+  var prevEl   = document.getElementById('adm-hero-preview');
+  var file = fileEl && fileEl.files && fileEl.files[0];
+  if (!file) { if (statusEl) statusEl.textContent = 'Please select an image first.'; return; }
+  if (statusEl) statusEl.innerHTML = '<i class="fa fa-circle-notch fa-spin"></i> Uploading\u2026';
+  try {
+    var ext  = file.name.split('.').pop();
+    var path = 'hero/hero-bg-' + Date.now() + '.' + ext;
+    var up   = await db_client.storage.from('site-assets').upload(path, file, { upsert: true, contentType: file.type });
+    if (up.error) throw up.error;
+    var pub = db_client.storage.from('site-assets').getPublicUrl(path);
+    var url = pub.data.publicUrl;
+    await db_client.from('site_settings').upsert({ key: 'hero_image_url', value: url }, { onConflict: 'key' });
+    var heroBg = document.querySelector('.hero-bg');
+    if (heroBg) heroBg.style.background = "url('"+url+"') center/cover";
+    if (prevEl) prevEl.src = url;
+    if (statusEl) statusEl.innerHTML = '<span style="color:var(--green)"><i class="fa fa-check-circle"></i> Image applied.</span>';
+  } catch(e) {
+    if (statusEl) statusEl.innerHTML = '<span style="color:#ef4444"><i class="fa fa-xmark"></i> '+e.message+'</span>';
+  }
+}
+
+async function admSaveSiteSettings() {
+  var title    = (document.getElementById('adm-seo-title')?.value || '').trim();
+  var desc     = (document.getElementById('adm-seo-desc')?.value  || '').trim();
+  var og       = (document.getElementById('adm-seo-og')?.value    || '').trim();
+  var statusEl = document.getElementById('adm-seo-status');
+  if (statusEl) statusEl.innerHTML = '<i class="fa fa-circle-notch fa-spin"></i> Saving\u2026';
+  try {
+    var rows = [];
+    if (title) rows.push({ key: 'seo_title',        value: title });
+    if (desc)  rows.push({ key: 'seo_description',   value: desc });
+    if (og)    rows.push({ key: 'og_image_url',      value: og });
+    if (rows.length) await db_client.from('site_settings').upsert(rows, { onConflict: 'key' });
+    if (title) {
+      document.title = title;
+      var ogT = document.getElementById('og-title');
+      if (ogT) ogT.setAttribute('content', title);
+    }
+    if (desc) {
+      var metaD = document.querySelector('meta[name="description"]');
+      if (metaD) metaD.setAttribute('content', desc);
+      var ogD = document.getElementById('og-description');
+      if (ogD) ogD.setAttribute('content', desc);
+    }
+    if (og) {
+      var ogI = document.getElementById('og-image');
+      if (ogI) ogI.setAttribute('content', og);
+    }
+    if (statusEl) statusEl.innerHTML = '<span style="color:var(--green)"><i class="fa fa-check-circle"></i> Saved.</span>';
+    setTimeout(function(){ if (statusEl) statusEl.textContent = ''; }, 3000);
+  } catch(e) {
+    if (statusEl) statusEl.innerHTML = '<span style="color:#ef4444"><i class="fa fa-xmark"></i> '+e.message+'</span>';
   }
 }
 
