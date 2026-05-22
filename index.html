@@ -10800,7 +10800,7 @@ function nextStep(step, quiet) {
     if (sline) sline.className = 'sline ' + (n<step?'done':'');
   });
   appState.ckStep = step;
-  if (step === 3) { ckPopulateStep3Summary(); }
+  if (step === 3) { ckPopulateStep3Summary(); updateCkTotal(); }
   if (!quiet) window.scrollTo({top:0,behavior:'smooth'});
 }
 
