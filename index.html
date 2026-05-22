@@ -6562,22 +6562,6 @@ tr:hover td{background:var(--b50)}
           <table>
             <thead><tr><th>Partner</th><th>Platform rate</th><th>Partner rate</th><th>Applied since</th><th>Note</th><th></th></tr></thead>
             <tbody id="comm-partner-tbody">
-              <tr>
-                <td><strong>Vineyard Hotels</strong></td>
-                <td><input type="number" value="30" min="1" max="99" class="fi" style="width:58px;padding:6px;text-align:center;font-size:.82rem" onchange="admUpdatePartnerComm(this)"> %</td>
-                <td id="comm-p-pct-0" style="color:var(--green);font-weight:600">70%</td>
-                <td>1 Jan 2025</td>
-                <td style="color:var(--muted);font-size:.75rem">Negotiated rate</td>
-                <td><button class="btn bg bsm" style="color:var(--red)" onclick="this.closest('tr').remove()"><i class="fa fa-trash"></i></button></td>
-              </tr>
-              <tr>
-                <td><strong>Wild Horizons</strong></td>
-                <td><input type="number" value="25" min="1" max="99" class="fi" style="width:58px;padding:6px;text-align:center;font-size:.82rem" onchange="admUpdatePartnerComm(this)"> %</td>
-                <td style="color:var(--green);font-weight:600">75%</td>
-                <td>15 Feb 2025</td>
-                <td style="color:var(--muted);font-size:.75rem">Volume deal</td>
-                <td><button class="btn bg bsm" style="color:var(--red)" onclick="this.closest('tr').remove()"><i class="fa fa-trash"></i></button></td>
-              </tr>
             </tbody>
           </table>
         </div>
@@ -6591,14 +6575,6 @@ tr:hover td{background:var(--b50)}
           <table>
             <thead><tr><th>Experience</th><th>Partner</th><th>Platform rate</th><th>Partner rate</th><th>Note</th><th></th></tr></thead>
             <tbody id="comm-exp-tbody">
-              <tr>
-                <td><strong>The Vineyard Retreat</strong></td>
-                <td>Vineyard Hotels</td>
-                <td><input type="number" value="28" min="1" max="99" class="fi" style="width:58px;padding:6px;text-align:center;font-size:.82rem" onchange="admUpdateExpComm(this)"> %</td>
-                <td style="color:var(--green);font-weight:600">72%</td>
-                <td style="color:var(--muted);font-size:.75rem">Premium placement</td>
-                <td><button class="btn bg bsm" style="color:var(--red)" onclick="this.closest('tr').remove()"><i class="fa fa-trash"></i></button></td>
-              </tr>
             </tbody>
           </table>
         </div>
@@ -6608,6 +6584,7 @@ tr:hover td{background:var(--b50)}
           <div class="atbl-hdr" style="flex-wrap:wrap;gap:10px">
             <h3 id="adm-comm-title">Commission payouts</h3>
             <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+              <button class="btn bg bsm" onclick="admExportCommCSV()"><i class="fa fa-download"></i> Export CSV</button>
               <select class="fi" id="adm-comm-period" style="font-size:.78rem;padding:6px 10px;width:auto" onchange="loadAdminCommissionPayouts()">
                 <option value="1">This month</option>
                 <option value="3" selected>Last 3 months</option>
@@ -12541,7 +12518,7 @@ function switchAdm(btn, tab) {
   renderAdmPartnerApps();
   if (tab === 'adm-orders') loadOrdersFromSupabase();
   if (tab === 'adm-usage')  { renderUsageTable(); loadUsageFromSupabase(); }
-  if (tab === 'adm-comm')     loadAdminCommissionPayouts();
+  if (tab === 'adm-comm')     { loadAdminCommissionPayouts(); loadCommissionRates(); }
   if (tab === 'adm-settings') admLoadSiteSettings();
 }
 
@@ -14309,45 +14286,215 @@ document.addEventListener('input', e => {
     if (partnerPct) partnerPct.textContent = Math.max(0, 100 - val);
   }
 });
-function saveGlobalComm() {
-  const val = document.getElementById('comm-global')?.value;
-  admToast('✅ Global commission rate saved: ' + val + '%');
+/* ── Commission — Real Supabase functions ── */
+
+async function loadCommissionRates() {
+  try {
+    var res = await db_client.from('commission_rates').select('*').order('created_at');
+    var rows = res.data || [];
+
+    /* Global rate */
+    var glob = rows.find(function(r){ return r.rate_type === 'global'; });
+    var globalRate = glob ? Number(glob.platform_rate) : 35;
+    var globEl = document.getElementById('comm-global');
+    if (globEl) { globEl.value = globalRate; }
+    var pctEl = document.getElementById('comm-partner-pct');
+    if (pctEl) pctEl.textContent = 100 - globalRate;
+
+    /* Partner overrides */
+    var partnerTbody = document.getElementById('comm-partner-tbody');
+    var partnerRows  = rows.filter(function(r){ return r.rate_type === 'partner'; });
+    if (partnerTbody) {
+      partnerTbody.innerHTML = partnerRows.length ? partnerRows.map(function(r) {
+        var partnerRate = 100 - Number(r.platform_rate);
+        var dt = r.created_at ? new Date(r.created_at).toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'}) : '—';
+        return '<tr data-comm-id="'+r.id+'">'
+          +'<td><strong>'+( r.target_label||r.target_id)+'</strong><div style="font-size:.7rem;color:var(--muted)">'+r.target_id+'</div></td>'
+          +'<td><input type="number" value="'+Number(r.platform_rate)+'" min="1" max="99" class="fi" style="width:58px;padding:6px;text-align:center;font-size:.82rem" onchange="admUpdatePartnerComm(this)"> %</td>'
+          +'<td style="color:var(--green);font-weight:600">'+partnerRate+'%</td>'
+          +'<td>'+dt+'</td>'
+          +'<td style="color:var(--muted);font-size:.75rem">'+(r.note||'')+'</td>'
+          +'<td><button class="btn bg bsm" style="color:var(--red)" onclick="admDeleteCommRate(\''+r.id+'\',this)"><i class="fa fa-trash"></i></button></td>'
+          +'</tr>';
+      }).join('') : '<tr><td colspan="6" style="text-align:center;padding:16px;color:var(--muted)">No partner overrides yet.</td></tr>';
+    }
+
+    /* Experience overrides */
+    var expTbody = document.getElementById('comm-exp-tbody');
+    var expRows  = rows.filter(function(r){ return r.rate_type === 'experience'; });
+    if (expTbody) {
+      expTbody.innerHTML = expRows.length ? expRows.map(function(r) {
+        var partnerRate = 100 - Number(r.platform_rate);
+        return '<tr data-comm-id="'+r.id+'">'
+          +'<td><strong>'+(r.target_label||r.target_id)+'</strong></td>'
+          +'<td style="font-size:.78rem;color:var(--muted)">'+(r.note&&r.note.includes('@')?r.note:'—')+'</td>'
+          +'<td><input type="number" value="'+Number(r.platform_rate)+'" min="1" max="99" class="fi" style="width:58px;padding:6px;text-align:center;font-size:.82rem" onchange="admUpdateExpComm(this)"> %</td>'
+          +'<td style="color:var(--green);font-weight:600">'+partnerRate+'%</td>'
+          +'<td style="color:var(--muted);font-size:.75rem">'+(r.note||'')+'</td>'
+          +'<td><button class="btn bg bsm" style="color:var(--red)" onclick="admDeleteCommRate(\''+r.id+'\',this)"><i class="fa fa-trash"></i></button></td>'
+          +'</tr>';
+      }).join('') : '<tr><td colspan="6" style="text-align:center;padding:16px;color:var(--muted)">No experience overrides yet.</td></tr>';
+    }
+  } catch(e) { console.warn('loadCommissionRates:', e.message); }
 }
+
+async function saveGlobalComm() {
+  var val = parseInt(document.getElementById('comm-global')?.value || '35');
+  if (val < 1 || val > 99) { admToast('Rate must be between 1 and 99.'); return; }
+  try {
+    var res = await db_client.from('commission_rates')
+      .upsert({ rate_type:'global', target_id:null, platform_rate:val, note:'Default WowBox platform rate' }, { onConflict: 'rate_type,target_id' });
+    if (res.error) throw res.error;
+    var pctEl = document.getElementById('comm-partner-pct');
+    if (pctEl) pctEl.textContent = 100 - val;
+    admToast('✅ Global rate saved: '+val+'% platform / '+(100-val)+'% partner');
+  } catch(e) { admToast('Error: '+e.message); }
+}
+
 function admUpdatePartnerComm(inp) {
-  const row = inp.closest('tr');
-  const td = row.cells[2];
-  td.textContent = (100 - (parseInt(inp.value)||0)) + '%';
-  td.style.color = 'var(--green)';
-  td.style.fontWeight = '600';
+  var row = inp.closest('tr');
+  var td = row.cells[2];
+  td.textContent = (100-(parseInt(inp.value)||0))+'%';
+  td.style.color = 'var(--green)'; td.style.fontWeight = '600';
+  /* Save updated rate */
+  var id = row.dataset.commId;
+  if (id) {
+    db_client.from('commission_rates').update({ platform_rate: parseInt(inp.value) }).eq('id', id)
+      .then(function(r){ if(!r.error) admToast('Rate updated.'); });
+  }
 }
+
 function admUpdateExpComm(inp) {
-  const row = inp.closest('tr');
-  const td = row.cells[3];
-  td.textContent = (100 - (parseInt(inp.value)||0)) + '%';
-  td.style.color = 'var(--green)';
-  td.style.fontWeight = '600';
+  var row = inp.closest('tr');
+  var td = row.cells[3];
+  td.textContent = (100-(parseInt(inp.value)||0))+'%';
+  td.style.color = 'var(--green)'; td.style.fontWeight = '600';
+  var id = row.dataset.commId;
+  if (id) {
+    db_client.from('commission_rates').update({ platform_rate: parseInt(inp.value) }).eq('id', id)
+      .then(function(r){ if(!r.error) admToast('Rate updated.'); });
+  }
 }
-function admAddPartnerComm() {
-  const tbody = document.getElementById('comm-partner-tbody');
-  tbody.innerHTML += `<tr>
-    <td><input class="fi" placeholder="Partner name" style="font-size:.8rem;padding:6px 9px"></td>
-    <td><input type="number" value="35" min="1" max="99" class="fi" style="width:58px;padding:6px;text-align:center;font-size:.82rem" onchange="admUpdatePartnerComm(this)"> %</td>
-    <td style="color:var(--green);font-weight:600">65%</td>
-    <td>${new Date().toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'})}</td>
-    <td><input class="fi" placeholder="Note" style="font-size:.75rem;padding:5px 8px"></td>
-    <td><button class="btn bg bsm" style="color:var(--red)" onclick="this.closest('tr').remove()"><i class="fa fa-trash"></i></button></td>
-  </tr>`;
+
+async function admDeleteCommRate(id, btn) {
+  if (!confirm('Delete this override?')) return;
+  try {
+    var res = await db_client.from('commission_rates').delete().eq('id', id);
+    if (res.error) throw res.error;
+    btn.closest('tr').remove();
+    admToast('Override deleted.');
+  } catch(e) { admToast('Error: '+e.message); }
 }
-function admAddExpComm() {
-  const tbody = document.getElementById('comm-exp-tbody');
-  tbody.innerHTML += `<tr>
-    <td><input class="fi" placeholder="Experience name" style="font-size:.8rem;padding:6px 9px"></td>
-    <td><input class="fi" placeholder="Partner" style="font-size:.8rem;padding:6px 9px"></td>
-    <td><input type="number" value="35" min="1" max="99" class="fi" style="width:58px;padding:6px;text-align:center;font-size:.82rem" onchange="admUpdateExpComm(this)"> %</td>
-    <td style="color:var(--green);font-weight:600">65%</td>
-    <td><input class="fi" placeholder="Note" style="font-size:.75rem;padding:5px 8px"></td>
-    <td><button class="btn bg bsm" style="color:var(--red)" onclick="this.closest('tr').remove()"><i class="fa fa-trash"></i></button></td>
-  </tr>`;
+
+async function admAddPartnerComm() {
+  /* Load real partners from user_profiles */
+  var partRes = await db_client.from('user_profiles').select('email,partner_name,full_name').eq('role','partner').order('partner_name');
+  var partners = (partRes.data || []).filter(function(p){ return p.email; });
+
+  var modal = document.createElement('div');
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  var opts = partners.map(function(p){
+    return '<option value="'+p.email+'" data-label="'+(p.partner_name||p.full_name||p.email)+'">'+(p.partner_name||p.full_name||p.email)+'</option>';
+  }).join('');
+  modal.innerHTML = '<div style="background:#fff;border-radius:16px;padding:28px;max-width:420px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.25)">'
+    +'<h3 style="font-size:1rem;color:var(--navy);margin-bottom:18px">Add partner override</h3>'
+    +'<div class="fg" style="margin-bottom:12px"><label style="font-size:.72rem;color:var(--muted)">Partner</label>'
+    +'<select class="fi" id="cp-modal-partner" style="width:100%"><option value="">— Select partner —</option>'+opts+'</select></div>'
+    +'<div class="fg" style="margin-bottom:12px"><label style="font-size:.72rem;color:var(--muted)">Platform rate %</label>'
+    +'<input type="number" class="fi" id="cp-modal-rate" value="35" min="1" max="99" style="width:100%"></div>'
+    +'<div class="fg" style="margin-bottom:18px"><label style="font-size:.72rem;color:var(--muted)">Note (optional)</label>'
+    +'<input type="text" class="fi" id="cp-modal-note" placeholder="e.g. Negotiated rate"></div>'
+    +'<div style="display:flex;gap:10px">'
+    +'<button class="btn bp" style="flex:1" onclick="admSavePartnerCommModal()"><i class="fa fa-check"></i> Save</button>'
+    +'<button class="btn bg" style="flex:1" onclick="this.closest(\'[style*=fixed]\').remove()">Cancel</button>'
+    +'</div></div>';
+  document.body.appendChild(modal);
+}
+
+async function admSavePartnerCommModal() {
+  var sel   = document.getElementById('cp-modal-partner');
+  var email = sel?.value;
+  var label = sel?.options[sel.selectedIndex]?.dataset.label || email;
+  var rate  = parseInt(document.getElementById('cp-modal-rate')?.value || '35');
+  var note  = (document.getElementById('cp-modal-note')?.value || '').trim();
+  if (!email) { admToast('Please select a partner.'); return; }
+  try {
+    var res = await db_client.from('commission_rates').upsert({
+      rate_type: 'partner', target_id: email, target_label: label, platform_rate: rate, note: note
+    }, { onConflict: 'rate_type,target_id' });
+    if (res.error) throw res.error;
+    document.querySelector('[style*="fixed"][style*="z-index:9999"]')?.remove();
+    admToast('✅ Partner override saved.');
+    loadCommissionRates();
+  } catch(e) { admToast('Error: '+e.message); }
+}
+
+async function admAddExpComm() {
+  /* Load real experiences */
+  var expRes = await db_client.from('experiences').select('id,name,partner_email').eq('is_active',true).order('name');
+  var exps = expRes.data || [];
+
+  var modal = document.createElement('div');
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  var opts = exps.map(function(e){
+    return '<option value="'+e.id+'" data-label="'+e.name+'">'+e.name+(e.partner_email ? ' ('+e.partner_email+')' : '')+'</option>';
+  }).join('');
+  modal.innerHTML = '<div style="background:#fff;border-radius:16px;padding:28px;max-width:420px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.25)">'
+    +'<h3 style="font-size:1rem;color:var(--navy);margin-bottom:18px">Add experience override</h3>'
+    +'<div class="fg" style="margin-bottom:12px"><label style="font-size:.72rem;color:var(--muted)">Experience</label>'
+    +'<select class="fi" id="ce-modal-exp" style="width:100%"><option value="">— Select experience —</option>'+opts+'</select></div>'
+    +'<div class="fg" style="margin-bottom:12px"><label style="font-size:.72rem;color:var(--muted)">Platform rate %</label>'
+    +'<input type="number" class="fi" id="ce-modal-rate" value="35" min="1" max="99" style="width:100%"></div>'
+    +'<div class="fg" style="margin-bottom:18px"><label style="font-size:.72rem;color:var(--muted)">Note (optional)</label>'
+    +'<input type="text" class="fi" id="ce-modal-note" placeholder="e.g. Premium placement"></div>'
+    +'<div style="display:flex;gap:10px">'
+    +'<button class="btn bp" style="flex:1" onclick="admSaveExpCommModal()"><i class="fa fa-check"></i> Save</button>'
+    +'<button class="btn bg" style="flex:1" onclick="this.closest(\'[style*=fixed]\').remove()">Cancel</button>'
+    +'</div></div>';
+  document.body.appendChild(modal);
+}
+
+async function admSaveExpCommModal() {
+  var sel   = document.getElementById('ce-modal-exp');
+  var expId = sel?.value;
+  var label = sel?.options[sel.selectedIndex]?.dataset.label || expId;
+  var rate  = parseInt(document.getElementById('ce-modal-rate')?.value || '35');
+  var note  = (document.getElementById('ce-modal-note')?.value || '').trim();
+  if (!expId) { admToast('Please select an experience.'); return; }
+  try {
+    var res = await db_client.from('commission_rates').upsert({
+      rate_type: 'experience', target_id: expId, target_label: label, platform_rate: rate, note: note
+    }, { onConflict: 'rate_type,target_id' });
+    if (res.error) throw res.error;
+    document.querySelector('[style*="fixed"][style*="z-index:9999"]')?.remove();
+    admToast('✅ Experience override saved.');
+    loadCommissionRates();
+  } catch(e) { admToast('Error: '+e.message); }
+}
+
+function admExportCommCSV() {
+  var rows = [];
+  document.querySelectorAll('#adm-comm-tbody tr').forEach(function(tr) {
+    var cells = tr.querySelectorAll('td');
+    if (cells.length < 6) return;
+    rows.push([
+      cells[0].querySelector('strong')?.textContent || '',
+      cells[0].querySelector('div')?.textContent || '',
+      cells[1].textContent.trim(),
+      cells[2].textContent.trim(),
+      cells[3].textContent.trim(),
+      cells[4].textContent.trim(),
+      cells[5].querySelector('span')?.textContent || '',
+    ].join(','));
+  });
+  if (!rows.length) { admToast('No data to export.'); return; }
+  var csv = 'Partner,Email,Validations,Gross Revenue,Platform,Partner Payout,Status\n' + rows.join('\n');
+  var blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'wowbox_commissions_' + new Date().toISOString().slice(0,10) + '.csv';
+  a.click();
+  URL.revokeObjectURL(a.href);
 }
 
 /* ── Shared admin toast ── */
