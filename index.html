@@ -10778,9 +10778,16 @@ function ckPopulateStep3Summary() {
   if (schedDate)  details += '<div style="font-size:.78rem;color:var(--b600)"><i class="fa fa-calendar-days" style="width:14px"></i> Send on ' + new Date(schedDate + 'T00:00:00').toLocaleDateString('en-ZA', {day:'numeric',month:'short',year:'numeric'}) + '</div>';
   if (giftMsg)    details += '<div style="font-size:.78rem;color:var(--green)"><i class="fa fa-comment-dots" style="width:14px"></i> Gift message included</div>';
   summaryEl.innerHTML = rows + details;
-  var total = getCartTotal();
-  var discount = activeCoupon ? (activeCoupon.type === 'percentage' ? Math.round(total * activeCoupon.value / 100) : Math.min(activeCoupon.value, total)) : 0;
-  if (totalEl) totalEl.textContent = 'R' + (total - discount).toLocaleString();
+  var sub      = getCartTotal();
+  var fee      = getDeliveryFee();
+  var discount = activeCoupon ? (activeCoupon.type === 'percentage' ? Math.round(sub * activeCoupon.value / 100) : Math.min(activeCoupon.value, sub)) : 0;
+  var total    = sub - discount + fee;
+  /* Show delivery fee line if applicable */
+  var feeHtml = fee > 0
+    ? '<div style="display:flex;justify-content:space-between;padding:5px 0;font-size:.82rem;color:var(--muted)"><span>' + getDeliveryLabel() + '</span><span>R' + fee.toLocaleString() + '</span></div>'
+    : '<div style="display:flex;justify-content:space-between;padding:5px 0;font-size:.82rem;color:var(--green)"><span>Delivery (E-Box)</span><span>Free</span></div>';
+  summaryEl.innerHTML = rows + feeHtml + details;
+  if (totalEl) totalEl.textContent = 'R' + total.toLocaleString();
 }
 
 function nextStep(step, quiet) {
