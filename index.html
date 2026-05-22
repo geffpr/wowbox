@@ -14387,12 +14387,15 @@ async function admDeleteCommRate(id, btn) {
 }
 
 async function admAddPartnerComm() {
+  document.getElementById('comm-partner-modal')?.remove();
   /* Load real partners from user_profiles */
   var partRes = await db_client.from('user_profiles').select('email,partner_name,full_name').eq('role','partner').order('partner_name');
   var partners = (partRes.data || []).filter(function(p){ return p.email; });
 
   var modal = document.createElement('div');
+  modal.id = 'comm-partner-modal';
   modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  modal.onclick = function(e){ if(e.target===modal) modal.remove(); };
   var opts = partners.map(function(p){
     return '<option value="'+p.email+'" data-label="'+(p.partner_name||p.full_name||p.email)+'">'+(p.partner_name||p.full_name||p.email)+'</option>';
   }).join('');
@@ -14412,6 +14415,7 @@ async function admAddPartnerComm() {
 }
 
 async function admSavePartnerCommModal() {
+  var modal = document.getElementById('comm-partner-modal'); if (modal) modal.remove();
   var sel   = document.getElementById('cp-modal-partner');
   var email = sel?.value;
   var label = sel?.options[sel.selectedIndex]?.dataset.label || email;
@@ -14423,19 +14427,21 @@ async function admSavePartnerCommModal() {
       rate_type: 'partner', target_id: email, target_label: label, platform_rate: rate, note: note
     }, { onConflict: 'rate_type,target_id' });
     if (res.error) throw res.error;
-    document.querySelector('[style*="fixed"][style*="z-index:9999"]')?.remove();
     admToast('✅ Partner override saved.');
     loadCommissionRates();
   } catch(e) { admToast('Error: '+e.message); }
 }
 
 async function admAddExpComm() {
+  document.getElementById('comm-exp-modal')?.remove();
   /* Load real experiences */
   var expRes = await db_client.from('experiences').select('id,name,partner_email').eq('is_active',true).order('name');
   var exps = expRes.data || [];
 
   var modal = document.createElement('div');
+  modal.id = 'comm-exp-modal';
   modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  modal.onclick = function(e){ if(e.target===modal) modal.remove(); };
   var opts = exps.map(function(e){
     return '<option value="'+e.id+'" data-label="'+e.name+'">'+e.name+(e.partner_email ? ' ('+e.partner_email+')' : '')+'</option>';
   }).join('');
@@ -14455,6 +14461,7 @@ async function admAddExpComm() {
 }
 
 async function admSaveExpCommModal() {
+  var modal = document.getElementById('comm-exp-modal'); if (modal) modal.remove();
   var sel   = document.getElementById('ce-modal-exp');
   var expId = sel?.value;
   var label = sel?.options[sel.selectedIndex]?.dataset.label || expId;
@@ -14466,7 +14473,6 @@ async function admSaveExpCommModal() {
       rate_type: 'experience', target_id: expId, target_label: label, platform_rate: rate, note: note
     }, { onConflict: 'rate_type,target_id' });
     if (res.error) throw res.error;
-    document.querySelector('[style*="fixed"][style*="z-index:9999"]')?.remove();
     admToast('✅ Experience override saved.');
     loadCommissionRates();
   } catch(e) { admToast('Error: '+e.message); }
