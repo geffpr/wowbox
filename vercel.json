@@ -1,5 +1,15 @@
 {
   "rewrites": [
-    { "source": "/(.*)", "destination": "/index.html" }
+    { "source": "/((?!api/).*)", "destination": "/index.html" }
+  ],
+  "crons": [
+    {
+      "path": "/api/send-scheduled",
+      "schedule": "0 8 * * *"
+    },
+    {
+      "path": "/api/process-payouts",
+      "schedule": "0 8 * * *"
+    }
   ]
 }
