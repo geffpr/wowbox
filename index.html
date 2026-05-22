@@ -6562,6 +6562,22 @@ tr:hover td{background:var(--b50)}
           <table>
             <thead><tr><th>Partner</th><th>Platform rate</th><th>Partner rate</th><th>Applied since</th><th>Note</th><th></th></tr></thead>
             <tbody id="comm-partner-tbody">
+              <tr>
+                <td><strong>Vineyard Hotels</strong></td>
+                <td><input type="number" value="30" min="1" max="99" class="fi" style="width:58px;padding:6px;text-align:center;font-size:.82rem" onchange="admUpdatePartnerComm(this)"> %</td>
+                <td id="comm-p-pct-0" style="color:var(--green);font-weight:600">70%</td>
+                <td>1 Jan 2025</td>
+                <td style="color:var(--muted);font-size:.75rem">Negotiated rate</td>
+                <td><button class="btn bg bsm" style="color:var(--red)" onclick="this.closest('tr').remove()"><i class="fa fa-trash"></i></button></td>
+              </tr>
+              <tr>
+                <td><strong>Wild Horizons</strong></td>
+                <td><input type="number" value="25" min="1" max="99" class="fi" style="width:58px;padding:6px;text-align:center;font-size:.82rem" onchange="admUpdatePartnerComm(this)"> %</td>
+                <td style="color:var(--green);font-weight:600">75%</td>
+                <td>15 Feb 2025</td>
+                <td style="color:var(--muted);font-size:.75rem">Volume deal</td>
+                <td><button class="btn bg bsm" style="color:var(--red)" onclick="this.closest('tr').remove()"><i class="fa fa-trash"></i></button></td>
+              </tr>
             </tbody>
           </table>
         </div>
@@ -6575,6 +6591,14 @@ tr:hover td{background:var(--b50)}
           <table>
             <thead><tr><th>Experience</th><th>Partner</th><th>Platform rate</th><th>Partner rate</th><th>Note</th><th></th></tr></thead>
             <tbody id="comm-exp-tbody">
+              <tr>
+                <td><strong>The Vineyard Retreat</strong></td>
+                <td>Vineyard Hotels</td>
+                <td><input type="number" value="28" min="1" max="99" class="fi" style="width:58px;padding:6px;text-align:center;font-size:.82rem" onchange="admUpdateExpComm(this)"> %</td>
+                <td style="color:var(--green);font-weight:600">72%</td>
+                <td style="color:var(--muted);font-size:.75rem">Premium placement</td>
+                <td><button class="btn bg bsm" style="color:var(--red)" onclick="this.closest('tr').remove()"><i class="fa fa-trash"></i></button></td>
+              </tr>
             </tbody>
           </table>
         </div>
@@ -6584,7 +6608,6 @@ tr:hover td{background:var(--b50)}
           <div class="atbl-hdr" style="flex-wrap:wrap;gap:10px">
             <h3 id="adm-comm-title">Commission payouts</h3>
             <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-              <button class="btn bg bsm" onclick="admExportCommCSV()"><i class="fa fa-download"></i> Export CSV</button>
               <select class="fi" id="adm-comm-period" style="font-size:.78rem;padding:6px 10px;width:auto" onchange="loadAdminCommissionPayouts()">
                 <option value="1">This month</option>
                 <option value="3" selected>Last 3 months</option>
@@ -9520,6 +9543,7 @@ async function confirmExpBooking() {
 /* ── Cancel Booking ── */
 async function cancelBooking(voucherCode, bookingDate) {
   if (!voucherCode) return;
+  // Double-check 24h rule
   if (bookingDate) {
     var hoursUntil = (new Date(bookingDate) - Date.now()) / 3600000;
     if (hoursUntil <= 24) {
@@ -9529,40 +9553,19 @@ async function cancelBooking(voucherCode, bookingDate) {
   }
   if (!confirm('Are you sure you want to cancel this booking? Your voucher will be reactivated and you can browse again.')) return;
   try {
-    // 1. Reactivate voucher
+    // Reactivate voucher + clear booking fields
     await db_client.from('vouchers').update({
-      status: 'active', booked_at: null, booking_id: null,
+      status:     'active',
+      booked_at:  null,
+      booking_id: null,
     }).eq('code', voucherCode);
-
-    // 2. Mark booking as cancelled + get details for emails
-    var bkRes = await db_client.from('bookings')
-      .update({ status: 'cancelled', cancelled_at: new Date().toISOString() })
-      .eq('voucher_code', voucherCode).eq('status', 'pending_confirmation')
-      .select('booking_reference,experience_name,guest_name,checkin_date,booking_date,partner_email,customer_email,customer_name')
-      .single();
-
-    // 3. Send cancellation emails
-    if (bkRes.data) {
-      var bk = bkRes.data;
-      try {
-        await fetch('/api/send-email', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            type: 'booking_cancelled',
-            customerEmail:  bk.customer_email,
-            partnerEmail:   bk.partner_email,
-            experienceName: bk.experience_name,
-            guestName:      bk.guest_name,
-            bookingRef:     bk.booking_reference,
-            bookingDate:    bk.checkin_date || bk.booking_date,
-            voucherCode,
-          }),
-        });
-      } catch(emailErr) { console.warn('Cancel email failed:', emailErr.message); }
-    }
-
+    // Mark booking as cancelled
+    await db_client.from('bookings').update({
+      status: 'cancelled',
+      cancelled_at: new Date().toISOString(),
+    }).eq('voucher_code', voucherCode).eq('status', 'pending_confirmation');
     admToast('✅ Booking cancelled — your voucher is active again');
+    // Reload gift boxes section
     if (typeof loadDashBoxes === 'function') loadDashBoxes();
     else if (typeof renderMyAccount === 'function') renderMyAccount();
   } catch(e) {
@@ -10689,7 +10692,7 @@ function renderCheckout() {
       </div>
       <div id="ck-delivery-selector" style="margin-top:14px;padding:14px;background:var(--b50);border:1.5px solid var(--b200);border-radius:var(--rs)"></div>`;
   } else {
-    fields = `<div class="fg"><label>Full name *</label><input class="fi" id="ck-sender-name" placeholder="Your full name"></div><div class="fg"><label>Email address *</label><input class="fi" id="ck-sender-email" type="email" placeholder="for e-vouchers and order confirmation"></div><h4 style="font-size:.9rem;margin:16px 0 12px">Delivery address (for physical boxes)</h4><div class="fg"><label>Street address *</label><input class="fi" placeholder="123 Main Street"></div><div class="fg-row"><div class="fg"><label>City *</label><input class="fi" placeholder="Cape Town"></div><div class="fg"><label>Province *</label><select class="fi"><option>Western Cape</option><option>Gauteng</option><option>KwaZulu-Natal</option></select></div></div><div class="fg-row"><div class="fg"><label>Postal code *</label><input class="fi" placeholder="8001"></div><div class="fg"><label>Country</label><input class="fi" value="South Africa" readonly></div></div>`;
+    fields = `<div class="fg"><label>Full name *</label><input class="fi" id="ck-sender-name" placeholder="Your full name"></div><div class="fg"><label>Email address *</label><input class="fi" id="ck-sender-email" type="email" placeholder="for e-vouchers and order confirmation"></div><h4 style="font-size:.9rem;margin:16px 0 12px">E-Box recipient</h4><div class="fg"><label>Recipient full name *</label><input class="fi" id="ck-full-name" placeholder="Who is this gift for?"></div><div class="fg"><label>Recipient email *</label><input class="fi" id="ck-email" type="email" placeholder="where to send the digital gift"></div><h4 style="font-size:.9rem;margin:16px 0 12px">Delivery address (for physical boxes)</h4><div class="fg"><label>Street address *</label><input class="fi" id="ck-street" placeholder="123 Main Street"></div><div class="fg-row"><div class="fg"><label>City *</label><input class="fi" id="ck-city" placeholder="Cape Town"></div><div class="fg"><label>Province *</label><select class="fi" id="ck-province"><option>Western Cape</option><option>Gauteng</option><option>KwaZulu-Natal</option></select></div></div><div class="fg-row"><div class="fg"><label>Postal code *</label><input class="fi" id="ck-postal" placeholder="8001"></div><div class="fg"><label>Country</label><input class="fi" value="South Africa" readonly></div></div>`;
   }
   dc.innerHTML = `<h3>Your details</h3><p>${ct==='ebox'?'E-Box delivery — no shipping required.':ct==='physical'?'Physical box — provide your delivery address.':'Mixed order — provide email and delivery address.'}</p>${typeBadge[ct]||''}<div class="divider"></div>${fields}`;
 
@@ -12538,7 +12541,7 @@ function switchAdm(btn, tab) {
   renderAdmPartnerApps();
   if (tab === 'adm-orders') loadOrdersFromSupabase();
   if (tab === 'adm-usage')  { renderUsageTable(); loadUsageFromSupabase(); }
-  if (tab === 'adm-comm')     { loadAdminCommissionPayouts(); loadCommissionRates(); }
+  if (tab === 'adm-comm')     loadAdminCommissionPayouts();
   if (tab === 'adm-settings') admLoadSiteSettings();
 }
 
@@ -14306,221 +14309,45 @@ document.addEventListener('input', e => {
     if (partnerPct) partnerPct.textContent = Math.max(0, 100 - val);
   }
 });
-/* ── Commission — Real Supabase functions ── */
-
-async function loadCommissionRates() {
-  try {
-    var res = await db_client.from('commission_rates').select('*').order('created_at');
-    var rows = res.data || [];
-
-    /* Global rate */
-    var glob = rows.find(function(r){ return r.rate_type === 'global'; });
-    var globalRate = glob ? Number(glob.platform_rate) : 35;
-    var globEl = document.getElementById('comm-global');
-    if (globEl) { globEl.value = globalRate; }
-    var pctEl = document.getElementById('comm-partner-pct');
-    if (pctEl) pctEl.textContent = 100 - globalRate;
-
-    /* Partner overrides */
-    var partnerTbody = document.getElementById('comm-partner-tbody');
-    var partnerRows  = rows.filter(function(r){ return r.rate_type === 'partner'; });
-    if (partnerTbody) {
-      partnerTbody.innerHTML = partnerRows.length ? partnerRows.map(function(r) {
-        var partnerRate = 100 - Number(r.platform_rate);
-        var dt = r.created_at ? new Date(r.created_at).toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'}) : '—';
-        return '<tr data-comm-id="'+r.id+'">'
-          +'<td><strong>'+( r.target_label||r.target_id)+'</strong><div style="font-size:.7rem;color:var(--muted)">'+r.target_id+'</div></td>'
-          +'<td><input type="number" value="'+Number(r.platform_rate)+'" min="1" max="99" class="fi" style="width:58px;padding:6px;text-align:center;font-size:.82rem" onchange="admUpdatePartnerComm(this)"> %</td>'
-          +'<td style="color:var(--green);font-weight:600">'+partnerRate+'%</td>'
-          +'<td>'+dt+'</td>'
-          +'<td style="color:var(--muted);font-size:.75rem">'+(r.note||'')+'</td>'
-          +'<td><button class="btn bg bsm" style="color:var(--red)" onclick="admDeleteCommRate(\''+r.id+'\',this)"><i class="fa fa-trash"></i></button></td>'
-          +'</tr>';
-      }).join('') : '<tr><td colspan="6" style="text-align:center;padding:16px;color:var(--muted)">No partner overrides yet.</td></tr>';
-    }
-
-    /* Experience overrides */
-    var expTbody = document.getElementById('comm-exp-tbody');
-    var expRows  = rows.filter(function(r){ return r.rate_type === 'experience'; });
-    if (expTbody) {
-      expTbody.innerHTML = expRows.length ? expRows.map(function(r) {
-        var partnerRate = 100 - Number(r.platform_rate);
-        return '<tr data-comm-id="'+r.id+'">'
-          +'<td><strong>'+(r.target_label||r.target_id)+'</strong></td>'
-          +'<td style="font-size:.78rem;color:var(--muted)">'+(r.note&&r.note.includes('@')?r.note:'—')+'</td>'
-          +'<td><input type="number" value="'+Number(r.platform_rate)+'" min="1" max="99" class="fi" style="width:58px;padding:6px;text-align:center;font-size:.82rem" onchange="admUpdateExpComm(this)"> %</td>'
-          +'<td style="color:var(--green);font-weight:600">'+partnerRate+'%</td>'
-          +'<td style="color:var(--muted);font-size:.75rem">'+(r.note||'')+'</td>'
-          +'<td><button class="btn bg bsm" style="color:var(--red)" onclick="admDeleteCommRate(\''+r.id+'\',this)"><i class="fa fa-trash"></i></button></td>'
-          +'</tr>';
-      }).join('') : '<tr><td colspan="6" style="text-align:center;padding:16px;color:var(--muted)">No experience overrides yet.</td></tr>';
-    }
-  } catch(e) { console.warn('loadCommissionRates:', e.message); }
+function saveGlobalComm() {
+  const val = document.getElementById('comm-global')?.value;
+  admToast('✅ Global commission rate saved: ' + val + '%');
 }
-
-async function saveGlobalComm() {
-  var val = parseInt(document.getElementById('comm-global')?.value || '35');
-  if (val < 1 || val > 99) { admToast('Rate must be between 1 and 99.'); return; }
-  try {
-    var res = await db_client.from('commission_rates')
-      .upsert({ rate_type:'global', target_id:'__global__', platform_rate:val, note:'Default WowBox platform rate' }, { onConflict: 'rate_type,target_id' });
-    if (res.error) throw res.error;
-    var pctEl = document.getElementById('comm-partner-pct');
-    if (pctEl) pctEl.textContent = 100 - val;
-    admToast('✅ Global rate saved: '+val+'% platform / '+(100-val)+'% partner');
-  } catch(e) { admToast('Error: '+e.message); }
-}
-
 function admUpdatePartnerComm(inp) {
-  var row = inp.closest('tr');
-  var td = row.cells[2];
-  td.textContent = (100-(parseInt(inp.value)||0))+'%';
-  td.style.color = 'var(--green)'; td.style.fontWeight = '600';
-  /* Save updated rate */
-  var id = row.dataset.commId;
-  if (id) {
-    db_client.from('commission_rates').update({ platform_rate: parseInt(inp.value) }).eq('id', id)
-      .then(function(r){ if(!r.error) admToast('Rate updated.'); });
-  }
+  const row = inp.closest('tr');
+  const td = row.cells[2];
+  td.textContent = (100 - (parseInt(inp.value)||0)) + '%';
+  td.style.color = 'var(--green)';
+  td.style.fontWeight = '600';
 }
-
 function admUpdateExpComm(inp) {
-  var row = inp.closest('tr');
-  var td = row.cells[3];
-  td.textContent = (100-(parseInt(inp.value)||0))+'%';
-  td.style.color = 'var(--green)'; td.style.fontWeight = '600';
-  var id = row.dataset.commId;
-  if (id) {
-    db_client.from('commission_rates').update({ platform_rate: parseInt(inp.value) }).eq('id', id)
-      .then(function(r){ if(!r.error) admToast('Rate updated.'); });
-  }
+  const row = inp.closest('tr');
+  const td = row.cells[3];
+  td.textContent = (100 - (parseInt(inp.value)||0)) + '%';
+  td.style.color = 'var(--green)';
+  td.style.fontWeight = '600';
 }
-
-async function admDeleteCommRate(id, btn) {
-  if (!confirm('Delete this override?')) return;
-  try {
-    var res = await db_client.from('commission_rates').delete().eq('id', id);
-    if (res.error) throw res.error;
-    btn.closest('tr').remove();
-    admToast('Override deleted.');
-  } catch(e) { admToast('Error: '+e.message); }
+function admAddPartnerComm() {
+  const tbody = document.getElementById('comm-partner-tbody');
+  tbody.innerHTML += `<tr>
+    <td><input class="fi" placeholder="Partner name" style="font-size:.8rem;padding:6px 9px"></td>
+    <td><input type="number" value="35" min="1" max="99" class="fi" style="width:58px;padding:6px;text-align:center;font-size:.82rem" onchange="admUpdatePartnerComm(this)"> %</td>
+    <td style="color:var(--green);font-weight:600">65%</td>
+    <td>${new Date().toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'})}</td>
+    <td><input class="fi" placeholder="Note" style="font-size:.75rem;padding:5px 8px"></td>
+    <td><button class="btn bg bsm" style="color:var(--red)" onclick="this.closest('tr').remove()"><i class="fa fa-trash"></i></button></td>
+  </tr>`;
 }
-
-async function admAddPartnerComm() {
-  document.getElementById('comm-partner-modal')?.remove();
-  /* Load real partners from user_profiles */
-  var partRes = await db_client.from('user_profiles').select('email,partner_name,full_name').eq('role','partner').order('partner_name');
-  var partners = (partRes.data || []).filter(function(p){ return p.email; });
-
-  var modal = document.createElement('div');
-  modal.id = 'comm-partner-modal';
-  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
-  modal.onclick = function(e){ if(e.target===modal) modal.remove(); };
-  var opts = partners.map(function(p){
-    return '<option value="'+p.email+'" data-label="'+(p.partner_name||p.full_name||p.email)+'">'+(p.partner_name||p.full_name||p.email)+'</option>';
-  }).join('');
-  modal.innerHTML = '<div style="background:#fff;border-radius:16px;padding:28px;max-width:420px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.25)">'
-    +'<h3 style="font-size:1rem;color:var(--navy);margin-bottom:18px">Add partner override</h3>'
-    +'<div class="fg" style="margin-bottom:12px"><label style="font-size:.72rem;color:var(--muted)">Partner</label>'
-    +'<select class="fi" id="cp-modal-partner" style="width:100%"><option value="">— Select partner —</option>'+opts+'</select></div>'
-    +'<div class="fg" style="margin-bottom:12px"><label style="font-size:.72rem;color:var(--muted)">Platform rate %</label>'
-    +'<input type="number" class="fi" id="cp-modal-rate" value="35" min="1" max="99" style="width:100%"></div>'
-    +'<div class="fg" style="margin-bottom:18px"><label style="font-size:.72rem;color:var(--muted)">Note (optional)</label>'
-    +'<input type="text" class="fi" id="cp-modal-note" placeholder="e.g. Negotiated rate"></div>'
-    +'<div style="display:flex;gap:10px">'
-    +'<button class="btn bp" style="flex:1" onclick="admSavePartnerCommModal()"><i class="fa fa-check"></i> Save</button>'
-    +'<button class="btn bg" style="flex:1" onclick="this.closest(\'[style*=fixed]\').remove()">Cancel</button>'
-    +'</div></div>';
-  document.body.appendChild(modal);
-}
-
-async function admSavePartnerCommModal() {
-  var sel   = document.getElementById('cp-modal-partner');
-  var email = sel?.value;
-  var label = sel?.options[sel.selectedIndex]?.dataset.label || email;
-  var rate  = parseInt(document.getElementById('cp-modal-rate')?.value || '35');
-  var note  = (document.getElementById('cp-modal-note')?.value || '').trim();
-  if (!email) { admToast('Please select a partner.'); return; }
-  try {
-    var res = await db_client.from('commission_rates').upsert({
-      rate_type: 'partner', target_id: email, target_label: label, platform_rate: rate, note: note
-    }, { onConflict: 'rate_type,target_id' });
-    if (res.error) throw res.error;
-    document.getElementById('comm-partner-modal')?.remove();
-    admToast('✅ Partner override saved.');
-    loadCommissionRates();
-  } catch(e) { admToast('Error: '+e.message); }
-}
-
-async function admAddExpComm() {
-  document.getElementById('comm-exp-modal')?.remove();
-  /* Load real experiences */
-  var expRes = await db_client.from('experiences').select('id,name,partner_email').eq('is_active',true).order('name');
-  var exps = expRes.data || [];
-
-  var modal = document.createElement('div');
-  modal.id = 'comm-exp-modal';
-  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
-  modal.onclick = function(e){ if(e.target===modal) modal.remove(); };
-  var opts = exps.map(function(e){
-    return '<option value="'+e.id+'" data-label="'+e.name+'">'+e.name+(e.partner_email ? ' ('+e.partner_email+')' : '')+'</option>';
-  }).join('');
-  modal.innerHTML = '<div style="background:#fff;border-radius:16px;padding:28px;max-width:420px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.25)">'
-    +'<h3 style="font-size:1rem;color:var(--navy);margin-bottom:18px">Add experience override</h3>'
-    +'<div class="fg" style="margin-bottom:12px"><label style="font-size:.72rem;color:var(--muted)">Experience</label>'
-    +'<select class="fi" id="ce-modal-exp" style="width:100%"><option value="">— Select experience —</option>'+opts+'</select></div>'
-    +'<div class="fg" style="margin-bottom:12px"><label style="font-size:.72rem;color:var(--muted)">Platform rate %</label>'
-    +'<input type="number" class="fi" id="ce-modal-rate" value="35" min="1" max="99" style="width:100%"></div>'
-    +'<div class="fg" style="margin-bottom:18px"><label style="font-size:.72rem;color:var(--muted)">Note (optional)</label>'
-    +'<input type="text" class="fi" id="ce-modal-note" placeholder="e.g. Premium placement"></div>'
-    +'<div style="display:flex;gap:10px">'
-    +'<button class="btn bp" style="flex:1" onclick="admSaveExpCommModal()"><i class="fa fa-check"></i> Save</button>'
-    +'<button class="btn bg" style="flex:1" onclick="this.closest(\'[style*=fixed]\').remove()">Cancel</button>'
-    +'</div></div>';
-  document.body.appendChild(modal);
-}
-
-async function admSaveExpCommModal() {
-  var sel   = document.getElementById('ce-modal-exp');
-  var expId = sel?.value;
-  var label = sel?.options[sel.selectedIndex]?.dataset.label || expId;
-  var rate  = parseInt(document.getElementById('ce-modal-rate')?.value || '35');
-  var note  = (document.getElementById('ce-modal-note')?.value || '').trim();
-  if (!expId) { admToast('Please select an experience.'); return; }
-  try {
-    var res = await db_client.from('commission_rates').upsert({
-      rate_type: 'experience', target_id: expId, target_label: label, platform_rate: rate, note: note
-    }, { onConflict: 'rate_type,target_id' });
-    if (res.error) throw res.error;
-    document.getElementById('comm-exp-modal')?.remove();
-    admToast('✅ Experience override saved.');
-    loadCommissionRates();
-  } catch(e) { admToast('Error: '+e.message); }
-}
-
-function admExportCommCSV() {
-  var rows = [];
-  document.querySelectorAll('#adm-comm-tbody tr').forEach(function(tr) {
-    var cells = tr.querySelectorAll('td');
-    if (cells.length < 6) return;
-    rows.push([
-      cells[0].querySelector('strong')?.textContent || '',
-      cells[0].querySelector('div')?.textContent || '',
-      cells[1].textContent.trim(),
-      cells[2].textContent.trim(),
-      cells[3].textContent.trim(),
-      cells[4].textContent.trim(),
-      cells[5].querySelector('span')?.textContent || '',
-    ].join(','));
-  });
-  if (!rows.length) { admToast('No data to export.'); return; }
-  var csv = 'Partner,Email,Validations,Gross Revenue,Platform,Partner Payout,Status\n' + rows.join('\n');
-  var blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-  var a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = 'wowbox_commissions_' + new Date().toISOString().slice(0,10) + '.csv';
-  a.click();
-  URL.revokeObjectURL(a.href);
+function admAddExpComm() {
+  const tbody = document.getElementById('comm-exp-tbody');
+  tbody.innerHTML += `<tr>
+    <td><input class="fi" placeholder="Experience name" style="font-size:.8rem;padding:6px 9px"></td>
+    <td><input class="fi" placeholder="Partner" style="font-size:.8rem;padding:6px 9px"></td>
+    <td><input type="number" value="35" min="1" max="99" class="fi" style="width:58px;padding:6px;text-align:center;font-size:.82rem" onchange="admUpdateExpComm(this)"> %</td>
+    <td style="color:var(--green);font-weight:600">65%</td>
+    <td><input class="fi" placeholder="Note" style="font-size:.75rem;padding:5px 8px"></td>
+    <td><button class="btn bg bsm" style="color:var(--red)" onclick="this.closest('tr').remove()"><i class="fa fa-trash"></i></button></td>
+  </tr>`;
 }
 
 /* ── Shared admin toast ── */
@@ -15302,17 +15129,11 @@ async function loadAdminCommissionPayouts() {
       const rateNote    = rates.length>1 ? ' <small style="color:var(--muted)">(mixed)</small>' : (rates[0]!==35 ? ' <small style="color:var(--muted)">(override)</small>' : ' <small style="color:var(--muted)">(global)</small>');
       const allPaid     = g.rows.every(function(r){return r.payout_status==='paid';});
       const anyPending  = g.rows.some(function(r){return r.payout_status==='pending';});
-      const statusHtml  = allPaid
-        ? '<span class="sbadge sb-a">Payment sent</span>'
-        : anyPending ? '<span class="sbadge sb-p">Pending</span>'
-        : '<span class="sbadge sb-w">On hold</span>';
+      const statusHtml  = allPaid ? '<span class="sbadge sb-a">Paid</span>' : anyPending ? '<span class="sbadge sb-p">Pending</span>' : '<span class="sbadge sb-w">On hold</span>';
       const pendingIds  = g.rows.filter(function(r){return r.payout_status==='pending';}).map(function(r){return r.id;});
-      const paidRow     = g.rows.find(function(r){ return r.payout_status==='paid' && r.paystack_transfer_id; });
-      const actionBtn   = paidRow
-        ? '<button class="btn bg bsm" style="font-size:.72rem" onclick="admShowPayoutProof(\''+paidRow.paystack_transfer_id+'\',\''+fmt(paidRow.partner_payout)+'\',\''+( g.name||'').replace(/'/g,'')+'\',\''+g.email+'\',\''+( paidRow.paid_at||'')+'\',\''+( paidRow.experience_name||'').replace(/'/g,'')+'\')"><i class="fa fa-receipt"></i> View proof</button>'
-        : pendingIds.length
-          ? '<button class="btn bg bsm" onclick="admMarkPaid('+JSON.stringify(pendingIds)+',this)" style="font-size:.72rem"><i class="fa fa-check"></i> Mark paid</button>'
-          : '<span style="color:var(--muted);font-size:.75rem">—</span>';
+      const actionBtn   = pendingIds.length
+        ? '<button class="btn bg bsm" onclick="admMarkPaid('+JSON.stringify(pendingIds)+',this)" style="font-size:.72rem"><i class="fa fa-check"></i> Mark paid</button>'
+        : '<span style="color:var(--muted);font-size:.75rem">-</span>';
       totalGross    += gross;
       totalPlatform += platformAmt;
       totalPayout   += payoutAmt;
@@ -15354,31 +15175,6 @@ async function admMarkPaid(ids, btn) {
     admToast('Error: ' + e.message);
     if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa fa-check"></i> Mark paid'; }
   }
-}
-
-function admShowPayoutProof(transferCode, amount, partnerName, partnerEmail, date, experience) {
-  var modal = document.createElement('div');
-  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
-  modal.onclick = function(e){ if(e.target===modal) modal.remove(); };
-  var dt = date ? new Date(date).toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}) : '—';
-  modal.innerHTML = '<div style="background:#fff;border-radius:16px;padding:28px;max-width:440px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.25)">'
-    +'<div style="display:flex;align-items:center;gap:10px;margin-bottom:20px">'
-    +'<div style="width:40px;height:40px;background:#d1fae5;border-radius:50%;display:flex;align-items:center;justify-content:center"><i class="fa fa-circle-check" style="color:#22c55e;font-size:1.1rem"></i></div>'
-    +'<div><h3 style="font-size:1rem;color:var(--navy);margin:0">Payment sent</h3><p style="font-size:.72rem;color:var(--muted);margin:0">Paystack Transfer</p></div>'
-    +'</div>'
-    +'<div style="background:var(--b50);border-radius:10px;padding:14px 16px;margin-bottom:20px">'
-    +'<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border)"><span style="font-size:.78rem;color:var(--muted)">Partner</span><span style="font-size:.78rem;font-weight:600;color:var(--navy)">'+( partnerName||partnerEmail)+'</span></div>'
-    +'<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border)"><span style="font-size:.78rem;color:var(--muted)">Experience</span><span style="font-size:.78rem;color:var(--navy)">'+(experience||'—')+'</span></div>'
-    +'<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border)"><span style="font-size:.78rem;color:var(--muted)">Amount</span><span style="font-size:.9rem;font-weight:700;color:var(--green)">'+amount+'</span></div>'
-    +'<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border)"><span style="font-size:.78rem;color:var(--muted)">Transfer ref</span><code style="font-size:.75rem;color:var(--b600)">'+(transferCode||'—')+'</code></div>'
-    +'<div style="display:flex;justify-content:space-between;padding:6px 0"><span style="font-size:.78rem;color:var(--muted)">Sent on</span><span style="font-size:.78rem;color:var(--navy)">'+dt+'</span></div>'
-    +'</div>'
-    +'<div style="display:flex;gap:10px">'
-    +'<button class="btn bp bsm" style="flex:1" onclick="navigator.clipboard.writeText(\''+( transferCode||'')+'\')" title="Copy transfer code"><i class="fa fa-copy"></i> Copy ref</button>'
-    +'<button class="btn bg bsm" style="flex:1" onclick="this.closest(\'[style*=fixed]\').remove()">Close</button>'
-    +'</div>'
-    +'</div>';
-  document.body.appendChild(modal);
 }
 
 function toggleAddForm() {
