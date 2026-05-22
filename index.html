@@ -6471,6 +6471,7 @@ tr:hover td{background:var(--b50)}
                 <h4><i class="fa fa-print" style="color:var(--b400)"></i> Actions</h4>
                 <div style="display:flex;gap:8px;flex-wrap:wrap">
                   <button class="btn bp bsm" id="od-print-btn" onclick=""><i class="fa fa-print"></i> Print box code</button>
+                  <button class="btn bsm" id="od-refund-all-btn" style="background:#fef2f2;color:#dc2626;border:1px solid #fca5a5" onclick=""><i class="fa fa-rotate-left"></i> Refund full order</button>
                   <button class="btn bg bsm" onclick="admResendEmail()"><i class="fa fa-envelope"></i> Resend email</button>
                   <button class="btn bg bsm" onclick="admReissueCode()"><i class="fa fa-rotate"></i> Reissue code</button>
                 </div>
@@ -10692,34 +10693,7 @@ function renderCheckout() {
       </div>
       <div id="ck-delivery-selector" style="margin-top:14px;padding:14px;background:var(--b50);border:1.5px solid var(--b200);border-radius:var(--rs)"></div>`;
   } else {
-    fields = `
-<div class="fg"><label>Your full name *</label><input class="fi" id="ck-sender-name" placeholder="Your full name"></div>
-<div class="fg"><label>Your email *</label><input class="fi" id="ck-sender-email" type="email" placeholder="Order confirmation email"></div>
-
-<div style="background:#f0fdf4;border:1.5px solid #86efac;border-radius:12px;padding:16px 18px;margin:18px 0 0">
-  <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
-    <span style="background:#22c55e;color:#fff;font-size:.7rem;font-weight:700;padding:3px 10px;border-radius:99px;letter-spacing:.5px">📧 E-BOX</span>
-    <span style="font-size:.78rem;color:#15803d;font-weight:600">Digital delivery — sent by email</span>
-  </div>
-  <div class="fg" style="margin-bottom:10px"><label>Recipient full name *</label><input class="fi" id="ck-full-name" placeholder="Who is this gift for?"></div>
-  <div class="fg" style="margin-bottom:0"><label>Recipient email *</label><input class="fi" id="ck-email" type="email" placeholder="where to send the digital gift"></div>
-</div>
-
-<div style="background:#eff6ff;border:1.5px solid #93c5fd;border-radius:12px;padding:16px 18px;margin:12px 0 0">
-  <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
-    <span style="background:#3b82f6;color:#fff;font-size:.7rem;font-weight:700;padding:3px 10px;border-radius:99px;letter-spacing:.5px">📦 PHYSICAL BOX</span>
-    <span style="font-size:.78rem;color:#1d4ed8;font-weight:600">Shipped to delivery address</span>
-  </div>
-  <div class="fg" style="margin-bottom:10px"><label>Street address *</label><input class="fi" id="ck-street" placeholder="123 Main Street"></div>
-  <div class="fg-row">
-    <div class="fg" style="margin-bottom:10px"><label>City *</label><input class="fi" id="ck-city" placeholder="Cape Town"></div>
-    <div class="fg" style="margin-bottom:10px"><label>Province *</label><select class="fi" id="ck-province"><option>Western Cape</option><option>Gauteng</option><option>KwaZulu-Natal</option></select></div>
-  </div>
-  <div class="fg-row">
-    <div class="fg" style="margin-bottom:0"><label>Postal code *</label><input class="fi" id="ck-postal" placeholder="8001"></div>
-    <div class="fg" style="margin-bottom:0"><label>Country</label><input class="fi" value="South Africa" readonly></div>
-  </div>
-</div>`;
+    fields = `<div class="fg"><label>Full name *</label><input class="fi" id="ck-sender-name" placeholder="Your full name"></div><div class="fg"><label>Email address *</label><input class="fi" id="ck-sender-email" type="email" placeholder="for e-vouchers and order confirmation"></div><h4 style="font-size:.9rem;margin:16px 0 12px">Delivery address (for physical boxes)</h4><div class="fg"><label>Street address *</label><input class="fi" placeholder="123 Main Street"></div><div class="fg-row"><div class="fg"><label>City *</label><input class="fi" placeholder="Cape Town"></div><div class="fg"><label>Province *</label><select class="fi"><option>Western Cape</option><option>Gauteng</option><option>KwaZulu-Natal</option></select></div></div><div class="fg-row"><div class="fg"><label>Postal code *</label><input class="fi" placeholder="8001"></div><div class="fg"><label>Country</label><input class="fi" value="South Africa" readonly></div></div>`;
   }
   dc.innerHTML = `<h3>Your details</h3><p>${ct==='ebox'?'E-Box delivery — no shipping required.':ct==='physical'?'Physical box — provide your delivery address.':'Mixed order — provide email and delivery address.'}</p>${typeBadge[ct]||''}<div class="divider"></div>${fields}`;
 
@@ -10778,16 +10752,9 @@ function ckPopulateStep3Summary() {
   if (schedDate)  details += '<div style="font-size:.78rem;color:var(--b600)"><i class="fa fa-calendar-days" style="width:14px"></i> Send on ' + new Date(schedDate + 'T00:00:00').toLocaleDateString('en-ZA', {day:'numeric',month:'short',year:'numeric'}) + '</div>';
   if (giftMsg)    details += '<div style="font-size:.78rem;color:var(--green)"><i class="fa fa-comment-dots" style="width:14px"></i> Gift message included</div>';
   summaryEl.innerHTML = rows + details;
-  var sub      = getCartTotal();
-  var fee      = getDeliveryFee();
-  var discount = activeCoupon ? (activeCoupon.type === 'percentage' ? Math.round(sub * activeCoupon.value / 100) : Math.min(activeCoupon.value, sub)) : 0;
-  var total    = sub - discount + fee;
-  /* Show delivery fee line if applicable */
-  var feeHtml = fee > 0
-    ? '<div style="display:flex;justify-content:space-between;padding:5px 0;font-size:.82rem;color:var(--muted)"><span>' + getDeliveryLabel() + '</span><span>R' + fee.toLocaleString() + '</span></div>'
-    : '<div style="display:flex;justify-content:space-between;padding:5px 0;font-size:.82rem;color:var(--green)"><span>Delivery (E-Box)</span><span>Free</span></div>';
-  summaryEl.innerHTML = rows + feeHtml + details;
-  if (totalEl) totalEl.textContent = 'R' + total.toLocaleString();
+  var total = getCartTotal();
+  var discount = activeCoupon ? (activeCoupon.type === 'percentage' ? Math.round(total * activeCoupon.value / 100) : Math.min(activeCoupon.value, total)) : 0;
+  if (totalEl) totalEl.textContent = 'R' + (total - discount).toLocaleString();
 }
 
 function nextStep(step, quiet) {
@@ -10800,7 +10767,7 @@ function nextStep(step, quiet) {
     if (sline) sline.className = 'sline ' + (n<step?'done':'');
   });
   appState.ckStep = step;
-  if (step === 3) { ckPopulateStep3Summary(); updateCkTotal(); }
+  if (step === 3) { ckPopulateStep3Summary(); }
   if (!quiet) window.scrollTo({top:0,behavior:'smooth'});
 }
 
@@ -11539,6 +11506,11 @@ async function completeOrderConfirm(paystackRef, total, discount, delivFee) {
           });
         }
       }
+      /* Auto-update status: E-Box = delivered immediately, Physical/Mixed stays pending */
+      try {
+        var autoStatus = (ct === 'ebox') ? 'delivered' : 'pending';
+        await db_client.from('orders').update({ status: autoStatus }).eq('id', ref);
+      } catch(sErr) { console.warn('status update:', sErr.message); }
     } catch(err) {
       console.warn('completeOrderConfirm Supabase/email:', err.message);
     }
@@ -12223,7 +12195,7 @@ function admOrderDetail(orderId) {
     delSec.style.display = 'none';
   }
   // Items
-  const statusCls = {active:'cs-active',inactive:'cs-inactive',used:'cs-used'};
+  const statusCls = {active:'cs-active',inactive:'cs-inactive',used:'cs-used',refunded:'cs-inactive'};
   document.getElementById('od-items').innerHTML = o.items.map(item => `
     <div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border)">
       <div style="flex:1">
@@ -12233,7 +12205,15 @@ function admOrderDetail(orderId) {
       <span style="font-size:.7rem;color:var(--muted)">${item.type}</span>
       <span class="code-badge ${statusCls[item.status]||'cs-inactive'}">${item.status}</span>
       ${item.code !== '—' ? `<button class="btn bg bsm" onclick="admPrintCode('${item.code}','${item.name}')"><i class="fa fa-print"></i></button>` : ''}
+      ${item.status !== 'refunded' ? `<button class="btn bsm" style="background:#fef2f2;color:#dc2626;border:1px solid #fca5a5;font-size:.7rem" onclick="admRefundBox('${orderId}','${item.code}','${item.name}',${item.price||0},'${o.email}')"><i class="fa fa-rotate-left"></i> Refund</button>` : '<span style="font-size:.7rem;color:#dc2626;font-weight:600">Refunded</span>'}
     </div>`).join('');
+  /* Refund full order button */
+  var refundAllEl = document.getElementById('od-refund-all-btn');
+  if (refundAllEl) {
+    var allRefunded = o.items.every(function(i){ return i.status === 'refunded'; });
+    refundAllEl.style.display = allRefunded ? 'none' : '';
+    refundAllEl.onclick = function(){ admRefundOrder(orderId, o); };
+  }
   // Summary
   document.getElementById('od-total').textContent = o.total;
   document.getElementById('od-type').textContent  = o.type;
@@ -12716,7 +12696,7 @@ async function loadOrdersFromSupabase() {
     });
 
     // Fetch customer_name, status, total_amount from orders table
-    const dbToStatus = {'pending':'Pending','in_process':'In process','in_transit':'In transit','delivered':'Delivered'};
+    const dbToStatus = {'pending':'Pending','in_process':'In process','in_transit':'In transit','delivered':'Delivered','refunded':'Refunded','partial_refund':'Partial refund'};
     const orderIds = Object.keys(grouped);
     try {
       const ordRes = await db_client.from('orders').select('id,customer_name,status,total_amount').in('id', orderIds);
@@ -12771,7 +12751,95 @@ async function loadOrdersFromSupabase() {
   }
 }
 
-/* ── Gift Boxes ── */
+/* ── Order Refunds ── */
+function admRefundBox(orderId, voucherCode, boxName, boxPrice, customerEmail) {
+  var modal = document.createElement('div');
+  modal.id = 'adm-refund-modal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  modal.onclick = function(e){ if(e.target===modal) modal.remove(); };
+  modal.innerHTML = '<div style="background:#fff;border-radius:16px;padding:28px;max-width:440px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.25)">'
+    +'<h3 style="font-size:1rem;color:var(--navy);margin-bottom:4px"><i class="fa fa-rotate-left" style="color:#dc2626"></i> Refund — '+boxName+'</h3>'
+    +'<p style="font-size:.78rem;color:var(--muted);margin-bottom:18px">Voucher: <code>'+voucherCode+'</code> · Customer: '+customerEmail+'</p>'
+    +'<div style="background:#fef2f2;border:1.5px solid #fca5a5;border-radius:10px;padding:14px 16px;margin-bottom:18px">'
+    +'<p style="font-size:.82rem;font-weight:600;color:#991b1b;margin-bottom:8px"><i class="fa fa-triangle-exclamation"></i> Before confirming:</p>'
+    +'<p style="font-size:.78rem;color:#7f1d1d;margin-bottom:6px">1. Go to <strong>Paystack Dashboard → Transactions</strong></p>'
+    +'<p style="font-size:.78rem;color:#7f1d1d;margin-bottom:6px">2. Find order <strong>'+orderId+'</strong></p>'
+    +'<p style="font-size:.78rem;color:#7f1d1d;margin-bottom:0">3. Click <strong>Refund → enter R'+Number(boxPrice).toLocaleString()+'</strong></p>'
+    +'</div>'
+    +'<div class="fg" style="margin-bottom:16px"><label style="font-size:.72rem;color:var(--muted)">Refund amount (R)</label>'
+    +'<input type="number" class="fi" id="adm-refund-amount" value="'+Number(boxPrice)+'" min="1"></div>'
+    +'<div class="fg" style="margin-bottom:18px"><label style="font-size:.72rem;color:var(--muted)">Reason (optional)</label>'
+    +'<input type="text" class="fi" id="adm-refund-reason" placeholder="e.g. Customer request, experience unavailable"></div>'
+    +'<div style="display:flex;gap:10px">'
+    +'<button class="btn bsm" style="flex:1;background:#dc2626;color:#fff;border:none" onclick="admConfirmRefundBox(\''+orderId+'\',\''+voucherCode+'\',\''+customerEmail+'\',\''+boxName+'\')"><i class="fa fa-check"></i> I\'ve refunded in Paystack — confirm</button>'
+    +'<button class="btn bg bsm" style="flex:1" onclick="document.getElementById(\'adm-refund-modal\').remove()">Cancel</button>'
+    +'</div></div>';
+  document.body.appendChild(modal);
+}
+
+async function admConfirmRefundBox(orderId, voucherCode, customerEmail, boxName) {
+  var amount = document.getElementById('adm-refund-amount')?.value || 0;
+  var reason = document.getElementById('adm-refund-reason')?.value || '';
+  try {
+    /* 1. Mark voucher as refunded */
+    await db_client.from('vouchers').update({ status: 'refunded' }).eq('code', voucherCode);
+    /* 2. Check if all vouchers for this order are now refunded */
+    var vRes = await db_client.from('vouchers').select('code,status').eq('order_id', orderId);
+    var vouchers = vRes.data || [];
+    var allRefunded = vouchers.every(function(v){ return v.status === 'refunded'; });
+    /* 3. Update order status */
+    await db_client.from('orders').update({ status: allRefunded ? 'refunded' : 'partial_refund' }).eq('id', orderId);
+    /* 4. Send refund email to customer */
+    await fetch('/api/send-email', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'refund_confirmation', email: customerEmail, orderId, boxName, amount: 'R'+Number(amount).toLocaleString(), reason }),
+    });
+    document.getElementById('adm-refund-modal')?.remove();
+    admToast('✅ Refund confirmed — voucher invalidated, customer notified.');
+    loadOrdersFromSupabase();
+  } catch(e) { admToast('Error: '+e.message); }
+}
+
+function admRefundOrder(orderId, o) {
+  var total = o.total || '—';
+  var modal = document.createElement('div');
+  modal.id = 'adm-refund-modal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  modal.onclick = function(e){ if(e.target===modal) modal.remove(); };
+  modal.innerHTML = '<div style="background:#fff;border-radius:16px;padding:28px;max-width:440px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.25)">'
+    +'<h3 style="font-size:1rem;color:var(--navy);margin-bottom:4px"><i class="fa fa-rotate-left" style="color:#dc2626"></i> Refund full order</h3>'
+    +'<p style="font-size:.78rem;color:var(--muted);margin-bottom:18px">Order: <strong>'+orderId+'</strong> · '+o.items.length+' box(es) · Total: '+total+'</p>'
+    +'<div style="background:#fef2f2;border:1.5px solid #fca5a5;border-radius:10px;padding:14px 16px;margin-bottom:18px">'
+    +'<p style="font-size:.82rem;font-weight:600;color:#991b1b;margin-bottom:8px"><i class="fa fa-triangle-exclamation"></i> Before confirming:</p>'
+    +'<p style="font-size:.78rem;color:#7f1d1d;margin-bottom:6px">1. Go to <strong>Paystack Dashboard → Transactions</strong></p>'
+    +'<p style="font-size:.78rem;color:#7f1d1d;margin-bottom:6px">2. Find order <strong>'+orderId+'</strong></p>'
+    +'<p style="font-size:.78rem;color:#7f1d1d;margin-bottom:0">3. Click <strong>Refund → Full amount</strong></p>'
+    +'</div>'
+    +'<div class="fg" style="margin-bottom:16px"><label style="font-size:.72rem;color:var(--muted)">Reason (optional)</label>'
+    +'<input type="text" class="fi" id="adm-refund-reason" placeholder="e.g. Customer request"></div>'
+    +'<div style="display:flex;gap:10px">'
+    +'<button class="btn bsm" style="flex:1;background:#dc2626;color:#fff;border:none" onclick="admConfirmRefundOrder(\''+orderId+'\',\''+o.email+'\')"><i class="fa fa-check"></i> I\'ve refunded in Paystack — confirm</button>'
+    +'<button class="btn bg bsm" style="flex:1" onclick="document.getElementById(\'adm-refund-modal\').remove()">Cancel</button>'
+    +'</div></div>';
+  document.body.appendChild(modal);
+}
+
+async function admConfirmRefundOrder(orderId, customerEmail) {
+  var reason = document.getElementById('adm-refund-reason')?.value || '';
+  try {
+    await db_client.from('vouchers').update({ status: 'refunded' }).eq('order_id', orderId);
+    await db_client.from('orders').update({ status: 'refunded' }).eq('id', orderId);
+    await fetch('/api/send-email', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'refund_confirmation', email: customerEmail, orderId, boxName: 'Full order', amount: 'Full refund', reason }),
+    });
+    document.getElementById('adm-refund-modal')?.remove();
+    admToast('✅ Full refund confirmed — all vouchers invalidated, customer notified.');
+    loadOrdersFromSupabase();
+  } catch(e) { admToast('Error: '+e.message); }
+}
 async function admShowBoxForm(boxId) {
   appState.editingBoxId = boxId || null;
   const form = document.getElementById('adm-box-form-wrap');
