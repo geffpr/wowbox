@@ -124,7 +124,46 @@ export default async function handler(req, res) {
     const sent   = results.filter(r => r.status === 'sent').length;
     const failed = results.filter(r => r.status === 'error').length;
 
-    return res.status(200).json({ date: today, sent, failed, results });
+    // ── Voucher expiry reminders — 30 days before expiry ──────────────────────
+    let reminders = 0;
+    try {
+      const in30 = new Date();
+      in30.setDate(in30.getDate() + 30);
+      const targetDate = in30.toISOString().slice(0, 10);
+
+      const expiringVouchers = await supabaseFetch(
+        `/vouchers?status=eq.active&expires_at=gte.${targetDate}T00:00:00&expires_at=lte.${targetDate}T23:59:59&select=code,box_name,user_email,created_at,expires_at`,
+        { headers: { 'Prefer': 'return=representation' } }
+      );
+
+      for (const v of (expiringVouchers || [])) {
+        if (!v.user_email) continue;
+        try {
+          await fetch(`${SITE_URL}/api/send-email`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              type:         'voucher_expiry_reminder',
+              email:        v.user_email,
+              voucherCode:  v.code,
+              boxName:      v.box_name,
+              expiresAt:    v.expires_at,
+              purchaseDate: v.created_at
+                ? new Date(v.created_at).toLocaleDateString('en-ZA',{day:'numeric',month:'long',year:'numeric'})
+                : '',
+            }),
+          });
+          reminders++;
+          console.log(`[send-scheduled] 🔔 Expiry reminder sent to ${v.user_email} for ${v.code}`);
+        } catch(reminderErr) {
+          console.error(`[send-scheduled] ❌ Reminder failed for ${v.code}:`, reminderErr.message);
+        }
+      }
+    } catch(expiryErr) {
+      console.error('[send-scheduled] Expiry reminder error:', expiryErr.message);
+    }
+
+    return res.status(200).json({ date: today, sent, failed, results, reminders });
   } catch (err) {
     console.error('[send-scheduled] Fatal error:', err.message);
     return res.status(500).json({ error: err.message });

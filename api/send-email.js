@@ -193,7 +193,8 @@ function tplStatusDelivered(o) {
         infoRow('Order ref', o.id || '—') +
         infoRow('Date', o.date || new Date().toLocaleDateString('en-ZA')) +
         infoRow('Delivery', deliveryLabel) +
-        infoRow('Total paid', o.total || '—')
+        infoRow('Total paid', o.total || '—') +
+        (o.bookingReference ? infoRow('Booking reference', `<strong style="font-family:'Courier New',monospace;color:#15803d;letter-spacing:1px">${o.bookingReference}</strong>`) : '')
       )}
       ${o.giftMsg ? highlight(`<strong>Gift message:</strong><br><em style="font-family:Georgia,serif;font-size:15px">"${o.giftMsg}"</em>`) : ''}
       ${o.videoToken ? highlight(`<strong>🎬 Video message included</strong><br><a href="${SITE_URL}/gift-video/${o.videoToken}" style="color:${C.goldDark}">Watch the video &rarr;</a>`) : ''}
@@ -506,6 +507,68 @@ function tplVoucher(d) {
 }
 
 
+// ── Booking Cancelled — Customer ────────────────────────────────────────────
+function tplBookingCancelledCustomer(o) {
+  const content =
+    h1('Your booking has been cancelled') +
+    p('Your booking for <strong>'+(o.experienceName||'your experience')+'</strong> has been cancelled. Your voucher is now active again — you can browse and book a new experience at any time.') +
+    infoTable([
+      infoRow('Experience',  o.experienceName || '—'),
+      infoRow('Booking ref', o.bookingRef     || '—'),
+      infoRow('Voucher',     o.voucherCode    || '—'),
+      infoRow('Cancelled on',new Date().toLocaleDateString('en-ZA',{day:'numeric',month:'long',year:'numeric'})),
+    ]) +
+    btn('Browse experiences again', SITE_URL+'/my-account') +
+    hr() +
+    sm('Questions? Contact us at <a href="mailto:support@wowbox.co.za" style="color:'+C.goldDark+'">support@wowbox.co.za</a>');
+  return {
+    subject: 'Booking cancelled — your voucher is active again',
+    html: layout(content, HEROES.booking, 'Your WowBox voucher is ready to use again'),
+  };
+}
+
+// ── Booking Cancelled — Partner ──────────────────────────────────────────────
+function tplBookingCancelledPartner(o) {
+  const content =
+    badge('Cancellation notice', '#ef4444') +
+    h1('A booking has been cancelled') +
+    p('A customer has cancelled their upcoming booking. Please update your availability accordingly.') +
+    infoTable([
+      infoRow('Experience',   o.experienceName  || '—'),
+      infoRow('Guest',        o.guestName       || '—'),
+      infoRow('Booking ref',  o.bookingRef      || '—'),
+      infoRow('Booked date',  o.bookingDate     || '—'),
+      infoRow('Cancelled on', new Date().toLocaleDateString('en-ZA',{day:'numeric',month:'long',year:'numeric'})),
+    ]) +
+    hr() +
+    sm('Manage your availability in your <a href="'+SITE_URL+'/partner" style="color:'+C.goldDark+'">Partner Portal → Calendar</a>.');
+  return {
+    subject: 'Booking cancelled — ' + (o.experienceName||'experience'),
+    html: layout(content, HEROES.partner, 'A booking for '+( o.experienceName||'your experience')+' has been cancelled'),
+  };
+}
+
+// ── Voucher Expiry Reminder (30 days) ────────────────────────────────────────
+function tplVoucherExpiryReminder(o) {
+  const expiryDate = o.expiresAt
+    ? new Date(o.expiresAt).toLocaleDateString('en-ZA',{day:'numeric',month:'long',year:'numeric'})
+    : '30 days from now';
+  const content =
+    badge('Voucher expiring soon', C.gold) +
+    h1('Your WowBox voucher expires in 30 days') +
+    p('Don\'t let your gift experience go to waste! Your WowBox voucher <strong>'+(o.voucherCode||'')+'</strong> expires on <strong>'+expiryDate+'</strong>.') +
+    codeBox(o.voucherCode||'') +
+    p('Hundreds of unforgettable experiences are waiting for you — from spa days and fine dining to outdoor adventures across South Africa.') +
+    btn('Browse & book now', SITE_URL+'/my-account') +
+    hr() +
+    sm('This voucher was purchased on '+( o.purchaseDate||'')+ '. If you have any questions, contact us at <a href="mailto:support@wowbox.co.za" style="color:'+C.goldDark+'">support@wowbox.co.za</a>');
+  return {
+    subject: 'Your WowBox voucher expires in 30 days — don\'t miss out',
+    html: layout(content, HEROES.order, 'Your WowBox voucher expires soon'),
+  };
+}
+
+
 function tplBuyerConfirmation(o) {
   const items = (o.items || []).map(i =>
     `<div style="display:flex;justify-content:space-between;align-items:center;
@@ -606,6 +669,15 @@ export default async function handler(req, res) {
       }
       case 'contact_form': {
         emailJobs.push({ to: ADMIN_EMAIL, replyTo: o.email, ...tplContactForm(o) });
+        break;
+      }
+      case 'booking_cancelled': {
+        if (o.customerEmail) emailJobs.push({ to: o.customerEmail, ...tplBookingCancelledCustomer(o) });
+        if (o.partnerEmail)  emailJobs.push({ to: o.partnerEmail,  ...tplBookingCancelledPartner(o) });
+        break;
+      }
+      case 'voucher_expiry_reminder': {
+        if (o.email) emailJobs.push({ to: o.email, ...tplVoucherExpiryReminder(o) });
         break;
       }
       case 'buyer_confirmation': {
