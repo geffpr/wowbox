@@ -14415,7 +14415,6 @@ async function admAddPartnerComm() {
 }
 
 async function admSavePartnerCommModal() {
-  var modal = document.getElementById('comm-partner-modal'); if (modal) modal.remove();
   var sel   = document.getElementById('cp-modal-partner');
   var email = sel?.value;
   var label = sel?.options[sel.selectedIndex]?.dataset.label || email;
@@ -14427,6 +14426,7 @@ async function admSavePartnerCommModal() {
       rate_type: 'partner', target_id: email, target_label: label, platform_rate: rate, note: note
     }, { onConflict: 'rate_type,target_id' });
     if (res.error) throw res.error;
+    document.getElementById('comm-partner-modal')?.remove();
     admToast('✅ Partner override saved.');
     loadCommissionRates();
   } catch(e) { admToast('Error: '+e.message); }
@@ -14461,7 +14461,6 @@ async function admAddExpComm() {
 }
 
 async function admSaveExpCommModal() {
-  var modal = document.getElementById('comm-exp-modal'); if (modal) modal.remove();
   var sel   = document.getElementById('ce-modal-exp');
   var expId = sel?.value;
   var label = sel?.options[sel.selectedIndex]?.dataset.label || expId;
@@ -14473,6 +14472,7 @@ async function admSaveExpCommModal() {
       rate_type: 'experience', target_id: expId, target_label: label, platform_rate: rate, note: note
     }, { onConflict: 'rate_type,target_id' });
     if (res.error) throw res.error;
+    document.getElementById('comm-exp-modal')?.remove();
     admToast('✅ Experience override saved.');
     loadCommissionRates();
   } catch(e) { admToast('Error: '+e.message); }
