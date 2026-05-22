@@ -14343,7 +14343,7 @@ async function saveGlobalComm() {
   if (val < 1 || val > 99) { admToast('Rate must be between 1 and 99.'); return; }
   try {
     var res = await db_client.from('commission_rates')
-      .upsert({ rate_type:'global', target_id:null, platform_rate:val, note:'Default WowBox platform rate' }, { onConflict: 'rate_type,target_id' });
+      .upsert({ rate_type:'global', target_id:'__global__', platform_rate:val, note:'Default WowBox platform rate' }, { onConflict: 'rate_type,target_id' });
     if (res.error) throw res.error;
     var pctEl = document.getElementById('comm-partner-pct');
     if (pctEl) pctEl.textContent = 100 - val;
