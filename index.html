@@ -7655,7 +7655,8 @@ const PAGE_HASH = {
   login:'/login',dashboard:'/my-account',activation:'/activate',
   'partner-landing':'/partners',partner:'/partner',admin:'/admin',browse:'/browse',roulette:'/surprise',
   giftvideo:'/gift-video',
-  faq:'/faq',contact:'/contact'
+  faq:'/faq',contact:'/contact',
+  terms:'/terms',privacy:'/privacy',refund:'/refund-policy'
 };
 const HASH_PAGE = {};
 Object.entries(PAGE_HASH).forEach(function(e){ HASH_PAGE[e[1]] = e[0]; });
@@ -10767,7 +10768,7 @@ function nextStep(step, quiet) {
     if (sline) sline.className = 'sline ' + (n<step?'done':'');
   });
   appState.ckStep = step;
-  if (step === 3) { ckPopulateStep3Summary(); }
+  if (step === 3) { ckPopulateStep3Summary(); updateCkTotal(); }
   if (!quiet) window.scrollTo({top:0,behavior:'smooth'});
 }
 
@@ -12207,7 +12208,6 @@ function admOrderDetail(orderId) {
       ${item.code !== '—' ? `<button class="btn bg bsm" onclick="admPrintCode('${item.code}','${item.name}')"><i class="fa fa-print"></i></button>` : ''}
       ${item.status !== 'refunded' ? `<button class="btn bsm" style="background:#fef2f2;color:#dc2626;border:1px solid #fca5a5;font-size:.7rem" onclick="admRefundBox('${orderId}','${item.code}','${item.name}',${item.price||0},'${o.email}')"><i class="fa fa-rotate-left"></i> Refund</button>` : '<span style="font-size:.7rem;color:#dc2626;font-weight:600">Refunded</span>'}
     </div>`).join('');
-  /* Refund full order button */
   var refundAllEl = document.getElementById('od-refund-all-btn');
   if (refundAllEl) {
     var allRefunded = o.items.every(function(i){ return i.status === 'refunded'; });
@@ -12766,7 +12766,7 @@ function admRefundBox(orderId, voucherCode, boxName, boxPrice, customerEmail) {
     +'<p style="font-size:.78rem;color:#7f1d1d;margin-bottom:6px">2. Find order <strong>'+orderId+'</strong></p>'
     +'<p style="font-size:.78rem;color:#7f1d1d;margin-bottom:0">3. Click <strong>Refund → enter R'+Number(boxPrice).toLocaleString()+'</strong></p>'
     +'</div>'
-    +'<div class="fg" style="margin-bottom:16px"><label style="font-size:.72rem;color:var(--muted)">Refund amount (R)</label>'
+    +'<div class="fg" style="margin-bottom:12px"><label style="font-size:.72rem;color:var(--muted)">Refund amount (R)</label>'
     +'<input type="number" class="fi" id="adm-refund-amount" value="'+Number(boxPrice)+'" min="1"></div>'
     +'<div class="fg" style="margin-bottom:18px"><label style="font-size:.72rem;color:var(--muted)">Reason (optional)</label>'
     +'<input type="text" class="fi" id="adm-refund-reason" placeholder="e.g. Customer request, experience unavailable"></div>'
@@ -12781,18 +12781,12 @@ async function admConfirmRefundBox(orderId, voucherCode, customerEmail, boxName)
   var amount = document.getElementById('adm-refund-amount')?.value || 0;
   var reason = document.getElementById('adm-refund-reason')?.value || '';
   try {
-    /* 1. Mark voucher as refunded */
     await db_client.from('vouchers').update({ status: 'refunded' }).eq('code', voucherCode);
-    /* 2. Check if all vouchers for this order are now refunded */
     var vRes = await db_client.from('vouchers').select('code,status').eq('order_id', orderId);
-    var vouchers = vRes.data || [];
-    var allRefunded = vouchers.every(function(v){ return v.status === 'refunded'; });
-    /* 3. Update order status */
+    var allRefunded = (vRes.data || []).every(function(v){ return v.status === 'refunded'; });
     await db_client.from('orders').update({ status: allRefunded ? 'refunded' : 'partial_refund' }).eq('id', orderId);
-    /* 4. Send refund email to customer */
     await fetch('/api/send-email', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ type: 'refund_confirmation', email: customerEmail, orderId, boxName, amount: 'R'+Number(amount).toLocaleString(), reason }),
     });
     document.getElementById('adm-refund-modal')?.remove();
@@ -12802,21 +12796,20 @@ async function admConfirmRefundBox(orderId, voucherCode, customerEmail, boxName)
 }
 
 function admRefundOrder(orderId, o) {
-  var total = o.total || '—';
   var modal = document.createElement('div');
   modal.id = 'adm-refund-modal';
   modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
   modal.onclick = function(e){ if(e.target===modal) modal.remove(); };
   modal.innerHTML = '<div style="background:#fff;border-radius:16px;padding:28px;max-width:440px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.25)">'
     +'<h3 style="font-size:1rem;color:var(--navy);margin-bottom:4px"><i class="fa fa-rotate-left" style="color:#dc2626"></i> Refund full order</h3>'
-    +'<p style="font-size:.78rem;color:var(--muted);margin-bottom:18px">Order: <strong>'+orderId+'</strong> · '+o.items.length+' box(es) · Total: '+total+'</p>'
+    +'<p style="font-size:.78rem;color:var(--muted);margin-bottom:18px">Order: <strong>'+orderId+'</strong> · '+(o.items||[]).length+' box(es) · Total: '+(o.total||'—')+'</p>'
     +'<div style="background:#fef2f2;border:1.5px solid #fca5a5;border-radius:10px;padding:14px 16px;margin-bottom:18px">'
     +'<p style="font-size:.82rem;font-weight:600;color:#991b1b;margin-bottom:8px"><i class="fa fa-triangle-exclamation"></i> Before confirming:</p>'
     +'<p style="font-size:.78rem;color:#7f1d1d;margin-bottom:6px">1. Go to <strong>Paystack Dashboard → Transactions</strong></p>'
     +'<p style="font-size:.78rem;color:#7f1d1d;margin-bottom:6px">2. Find order <strong>'+orderId+'</strong></p>'
     +'<p style="font-size:.78rem;color:#7f1d1d;margin-bottom:0">3. Click <strong>Refund → Full amount</strong></p>'
     +'</div>'
-    +'<div class="fg" style="margin-bottom:16px"><label style="font-size:.72rem;color:var(--muted)">Reason (optional)</label>'
+    +'<div class="fg" style="margin-bottom:18px"><label style="font-size:.72rem;color:var(--muted)">Reason (optional)</label>'
     +'<input type="text" class="fi" id="adm-refund-reason" placeholder="e.g. Customer request"></div>'
     +'<div style="display:flex;gap:10px">'
     +'<button class="btn bsm" style="flex:1;background:#dc2626;color:#fff;border:none" onclick="admConfirmRefundOrder(\''+orderId+'\',\''+o.email+'\')"><i class="fa fa-check"></i> I\'ve refunded in Paystack — confirm</button>'
@@ -12831,8 +12824,7 @@ async function admConfirmRefundOrder(orderId, customerEmail) {
     await db_client.from('vouchers').update({ status: 'refunded' }).eq('order_id', orderId);
     await db_client.from('orders').update({ status: 'refunded' }).eq('id', orderId);
     await fetch('/api/send-email', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ type: 'refund_confirmation', email: customerEmail, orderId, boxName: 'Full order', amount: 'Full refund', reason }),
     });
     document.getElementById('adm-refund-modal')?.remove();
@@ -12840,6 +12832,8 @@ async function admConfirmRefundOrder(orderId, customerEmail) {
     loadOrdersFromSupabase();
   } catch(e) { admToast('Error: '+e.message); }
 }
+
+/* ── Gift Boxes ── */
 async function admShowBoxForm(boxId) {
   appState.editingBoxId = boxId || null;
   const form = document.getElementById('adm-box-form-wrap');
@@ -14887,7 +14881,7 @@ function confirmRouletteBooking() {
 /* ══════════════════════════════════════════════════════════════
    PARTNER PORTAL
 ══════════════════════════════════════════════════════════════ */
-const PP_SECTIONS = ['pp-overview','pp-validate','pp-experiences','pp-subscription','pp-plan','pp-analytics','pp-calendar','pp-boost','pp-reporting','pp-reviews','pp-settings'];
+const PP_SECTIONS = ['pp-overview','pp-validate','pp-payouts','pp-experiences','pp-subscription','pp-plan','pp-analytics','pp-calendar','pp-boost','pp-reporting','pp-reviews','pp-settings'];
 
 function switchPP(btn, sectionId) {
   PP_SECTIONS.forEach(id => {
@@ -16006,7 +16000,7 @@ function updatePlanLockedUI() {
     el.style.display = pro ? 'block' : 'none';
   });
   // Sidebar Pro nav buttons: unlock when pro
-  ['pp-nav-analytics','pp-nav-calendar','pp-nav-boost','pp-nav-reporting'].forEach(id => {
+  ['pp-nav-boost','pp-nav-reporting'].forEach(id => {
     const btn = document.getElementById(id);
     if (!btn) return;
     if (pro) {
@@ -17217,6 +17211,110 @@ async function admRunSchemaDiag() {
 .footer-legal a{font-size:.72rem;color:rgba(255,255,255,.45)}
 .footer-legal a:hover{color:rgba(255,255,255,.85)}
 </style>
+
+<!-- ══ TERMS OF USE ══ -->
+<div id="page-terms" class="page">
+  <div class="sec" style="max-width:800px;margin:0 auto;padding:60px 20px">
+    <div style="margin-bottom:32px">
+      <span style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--b500)">Legal</span>
+      <h1 style="font-size:2rem;color:var(--navy);margin:8px 0 10px">Terms & Conditions</h1>
+      <p style="color:var(--muted);font-size:.85rem">Effective 27 April 2026 — WowBox is a trading name of <strong>RC Tradeworx Holdings (Pty) Ltd</strong>, reg. 2025/174107/07, 29 North Road, Benoni, Gauteng, 1514. Contact: <a href="mailto:info@wowbox.co.za" style="color:var(--b600)">info@wowbox.co.za</a></p>
+      <div style="height:2px;background:linear-gradient(90deg,var(--b400),transparent);margin-top:20px"></div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:20px;font-size:.88rem;color:var(--slate);line-height:1.8">
+      <div><h3 style="color:var(--navy);font-size:1rem;margin-bottom:6px">1. Eligibility</h3><p>You must be at least <strong>18 years old</strong> to purchase a WowBox product. Persons under 18 may only participate when accompanied by a parent or legal guardian. No refund shall be provided if admission is refused due to age.</p></div>
+      <div><h3 style="color:var(--navy);font-size:1rem;margin-bottom:6px">2. About WowBox</h3><p>WowBox acts solely as an intermediary between customers and independent third-party experience providers ("Participating Partners"). WowBox does not own, operate, or supervise any experience or venue provided by Participating Partners.</p></div>
+      <div><h3 style="color:var(--navy);font-size:1rem;margin-bottom:6px">3. Orders & Acceptance</h3><p>An order is only accepted once payment has been successfully processed and the WowBox product issued. We reserve the right to refuse or cancel any order at our sole discretion.</p></div>
+      <div><h3 style="color:var(--navy);font-size:1rem;margin-bottom:6px">4. Pricing & Payment</h3><p>All prices are in ZAR and include VAT where applicable. Payment must be received in full before delivery.</p></div>
+      <div><h3 style="color:var(--navy);font-size:1rem;margin-bottom:6px">5. Delivery</h3><p>Digital products are delivered electronically to the email address provided. Physical delivery timeframes are estimates only. WowBox is not liable for courier delays.</p></div>
+      <div><h3 style="color:var(--navy);font-size:1rem;margin-bottom:6px">6. Voucher Activation & Redemption</h3><p>Each product contains a unique activation code. Activated vouchers are non-transferable unless expressly permitted.</p></div>
+      <div><h3 style="color:var(--navy);font-size:1rem;margin-bottom:6px">7. Booking & Availability</h3><p>All experiences are subject to availability determined solely by the Participating Partner. WowBox does not guarantee availability of any experience, date, or time.</p></div>
+      <div><h3 style="color:var(--navy);font-size:1rem;margin-bottom:6px">8. Experience Changes</h3><p>Participating Partners may modify, substitute, or discontinue any experience at any time. WowBox may substitute an equivalent experience where reasonably possible.</p></div>
+      <div><h3 style="color:var(--navy);font-size:1rem;margin-bottom:6px">9. Validity</h3><p>Vouchers are valid for 12 months from the date of purchase. Expired vouchers may not be redeemed unless required by law.</p></div>
+      <div><h3 style="color:var(--navy);font-size:1rem;margin-bottom:6px">10. Participating Partner Responsibility</h3><p>Partners are solely responsible for delivering the experience, maintaining licences, health & safety, insurance, and service quality. Complaints must be addressed directly with the Partner.</p></div>
+      <div><h3 style="color:var(--navy);font-size:1rem;margin-bottom:6px">11. Insurance</h3><p>WowBox does not provide any form of insurance. Customers are solely responsible for obtaining any insurance they deem necessary.</p></div>
+      <div><h3 style="color:var(--navy);font-size:1rem;margin-bottom:6px">12. Assumption of Risk</h3><p>Certain experiences involve inherent risks including physical injury or death. Participation is voluntary. You assume all risks associated with participation. WowBox shall not be liable for any injury, loss, or death arising from participation.</p></div>
+      <div><h3 style="color:var(--navy);font-size:1rem;margin-bottom:6px">13. Fitness to Participate</h3><p>You are solely responsible for ensuring all participants are fit to participate. Partners may refuse participation where unsafe. No refund shall be due in such circumstances.</p></div>
+      <div><h3 style="color:var(--navy);font-size:1rem;margin-bottom:6px">14. Refusal of Admission</h3><p>No refund, exchange, or compensation shall be payable where a Participating Partner refuses admission due to: age restrictions; failure to present valid ID; intoxication; inappropriate behaviour; safety concerns; dress code violations; medical concerns; or any other lawful reason.</p></div>
+      <div><h3 style="color:var(--navy);font-size:1rem;margin-bottom:6px">15. Additional Costs</h3><p>Unless stated otherwise, the following are excluded: transportation, accommodation, meals, gratuities, insurance, taxes, personal expenses, and optional extras.</p></div>
+      <div><h3 style="color:var(--navy);font-size:1rem;margin-bottom:6px">16. Cancellation & Refunds</h3><p>Subject to applicable South African consumer protection laws: activated, redeemed, expired, and partially used vouchers are non-refundable. Digital products may not be refunded once delivered, except where required by law.</p></div>
+      <div><h3 style="color:var(--navy);font-size:1rem;margin-bottom:6px">17. Lost / Stolen Vouchers</h3><p>WowBox is not responsible for lost, stolen, or unauthorised use of vouchers. Treat your voucher like cash.</p></div>
+      <div><h3 style="color:var(--navy);font-size:1rem;margin-bottom:6px">18. Fraud & Abuse</h3><p>WowBox reserves the right to cancel any order or account where fraud or abuse is suspected.</p></div>
+      <div><h3 style="color:var(--navy);font-size:1rem;margin-bottom:6px">19. Limitation of Liability</h3><p>To the fullest extent permitted by law, WowBox shall not be liable for any indirect, incidental, or consequential damages. Our total liability shall never exceed the purchase price paid.</p></div>
+      <div><h3 style="color:var(--navy);font-size:1rem;margin-bottom:6px">20. Force Majeure</h3><p>WowBox is not liable for delays caused by circumstances beyond our control including natural disasters, pandemics, government action, or cyberattacks.</p></div>
+      <div><h3 style="color:var(--navy);font-size:1rem;margin-bottom:6px">21. Indemnity</h3><p>You agree to indemnify WowBox and its directors, officers, and employees from any claims arising from your breach of these Terms, misuse of any product, or participation in any experience.</p></div>
+      <div><h3 style="color:var(--navy);font-size:1rem;margin-bottom:6px">22. Intellectual Property</h3><p>All content on the WowBox website is owned by or licensed to WowBox. No content may be copied or used without prior written consent.</p></div>
+      <div><h3 style="color:var(--navy);font-size:1rem;margin-bottom:6px">23. Privacy</h3><p>Your personal information will be processed in accordance with our <span style="color:var(--b600);cursor:pointer" onclick="go('privacy')">Privacy Policy</span> and applicable South African data protection laws (POPIA).</p></div>
+      <div><h3 style="color:var(--navy);font-size:1rem;margin-bottom:6px">24. Governing Law</h3><p>These Terms are governed by the laws of the Republic of South Africa. Any dispute shall be subject to the exclusive jurisdiction of the South African courts.</p></div>
+      <div><h3 style="color:var(--navy);font-size:1rem;margin-bottom:6px">25. Amendments</h3><p>WowBox may amend these Terms at any time. The version published at the time of purchase shall apply.</p></div>
+    </div>
+    <div style="margin-top:40px;padding-top:24px;border-top:1px solid var(--border);display:flex;gap:14px;flex-wrap:wrap">
+      <button class="btn bp bsm" onclick="go('home')"><i class="fa fa-home"></i> Back to home</button>
+      <button class="btn bg bsm" onclick="go('privacy')">Privacy Policy</button>
+      <button class="btn bg bsm" onclick="go('refund')">Refund Policy</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ PRIVACY POLICY ══ -->
+<div id="page-privacy" class="page">
+  <div class="sec" style="max-width:800px;margin:0 auto;padding:60px 20px">
+    <div style="margin-bottom:32px">
+      <span style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--b500)">Legal</span>
+      <h1 style="font-size:2rem;color:var(--navy);margin:8px 0 10px">Privacy Policy</h1>
+      <p style="color:var(--muted);font-size:.85rem">Effective 27 April 2026 — RC Tradeworx Holdings (Pty) Ltd · <a href="mailto:info@wowbox.co.za" style="color:var(--b600)">info@wowbox.co.za</a></p>
+      <div style="height:2px;background:linear-gradient(90deg,var(--b400),transparent);margin-top:20px"></div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:20px;font-size:.88rem;color:var(--slate);line-height:1.8">
+      <div><h3 style="color:var(--navy);font-size:1rem;margin-bottom:6px">1. Who We Are</h3><p>WowBox is a trading name of RC Tradeworx Holdings (Pty) Ltd. We operate the WowBox platform at wowbox.co.za and are the responsible party for your personal information under the Protection of Personal Information Act 4 of 2013 (POPIA).</p></div>
+      <div><h3 style="color:var(--navy);font-size:1rem;margin-bottom:6px">2. What We Collect</h3><p>We collect the following personal information: full name, email address, phone number, delivery address (for physical orders), payment reference numbers, booking details, and any messages or content you choose to share (personal messages, video messages). We do not store card details — payments are processed securely by Paystack.</p></div>
+      <div><h3 style="color:var(--navy);font-size:1rem;margin-bottom:6px">3. Why We Collect It</h3><p>We use your information to: process and fulfil your orders; send digital vouchers and gift experiences; communicate booking confirmations and updates; provide customer support; improve our platform; comply with legal obligations.</p></div>
+      <div><h3 style="color:var(--navy);font-size:1rem;margin-bottom:6px">4. How We Store It</h3><p>Your data is stored securely on Supabase (PostgreSQL database hosted in the EU) with row-level security policies. Access is restricted to authorised personnel only. We retain your data for as long as necessary to provide our services and comply with legal requirements.</p></div>
+      <div><h3 style="color:var(--navy);font-size:1rem;margin-bottom:6px">5. Who We Share It With</h3><p>We share the minimum necessary information with: <strong>Participating Partners</strong> (experience providers) to facilitate bookings; <strong>Paystack</strong> for payment processing; <strong>Resend</strong> for transactional email delivery; <strong>Vercel</strong> for website hosting. We do not sell your personal information to third parties.</p></div>
+      <div><h3 style="color:var(--navy);font-size:1rem;margin-bottom:6px">6. Video Messages</h3><p>Video messages you upload are stored securely in Supabase Storage and are accessible only via a unique private link. Videos expire automatically after 30 days from purchase.</p></div>
+      <div><h3 style="color:var(--navy);font-size:1rem;margin-bottom:6px">7. Your Rights (POPIA)</h3><p>Under POPIA you have the right to: access your personal information; request correction of inaccurate information; request deletion of your information (subject to legal obligations); object to processing; lodge a complaint with the Information Regulator. To exercise these rights, contact <a href="mailto:info@wowbox.co.za" style="color:var(--b600)">info@wowbox.co.za</a>.</p></div>
+      <div><h3 style="color:var(--navy);font-size:1rem;margin-bottom:6px">8. Cookies</h3><p>We use essential cookies only to maintain your session and cart. We do not use advertising or tracking cookies. You may disable cookies in your browser settings, though this may affect functionality.</p></div>
+      <div><h3 style="color:var(--navy);font-size:1rem;margin-bottom:6px">9. Security</h3><p>We implement appropriate technical and organisational measures to protect your personal information against unauthorised access, disclosure, or loss. However, no internet transmission is completely secure.</p></div>
+      <div><h3 style="color:var(--navy);font-size:1rem;margin-bottom:6px">10. Changes to This Policy</h3><p>We may update this Privacy Policy from time to time. The current version will always be available at wowbox.co.za/privacy. Material changes will be communicated by email.</p></div>
+      <div><h3 style="color:var(--navy);font-size:1rem;margin-bottom:6px">11. Contact</h3><p>For any privacy-related queries or to exercise your rights, contact our Information Officer at <a href="mailto:info@wowbox.co.za" style="color:var(--b600)">info@wowbox.co.za</a> or write to: RC Tradeworx Holdings (Pty) Ltd, 29 North Road, Benoni, Gauteng, 1514, South Africa.</p></div>
+    </div>
+    <div style="margin-top:40px;padding-top:24px;border-top:1px solid var(--border);display:flex;gap:14px;flex-wrap:wrap">
+      <button class="btn bp bsm" onclick="go('home')"><i class="fa fa-home"></i> Back to home</button>
+      <button class="btn bg bsm" onclick="go('terms')">Terms of Use</button>
+      <button class="btn bg bsm" onclick="go('refund')">Refund Policy</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ REFUND POLICY ══ -->
+<div id="page-refund" class="page">
+  <div class="sec" style="max-width:800px;margin:0 auto;padding:60px 20px">
+    <div style="margin-bottom:32px">
+      <span style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--b500)">Legal</span>
+      <h1 style="font-size:2rem;color:var(--navy);margin:8px 0 10px">Refund Policy</h1>
+      <p style="color:var(--muted);font-size:.85rem">Effective 27 April 2026 — Questions? <a href="mailto:support@wowbox.co.za" style="color:var(--b600)">support@wowbox.co.za</a></p>
+      <div style="height:2px;background:linear-gradient(90deg,var(--b400),transparent);margin-top:20px"></div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:20px;font-size:.88rem;color:var(--slate);line-height:1.8">
+      <div style="background:var(--b50);border:1.5px solid var(--b200);border-radius:12px;padding:18px 20px">
+        <p style="font-weight:700;color:var(--navy);margin-bottom:6px">Summary</p>
+        <p>WowBox vouchers are valid for <strong>12 months</strong> from purchase. Booking cancellations are accepted up to <strong>24 hours</strong> before the experience. Refunds are handled case by case — contact us at <a href="mailto:support@wowbox.co.za" style="color:var(--b600)">support@wowbox.co.za</a>.</p>
+      </div>
+      <div><h3 style="color:var(--navy);font-size:1rem;margin-bottom:6px">1. Voucher Validity</h3><p>All WowBox vouchers are valid for 12 months from the date of purchase. We send a reminder email 30 days before your voucher expires. Expired vouchers cannot be redeemed.</p></div>
+      <div><h3 style="color:var(--navy);font-size:1rem;margin-bottom:6px">2. Booking Cancellation</h3><p>You may cancel a confirmed booking up to <strong>24 hours before</strong> the scheduled experience. Cancellations made within 24 hours of the experience are non-refundable. When you cancel a booking, your voucher is automatically reactivated and you can rebook a different experience or date.</p></div>
+      <div><h3 style="color:var(--navy);font-size:1rem;margin-bottom:6px">3. Refund Eligibility</h3><p>Refunds may be considered in the following circumstances: the experience is cancelled by the Participating Partner with no suitable alternative; the experience delivered was materially different from its description; a technical error on our platform resulted in a duplicate charge. Refunds are not available for: change of mind after purchase; failure to cancel within the permitted window; vouchers that have been fully redeemed; expired vouchers.</p></div>
+      <div><h3 style="color:var(--navy);font-size:1rem;margin-bottom:6px">4. Refusal of Admission</h3><p>No refund will be issued if a Participating Partner refuses admission for any lawful reason including but not limited to: age restrictions; intoxication; inappropriate behaviour; failure to present valid identification; medical or safety concerns. This is a condition of purchase agreed to at checkout.</p></div>
+      <div><h3 style="color:var(--navy);font-size:1rem;margin-bottom:6px">5. How to Request a Refund</h3><p>To request a refund, contact us at <a href="mailto:support@wowbox.co.za" style="color:var(--b600)">support@wowbox.co.za</a> with your order number and a description of the issue. We aim to respond within 2 business days. Approved refunds are processed within 5–10 business days and credited to your original payment method via Paystack.</p></div>
+      <div><h3 style="color:var(--navy);font-size:1rem;margin-bottom:6px">6. Partial Refunds</h3><p>Where an order contains multiple boxes, refunds may be issued for individual boxes. The remaining boxes in the order are unaffected.</p></div>
+      <div><h3 style="color:var(--navy);font-size:1rem;margin-bottom:6px">7. Consumer Protection Act</h3><p>Nothing in this policy limits your rights under the Consumer Protection Act 68 of 2008 or any other applicable South African legislation.</p></div>
+    </div>
+    <div style="margin-top:40px;padding-top:24px;border-top:1px solid var(--border);display:flex;gap:14px;flex-wrap:wrap">
+      <button class="btn bp bsm" onclick="go('home')"><i class="fa fa-home"></i> Back to home</button>
+      <button class="btn bg bsm" onclick="go('terms')">Terms of Use</button>
+      <button class="btn bg bsm" onclick="go('privacy')">Privacy Policy</button>
+    </div>
+  </div>
+</div>
 
 <footer class="site-footer" id="site-footer">
   <div class="footer-inner">
