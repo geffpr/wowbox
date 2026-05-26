@@ -508,7 +508,7 @@ async function loadAppPrices() {
   try {
     var res = await db_client.from('app_settings')
       .select('key,value')
-      .in('key', ['price_video_message','price_chance_boost','price_partner_pro',
+      .in('key', ['price_video_message','price_chance_boost','price_partner_pro','price_exp_boost','boost_feature_enabled',
                   'delivery_standard','delivery_express','delivery_sameday','delivery_sameday_radius']);
     if (res.error || !res.data) return;
     res.data.forEach(function(row) {
@@ -516,6 +516,8 @@ async function loadAppPrices() {
       if (row.key === 'price_video_message')       APP_PRICES.video_message           = v;
       if (row.key === 'price_chance_boost')         APP_PRICES.chance_boost            = v;
       if (row.key === 'price_partner_pro')          APP_PRICES.partner_pro             = v;
+      if (row.key === 'price_exp_boost')          APP_PRICES.exp_boost               = v;
+      if (row.key === 'boost_feature_enabled')    APP_PRICES.boost_feature_enabled   = (row.value === 'true');
       if (row.key === 'delivery_standard')          APP_PRICES.delivery_standard       = v;
       if (row.key === 'delivery_express')           APP_PRICES.delivery_express        = v;
       if (row.key === 'delivery_sameday')           APP_PRICES.delivery_sameday        = v;
@@ -1483,8 +1485,40 @@ function renderAnalytics(period) {
 ══════════════════════════════════════════════════════════════ */
 let calState = {};   // key: 'YYYY-MM-DD' → {status:'open'|'limited'|'blocked', cap:4}
 let calYear, calMonth;
+var calBookedDates = {};
 
-function renderCalendar() {
+async function renderCalendar() {
+  const email = appState.partnerEmail || (currentUser && currentUser.email) || '';
+  if (email && !calState._loaded) {
+    try {
+      var res = await db_client.from('partner_availability').select('date,status,capacity').eq('partner_email', email);
+      calState = {};
+      (res.data || []).forEach(function(r){ calState[r.date] = { status: r.status, cap: r.capacity }; });
+      calState._loaded = true;
+    } catch(e) { console.warn('calLoad:', e.message); }
+  }
+  if (email) {
+    try {
+      var now2 = new Date();
+      var monthStart = new Date(calYear || now2.getFullYear(), calMonth !== undefined ? calMonth : now2.getMonth(), 1).toISOString().slice(0,10);
+      var monthEnd   = new Date(calYear || now2.getFullYear(), (calMonth !== undefined ? calMonth : now2.getMonth())+1, 0).toISOString().slice(0,10);
+      var bkRes = await db_client.from('bookings').select('booking_date,checkin_date,checkout_date,guest_count').eq('partner_email', email).neq('status', 'cancelled').or('booking_date.gte.'+monthStart+',checkin_date.gte.'+monthStart);
+      calBookedDates = {};
+      (bkRes.data || []).forEach(function(b) {
+        var dates = [];
+        if (b.checkin_date) {
+          var end = b.checkout_date || b.checkin_date;
+          for (var d = new Date(b.checkin_date); d <= new Date(end); d.setDate(d.getDate()+1))
+            dates.push(d.toISOString().slice(0,10));
+        } else if (b.booking_date) { dates = [b.booking_date]; }
+        dates.forEach(function(dt){ calBookedDates[dt] = (calBookedDates[dt] || 0) + (b.guest_count || 1); });
+      });
+    } catch(e) { console.warn('calBookings:', e.message); }
+  }
+  renderCalendarGrid();
+}
+
+function renderCalendarGrid() {
   const now = new Date();
   if (!calYear)            calYear  = now.getFullYear();
   if (calMonth === undefined) calMonth = now.getMonth();
@@ -1494,29 +1528,32 @@ function renderCalendar() {
   const grid = document.getElementById('cal-grid');
   if (!grid) return;
   const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-  let html = days.map(d => `<div class="cal-hdr-cell">${d}</div>`).join('');
-  const firstDay     = new Date(calYear, calMonth, 1).getDay();
-  const daysInMonth  = new Date(calYear, calMonth+1, 0).getDate();
-  for (let i = 0; i < firstDay; i++) html += `<div class="cal-day-cell day-empty"></div>`;
+  let html = days.map(function(d){ return '<div class="cal-hdr-cell">'+d+'</div>'; }).join('');
+  const firstDay    = new Date(calYear, calMonth, 1).getDay();
+  const daysInMonth = new Date(calYear, calMonth+1, 0).getDate();
+  for (let i = 0; i < firstDay; i++) html += '<div class="cal-day-cell day-empty"></div>';
   for (let d = 1; d <= daysInMonth; d++) {
-    const key   = `${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-    const state = calState[key];
-    const today = d === now.getDate() && calMonth === now.getMonth() && calYear === now.getFullYear();
+    const key    = calYear+'-'+String(calMonth+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+    const state  = calState[key];
+    const booked = calBookedDates[key];
+    const isToday = d === now.getDate() && calMonth === now.getMonth() && calYear === now.getFullYear();
     let cls = 'cal-day-cell';
-    if (today)  cls += ' day-today';
-    if (state)  cls += ' day-' + state.status;
+    if (isToday) cls += ' day-today';
+    if (state) cls += ' day-' + state.status;
+    else if (booked) cls += ' day-booked';
     const dot = state
-      ? `<div style="width:5px;height:5px;border-radius:50%;background:${state.status==='blocked'?'#ef4444':state.status==='limited'?'#f59e0b':'#22c55e'}"></div>`
-      : '';
-    html += `<div class="${cls}" onclick="calToggleDay('${key}',${d})">${d}${dot}</div>`;
+      ? '<div style="width:5px;height:5px;border-radius:50%;background:'+(state.status==='blocked'?'#ef4444':state.status==='limited'?'#f59e0b':'#22c55e')+'"></div>'
+      : booked ? '<div style="width:5px;height:5px;border-radius:50%;background:#3b82f6"></div>' : '';
+    const bookedBadge = booked ? '<div style="font-size:8px;color:#1d4ed8;font-weight:600">'+booked+'bk</div>' : '';
+    html += '<div class="'+cls+'" onclick="calToggleDay(\''+key+'\','+d+')">'+d+dot+bookedBadge+'</div>';
   }
   grid.innerHTML = html;
 }
 
-function calToggleDay(key, d) {
+async function calToggleDay(key, d) {
   const cycle = ['open','limited','blocked'];
   const cur   = calState[key];
-  if (!cur) {
+  if (!cur || cur === true) {
     calState[key] = {status:'open', cap:parseInt(document.getElementById('cal-default-cap')?.value)||4};
   } else {
     const idx = cycle.indexOf(cur.status);
@@ -1524,36 +1561,52 @@ function calToggleDay(key, d) {
     else calState[key].status = cycle[idx + 1];
   }
   const state  = calState[key];
+  const booked = calBookedDates[key] || 0;
   const detail = document.getElementById('cal-day-detail');
-  if (detail) detail.innerHTML = state
-    ? `<strong>${key}</strong><br>Status: <strong>${state.status}</strong><br>Capacity: ${state.cap} guests`
-    : `<strong>${key}</strong><br>Status: Open (default)`;
-  renderCalendar();
+  if (detail) detail.innerHTML = '<strong>'+key+'</strong><br>'
+    + 'Status: <strong>'+(state ? state.status : 'Open (default)')+'</strong><br>'
+    + (state ? 'Capacity: '+state.cap+' guests<br>' : '')
+    + (booked ? '<span style="color:#1d4ed8;font-weight:600">'+booked+' booking(s) confirmed</span>' : '');
+  renderCalendarGrid();
+  const email = appState.partnerEmail || (currentUser && currentUser.email) || '';
+  if (!email) return;
+  try {
+    if (state) {
+      await db_client.from('partner_availability').upsert({ partner_email: email, date: key, status: state.status, capacity: state.cap }, { onConflict: 'partner_email,date' });
+    } else {
+      await db_client.from('partner_availability').delete().eq('partner_email', email).eq('date', key);
+    }
+  } catch(e) { console.warn('calSave:', e.message); }
 }
 
-function calPrevMonth() {
-  if (--calMonth < 0) { calMonth = 11; calYear--; }
-  renderCalendar();
-}
-function calNextMonth() {
-  if (++calMonth > 11) { calMonth = 0; calYear++; }
-  renderCalendar();
-}
-function calBlockRange() {
+function calPrevMonth() { if (--calMonth < 0) { calMonth = 11; calYear--; } renderCalendar(); }
+function calNextMonth() { if (++calMonth > 11) { calMonth = 0; calYear++; } renderCalendar(); }
+
+async function calBlockRange() {
   const s = prompt('Block from (YYYY-MM-DD):');
   const e = prompt('Block to (YYYY-MM-DD):');
   if (!s || !e) return;
+  const email = appState.partnerEmail || (currentUser && currentUser.email) || '';
+  var rows = [];
   for (let d = new Date(s); d <= new Date(e); d.setDate(d.getDate()+1)) {
-    calState[d.toISOString().slice(0,10)] = {status:'blocked', cap:0};
+    var key = d.toISOString().slice(0,10);
+    calState[key] = {status:'blocked', cap:0};
+    if (email) rows.push({ partner_email: email, date: key, status: 'blocked', capacity: 0 });
   }
-  renderCalendar();
-  admToast('Date range blocked successfully.');
+  renderCalendarGrid();
+  if (rows.length && email) {
+    try { await db_client.from('partner_availability').upsert(rows, { onConflict: 'partner_email,date' }); } catch(ex) {}
+  }
+  admToast('Date range blocked.');
 }
-function calClearAll() {
+
+async function calClearAll() {
   if (!confirm('Reset all calendar dates to default?')) return;
-  calState = {};
-  renderCalendar();
-  admToast('Calendar reset to defaults.');
+  const email = appState.partnerEmail || (currentUser && currentUser.email) || '';
+  calState = { _loaded: true };
+  renderCalendarGrid();
+  if (email) { try { await db_client.from('partner_availability').delete().eq('partner_email', email); } catch(e) {} }
+  admToast('Calendar reset.');
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -5055,8 +5108,8 @@ tr:hover td{background:var(--b50)}
       <button class="pp-nav" onclick="switchPP(this,'pp-plan')"><i class="fa fa-crown"></i> Plan &amp; Features</button>
       <!-- Pro nav buttons — shown/unlocked when isPro() -->
       <button class="pp-nav" onclick="switchPP(this,'pp-reviews');ppLoadReviews()"><i class="fa fa-star"></i> My Reviews <span id="pp-reviews-badge" style="display:none;margin-left:auto;background:#ef4444;color:#fff;border-radius:99px;padding:1px 6px;font-size:.6rem;font-weight:700"></span></button>
-      <button class="pp-nav pro-nav-locked" id="pp-nav-analytics" onclick="ppProNav(this,'pp-analytics')"><i class="fa fa-chart-line"></i> Analytics <i class="fa fa-lock pp-nav-lock" style="font-size:.6rem;margin-left:auto"></i></button>
-      <button class="pp-nav pro-nav-locked" id="pp-nav-calendar"  onclick="ppProNav(this,'pp-calendar')"><i class="fa fa-calendar-days"></i> Calendar <i class="fa fa-lock pp-nav-lock" style="font-size:.6rem;margin-left:auto"></i></button>
+      <button class="pp-nav" id="pp-nav-analytics" onclick="switchPP(this,'pp-analytics');renderAnalytics(anPeriod)"><i class="fa fa-chart-line"></i> Analytics</button>
+      <button class="pp-nav" id="pp-nav-calendar" onclick="switchPP(this,'pp-calendar');renderCalendar()"><i class="fa fa-calendar-days"></i> Calendar</button>
       <button class="pp-nav pro-nav-locked" id="pp-nav-boost"     onclick="ppProNav(this,'pp-boost')"><i class="fa fa-rocket"></i> Boost <i class="fa fa-lock pp-nav-lock" style="font-size:.6rem;margin-left:auto"></i></button>
       <button class="pp-nav pro-nav-locked" id="pp-nav-reporting" onclick="ppProNav(this,'pp-reporting')"><i class="fa fa-file-chart-column"></i> Reporting Pro <i class="fa fa-lock pp-nav-lock" style="font-size:.6rem;margin-left:auto"></i></button>
 
@@ -6563,22 +6616,6 @@ tr:hover td{background:var(--b50)}
           <table>
             <thead><tr><th>Partner</th><th>Platform rate</th><th>Partner rate</th><th>Applied since</th><th>Note</th><th></th></tr></thead>
             <tbody id="comm-partner-tbody">
-              <tr>
-                <td><strong>Vineyard Hotels</strong></td>
-                <td><input type="number" value="30" min="1" max="99" class="fi" style="width:58px;padding:6px;text-align:center;font-size:.82rem" onchange="admUpdatePartnerComm(this)"> %</td>
-                <td id="comm-p-pct-0" style="color:var(--green);font-weight:600">70%</td>
-                <td>1 Jan 2025</td>
-                <td style="color:var(--muted);font-size:.75rem">Negotiated rate</td>
-                <td><button class="btn bg bsm" style="color:var(--red)" onclick="this.closest('tr').remove()"><i class="fa fa-trash"></i></button></td>
-              </tr>
-              <tr>
-                <td><strong>Wild Horizons</strong></td>
-                <td><input type="number" value="25" min="1" max="99" class="fi" style="width:58px;padding:6px;text-align:center;font-size:.82rem" onchange="admUpdatePartnerComm(this)"> %</td>
-                <td style="color:var(--green);font-weight:600">75%</td>
-                <td>15 Feb 2025</td>
-                <td style="color:var(--muted);font-size:.75rem">Volume deal</td>
-                <td><button class="btn bg bsm" style="color:var(--red)" onclick="this.closest('tr').remove()"><i class="fa fa-trash"></i></button></td>
-              </tr>
             </tbody>
           </table>
         </div>
@@ -6592,14 +6629,6 @@ tr:hover td{background:var(--b50)}
           <table>
             <thead><tr><th>Experience</th><th>Partner</th><th>Platform rate</th><th>Partner rate</th><th>Note</th><th></th></tr></thead>
             <tbody id="comm-exp-tbody">
-              <tr>
-                <td><strong>The Vineyard Retreat</strong></td>
-                <td>Vineyard Hotels</td>
-                <td><input type="number" value="28" min="1" max="99" class="fi" style="width:58px;padding:6px;text-align:center;font-size:.82rem" onchange="admUpdateExpComm(this)"> %</td>
-                <td style="color:var(--green);font-weight:600">72%</td>
-                <td style="color:var(--muted);font-size:.75rem">Premium placement</td>
-                <td><button class="btn bg bsm" style="color:var(--red)" onclick="this.closest('tr').remove()"><i class="fa fa-trash"></i></button></td>
-              </tr>
             </tbody>
           </table>
         </div>
@@ -6609,6 +6638,7 @@ tr:hover td{background:var(--b50)}
           <div class="atbl-hdr" style="flex-wrap:wrap;gap:10px">
             <h3 id="adm-comm-title">Commission payouts</h3>
             <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+              <button class="btn bg bsm" onclick="admExportCommCSV()"><i class="fa fa-download"></i> Export CSV</button>
               <select class="fi" id="adm-comm-period" style="font-size:.78rem;padding:6px 10px;width:auto" onchange="loadAdminCommissionPayouts()">
                 <option value="1">This month</option>
                 <option value="3" selected>Last 3 months</option>
@@ -6691,6 +6721,32 @@ tr:hover td{background:var(--b50)}
                 <span style="font-size:.75rem;color:var(--muted)">/month · recurring</span>
               </div>
               <div style="font-size:.72rem;color:var(--muted);margin-top:5px">Monthly subscription charged to partners who upgrade to the Pro plan.</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Experience Visibility Boost (Partner feature) -->
+        <div class="atbl" style="margin-bottom:20px">
+          <div class="atbl-hdr" style="display:flex;align-items:center;justify-content:space-between">
+            <span style="font-weight:700;color:var(--navy)">🔥 Experience Visibility Boost</span>
+            <div style="display:flex;align-items:center;gap:10px">
+              <span style="font-size:.75rem;color:var(--muted)" id="boost-feature-label">Loading…</span>
+              <label style="position:relative;display:inline-block;width:40px;height:22px;cursor:pointer">
+                <input type="checkbox" id="boost-feature-toggle" style="opacity:0;width:0;height:0" onchange="admToggleBoostFeature(this.checked)">
+                <span style="position:absolute;inset:0;background:var(--border);border-radius:22px;transition:.3s" id="boost-toggle-track"></span>
+                <span style="position:absolute;left:3px;top:3px;width:16px;height:16px;background:#fff;border-radius:50%;transition:.3s;box-shadow:0 1px 3px rgba(0,0,0,.2)" id="boost-toggle-thumb"></span>
+              </label>
+            </div>
+          </div>
+          <div style="padding:20px">
+            <div style="max-width:420px">
+              <label style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);display:block;margin-bottom:6px">🔥 Boost price per experience</label>
+              <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+                <span style="font-size:.9rem;color:var(--navy);font-weight:600">R</span>
+                <input type="number" class="fi" id="price-exp-boost" min="0" step="1" value="399" style="width:100px;font-size:1rem;font-weight:700;color:var(--b700)">
+                <span style="font-size:.75rem;color:var(--muted)">/30 days · one-time payment</span>
+              </div>
+              <div style="font-size:.72rem;color:var(--muted);margin-top:5px">Partners pay this once to pin their experience in the <strong>Featured this month</strong> section for 30 days. Toggle above activates or hides the Boost option across the partner portal.</div>
             </div>
           </div>
         </div>
@@ -9079,22 +9135,34 @@ const rtConfig = {
    iCAL SYNC + AVAILABILITY DATE PICKER
 ══════════════════════════════════════════════════════════════ */
 
-// Load blocked dates from Supabase availability table, return array of date strings
+// Load blocked dates — iCal + partner_availability + fully-booked
 async function loadBlockedDates(expId) {
   if (!expId || typeof db_client === 'undefined') return [];
   try {
     var today = new Date().toISOString().slice(0,10);
-    var res = await db_client.from('availability')
-      .select('date')
-      .eq('experience_id', expId)
-      .eq('status', 'blocked')
-      .gte('date', today);
-    if (res.error || !res.data) return [];
-    return res.data.map(function(r){ return r.date; });
-  } catch(e) {
-    console.warn('loadBlockedDates:', e.message);
-    return [];
-  }
+    var icalRes = await db_client.from('availability').select('date').eq('experience_id', expId).eq('status', 'blocked').gte('date', today);
+    var blocked = (icalRes.data || []).map(function(r){ return r.date; });
+    var exp = expDB.find(function(x){ return x.id === expId; });
+    if (exp && exp.partnerEmail) {
+      var partRes = await db_client.from('partner_availability').select('date').eq('partner_email', exp.partnerEmail).eq('status', 'blocked').gte('date', today);
+      (partRes.data || []).forEach(function(r){ if (!blocked.includes(r.date)) blocked.push(r.date); });
+    }
+    var capacity = exp ? parseInt(exp.capacity) || 999 : 999;
+    var bkRes = await db_client.from('bookings').select('checkin_date,checkout_date,booking_date,guest_count').eq('experience_id', expId).neq('status', 'cancelled').gte('checkin_date', today);
+    if (bkRes.data && bkRes.data.length) {
+      var dateLoad = {};
+      bkRes.data.forEach(function(b) {
+        var dates = [];
+        if (b.checkin_date && b.checkout_date) {
+          for (var d = new Date(b.checkin_date); d <= new Date(b.checkout_date); d.setDate(d.getDate()+1))
+            dates.push(d.toISOString().slice(0,10));
+        } else if (b.booking_date) { dates = [b.booking_date]; }
+        dates.forEach(function(dt){ dateLoad[dt] = (dateLoad[dt] || 0) + (b.guest_count || 1); });
+      });
+      Object.keys(dateLoad).forEach(function(dt){ if (dateLoad[dt] >= capacity && !blocked.includes(dt)) blocked.push(dt); });
+    }
+    return blocked;
+  } catch(e) { console.warn('loadBlockedDates:', e.message); return []; }
 }
 
 // Init Flatpickr on all date inputs in the booking form
@@ -12555,7 +12623,7 @@ function switchAdm(btn, tab) {
   renderAdmPartnerApps();
   if (tab === 'adm-orders') loadOrdersFromSupabase();
   if (tab === 'adm-usage')  { renderUsageTable(); loadUsageFromSupabase(); }
-  if (tab === 'adm-comm')     loadAdminCommissionPayouts();
+  if (tab === 'adm-comm')     { loadAdminCommissionPayouts(); loadCommissionRates(); }
   if (tab === 'adm-settings') admLoadSiteSettings();
 }
 
@@ -14319,6 +14387,12 @@ async function renderAdmPricing() {
   document.getElementById('price-video').value    = APP_PRICES.video_message;
   document.getElementById('price-boost').value    = APP_PRICES.chance_boost;
   document.getElementById('price-pro').value      = APP_PRICES.partner_pro;
+  document.getElementById('price-exp-boost').value = APP_PRICES.exp_boost || 399;
+  var tog = document.getElementById('boost-feature-toggle');
+  if (tog) {
+    tog.checked = !!APP_PRICES.boost_feature_enabled;
+    admUpdateBoostToggleUI(!!APP_PRICES.boost_feature_enabled);
+  }
   document.getElementById('price-delivery-standard').value      = APP_PRICES.delivery_standard;
   document.getElementById('price-delivery-express').value       = APP_PRICES.delivery_express;
   document.getElementById('price-delivery-sameday').value       = APP_PRICES.delivery_sameday;
@@ -14329,6 +14403,7 @@ async function admSavePricing() {
   var video    = parseInt(document.getElementById('price-video')?.value)    || 0;
   var boost    = parseInt(document.getElementById('price-boost')?.value)    || 0;
   var pro      = parseInt(document.getElementById('price-pro')?.value)      || 0;
+  var expBoost = parseInt(document.getElementById('price-exp-boost')?.value)  || 399;
   var standard = parseInt(document.getElementById('price-delivery-standard')?.value) || 89;
   var express  = parseInt(document.getElementById('price-delivery-express')?.value)  || 149;
   var sameday  = parseInt(document.getElementById('price-delivery-sameday')?.value)  || 249;
@@ -14342,6 +14417,7 @@ async function admSavePricing() {
       { key: 'price_video_message',       value: String(video)    },
       { key: 'price_chance_boost',        value: String(boost)    },
       { key: 'price_partner_pro',         value: String(pro)      },
+      { key: 'price_exp_boost',           value: String(expBoost) },
       { key: 'delivery_standard',         value: String(standard) },
       { key: 'delivery_express',          value: String(express)  },
       { key: 'delivery_sameday',          value: String(sameday)  },
@@ -14356,6 +14432,7 @@ async function admSavePricing() {
     APP_PRICES.video_message           = video;
     APP_PRICES.chance_boost            = boost;
     APP_PRICES.partner_pro             = pro;
+    APP_PRICES.exp_boost               = expBoost;
     APP_PRICES.delivery_standard       = standard;
     APP_PRICES.delivery_express        = express;
     APP_PRICES.delivery_sameday        = sameday;
@@ -14444,6 +14521,225 @@ function admAddExpComm() {
     <td><input class="fi" placeholder="Note" style="font-size:.75rem;padding:5px 8px"></td>
     <td><button class="btn bg bsm" style="color:var(--red)" onclick="this.closest('tr').remove()"><i class="fa fa-trash"></i></button></td>
   </tr>`;
+}
+
+/* ── Boost feature toggle ── */
+function admUpdateBoostToggleUI(enabled) {
+  var track = document.getElementById('boost-toggle-track');
+  var thumb = document.getElementById('boost-toggle-thumb');
+  var label = document.getElementById('boost-feature-label');
+  if (track) track.style.background = enabled ? 'var(--b500)' : 'var(--border)';
+  if (thumb) thumb.style.transform  = enabled ? 'translateX(18px)' : 'translateX(0)';
+  if (label) label.textContent = enabled ? 'Active — visible to partners' : 'Disabled — hidden from partners';
+}
+async function admToggleBoostFeature(enabled) {
+  admUpdateBoostToggleUI(enabled);
+  APP_PRICES.boost_feature_enabled = enabled;
+  try {
+    await db_client.from('app_settings').upsert({ key: 'boost_feature_enabled', value: String(enabled) }, { onConflict: 'key' });
+    admToast(enabled ? '✅ Boost feature is now active' : 'Boost feature disabled');
+  } catch(e) { admToast('Error: '+e.message); }
+}
+
+/* ── Commission — Real Supabase functions ── */
+async function loadCommissionRates() {
+  try {
+    var res = await db_client.from('commission_rates').select('*').order('created_at');
+    var rows = res.data || [];
+    var glob = rows.find(function(r){ return r.rate_type === 'global'; });
+    var globalRate = glob ? Number(glob.platform_rate) : 35;
+    var globEl = document.getElementById('comm-global');
+    if (globEl) globEl.value = globalRate;
+    var pctEl = document.getElementById('comm-partner-pct');
+    if (pctEl) pctEl.textContent = 100 - globalRate;
+    var partnerTbody = document.getElementById('comm-partner-tbody');
+    var partnerRows  = rows.filter(function(r){ return r.rate_type === 'partner'; });
+    if (partnerTbody) {
+      partnerTbody.innerHTML = partnerRows.length ? partnerRows.map(function(r) {
+        var pr = 100 - Number(r.platform_rate);
+        var dt = r.created_at ? new Date(r.created_at).toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'}) : '—';
+        return '<tr data-comm-id="'+r.id+'">'
+          +'<td><strong>'+(r.target_label||r.target_id)+'</strong><div style="font-size:.7rem;color:var(--muted)">'+r.target_id+'</div></td>'
+          +'<td><input type="number" value="'+Number(r.platform_rate)+'" min="1" max="99" class="fi" style="width:58px;padding:6px;text-align:center;font-size:.82rem" onchange="admUpdatePartnerComm(this)"> %</td>'
+          +'<td style="color:var(--green);font-weight:600">'+pr+'%</td>'
+          +'<td>'+dt+'</td>'
+          +'<td style="color:var(--muted);font-size:.75rem">'+(r.note||'')+'</td>'
+          +'<td><button class="btn bg bsm" style="color:var(--red)" onclick="admDeleteCommRate(\''+r.id+'\',this)"><i class="fa fa-trash"></i></button></td>'
+          +'</tr>';
+      }).join('') : '<tr><td colspan="6" style="text-align:center;padding:16px;color:var(--muted)">No partner overrides yet.</td></tr>';
+    }
+    var expTbody = document.getElementById('comm-exp-tbody');
+    var expRows  = rows.filter(function(r){ return r.rate_type === 'experience'; });
+    if (expTbody) {
+      expTbody.innerHTML = expRows.length ? expRows.map(function(r) {
+        var pr = 100 - Number(r.platform_rate);
+        return '<tr data-comm-id="'+r.id+'">'
+          +'<td><strong>'+(r.target_label||r.target_id)+'</strong></td>'
+          +'<td style="font-size:.78rem;color:var(--muted)">'+(r.partner_email||'—')+'</td>'
+          +'<td><input type="number" value="'+Number(r.platform_rate)+'" min="1" max="99" class="fi" style="width:58px;padding:6px;text-align:center;font-size:.82rem" onchange="admUpdateExpComm(this)"> %</td>'
+          +'<td style="color:var(--green);font-weight:600">'+pr+'%</td>'
+          +'<td style="color:var(--muted);font-size:.75rem">'+(r.note||'')+'</td>'
+          +'<td><button class="btn bg bsm" style="color:var(--red)" onclick="admDeleteCommRate(\''+r.id+'\',this)"><i class="fa fa-trash"></i></button></td>'
+          +'</tr>';
+      }).join('') : '<tr><td colspan="6" style="text-align:center;padding:16px;color:var(--muted)">No experience overrides yet.</td></tr>';
+    }
+  } catch(e) { console.warn('loadCommissionRates:', e.message); }
+}
+
+async function saveGlobalComm() {
+  var val = parseInt(document.getElementById('comm-global')?.value || '35');
+  if (val < 1 || val > 99) { admToast('Rate must be between 1 and 99.'); return; }
+  try {
+    var res = await db_client.from('commission_rates')
+      .upsert({ rate_type:'global', target_id:'__global__', platform_rate:val, note:'Default WowBox platform rate' }, { onConflict: 'rate_type,target_id' });
+    if (res.error) throw res.error;
+    var pctEl = document.getElementById('comm-partner-pct');
+    if (pctEl) pctEl.textContent = 100 - val;
+    admToast('✅ Global rate saved: '+val+'% platform / '+(100-val)+'% partner');
+  } catch(e) { admToast('Error: '+e.message); }
+}
+
+function admUpdatePartnerComm(inp) {
+  var row = inp.closest('tr');
+  var td = row.cells[2];
+  td.textContent = (100-(parseInt(inp.value)||0))+'%';
+  td.style.color = 'var(--green)'; td.style.fontWeight = '600';
+  var id = row.dataset.commId;
+  if (id) db_client.from('commission_rates').update({ platform_rate: parseInt(inp.value) }).eq('id', id)
+    .then(function(r){ if(!r.error) admToast('Rate updated.'); });
+}
+
+function admUpdateExpComm(inp) {
+  var row = inp.closest('tr');
+  var td = row.cells[3];
+  td.textContent = (100-(parseInt(inp.value)||0))+'%';
+  td.style.color = 'var(--green)'; td.style.fontWeight = '600';
+  var id = row.dataset.commId;
+  if (id) db_client.from('commission_rates').update({ platform_rate: parseInt(inp.value) }).eq('id', id)
+    .then(function(r){ if(!r.error) admToast('Rate updated.'); });
+}
+
+async function admDeleteCommRate(id, btn) {
+  if (!confirm('Delete this override?')) return;
+  try {
+    var res = await db_client.from('commission_rates').delete().eq('id', id);
+    if (res.error) throw res.error;
+    btn.closest('tr').remove();
+    admToast('Override deleted.');
+  } catch(e) { admToast('Error: '+e.message); }
+}
+
+async function admAddPartnerComm() {
+  document.getElementById('comm-partner-modal')?.remove();
+  var partRes = await db_client.from('user_profiles').select('email,partner_name,full_name').eq('role','partner').order('partner_name');
+  var partners = (partRes.data || []).filter(function(p){ return p.email; });
+  var modal = document.createElement('div');
+  modal.id = 'comm-partner-modal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  modal.onclick = function(e){ if(e.target===modal) modal.remove(); };
+  var opts = partners.map(function(p){
+    return '<option value="'+p.email+'" data-label="'+(p.partner_name||p.full_name||p.email)+'">'+(p.partner_name||p.full_name||p.email)+'</option>';
+  }).join('');
+  modal.innerHTML = '<div style="background:#fff;border-radius:16px;padding:28px;max-width:420px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.25)">'
+    +'<h3 style="font-size:1rem;color:var(--navy);margin-bottom:18px">Add partner override</h3>'
+    +'<div class="fg" style="margin-bottom:12px"><label style="font-size:.72rem;color:var(--muted)">Partner</label>'
+    +'<select class="fi" id="cp-modal-partner" style="width:100%"><option value="">— Select partner —</option>'+opts+'</select></div>'
+    +'<div class="fg" style="margin-bottom:12px"><label style="font-size:.72rem;color:var(--muted)">Platform rate %</label>'
+    +'<input type="number" class="fi" id="cp-modal-rate" value="35" min="1" max="99" style="width:100%"></div>'
+    +'<div class="fg" style="margin-bottom:18px"><label style="font-size:.72rem;color:var(--muted)">Note (optional)</label>'
+    +'<input type="text" class="fi" id="cp-modal-note" placeholder="e.g. Negotiated rate"></div>'
+    +'<div style="display:flex;gap:10px">'
+    +'<button class="btn bp" style="flex:1" onclick="admSavePartnerCommModal()"><i class="fa fa-check"></i> Save</button>'
+    +'<button class="btn bg" style="flex:1" onclick="this.closest(\'[id=comm-partner-modal]\').remove()">Cancel</button>'
+    +'</div></div>';
+  document.body.appendChild(modal);
+}
+
+async function admSavePartnerCommModal() {
+  var sel   = document.getElementById('cp-modal-partner');
+  var email = sel?.value;
+  var label = sel?.options[sel.selectedIndex]?.dataset.label || email;
+  var rate  = parseInt(document.getElementById('cp-modal-rate')?.value || '35');
+  var note  = (document.getElementById('cp-modal-note')?.value || '').trim();
+  if (!email) { admToast('Please select a partner.'); return; }
+  try {
+    var res = await db_client.from('commission_rates').upsert({
+      rate_type: 'partner', target_id: email, target_label: label, platform_rate: rate, note: note
+    }, { onConflict: 'rate_type,target_id' });
+    if (res.error) throw res.error;
+    document.getElementById('comm-partner-modal')?.remove();
+    admToast('✅ Partner override saved.');
+    loadCommissionRates();
+  } catch(e) { admToast('Error: '+e.message); }
+}
+
+async function admAddExpComm() {
+  document.getElementById('comm-exp-modal')?.remove();
+  var expRes = await db_client.from('experiences').select('id,name,partner_email').eq('is_active',true).order('name');
+  var exps = expRes.data || [];
+  var modal = document.createElement('div');
+  modal.id = 'comm-exp-modal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  modal.onclick = function(e){ if(e.target===modal) modal.remove(); };
+  var opts = exps.map(function(e){
+    return '<option value="'+e.id+'" data-label="'+e.name+'">'+e.name+(e.partner_email ? ' ('+e.partner_email+')' : '')+'</option>';
+  }).join('');
+  modal.innerHTML = '<div style="background:#fff;border-radius:16px;padding:28px;max-width:420px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.25)">'
+    +'<h3 style="font-size:1rem;color:var(--navy);margin-bottom:18px">Add experience override</h3>'
+    +'<div class="fg" style="margin-bottom:12px"><label style="font-size:.72rem;color:var(--muted)">Experience</label>'
+    +'<select class="fi" id="ce-modal-exp" style="width:100%"><option value="">— Select experience —</option>'+opts+'</select></div>'
+    +'<div class="fg" style="margin-bottom:12px"><label style="font-size:.72rem;color:var(--muted)">Platform rate %</label>'
+    +'<input type="number" class="fi" id="ce-modal-rate" value="35" min="1" max="99" style="width:100%"></div>'
+    +'<div class="fg" style="margin-bottom:18px"><label style="font-size:.72rem;color:var(--muted)">Note (optional)</label>'
+    +'<input type="text" class="fi" id="ce-modal-note" placeholder="e.g. Premium placement"></div>'
+    +'<div style="display:flex;gap:10px">'
+    +'<button class="btn bp" style="flex:1" onclick="admSaveExpCommModal()"><i class="fa fa-check"></i> Save</button>'
+    +'<button class="btn bg" style="flex:1" onclick="this.closest(\'[id=comm-exp-modal]\').remove()">Cancel</button>'
+    +'</div></div>';
+  document.body.appendChild(modal);
+}
+
+async function admSaveExpCommModal() {
+  var sel   = document.getElementById('ce-modal-exp');
+  var expId = sel?.value;
+  var label = sel?.options[sel.selectedIndex]?.dataset.label || expId;
+  var rate  = parseInt(document.getElementById('ce-modal-rate')?.value || '35');
+  var note  = (document.getElementById('ce-modal-note')?.value || '').trim();
+  if (!expId) { admToast('Please select an experience.'); return; }
+  try {
+    var res = await db_client.from('commission_rates').upsert({
+      rate_type: 'experience', target_id: expId, target_label: label, platform_rate: rate, note: note
+    }, { onConflict: 'rate_type,target_id' });
+    if (res.error) throw res.error;
+    document.getElementById('comm-exp-modal')?.remove();
+    admToast('✅ Experience override saved.');
+    loadCommissionRates();
+  } catch(e) { admToast('Error: '+e.message); }
+}
+
+function admExportCommCSV() {
+  var rows = [];
+  document.querySelectorAll('#adm-comm-tbody tr').forEach(function(tr) {
+    var cells = tr.querySelectorAll('td');
+    if (cells.length < 6) return;
+    rows.push([
+      cells[0].querySelector('strong')?.textContent||'',
+      cells[0].querySelector('div')?.textContent||'',
+      cells[1].textContent.trim(),
+      cells[2].textContent.trim(),
+      cells[3].textContent.trim(),
+      cells[4].textContent.trim(),
+      cells[5].querySelector('span')?.textContent||'',
+    ].join(','));
+  });
+  if (!rows.length) { admToast('No data to export.'); return; }
+  var csv = 'Partner,Email,Validations,Gross Revenue,Platform,Partner Payout,Status\n'+rows.join('\n');
+  var blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'wowbox_commissions_'+new Date().toISOString().slice(0,10)+'.csv';
+  a.click();
+  URL.revokeObjectURL(a.href);
 }
 
 /* ── Shared admin toast ── */
