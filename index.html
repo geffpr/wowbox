@@ -1609,7 +1609,13 @@ async function renderBoostPage() {
   var email = appState.partnerEmail || (currentUser && currentUser.email) || '';
   if (!email) { listEl.innerHTML = '<p style="color:var(--muted);text-align:center;padding:20px">Sign in to manage boosts.</p>'; return; }
 
-  var myExps = expDB.filter(function(e){ return e.partnerEmail === email || e.partner_email === email; });
+  /* Load partner's real experiences from Supabase */
+  var expRes = await db_client.from('experiences')
+    .select('id, name, image_url')
+    .eq('partner_email', email)
+    .eq('is_active', true)
+    .order('name');
+  var myExps = expRes.data || [];
 
   /* Load active boosts from Supabase */
   try {
