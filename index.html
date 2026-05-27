@@ -498,6 +498,11 @@ var APP_PRICES = {
   video_message:      49,
   chance_boost:       149,
   partner_pro:        499,
+  boost_slot_1:       1499,
+  boost_slot_2:       1199,
+  boost_slot_3:       999,
+  boost_slots_count:  3,
+  boost_feature_enabled: false,
   delivery_standard:  89,
   delivery_express:   149,
   delivery_sameday:   249,
@@ -508,7 +513,7 @@ async function loadAppPrices() {
   try {
     var res = await db_client.from('app_settings')
       .select('key,value')
-      .in('key', ['price_video_message','price_chance_boost','price_partner_pro','price_exp_boost','boost_feature_enabled',
+      .in('key', ['price_video_message','price_chance_boost','price_partner_pro','boost_slot_1_price','boost_slot_2_price','boost_slot_3_price','boost_slots_count','boost_feature_enabled',
                   'delivery_standard','delivery_express','delivery_sameday','delivery_sameday_radius']);
     if (res.error || !res.data) return;
     res.data.forEach(function(row) {
@@ -516,7 +521,10 @@ async function loadAppPrices() {
       if (row.key === 'price_video_message')       APP_PRICES.video_message           = v;
       if (row.key === 'price_chance_boost')         APP_PRICES.chance_boost            = v;
       if (row.key === 'price_partner_pro')          APP_PRICES.partner_pro             = v;
-      if (row.key === 'price_exp_boost')          APP_PRICES.exp_boost               = v;
+      if (row.key === 'boost_slot_1_price')       APP_PRICES.boost_slot_1            = v;
+      if (row.key === 'boost_slot_2_price')       APP_PRICES.boost_slot_2            = v;
+      if (row.key === 'boost_slot_3_price')       APP_PRICES.boost_slot_3            = v;
+      if (row.key === 'boost_slots_count')        APP_PRICES.boost_slots_count       = v || 3;
       if (row.key === 'boost_feature_enabled')    APP_PRICES.boost_feature_enabled   = (row.value === 'true');
       if (row.key === 'delivery_standard')          APP_PRICES.delivery_standard       = v;
       if (row.key === 'delivery_express')           APP_PRICES.delivery_express        = v;
@@ -1588,13 +1596,10 @@ async function calClearAll() {
 var _activeBoosts = []; // loaded from experience_boosts table
 
 async function renderBoostPage() {
-  var listEl   = document.getElementById('boost-exp-list');
-  var countEl  = document.getElementById('boost-active-count');
-  var priceEl  = document.getElementById('boost-price-display');
+  var listEl    = document.getElementById('boost-exp-list');
   var featureEl = document.getElementById('boost-feature-status');
   if (!listEl) return;
 
-  /* Check if boost feature is enabled */
   var enabled = APP_PRICES.boost_feature_enabled;
   if (featureEl) featureEl.style.display = enabled ? 'none' : '';
   if (!enabled) {
@@ -1602,110 +1607,156 @@ async function renderBoostPage() {
     return;
   }
 
-  var price = APP_PRICES.exp_boost || 399;
-  if (priceEl) priceEl.textContent = 'R' + price + ' / 30 days';
-
-  /* Load partner's experiences */
   var email = appState.partnerEmail || (currentUser && currentUser.email) || '';
   if (!email) { listEl.innerHTML = '<p style="color:var(--muted);text-align:center;padding:20px">Sign in to manage boosts.</p>'; return; }
 
-  /* Load partner's real experiences from Supabase */
-  var expRes = await db_client.from('experiences')
-    .select('id, name, image_url')
-    .eq('partner_email', email)
-    .eq('is_active', true)
-    .order('name');
-  var myExps = expRes.data || [];
+  listEl.innerHTML = '<div style="text-align:center;padding:20px;color:var(--muted)"><i class="fa fa-circle-notch fa-spin"></i></div>';
 
-  /* Load active boosts from Supabase */
+  /* Load all active slots (all partners) */
+  var allSlots = [];
   try {
-    var bRes = await db_client.from('experience_boosts')
-      .select('*')
-      .eq('partner_email', email)
-      .eq('status', 'active')
-      .gte('expires_at', new Date().toISOString());
-    _activeBoosts = bRes.data || [];
-  } catch(e) { _activeBoosts = []; }
+    var sRes = await db_client.from('experience_boosts')
+      .select('id,slot_number,experience_id,experience_name,partner_email,expires_at,status')
+      .eq('status','active')
+      .gte('expires_at', new Date().toISOString())
+      .order('slot_number');
+    allSlots = sRes.data || [];
+  } catch(e) { console.warn('boostSlots:', e.message); }
 
-  var activeCount = _activeBoosts.length;
-  if (countEl) countEl.innerHTML = '<i class="fa fa-bolt"></i> ' + activeCount + ' boost' + (activeCount !== 1 ? 's' : '') + ' active';
+  /* Load partner's experiences */
+  var myExps = [];
+  try {
+    var expRes = await db_client.from('experiences').select('id,name,image_url').eq('partner_email',email).eq('is_active',true).order('name');
+    myExps = expRes.data || [];
+  } catch(e) {}
 
-  if (!myExps.length) {
-    listEl.innerHTML = '<div style="text-align:center;padding:32px;color:var(--muted)"><i class="fa fa-compass" style="font-size:1.5rem;margin-bottom:8px;display:block;opacity:.3"></i>No active experiences found.<br><span style="font-size:.8rem">Add experiences first to enable boosting.</span></div>';
-    return;
+  var prices  = [APP_PRICES.boost_slot_1||1499, APP_PRICES.boost_slot_2||1199, APP_PRICES.boost_slot_3||999];
+  var count   = APP_PRICES.boost_slots_count || 3;
+  var labels  = ['⭐ Position #1 — Most visible','Position #2','Position #3'];
+  var myBoosts = allSlots.filter(function(s){ return s.partner_email === email; });
+
+  var html = '<div style="margin-bottom:20px"><div style="font-size:.82rem;color:var(--muted)">Book a <strong>Featured slot</strong> in the WowBox browse page for 30 days. Each position has a fixed price — first position gets the most visibility.</div></div>';
+
+  for (var i = 0; i < count; i++) {
+    var slotNum  = i + 1;
+    var price    = prices[i];
+    var label    = labels[i] || ('Position #' + slotNum);
+    var taken    = allSlots.find(function(s){ return s.slot_number === slotNum; });
+    var mySlot   = taken && taken.partner_email === email;
+    var expiry   = taken ? new Date(taken.expires_at).toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'}) : '';
+    var isFree   = !taken;
+
+    html += '<div style="background:#fff;border:1.5px solid '+(isFree?'var(--b200)':mySlot?'#22c55e':'var(--border)')+';border-radius:12px;padding:18px;margin-bottom:14px;display:flex;align-items:center;gap:16px;flex-wrap:wrap">';
+    /* Slot badge */
+    html += '<div style="min-width:44px;height:44px;border-radius:10px;background:'+(isFree?'var(--b50)':mySlot?'#dcfce7':'var(--gray)')+';display:flex;align-items:center;justify-content:center;font-size:1.1rem;font-weight:800;color:'+(isFree?'var(--b600)':mySlot?'#15803d':'var(--muted)')+'">'+slotNum+'</div>';
+    /* Info */
+    html += '<div style="flex:1;min-width:160px">';
+    html += '<div style="font-size:.85rem;font-weight:700;color:var(--navy);margin-bottom:2px">'+label+'</div>';
+    if (isFree) {
+      html += '<div style="font-size:.75rem;color:var(--green);font-weight:600"><i class="fa fa-circle-check"></i> Available now</div>';
+    } else if (mySlot) {
+      html += '<div style="font-size:.75rem;color:var(--green);font-weight:600"><i class="fa fa-fire"></i> Your experience: '+taken.experience_name+'</div>';
+      html += '<div style="font-size:.72rem;color:var(--muted)">Active until '+expiry+'</div>';
+    } else {
+      html += '<div style="font-size:.75rem;color:var(--red);font-weight:600"><i class="fa fa-circle-xmark"></i> Taken until '+expiry+'</div>';
+    }
+    html += '</div>';
+    /* Price + action */
+    html += '<div style="text-align:right">';
+    html += '<div style="font-size:1.1rem;font-weight:800;color:var(--navy);margin-bottom:6px">R'+price.toLocaleString()+'<span style="font-size:.7rem;font-weight:400;color:var(--muted)"> /30 days</span></div>';
+    if (isFree) {
+      if (!myExps.length) {
+        html += '<div style="font-size:.72rem;color:var(--muted)">Add experiences first</div>';
+      } else {
+        html += '<button class="btn bp bsm" onclick="ppBookSlot('+slotNum+','+price+')"><i class="fa fa-rocket"></i> Book slot #'+slotNum+'</button>';
+      }
+    } else if (mySlot) {
+      html += '<button class="btn bg bsm" style="color:var(--red)" data-bid="'+taken.id+'" data-bname="'+taken.experience_name.replace(/"/g,'&quot;')+'" onclick="ppCancelBoost(this)"><i class="fa fa-stop-circle"></i> Cancel</button>';
+    } else {
+      html += '<div style="font-size:.72rem;color:var(--muted);font-style:italic">Available from '+expiry+'</div>';
+    }
+    html += '</div></div>';
   }
-
-  listEl.innerHTML = myExps.map(function(exp) {
-    var boost = _activeBoosts.find(function(b){ return b.experience_id === exp.id; });
-    var img   = exp.image_url || exp.img || 'https://images.unsplash.com/photo-1571896349842-33c89424de2d?q=80&w=200&auto=format&fit=crop';
-    var expiryStr = boost
-      ? 'Active until ' + new Date(boost.expires_at).toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'})
-      : '';
-
-    return '<div class="boost-exp-row">'
-      + '<div class="boost-thumb"><img src="' + img + '" alt="" loading="lazy" style="width:64px;height:64px;object-fit:cover;border-radius:8px"></div>'
-      + '<div style="flex:1">'
-        + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;flex-wrap:wrap;gap:6px">'
-          + '<span style="font-size:.88rem;font-weight:600;color:var(--navy)">' + exp.name + '</span>'
-          + '<span class="boost-badge-' + (boost ? 'active' : 'off') + '">' + (boost ? '🔥 Boosted' : 'Inactive') + '</span>'
-        + '</div>'
-        + (boost
-          ? '<div style="font-size:.72rem;color:var(--green);font-weight:600;margin-bottom:4px"><i class="fa fa-check-circle"></i> Featured in browse · ' + expiryStr + '</div>'
-          : '<div style="font-size:.72rem;color:var(--muted);margin-bottom:4px">Not currently featured</div>')
-        + (boost
-          ? '<div style="background:#fef9c3;border:1px solid #fde047;border-radius:6px;padding:4px 10px;font-size:.7rem;color:#854d0e;display:inline-block">Pinned at top of browse results for all visitors</div>'
-          : '<div style="font-size:.72rem;color:var(--muted)">Boost to pin this experience at the top of browse · <strong>R' + price + '</strong> · 30 days</div>')
-      + '</div>'
-      + (boost
-        ? '<button class="btn bg bsm" style="color:var(--red);white-space:nowrap" onclick="ppCancelBoost(\'' + boost.id + '\',\'' + exp.name.replace(/'/g,'') + '\')"><i class="fa fa-stop-circle"></i> Stop boost</button>'
-        : '<button class="btn bp bsm" style="white-space:nowrap" onclick="ppBoostExperience(\'' + exp.id + '\',\'' + exp.name.replace(/'/g,'') + '\',' + price + ')"><i class="fa fa-rocket"></i> Boost — R' + price + '</button>')
-      + '</div>';
-  }).join('');
+  listEl.innerHTML = html;
 }
 
-function ppBoostExperience(expId, expName, price) {
+function ppBookSlot(slotNum, price) {
   var email = appState.partnerEmail || (currentUser && currentUser.email) || '';
   if (!email) { admToast('Please sign in.'); return; }
-  if (!window.PaystackPop) { admToast('Payment system not loaded. Refresh and try again.'); return; }
 
-  var ref = 'BOOST-' + expId.slice(0,8).toUpperCase() + '-' + Date.now();
+  /* Build experience picker modal */
+  db_client.from('experiences').select('id,name').eq('partner_email',email).eq('is_active',true).order('name').then(function(res) {
+    var exps = res.data || [];
+    if (!exps.length) { admToast('Add at least one experience first.'); return; }
+    document.getElementById('pp-slot-modal')?.remove();
+    var opts = exps.map(function(e){ return '<option value="'+e.id+'" data-name="'+e.name+'">'+e.name+'</option>'; }).join('');
+    var modal = document.createElement('div');
+    modal.id = 'pp-slot-modal';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+    modal.onclick = function(e){ if(e.target===modal) modal.remove(); };
+    modal.innerHTML = '<div style="background:#fff;border-radius:16px;padding:28px;max-width:400px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.25)">'
+      +'<h3 style="font-size:1rem;color:var(--navy);margin-bottom:4px">Book Featured Slot #'+slotNum+'</h3>'
+      +'<div style="font-size:.75rem;color:var(--muted);margin-bottom:18px">30 days · <strong>R'+price.toLocaleString()+'</strong> · one-time payment</div>'
+      +'<label style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);display:block;margin-bottom:6px">Select experience to feature</label>'
+      +'<select class="fi" id="pp-slot-exp-select" style="width:100%;margin-bottom:18px"><option value="">— Choose experience —</option>'+opts+'</select>'
+      +'<div style="display:flex;gap:10px">'
+      +'<button class="btn bp" style="flex:1" onclick="ppConfirmSlot('+slotNum+','+price+')"><i class="fa fa-rocket"></i> Confirm & Pay R'+price.toLocaleString()+'</button>'
+      +'<button class="btn bg" style="flex:1" onclick="document.getElementById(&quot;pp-slot-modal&quot;).remove()">Cancel</button>'
+      +'</div></div>';
+    document.body.appendChild(modal);
+  });
+}
+
+function ppConfirmSlot(slotNum, price) {
+  var sel    = document.getElementById('pp-slot-exp-select');
+  var expId  = sel?.value;
+  var expName= sel?.options[sel.selectedIndex]?.dataset.name || '';
+  var email  = appState.partnerEmail || (currentUser && currentUser.email) || '';
+  if (!expId) { admToast('Please select an experience.'); return; }
+  if (!window.PaystackPop) { admToast('Payment system not loaded. Refresh and try again.'); return; }
+  document.getElementById('pp-slot-modal')?.remove();
+
+  var ref = 'SLOT'+slotNum+'-'+expId.slice(0,6).toUpperCase()+'-'+Date.now();
   var handler = PaystackPop.setup({
-    key:    'pk_test_47767d3a79e78826a97c97db9bbce96d61e78cc6',
-    email:  email,
-    amount: price * 100,
+    key:      'pk_test_47767d3a79e78826a97c97db9bbce96d61e78cc6',
+    email:    email,
+    amount:   price * 100,
     currency: 'ZAR',
-    ref,
-    metadata: { expId, expName, partnerEmail: email, type: 'experience_boost' },
+    ref:      ref,
+    metadata: { expId, expName, partnerEmail: email, slotNum, type: 'featured_slot' },
     onSuccess: async function(transaction) {
-      admToast('<i class="fa fa-spinner fa-spin"></i> Activating boost…');
+      admToast('<i class="fa fa-spinner fa-spin"></i> Activating slot…');
       try {
         var expires = new Date();
         expires.setDate(expires.getDate() + 30);
         var res = await db_client.from('experience_boosts').insert({
-          experience_id:   expId,
-          experience_name: expName,
-          partner_email:   email,
-          expires_at:      expires.toISOString(),
-          status:          'active',
+          experience_id:      expId,
+          experience_name:    expName,
+          partner_email:      email,
+          slot_number:        slotNum,
+          expires_at:         expires.toISOString(),
+          status:             'active',
           paystack_reference: transaction.reference,
         });
         if (res.error) throw res.error;
-        admToast('🔥 ' + expName + ' is now featured for 30 days!');
+        admToast('🔥 Slot #'+slotNum+' booked! '+expName+' is now featured for 30 days!');
         renderBoostPage();
-      } catch(e) { admToast('Payment received but activation failed — contact support. Ref: ' + transaction.reference); }
+      } catch(e) { admToast('Payment received but activation failed — contact support. Ref: '+transaction.reference); }
     },
-    onCancel: function() { admToast('Boost payment cancelled.'); },
+    onCancel: function() { admToast('Payment cancelled.'); },
   });
   handler.openIframe();
 }
 
-async function ppCancelBoost(boostId, expName) {
-  if (!confirm('Stop the boost for "' + expName + '"? The experience will no longer be featured. No refund is issued for remaining days.')) return;
+async function ppCancelBoost(btn) {
+  var boostId = btn.dataset.bid;
+  var expName = btn.dataset.bname || 'this experience';
+  if (!confirm('Cancel the boost for "'+expName+'"? The slot will be released immediately. No refund for remaining days.')) return;
   try {
-    await db_client.from('experience_boosts').update({ status: 'cancelled' }).eq('id', boostId);
-    admToast(expName + ' boost stopped.');
+    await db_client.from('experience_boosts').update({ status:'cancelled' }).eq('id', boostId);
+    admToast(expName+' slot released.');
     renderBoostPage();
-  } catch(e) { admToast('Error: ' + e.message); }
+  } catch(e) { admToast('Error: '+e.message); }
 }
 
 
@@ -6794,10 +6845,10 @@ tr:hover td{background:var(--b50)}
           </div>
         </div>
 
-        <!-- Experience Visibility Boost -->
+        <!-- Experience Visibility Boost — Slot model -->
         <div class="atbl" style="margin-bottom:20px">
           <div class="atbl-hdr" style="display:flex;align-items:center;justify-content:space-between">
-            <span style="font-weight:700;color:var(--navy)">🔥 Experience Visibility Boost</span>
+            <span style="font-weight:700;color:var(--navy)">🔥 Featured Slots — Boost</span>
             <div style="display:flex;align-items:center;gap:10px">
               <span style="font-size:.75rem;color:var(--muted)" id="boost-feature-label">Loading…</span>
               <label style="position:relative;display:inline-block;width:40px;height:22px;cursor:pointer">
@@ -6807,14 +6858,35 @@ tr:hover td{background:var(--b50)}
               </label>
             </div>
           </div>
-          <div style="padding:20px;max-width:420px">
-            <label style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);display:block;margin-bottom:6px">🔥 Boost price per experience</label>
-            <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
-              <span style="font-size:.9rem;color:var(--navy);font-weight:600">R</span>
-              <input type="number" class="fi" id="price-exp-boost" min="0" step="1" value="399" style="width:100px;font-size:1rem;font-weight:700;color:var(--b700)">
-              <span style="font-size:.75rem;color:var(--muted)">/30 days · one-time payment</span>
+          <div style="padding:20px">
+            <div style="font-size:.75rem;color:var(--muted);margin-bottom:16px">3 featured slots in the <strong>Featured this month</strong> section on Browse. Each slot has its own price — Position #1 is most visible and most expensive. Partners buy a slot for 30 days.</div>
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px">
+              <div style="background:var(--b50);border:2px solid var(--b400);border-radius:var(--rs);padding:16px">
+                <div style="font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--b600);margin-bottom:4px">⭐ Position #1</div>
+                <div style="font-size:.72rem;color:var(--muted);margin-bottom:10px">Most visible · first in grid</div>
+                <div style="display:flex;align-items:center;gap:6px">
+                  <span style="font-size:.9rem;font-weight:600;color:var(--navy)">R</span>
+                  <input type="number" class="fi" id="price-slot-1" min="0" step="1" value="1499" style="width:90px;font-size:1rem;font-weight:700;color:var(--b700)">
+                </div>
+              </div>
+              <div style="background:var(--b50);border:1.5px solid var(--b200);border-radius:var(--rs);padding:16px">
+                <div style="font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--b500);margin-bottom:4px">Position #2</div>
+                <div style="font-size:.72rem;color:var(--muted);margin-bottom:10px">Second position</div>
+                <div style="display:flex;align-items:center;gap:6px">
+                  <span style="font-size:.9rem;font-weight:600;color:var(--navy)">R</span>
+                  <input type="number" class="fi" id="price-slot-2" min="0" step="1" value="1199" style="width:90px;font-size:1rem;font-weight:700;color:var(--b700)">
+                </div>
+              </div>
+              <div style="background:var(--b50);border:1.5px solid var(--b200);border-radius:var(--rs);padding:16px">
+                <div style="font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--b500);margin-bottom:4px">Position #3</div>
+                <div style="font-size:.72rem;color:var(--muted);margin-bottom:10px">Third position</div>
+                <div style="display:flex;align-items:center;gap:6px">
+                  <span style="font-size:.9rem;font-weight:600;color:var(--navy)">R</span>
+                  <input type="number" class="fi" id="price-slot-3" min="0" step="1" value="999" style="width:90px;font-size:1rem;font-weight:700;color:var(--b700)">
+                </div>
+              </div>
             </div>
-            <div style="font-size:.72rem;color:var(--muted)">Partners pay this once to pin their experience in the <strong>Featured this month</strong> section for 30 days. Toggle above activates or hides the Boost option across the partner portal.</div>
+            <div style="font-size:.72rem;color:var(--muted);margin-top:12px">Prices are saved with <strong>Save all prices</strong> above.</div>
           </div>
         </div>
 
@@ -14465,7 +14537,9 @@ async function renderAdmPricing() {
   document.getElementById('price-video').value    = APP_PRICES.video_message;
   document.getElementById('price-boost').value    = APP_PRICES.chance_boost;
   document.getElementById('price-pro').value      = APP_PRICES.partner_pro;
-  document.getElementById('price-exp-boost').value = APP_PRICES.exp_boost || 399;
+  var s1 = document.getElementById('price-slot-1'); if (s1) s1.value = APP_PRICES.boost_slot_1 || 1499;
+  var s2 = document.getElementById('price-slot-2'); if (s2) s2.value = APP_PRICES.boost_slot_2 || 1199;
+  var s3 = document.getElementById('price-slot-3'); if (s3) s3.value = APP_PRICES.boost_slot_3 || 999;
   var tog = document.getElementById('boost-feature-toggle');
   if (tog) { tog.checked = !!APP_PRICES.boost_feature_enabled; admUpdateBoostToggleUI(!!APP_PRICES.boost_feature_enabled); }
   document.getElementById('price-delivery-standard').value      = APP_PRICES.delivery_standard;
@@ -14478,7 +14552,9 @@ async function admSavePricing() {
   var video    = parseInt(document.getElementById('price-video')?.value)    || 0;
   var boost    = parseInt(document.getElementById('price-boost')?.value)    || 0;
   var pro      = parseInt(document.getElementById('price-pro')?.value)      || 0;
-  var expBoost = parseInt(document.getElementById('price-exp-boost')?.value)  || 399;
+  var slot1 = parseInt(document.getElementById('price-slot-1')?.value) || 1499;
+  var slot2 = parseInt(document.getElementById('price-slot-2')?.value) || 1199;
+  var slot3 = parseInt(document.getElementById('price-slot-3')?.value) || 999;
   var standard = parseInt(document.getElementById('price-delivery-standard')?.value) || 89;
   var express  = parseInt(document.getElementById('price-delivery-express')?.value)  || 149;
   var sameday  = parseInt(document.getElementById('price-delivery-sameday')?.value)  || 249;
@@ -14492,7 +14568,9 @@ async function admSavePricing() {
       { key: 'price_video_message',       value: String(video)    },
       { key: 'price_chance_boost',        value: String(boost)    },
       { key: 'price_partner_pro',         value: String(pro)      },
-      { key: 'price_exp_boost',           value: String(expBoost) },
+      { key: 'boost_slot_1_price', value: String(slot1) },
+      { key: 'boost_slot_2_price', value: String(slot2) },
+      { key: 'boost_slot_3_price', value: String(slot3) },
       { key: 'delivery_standard',         value: String(standard) },
       { key: 'delivery_express',          value: String(express)  },
       { key: 'delivery_sameday',          value: String(sameday)  },
@@ -14507,7 +14585,9 @@ async function admSavePricing() {
     APP_PRICES.video_message           = video;
     APP_PRICES.chance_boost            = boost;
     APP_PRICES.partner_pro             = pro;
-    APP_PRICES.exp_boost               = expBoost;
+    APP_PRICES.boost_slot_1 = slot1;
+    APP_PRICES.boost_slot_2 = slot2;
+    APP_PRICES.boost_slot_3 = slot3;
     APP_PRICES.delivery_standard       = standard;
     APP_PRICES.delivery_express        = express;
     APP_PRICES.delivery_sameday        = sameday;
