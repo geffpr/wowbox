@@ -12680,6 +12680,7 @@ function switchAdm(btn, tab) {
   admTabs.forEach(t => { const el = document.getElementById(t); if (el) el.style.display = t===tab?'block':'none'; });
   document.querySelectorAll('.anl').forEach(n => n.classList.remove('on'));
   if (btn) btn.classList.add('on');
+  if (tab) history.replaceState(null, '', '/admin#' + tab);
   if (tab === 'adm-exp')    renderAdmExpTable();
   renderAdmRequests();
   renderAdmPartnerApps();
@@ -12703,6 +12704,12 @@ async function renderAdmin() {
 
   // Load databases from Supabase and render grid
   loadAdmDatabases();
+
+  // Restore sub-section from URL hash on refresh
+  var admHash = window.location.hash.slice(1);
+  if (admHash && admTabs.includes(admHash)) {
+    setTimeout(function() { switchAdm(null, admHash); }, 50);
+  }
 
   // Render boxes table with real exp counts + databases from Supabase
   const at = document.getElementById('adm-boxes-tbody');
@@ -15104,6 +15111,7 @@ function switchPP(btn, sectionId) {
   });
   document.querySelectorAll('.pp-nav').forEach(n => n.classList.remove('on'));
   if (btn) btn.classList.add('on');
+  if (sectionId) history.replaceState(null, '', '/partner#' + sectionId);
   // Init Pro modules on first visit
   if (sectionId === 'pp-analytics')  renderAnalytics('7d');
   if (sectionId === 'pp-calendar')   renderCalendar();
@@ -15121,12 +15129,17 @@ function ppProNav(btn, sectionId) {
 }
 
 function initPartnerPage() {
-  // Make sure overview is visible
+  // Restore section from URL hash on refresh, else default to overview
+  var ppHash = window.location.hash.slice(1);
+  var ppStart = (ppHash && PP_SECTIONS.includes(ppHash)) ? ppHash : 'pp-overview';
   PP_SECTIONS.forEach(id => {
     const el = document.getElementById(id);
-    if (el) el.classList.toggle('on', id === 'pp-overview');
+    if (el) el.classList.toggle('on', id === ppStart);
   });
-  document.querySelectorAll('.pp-nav').forEach((n,i) => n.classList.toggle('on', i===0));
+  document.querySelectorAll('.pp-nav').forEach(n => {
+    n.classList.toggle('on', n.getAttribute('onclick') && n.getAttribute('onclick').includes(ppStart));
+  });
+  if (ppStart !== 'pp-overview') { history.replaceState(null, '', '/partner#' + ppStart); }
   // Sync subscription state on every portal load
   renderSubscriptionUI();
   updatePartnerSidebar();
