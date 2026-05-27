@@ -12681,13 +12681,16 @@ function switchAdm(btn, tab) {
   document.querySelectorAll('.anl').forEach(n => n.classList.remove('on'));
   if (btn) btn.classList.add('on');
   if (tab) history.replaceState(null, '', '/admin#' + tab);
-  if (tab === 'adm-exp')    renderAdmExpTable();
   renderAdmRequests();
   renderAdmPartnerApps();
-  if (tab === 'adm-orders') loadOrdersFromSupabase();
-  if (tab === 'adm-usage')  { renderUsageTable(); loadUsageFromSupabase(); }
-  if (tab === 'adm-comm')     { loadAdminCommissionPayouts(); loadCommissionRates(); }
-  if (tab === 'adm-settings') admLoadSiteSettings();
+  if (tab === 'adm-exp')           renderAdmExpTable();
+  if (tab === 'adm-orders')        loadOrdersFromSupabase();
+  if (tab === 'adm-usage')         { renderUsageTable(); loadUsageFromSupabase(); }
+  if (tab === 'adm-comm')          { loadAdminCommissionPayouts(); loadCommissionRates(); }
+  if (tab === 'adm-settings')      admLoadSiteSettings();
+  if (tab === 'adm-pricing')       renderAdmPricing();
+  if (tab === 'adm-reviews')       admLoadReviews();
+  if (tab === 'adm-partners-crm')  admLoadPartnersCRM();
 }
 
 async function renderAdmin() {
