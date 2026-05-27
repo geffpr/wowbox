@@ -5153,10 +5153,10 @@ tr:hover td{background:var(--b50)}
       <button class="pp-nav" onclick="switchPP(this,'pp-plan')"><i class="fa fa-crown"></i> Plan &amp; Features</button>
       <!-- Pro nav buttons — shown/unlocked when isPro() -->
       <button class="pp-nav" onclick="switchPP(this,'pp-reviews');ppLoadReviews()"><i class="fa fa-star"></i> My Reviews <span id="pp-reviews-badge" style="display:none;margin-left:auto;background:#ef4444;color:#fff;border-radius:99px;padding:1px 6px;font-size:.6rem;font-weight:700"></span></button>
-      <button class="pp-nav pro-nav-locked" id="pp-nav-analytics" onclick="ppProNav(this,'pp-analytics')"><i class="fa fa-chart-line"></i> Analytics <i class="fa fa-lock pp-nav-lock" style="font-size:.6rem;margin-left:auto"></i></button>
-      <button class="pp-nav pro-nav-locked" id="pp-nav-calendar"  onclick="ppProNav(this,'pp-calendar')"><i class="fa fa-calendar-days"></i> Calendar <i class="fa fa-lock pp-nav-lock" style="font-size:.6rem;margin-left:auto"></i></button>
-      <button class="pp-nav pro-nav-locked" id="pp-nav-boost"     onclick="ppProNav(this,'pp-boost')"><i class="fa fa-rocket"></i> Boost <i class="fa fa-lock pp-nav-lock" style="font-size:.6rem;margin-left:auto"></i></button>
-      <button class="pp-nav pro-nav-locked" id="pp-nav-reporting" onclick="ppProNav(this,'pp-reporting')"><i class="fa fa-file-chart-column"></i> Reporting Pro <i class="fa fa-lock pp-nav-lock" style="font-size:.6rem;margin-left:auto"></i></button>
+      <button class="pp-nav" id="pp-nav-analytics" onclick="switchPP(this,'pp-analytics')"><i class="fa fa-chart-line"></i> Analytics</button>
+      <button class="pp-nav" id="pp-nav-calendar"  onclick="switchPP(this,'pp-calendar')"><i class="fa fa-calendar-days"></i> Calendar</button>
+      <button class="pp-nav" id="pp-nav-boost"     onclick="switchPP(this,'pp-boost')"><i class="fa fa-rocket"></i> Boost</button>
+      <button class="pp-nav" id="pp-nav-reporting" onclick="switchPP(this,'pp-reporting')"><i class="fa fa-chart-bar"></i> Reporting</button>
 
       <button class="pp-nav" onclick="switchPP(this,'pp-settings');ppLoadSettings()"><i class="fa fa-gear"></i> Settings</button>
 
@@ -5683,7 +5683,7 @@ tr:hover td{background:var(--b50)}
               </div>
               <div style="font-size:.75rem;color:var(--muted)">Revenue breakdown by experience, booking source, demographics, and period comparisons.</div>
               <div id="lock-analytics" class="pp-lock-row"><i class="fa fa-lock" style="font-size:.65rem"></i> Unlock with Pro</div>
-              <div id="open-analytics" class="pp-open-row"><button class="btn bp bsm" onclick="ppProNav(document.getElementById('pp-nav-analytics'),'pp-analytics')"><i class="fa fa-chart-line"></i> Open Analytics &rarr;</button></div>
+              <div id="open-analytics" class="pp-open-row"><button class="btn bp bsm" onclick="switchPP(document.getElementById('pp-nav-analytics'),'pp-analytics')"><i class="fa fa-chart-line"></i> Open Analytics &rarr;</button></div>
             </div>
           </div>
 
@@ -5696,7 +5696,7 @@ tr:hover td{background:var(--b50)}
               </div>
               <div style="font-size:.75rem;color:var(--muted)">Block dates, set daily capacity, manage blackout periods and seasonal pricing.</div>
               <div id="lock-calendar" class="pp-lock-row"><i class="fa fa-lock" style="font-size:.65rem"></i> Unlock with Pro</div>
-              <div id="open-calendar" class="pp-open-row"><button class="btn bp bsm" onclick="ppProNav(document.getElementById('pp-nav-calendar'),'pp-calendar')"><i class="fa fa-calendar-days"></i> Open Calendar &rarr;</button></div>
+              <div id="open-calendar" class="pp-open-row"><button class="btn bp bsm" onclick="switchPP(document.getElementById('pp-nav-calendar'),'pp-calendar')"><i class="fa fa-calendar-days"></i> Open Calendar &rarr;</button></div>
             </div>
           </div>
 
@@ -5709,7 +5709,7 @@ tr:hover td{background:var(--b50)}
               </div>
               <div style="font-size:.75rem;color:var(--muted)">Feature your experiences at the top of search results, homepage, and marketing emails. Average +43% more bookings.</div>
               <div id="lock-boost" class="pp-lock-row"><i class="fa fa-lock" style="font-size:.65rem"></i> Unlock with Pro</div>
-              <div id="open-boost" class="pp-open-row"><button class="btn bp bsm" onclick="ppProNav(document.getElementById('pp-nav-boost'),'pp-boost')"><i class="fa fa-rocket"></i> Manage Boosts &rarr;</button></div>
+              <div id="open-boost" class="pp-open-row"><button class="btn bp bsm" onclick="switchPP(document.getElementById('pp-nav-boost'),'pp-boost')"><i class="fa fa-rocket"></i> Manage Boosts &rarr;</button></div>
             </div>
           </div>
 
@@ -5722,7 +5722,7 @@ tr:hover td{background:var(--b50)}
               </div>
               <div style="font-size:.75rem;color:var(--muted)">AI-powered recommendations: optimal pricing, best-performing slots, guest feedback summaries.</div>
               <div id="lock-insights" class="pp-lock-row"><i class="fa fa-lock" style="font-size:.65rem"></i> Unlock with Pro</div>
-              <div id="open-insights" class="pp-open-row"><button class="btn bp bsm" onclick="ppProNav(document.getElementById('pp-nav-reporting'),'pp-reporting')"><i class="fa fa-lightbulb"></i> View Reporting &rarr;</button></div>
+              <div id="open-insights" class="pp-open-row"><button class="btn bp bsm" onclick="switchPP(document.getElementById('pp-nav-reporting'),'pp-reporting')"><i class="fa fa-lightbulb"></i> View Reporting &rarr;</button></div>
             </div>
           </div>
 
@@ -5873,7 +5873,7 @@ tr:hover td{background:var(--b50)}
         <div class="pp-card">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
             <h3 style="font-size:.95rem;color:var(--navy)">Revenue this month</h3>
-            <button class="btn bg bsm" onclick="ppProNav(document.getElementById('pp-nav-analytics'),'pp-analytics')"><i class="fa fa-chart-line"></i> Full Analytics</button>
+            <button class="btn bg bsm" onclick="switchPP(document.getElementById('pp-nav-analytics'),'pp-analytics')"><i class="fa fa-chart-line"></i> Full Analytics</button>
           </div>
           <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px">
             <div style="text-align:center;padding:14px;background:var(--bg);border-radius:var(--rs)"><div style="font-family:'Cormorant Garamond',serif;font-size:1.6rem;font-weight:700;color:var(--navy)">R45,621</div><div style="font-size:.72rem;color:var(--muted)">Total revenue</div><div style="font-size:.7rem;color:var(--green);font-weight:600;margin-top:2px">&#8593; +12.4%</div></div>
@@ -5887,7 +5887,7 @@ tr:hover td{background:var(--b50)}
         <div class="ins-card">
           <h4><i class="fa fa-arrow-trend-up" style="color:var(--green)"></i> Increase weekend availability</h4>
           <p style="font-size:.8rem;color:var(--slate);margin-bottom:8px">67% of bookings occur Fri&ndash;Sun, but only 40% of your slots are available then. Opening 3 more weekend slots/month could add an estimated <strong style="color:var(--green)">+R8,740/month</strong>.</p>
-          <button class="btn bp bsm" onclick="ppProNav(document.getElementById('pp-nav-calendar'),'pp-calendar')"><i class="fa fa-calendar-days"></i> Adjust Calendar &rarr;</button>
+          <button class="btn bp bsm" onclick="switchPP(document.getElementById('pp-nav-calendar'),'pp-calendar')"><i class="fa fa-calendar-days"></i> Adjust Calendar &rarr;</button>
         </div>
         <div class="ins-card">
           <h4><i class="fa fa-tag" style="color:var(--b500)"></i> Pricing opportunity</h4>
@@ -5897,7 +5897,7 @@ tr:hover td{background:var(--b50)}
         <div class="ins-card">
           <h4><i class="fa fa-rocket" style="color:#7c3aed"></i> A boost could unlock the next tier</h4>
           <p style="font-size:.8rem;color:var(--slate);margin-bottom:8px">You're 13 bookings from Gold tier (+2% commission rate). Based on your 3.1&times; historical boost conversion, activating a boost this week could bridge that gap.</p>
-          <button class="btn bg bsm" onclick="ppProNav(document.getElementById('pp-nav-boost'),'pp-boost')"><i class="fa fa-rocket"></i> Activate Boost &rarr;</button>
+          <button class="btn bg bsm" onclick="switchPP(document.getElementById('pp-nav-boost'),'pp-boost')"><i class="fa fa-rocket"></i> Activate Boost &rarr;</button>
         </div>
 
         <!-- Guest feedback -->
@@ -16246,7 +16246,7 @@ function updatePlanLockedUI() {
     el.style.display = pro ? 'block' : 'none';
   });
   // Sidebar Pro nav buttons: unlock when pro
-  ['pp-nav-boost','pp-nav-reporting'].forEach(id => {
+  ['pp-nav-boost','pp-nav-reporting'].forEach(id => { /* all free now — no-op */
     const btn = document.getElementById(id);
     if (!btn) return;
     if (pro) {
