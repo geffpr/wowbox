@@ -15122,6 +15122,9 @@ function switchPP(btn, sectionId) {
   if (btn) btn.classList.add('on');
   if (sectionId) history.replaceState(null, '', '/partner#' + sectionId);
   // Init Pro modules on first visit
+  if (sectionId === 'pp-payouts')    ppLoadPayouts();
+  if (sectionId === 'pp-reviews')    ppLoadReviews();
+  if (sectionId === 'pp-settings')   ppLoadSettings();
   if (sectionId === 'pp-analytics')  renderAnalytics('7d');
   if (sectionId === 'pp-calendar')   renderCalendar();
   if (sectionId === 'pp-boost')      renderBoostPage();
@@ -15161,6 +15164,13 @@ function initPartnerPage() {
   // Load real data from Supabase
   loadPartnerPortalData();
   loadPartnerExperiences();
+  // Load section-specific data for hash-restored section
+  if (ppStart === 'pp-payouts')   ppLoadPayouts();
+  if (ppStart === 'pp-reviews')   ppLoadReviews();
+  if (ppStart === 'pp-settings')  ppLoadSettings();
+  if (ppStart === 'pp-analytics') setTimeout(function(){ renderAnalytics('7d'); }, 100);
+  if (ppStart === 'pp-calendar')  setTimeout(function(){ renderCalendar(); }, 100);
+  if (ppStart === 'pp-boost')     setTimeout(function(){ renderBoostPage(); }, 100);
 }
 
 async function loadPartnerPortalData() {
