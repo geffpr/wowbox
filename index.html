@@ -1265,8 +1265,8 @@ db_client.auth.onAuthStateChange(function(event, session) {
 // Session check now in DOMContentLoaded
 </script>
 
-<!-- Paystack -->
-<script src="https://js.paystack.co/v1/inline.js"></script>
+<!-- Payfast Onsite Payments -->
+<script src="https://www.payfast.co.za/onsite/engine.js"></script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <meta name="description" content="WowBox — Curated gift experience boxes for couples, adventurers and dreamers across South Africa. Give the gift of unforgettable moments.">
@@ -1694,45 +1694,46 @@ function ppJoinPool(price) {
   });
 }
 
-function ppConfirmPool(price) {
+async function ppConfirmPool(price) {
   var sel     = document.getElementById('pp-pool-exp-select');
   var expId   = sel ? sel.value : '';
   var expName = (sel && sel.options[sel.selectedIndex]) ? (sel.options[sel.selectedIndex].dataset.name || '') : '';
   var email   = appState.partnerEmail || (currentUser && currentUser.email) || '';
   if (!expId) { admToast('Please select an experience.'); return; }
-  if (!window.PaystackPop) { admToast('Payment system not loaded. Refresh and try again.'); return; }
   var modal = document.getElementById('pp-pool-modal');
   if (modal) modal.remove();
   var ref = 'POOL-' + expId.slice(0,6).toUpperCase() + '-' + Date.now();
-  var handler = PaystackPop.setup({
-    key:      'pk_test_47767d3a79e78826a97c97db9bbce96d61e78cc6',
-    email:    email,
-    amount:   price * 100,
-    currency: 'ZAR',
-    ref:      ref,
-    metadata: { expId: expId, expName: expName, partnerEmail: email, type: 'featured_pool' },
-    onSuccess: async function(transaction) {
-      admToast('<i class="fa fa-spinner fa-spin"></i> Activating&hellip;');
-      try {
-        var expires = new Date();
-        expires.setDate(expires.getDate() + 30);
-        var ins = await db_client.from('experience_boosts').insert({
-          experience_id:      expId,
-          experience_name:    expName,
-          partner_email:      email,
-          expires_at:         expires.toISOString(),
-          status:             'active',
-          amount_paid:        price,
-          paystack_reference: transaction.reference
-        });
-        if (ins.error) throw ins.error;
-        admToast('&#128293; ' + expName + ' is now in the Featured pool for 30 days!');
-        renderBoostPage();
-      } catch(e) { admToast('Payment received but activation failed. Ref: ' + transaction.reference); }
-    },
-    onCancel: function() { admToast('Payment cancelled.'); }
-  });
-  handler.openIframe();
+  admToast('<i class="fa fa-spinner fa-spin"></i> Opening payment…');
+  try {
+    var pfRes = await fetch('/api/payfast-initiate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ amount: price, email: email, name_first: expName.split(' ')[0] || expName, name_last: expName.split(' ').slice(1).join(' ') || '', item_name: 'WowBox Featured Pool — ' + expName, m_payment_id: ref })
+    });
+    var pfData = await pfRes.json();
+    if (!pfData.uuid) throw new Error(pfData.error || 'Payment initiation failed');
+    window.payfast_do_onsite_checkout(pfData.uuid, async function(result) {
+      if (result === true) {
+        admToast('<i class="fa fa-spinner fa-spin"></i> Activating&hellip;');
+        try {
+          var expires = new Date();
+          expires.setDate(expires.getDate() + 30);
+          var ins = await db_client.from('experience_boosts').insert({
+            experience_id:      expId,
+            experience_name:    expName,
+            partner_email:      email,
+            expires_at:         expires.toISOString(),
+            status:             'active',
+            amount_paid:        price,
+            payfast_reference:  ref
+          });
+          if (ins.error) throw ins.error;
+          admToast('&#128293; ' + expName + ' is now in the Featured pool for 30 days!');
+          renderBoostPage();
+        } catch(e) { admToast('Payment received but activation failed. Ref: ' + ref); }
+      }
+    }, function() { admToast('Payment cancelled.'); });
+  } catch(e) { admToast('Could not open payment. Please try again.'); console.error('Payfast error:', e); }
 }
 
 
@@ -3810,7 +3811,7 @@ tr:hover td{background:var(--b50)}
     <div class="faq-cat"><h3 class="faq-cat-title">🛒 Purchase &amp; Boxes</h3>
       <div class="faq-item"><button class="faq-q" onclick="wbFaqToggle(this)">How do I buy a gift box? <i class="fa fa-chevron-down"></i></button><div class="faq-a">Browse our collection, choose a box, add to cart and complete checkout. Your digital gift box is delivered immediately by email.</div></div>
       <div class="faq-item"><button class="faq-q" onclick="wbFaqToggle(this)">Can I schedule delivery for a specific date? <i class="fa fa-chevron-down"></i></button><div class="faq-a">Yes! During checkout you can send immediately or schedule for a specific date — perfect for birthdays and anniversaries.</div></div>
-      <div class="faq-item"><button class="faq-q" onclick="wbFaqToggle(this)">What payment methods do you accept? <i class="fa fa-chevron-down"></i></button><div class="faq-a">All major credit and debit cards (Visa, Mastercard, Amex) via Paystack. All transactions are secure and encrypted.</div></div>
+      <div class="faq-item"><button class="faq-q" onclick="wbFaqToggle(this)">What payment methods do you accept? <i class="fa fa-chevron-down"></i></button><div class="faq-a">All major credit and debit cards (Visa, Mastercard, Amex) via Payfast. All transactions are secure and encrypted.</div></div>
       <div class="faq-item"><button class="faq-q" onclick="wbFaqToggle(this)">Can I add a personal message? <i class="fa fa-chevron-down"></i></button><div class="faq-a">Yes! During checkout add a personalised text message, or add a video message as an optional extra for an even more special touch.</div></div>
     </div>
     <div class="faq-cat"><h3 class="faq-cat-title">📦 E-Box Delivery</h3>
@@ -4475,7 +4476,7 @@ tr:hover td{background:var(--b50)}
         <!-- Secure payment note -->
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;padding:10px 14px;background:var(--b50);border-radius:var(--rs);border:1px solid var(--b200)">
           <i class="fa fa-shield-halved" style="color:var(--b500);font-size:1.1rem"></i>
-          <span style="font-size:.75rem;color:var(--slate)">Your payment is processed securely by <strong>Paystack</strong>. WowBox never stores your card details.</span>
+          <span style="font-size:.75rem;color:var(--slate)">Your payment is processed securely by <strong>Payfast</strong>. WowBox never stores your card details.</span>
         </div>
 
         <div style="display:flex;gap:12px">
@@ -6067,17 +6068,12 @@ tr:hover td{background:var(--b50)}
         <!-- Payments & Payouts -->
         <div class="pp-card">
           <h3 style="font-size:1rem;color:var(--navy);margin-bottom:6px"><i class="fa fa-money-bill-transfer" style="color:var(--b500)"></i> Payments &amp; Payouts</h3>
-          <p style="font-size:.8rem;color:var(--muted);margin-bottom:18px">Connect your Paystack account to receive automatic payouts when your experiences are validated. Payouts are processed within 2 business days of validation.</p>
-          <div id="pp-paystack-status">
-            <div style="display:flex;align-items:center;gap:12px;padding:14px;background:var(--bg);border-radius:var(--rs);border:1px solid var(--border)">
-              <div style="width:36px;height:36px;background:#f0fdf4;border-radius:50%;display:flex;align-items:center;justify-content:center"><i class="fa fa-circle-xmark" style="color:#ef4444" id="pp-paystack-icon"></i></div>
-              <div style="flex:1">
-                <div style="font-size:.85rem;font-weight:600;color:var(--navy)" id="pp-paystack-label">Not connected</div>
-                <div style="font-size:.73rem;color:var(--muted)" id="pp-paystack-sub">Connect your Paystack account to enable automatic payouts.</div>
-              </div>
-              <button class="btn bp bsm" id="pp-paystack-btn" onclick="ppConnectPaystack()">
-                <i class="fa fa-plug"></i> Connect Paystack
-              </button>
+          <p style="font-size:.8rem;color:var(--muted);margin-bottom:18px">Payouts are processed via Payfast within 2 business days of experience validation.</p>
+          <div style="display:flex;align-items:center;gap:12px;padding:14px;background:var(--bg);border-radius:var(--rs);border:1px solid var(--border)">
+            <div style="width:36px;height:36px;background:#f0fdf4;border-radius:50%;display:flex;align-items:center;justify-content:center"><i class="fa fa-circle-check" style="color:#16a34a"></i></div>
+            <div style="flex:1">
+              <div style="font-size:.85rem;font-weight:600;color:var(--navy)">Payfast payouts enabled</div>
+              <div style="font-size:.73rem;color:var(--muted)">To update your payout bank details, contact <a href="mailto:support@wowbox.co.za" style="color:var(--b600)">support@wowbox.co.za</a></div>
             </div>
           </div>
         </div>
@@ -6085,36 +6081,6 @@ tr:hover td{background:var(--b50)}
 
     </div><!-- /pp-main -->
   </div><!-- /pp-layout -->
-</div>
-
-<!-- Paystack Connect Modal -->
-<div id="pp-paystack-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:600;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(4px)" onclick="if(event.target===this)ppClosePaystackModal()">
-  <div style="background:var(--white);border-radius:var(--rx);padding:32px;max-width:460px;width:100%;box-shadow:var(--xl);position:relative">
-    <button onclick="ppClosePaystackModal()" style="position:absolute;top:14px;right:14px;width:30px;height:30px;border-radius:50%;background:var(--bg);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:.85rem;color:var(--muted)"><i class="fa fa-xmark"></i></button>
-    <div style="display:flex;align-items:center;gap:12px;margin-bottom:6px">
-      <div style="width:40px;height:40px;background:#f0fdf4;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="fa fa-money-bill-transfer" style="color:#16a34a;font-size:1.1rem"></i></div>
-      <div>
-        <h3 style="font-size:1.1rem;color:var(--navy);margin:0">Connect bank account</h3>
-        <p style="font-size:.75rem;color:var(--muted);margin:0">For automatic payouts via Paystack</p>
-      </div>
-    </div>
-    <p style="font-size:.78rem;color:var(--muted);line-height:1.6;margin-bottom:20px;padding:10px 12px;background:var(--bg);border-radius:var(--rs);border-left:3px solid var(--b300)">
-      <i class="fa fa-shield-halved" style="color:var(--b400)"></i> Your banking details are securely processed by <strong>Paystack</strong> and never stored on WowBox servers.
-    </p>
-    <div class="fg"><label>Business / account holder name *</label><input class="fi" id="pp-paystack-bizname" placeholder="e.g. Cape Winelands Tours (Pty) Ltd"></div>
-    <div class="fg" style="margin-top:14px">
-      <label>Bank *</label>
-      <select class="fi" id="pp-paystack-bank">
-        <option value="">Loading banks…</option>
-      </select>
-    </div>
-    <div class="fg" style="margin-top:14px"><label>Account number *</label><input class="fi" id="pp-paystack-accnum" type="text" inputmode="numeric" placeholder="e.g. 62012345678"></div>
-    <div id="pp-paystack-modal-msg" style="font-size:.78rem;min-height:18px;margin-top:10px"></div>
-    <div style="display:flex;gap:10px;margin-top:16px">
-      <button class="btn bp" id="pp-paystack-submit-btn" style="flex:1;justify-content:center;padding:12px" onclick="ppSubmitPaystackConnect()"><i class="fa fa-plug"></i> Connect account</button>
-      <button class="btn bg" onclick="ppClosePaystackModal()" style="padding:12px 18px">Cancel</button>
-    </div>
-  </div>
 </div>
 
 
@@ -10226,7 +10192,7 @@ async function ppLoadSettings() {
   if (emailEl) emailEl.value = currentUser.email || '';
   // Load profile from user_profiles
   var res = await db_client.from('user_profiles')
-    .select('full_name, partner_name, phone, paystack_account_id, paystack_connected_at')
+    .select('full_name, partner_name, phone')
     .eq('id', currentUser.id)
     .maybeSingle();
   if (res.data) {
@@ -10237,17 +10203,6 @@ async function ppLoadSettings() {
     if (fn) fn.value = d.full_name || '';
     if (bn) bn.value = d.partner_name || '';
     if (ph) ph.value = d.phone || '';
-    // Paystack status
-    var icon  = document.getElementById('pp-paystack-icon');
-    var label = document.getElementById('pp-paystack-label');
-    var sub   = document.getElementById('pp-paystack-sub');
-    var btn   = document.getElementById('pp-paystack-btn');
-    if (d.paystack_account_id) {
-      if (icon)  { icon.className = 'fa fa-circle-check'; icon.style.color = '#22c55e'; }
-      if (label) label.textContent = 'Connected';
-      if (sub)   sub.textContent = 'Account: ' + d.paystack_account_id + (d.paystack_connected_at ? ' · Since ' + d.paystack_connected_at.slice(0,10) : '');
-      if (btn)   { btn.innerHTML = '<i class="fa fa-plug-circle-xmark"></i> Disconnect'; btn.onclick = ppDisconnectPaystack; btn.className = 'btn bsm'; btn.style.background='#fee2e2'; btn.style.color='#ef4444'; }
-    }
   }
 }
 
@@ -10320,88 +10275,6 @@ async function ppChangePassword() {
   }
 }
 
-async function ppConnectPaystack() {
-  // Open the Paystack connect modal and load banks
-  var modal = document.getElementById('pp-paystack-modal');
-  if (!modal) return;
-  modal.style.display = 'flex';
-
-  // Reset form
-  var msgEl  = document.getElementById('pp-paystack-modal-msg');
-  var btn    = document.getElementById('pp-paystack-submit-btn');
-  var select = document.getElementById('pp-paystack-bank');
-  if (msgEl) msgEl.textContent = '';
-  if (document.getElementById('pp-paystack-bizname')) document.getElementById('pp-paystack-bizname').value = '';
-  if (document.getElementById('pp-paystack-accnum'))  document.getElementById('pp-paystack-accnum').value  = '';
-
-  // Load banks
-  if (select) {
-    select.innerHTML = '<option value="">Loading banks…</option>';
-    select.disabled = true;
-    try {
-      var r    = await fetch('/api/paystack-connect');
-      var data = await r.json();
-      if (data.data && data.data.length > 0) {
-        select.innerHTML = '<option value="">Select your bank</option>'
-          + data.data.map(function(b) { return '<option value="' + b.code + '">' + b.name + '</option>'; }).join('');
-        select.disabled = false;
-      } else {
-        select.innerHTML = '<option value="">Could not load banks — try again</option>';
-      }
-    } catch(e) {
-      select.innerHTML = '<option value="">Could not load banks — try again</option>';
-    }
-  }
-}
-
-async function ppSubmitPaystackConnect() {
-  var msgEl   = document.getElementById('pp-paystack-modal-msg');
-  var btn     = document.getElementById('pp-paystack-submit-btn');
-  var bizname = (document.getElementById('pp-paystack-bizname')?.value || '').trim();
-  var bank    = document.getElementById('pp-paystack-bank')?.value || '';
-  var accnum  = (document.getElementById('pp-paystack-accnum')?.value || '').trim();
-
-  if (!bizname) { if(msgEl){msgEl.style.color='#ef4444';msgEl.textContent='Please enter your business name.';} return; }
-  if (!bank)    { if(msgEl){msgEl.style.color='#ef4444';msgEl.textContent='Please select your bank.';} return; }
-  if (!accnum || accnum.length < 6) { if(msgEl){msgEl.style.color='#ef4444';msgEl.textContent='Please enter a valid account number.';} return; }
-  if (!currentUser?.id) { if(msgEl){msgEl.style.color='#ef4444';msgEl.textContent='You must be signed in.';} return; }
-
-  if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Connecting…'; }
-  if (msgEl) { msgEl.style.color = 'var(--muted)'; msgEl.textContent = 'Verifying account with Paystack…'; }
-
-  try {
-    var res  = await fetch('/api/paystack-connect', {
-      method:  'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ business_name: bizname, settlement_bank: bank, account_number: accnum, user_id: currentUser.id }),
-    });
-    var data = await res.json();
-
-    if (!res.ok || !data.success) {
-      if (msgEl) { msgEl.style.color = '#ef4444'; msgEl.textContent = data.error || 'Connection failed. Please check your details.'; }
-      if (btn)   { btn.disabled = false; btn.innerHTML = '<i class="fa fa-plug"></i> Connect account'; }
-      return;
-    }
-
-    // Success — close modal & refresh settings panel
-    ppClosePaystackModal();
-    ppLoadSettings();
-  } catch(e) {
-    if (msgEl) { msgEl.style.color = '#ef4444'; msgEl.textContent = 'Network error: ' + e.message; }
-    if (btn)   { btn.disabled = false; btn.innerHTML = '<i class="fa fa-plug"></i> Connect account'; }
-  }
-}
-
-function ppClosePaystackModal() {
-  var modal = document.getElementById('pp-paystack-modal');
-  if (modal) modal.style.display = 'none';
-}
-
-async function ppDisconnectPaystack() {
-  if (!confirm('Disconnect your Paystack account? Automatic payouts will be paused.')) return;
-  await db_client.from('user_profiles').update({ paystack_account_id: null, paystack_connected_at: null }).eq('id', currentUser.id);
-  ppLoadSettings();
-}
 
 // ─────────────────────────────────────────────────────────────
 // PARTNER: load reviews for their experiences
@@ -11419,7 +11292,7 @@ function validateDetailsAndContinue() {
   nextStep(3);
 }
 
-function completeOrder() {
+async function completeOrder() {
   // Guard: T&C must be accepted
   var termsCheck = document.getElementById('ck-terms-check');
   if (!termsCheck || !termsCheck.checked) {
@@ -11468,50 +11341,45 @@ function completeOrder() {
   appState.lastOrderEmail = email;
   appState.lastOrderName  = recipName;
 
-  // Build readable order description for Paystack label
+  // Build readable order description for Payfast label
   const boxNames  = appState.cart.filter(c=>c.id!=='video-message'&&c.id!=='chance-boost').map(i=>i.name).join(', ');
   const delivDesc = ct === 'ebox' ? 'E-Box (instant email)' : getDeliveryLabel() + ' — R' + delivFee.toLocaleString();
 
-  // Open Paystack popup
-  const handler = PaystackPop.setup({
-    key:       'pk_test_4bf191b7b3f10da349ac729e9a50812459548889',
-    email:     senderEmail,
-    amount:    total * 100,
-    currency:  'ZAR',
-    ref:       'WB-' + Date.now(),
-    label:     'WowBox — ' + boxNames,
-    metadata: {
-      custom_fields: [
-        { display_name: 'Buyer name',        variable_name: 'sender_name',      value: senderName },
-        { display_name: 'Buyer email',       variable_name: 'sender_email',     value: senderEmail },
-        { display_name: 'Recipient name',    variable_name: 'recipient_name',   value: recipName },
-        { display_name: 'Recipient email',   variable_name: 'recipient_email',  value: email },
-        { display_name: 'Delivery type',     variable_name: 'delivery_type',    value: getCartType() },
-        { display_name: 'Delivery option',   variable_name: 'delivery_option',  value: delivDesc },
-        { display_name: 'Delivery fee',      variable_name: 'delivery_fee',     value: 'R' + delivFee.toLocaleString() },
-        { display_name: 'Subtotal',          variable_name: 'subtotal',         value: 'R' + subtotal.toLocaleString() },
-        { display_name: 'Discount',          variable_name: 'discount',         value: discount > 0 ? '-R' + discount.toLocaleString() : 'None' },
-        { display_name: 'Total charged',     variable_name: 'total_charged',    value: 'R' + total.toLocaleString() },
-        { display_name: 'Gift message',      variable_name: 'personal_message', value: personalMsg },
-        { display_name: 'Has video',         variable_name: 'has_video',        value: hasVideo ? 'yes' : 'no' },
-        { display_name: 'Scheduled date',    variable_name: 'scheduled_date',   value: scheduledDate },
-        { display_name: 'T&C accepted at',   variable_name: 'terms_accepted_at', value: termsAcceptedAt },
-      ]
-    },
-    onClose: function() {
+  // Open Payfast Onsite popup
+  const pfRef = 'WB-' + Date.now();
+  try {
+    const pfRes = await fetch('/api/payfast-initiate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        amount:           total,
+        email:            senderEmail,
+        name_first:       senderName.split(' ')[0] || senderName,
+        name_last:        senderName.split(' ').slice(1).join(' ') || '',
+        item_name:        'WowBox — ' + boxNames,
+        item_description: delivDesc,
+        m_payment_id:     pfRef
+      })
+    });
+    const pfData = await pfRes.json();
+    if (!pfData.uuid) throw new Error(pfData.error || 'Payment initiation failed');
+    window.payfast_do_onsite_checkout(pfData.uuid, function(result) {
+      if (result === true) {
+        completeOrderConfirm(pfRef, total, discount, delivFee);
+      }
+    }, function() {
       admToast('Payment cancelled. Your cart is still saved.');
-    },
-    callback: function(response) {
-      completeOrderConfirm(response.reference, total, discount, delivFee);
-    }
-  });
-  handler.openIframe();
+    });
+  } catch(e) {
+    admToast('Could not open payment. Please try again.');
+    console.error('Payfast error:', e);
+  }
 }
 
-async function completeOrderConfirm(paystackRef, total, discount, delivFee) {
+async function completeOrderConfirm(pfRef, total, discount, delivFee) {
   delivFee = delivFee || 0;
   const ct       = getCartType();
-  const ref      = paystackRef || ('WB-ORD-' + Date.now());
+  const ref      = pfRef || ('WB-ORD-' + Date.now());
   const dateStr  = new Date().toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'});
   const dateISO  = new Date().toISOString().slice(0,10);
   const custEmail  = appState.lastOrderEmail  || (document.getElementById('ck-email') ? document.getElementById('ck-email').value.trim() : '') || '';
@@ -16328,7 +16196,7 @@ function isPro() {
   return false;
 }
 
-function processProSubscription() {
+async function processProSubscription() {
   const name = document.getElementById('sub-card-name')?.value?.trim();
   if (!name) { admToast('Please enter your cardholder name.'); return; }
 
@@ -16337,46 +16205,51 @@ function processProSubscription() {
 
   admToast('Opening secure payment...');
 
-  const handler = PaystackPop.setup({
-    key:      'pk_test_4bf191b7b3f10da349ac729e9a50812459548889',
-    email:    email,
-    amount:   APP_PRICES.partner_pro * 100,  // in cents, from app_settings
-    currency: 'ZAR',
-    ref:      'PRO-' + Date.now(),
-    label:    'WowBox Pro Plan — Monthly Subscription',
-    metadata: {
-      custom_fields: [
-        { display_name: 'Plan',         variable_name: 'plan',         value: 'Pro Monthly' },
-        { display_name: 'Partner name', variable_name: 'partner_name', value: name },
-      ]
-    },
-    onClose: function() {
-      admToast('Payment cancelled.');
-    },
-    callback: function(response) {
-      // Payment success — activate Pro
-      const now = new Date();
-      const end = new Date(now);
-      end.setMonth(end.getMonth() + 1);
-      partnerSubscription.status             = 'active';
-      partnerSubscription.plan               = 'pro';
-      partnerSubscription.period_start       = now.toISOString().slice(0,10);
-      partnerSubscription.period_end         = end.toISOString().slice(0,10);
-      partnerSubscription.cancel_at_period_end = false;
-      partnerSubscription.paystack_ref       = response.reference;
+  const proRef = 'PRO-' + Date.now();
+  try {
+    const pfRes = await fetch('/api/payfast-initiate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        amount:       APP_PRICES.partner_pro,
+        email:        email,
+        name_first:   name.split(' ')[0] || name,
+        name_last:    name.split(' ').slice(1).join(' ') || '',
+        item_name:    'WowBox Pro Plan — Monthly Subscription',
+        m_payment_id: proRef
+      })
+    });
+    const pfData = await pfRes.json();
+    if (!pfData.uuid) throw new Error(pfData.error || 'Payment initiation failed');
+    window.payfast_do_onsite_checkout(pfData.uuid, function(result) {
+      if (result === true) {
+        const now = new Date();
+        const end = new Date(now);
+        end.setMonth(end.getMonth() + 1);
+        partnerSubscription.status             = 'active';
+        partnerSubscription.plan               = 'pro';
+        partnerSubscription.period_start       = now.toISOString().slice(0,10);
+        partnerSubscription.period_end         = end.toISOString().slice(0,10);
+        partnerSubscription.cancel_at_period_end = false;
+        partnerSubscription.payfast_reference  = proRef;
 
-      hideProPaymentForm();
-      renderSubscriptionUI();
-      updatePartnerSidebar();
-      updatePlanLockedUI();
-      renderPlanPage();
-      admToast('Pro activated! Payment ref: ' + response.reference);
-      setTimeout(() => {
-        switchPP(document.querySelector('[onclick*=pp-plan]'), 'pp-plan');
-      }, 400);
-    }
-  });
-  handler.openIframe();
+        hideProPaymentForm();
+        renderSubscriptionUI();
+        updatePartnerSidebar();
+        updatePlanLockedUI();
+        renderPlanPage();
+        admToast('Pro activated! Payment ref: ' + proRef);
+        setTimeout(() => {
+          switchPP(document.querySelector('[onclick*=pp-plan]'), 'pp-plan');
+        }, 400);
+      }
+    }, function() {
+      admToast('Payment cancelled.');
+    });
+  } catch(e) {
+    admToast('Could not open payment. Please try again.');
+    console.error('Payfast error:', e);
+  }
 }
 
 
@@ -17759,7 +17632,7 @@ async function admRunSchemaDiag() {
       <div><h3 style="color:var(--navy);font-size:1rem;margin-bottom:6px">2. Booking Cancellation</h3><p>You may cancel a confirmed booking up to <strong>24 hours before</strong> the scheduled experience. Cancellations made within 24 hours of the experience are non-refundable. When you cancel a booking, your voucher is automatically reactivated and you can rebook a different experience or date.</p></div>
       <div><h3 style="color:var(--navy);font-size:1rem;margin-bottom:6px">3. Refund Eligibility</h3><p>Refunds may be considered in the following circumstances: the experience is cancelled by the Participating Partner with no suitable alternative; the experience delivered was materially different from its description; a technical error on our platform resulted in a duplicate charge. Refunds are not available for: change of mind after purchase; failure to cancel within the permitted window; vouchers that have been fully redeemed; expired vouchers.</p></div>
       <div><h3 style="color:var(--navy);font-size:1rem;margin-bottom:6px">4. Refusal of Admission</h3><p>No refund will be issued if a Participating Partner refuses admission for any lawful reason including but not limited to: age restrictions; intoxication; inappropriate behaviour; failure to present valid identification; medical or safety concerns. This is a condition of purchase agreed to at checkout.</p></div>
-      <div><h3 style="color:var(--navy);font-size:1rem;margin-bottom:6px">5. How to Request a Refund</h3><p>To request a refund, contact us at <a href="mailto:support@wowbox.co.za" style="color:var(--b600)">support@wowbox.co.za</a> with your order number and a description of the issue. We aim to respond within 2 business days. Approved refunds are processed within 5–10 business days and credited to your original payment method via Paystack.</p></div>
+      <div><h3 style="color:var(--navy);font-size:1rem;margin-bottom:6px">5. How to Request a Refund</h3><p>To request a refund, contact us at <a href="mailto:support@wowbox.co.za" style="color:var(--b600)">support@wowbox.co.za</a> with your order number and a description of the issue. We aim to respond within 2 business days. Approved refunds are processed within 5–10 business days and credited to your original payment method via Payfast.</p></div>
       <div><h3 style="color:var(--navy);font-size:1rem;margin-bottom:6px">6. Partial Refunds</h3><p>Where an order contains multiple boxes, refunds may be issued for individual boxes. The remaining boxes in the order are unaffected.</p></div>
       <div><h3 style="color:var(--navy);font-size:1rem;margin-bottom:6px">7. Consumer Protection Act</h3><p>Nothing in this policy limits your rights under the Consumer Protection Act 68 of 2008 or any other applicable South African legislation.</p></div>
     </div>
