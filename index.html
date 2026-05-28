@@ -1712,7 +1712,7 @@ async function ppConfirmPool(price) {
     });
     var pfData = await pfRes.json();
     if (!pfData.uuid) throw new Error(pfData.error || 'Payment initiation failed');
-    window.payfast_do_onsite_checkout(pfData.uuid, async function(result) {
+    window.payfast_do_onsite_payment(pfData.uuid, async function(result) {
       if (result === true) {
         admToast('<i class="fa fa-spinner fa-spin"></i> Activating&hellip;');
         try {
@@ -11363,7 +11363,7 @@ async function completeOrder() {
     });
     const pfData = await pfRes.json();
     if (!pfData.uuid) throw new Error(pfData.error || 'Payment initiation failed');
-    window.payfast_do_onsite_checkout(pfData.uuid, function(result) {
+    window.payfast_do_onsite_payment(pfData.uuid, function(result) {
       if (result === true) {
         completeOrderConfirm(pfRef, total, discount, delivFee);
       }
@@ -16221,7 +16221,7 @@ async function processProSubscription() {
     });
     const pfData = await pfRes.json();
     if (!pfData.uuid) throw new Error(pfData.error || 'Payment initiation failed');
-    window.payfast_do_onsite_checkout(pfData.uuid, function(result) {
+    window.payfast_do_onsite_payment(pfData.uuid, function(result) {
       if (result === true) {
         const now = new Date();
         const end = new Date(now);
