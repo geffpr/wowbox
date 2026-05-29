@@ -9709,9 +9709,9 @@ async function confirmExpBooking() {
   // Verify voucher belongs to this user, is active and not already booked
   const vcCheck = await db_client
     .from('vouchers')
-    .select('id, status, box_id, customer_email')
+    .select('id, status, box_id, user_email')
     .eq('code', voucherCode)
-    .eq('customer_email', currentUser.email)
+    .eq('user_email', currentUser.email)
     .eq('status', 'active')
     .maybeSingle();
 
