@@ -1,29 +1,21 @@
 import crypto from 'crypto';
 
-// PHP-accurate urlencode (matches PHP's urlencode exactly)
-function phpUrlencode(str) {
-  return encodeURIComponent(str)
-    .replace(/%20/g, '+')
-    .replace(/!/g,   '%21')
-    .replace(/'/g,   '%27')
-    .replace(/\(/g,  '%28')
-    .replace(/\)/g,  '%29')
-    .replace(/\*/g,  '%2A')
-    .replace(/~/g,   '%7E');
+function encodeVal(str) {
+  return encodeURIComponent(String(str).trim()).replace(/%20/g, '+');
 }
 
 function generateSignature(data, passphrase) {
-  const keys = Object.keys(data).sort();
+  // Payfast requires fields in SUBMISSION ORDER (not alphabetical)
   let pfOutput = '';
-  for (const key of keys) {
+  for (const key of Object.keys(data)) {
     const val = data[key];
     if (val !== '' && val !== null && val !== undefined) {
-      pfOutput += `${key}=${phpUrlencode(String(val).trim())}&`;
+      pfOutput += `${key}=${encodeVal(val)}&`;
     }
   }
   let strToHash = pfOutput.slice(0, -1);
   if (passphrase) {
-    strToHash += `&passphrase=${phpUrlencode(passphrase.trim())}`;
+    strToHash += `&passphrase=${encodeVal(passphrase)}`;
   }
   console.error('[PF] Hash string:', strToHash);
   const sig = crypto.createHash('md5').update(strToHash).digest('hex');
@@ -45,12 +37,11 @@ export default async function handler(req, res) {
   const PASSPHRASE   = process.env.PAYFAST_PASSPHRASE;
   const BASE_URL     = process.env.SITE_URL || 'https://wowbox.co.za';
 
-  console.error('[PF] MID:', MERCHANT_ID, '| Pass len:', PASSPHRASE?.length, '| Pass chars:', JSON.stringify(PASSPHRASE));
-
-  if (!MERCHANT_ID || !MERCHANT_KEY || !PASSPHRASE) {
+  if (!MERCHANT_ID || !MERCHANT_KEY) {
     return res.status(500).json({ error: 'Payment provider not configured' });
   }
 
+  // Field order matches Payfast documentation exactly
   const payload = {
     merchant_id:   MERCHANT_ID,
     merchant_key:  MERCHANT_KEY,
@@ -58,16 +49,20 @@ export default async function handler(req, res) {
     cancel_url:    `${BASE_URL}/checkout?payment=cancelled`,
     notify_url:    `${BASE_URL}/api/payfast-notify`,
     name_first:    (name_first || '').trim(),
-    email_address: email.trim(),
-    m_payment_id:  m_payment_id,
-    amount:        parseFloat(amount).toFixed(2),
-    item_name:     item_name.substring(0, 100),
   };
 
-  if ((name_last || '').trim())        payload.name_last        = name_last.trim();
-  if ((item_description || '').trim()) payload.item_description = item_description.trim().substring(0, 255);
+  if ((name_last || '').trim()) payload.name_last = name_last.trim();
 
-  payload.signature = generateSignature(payload, ""); // TEST: no passphrase
+  payload.email_address = email.trim();
+  payload.m_payment_id  = m_payment_id;
+  payload.amount        = parseFloat(amount).toFixed(2);
+  payload.item_name     = item_name.substring(0, 100);
+
+  if ((item_description || '').trim()) {
+    payload.item_description = item_description.trim().substring(0, 255);
+  }
+
+  payload.signature = generateSignature(payload, PASSPHRASE || '');
 
   const postBody = new URLSearchParams(payload).toString();
   console.error('[PF] POST body:', postBody);
@@ -86,9 +81,8 @@ export default async function handler(req, res) {
     try {
       result = JSON.parse(text);
     } catch {
-      // Extract just the error message from Payfast HTML
-      const match = text.match(/err-msg[^>]*>.*?<strong>(.*?)<\/strong>(.*?)<\/span>/s);
-      const errMsg = match ? `${match[1]}: ${match[2].trim()}` : text.substring(0, 200);
+      const match = text.match(/<span class="err-msg"><strong>(.*?)<\/strong>(.*?)<\/span>/s);
+      const errMsg = match ? `${match[1]}: ${match[2].trim()}` : text.substring(0, 300);
       console.error('[PF] Error:', errMsg);
       return res.status(502).json({ error: errMsg });
     }
