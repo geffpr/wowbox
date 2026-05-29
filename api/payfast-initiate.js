@@ -1,7 +1,14 @@
 import crypto from 'crypto';
 
 function encodeVal(str) {
-  return encodeURIComponent(String(str).trim()).replace(/%20/g, '+');
+  return encodeURIComponent(String(str).trim())
+    .replace(/%20/g, '+')
+    .replace(/!/g,  '%21')
+    .replace(/'/g,  '%27')
+    .replace(/\(/g, '%28')
+    .replace(/\)/g, '%29')
+    .replace(/\*/g, '%2A')
+    .replace(/~/g,  '%7E');
 }
 
 function generateSignature(data, passphrase) {
