@@ -8354,7 +8354,7 @@ function renderBrowse() {
   const cardHTML = (e) => `
     <div class="browse-ecard" onclick="appState.expContext='booking';appState.currentBoxId='${bid}';loadExp('${e.id}');go('expdetail')">
       <div class="browse-ecard-img" style="position:relative">
-        <img src="${e.img}&h=192&auto=format&fit=crop" loading="lazy">
+        <img src="${e.img}${e.img.includes('?') ? '&' : '?'}h=192&auto=format&fit=crop" loading="lazy">
         <button class="wl-exp-btn" data-id="${e.id}" onclick="wlToggleExp('${e.id}',event)" style="position:absolute;top:8px;right:8px;background:rgba(0,0,0,.3);border:none;border-radius:50%;width:30px;height:30px;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:2">${wlHasExp(e.id)?'<i class="fa fa-heart" style="color:#ef4444"></i>':'<i class="fa fa-heart" style="color:rgba(255,255,255,.65)"></i>'}</button>
       </div>
       <div class="browse-ecard-info">
@@ -9001,7 +9001,7 @@ function renderExpList() {
     <div class="ecard ecard-nav" data-expid="${e.id}" style="position:relative">
       <button class="wl-exp-btn" data-id="${e.id}" style="position:absolute;top:8px;left:8px;background:rgba(0,0,0,.35);border:none;border-radius:50%;width:28px;height:28px;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:5">${wlHasExp(e.id)?'<i class="fa fa-heart" style="color:#ef4444"></i>':'<i class="fa fa-heart" style="color:rgba(255,255,255,.65)"></i>'}</button>
       <div class="ecard-img">
-        <img src="${e.img}&h=160&auto=format&fit=crop" loading="lazy">
+        <img src="${e.img}${e.img.includes('?') ? '&' : '?'}h=160&auto=format&fit=crop" loading="lazy">
       </div>
       <div class="ecard-info">
         <h4>${e.name}</h4>
@@ -9087,7 +9087,7 @@ function buildRichInfoWindow(e, context) {
   ">
     <div style="
       height:120px;
-      background:url('${e.img}&h=240&auto=format&fit=crop') center/cover no-repeat;
+      background:url('${e.img}${e.img.includes('?') ? '&' : '?'}h=240&auto=format&fit=crop') center/cover no-repeat;
       position:relative;
     ">
       <div style="
@@ -15205,7 +15205,7 @@ function selectResult(expId, slotIdx) {
   const abar = document.getElementById('rsl-action-bar');
   const cfbf = document.getElementById('confirm-choice-btn-fallback');
   if (exp && bar) {
-    document.getElementById('rsl-confirm-img').src  = exp.img + '&w=200&h=160&auto=format&fit=crop';
+    document.getElementById('rsl-confirm-img').src  = exp.img + (exp.img.includes('?') ? '&' : '?') + 'w=200&h=160&auto=format&fit=crop';
     document.getElementById('rsl-confirm-name').textContent = exp.name;
     document.getElementById('rsl-confirm-meta').textContent = exp.loc + ' · ' + exp.reservation_type;
     bar.style.display  = 'flex';
