@@ -5,9 +5,11 @@ import crypto from 'crypto';
  * Fields must be in the same order they are added to the payload.
  */
 function generateSignature(data, passphrase) {
-  const pfOutput = Object.entries(data)
-    .filter(([, v]) => v !== '' && v !== null && v !== undefined)
-    .map(([k, v]) => `${k}=${encodeURIComponent(String(v).trim()).replace(/%20/g, '+')}`)
+  // Payfast requires keys sorted alphabetically (same as PHP ksort)
+  const sortedKeys = Object.keys(data).sort();
+  const pfOutput = sortedKeys
+    .filter(k => data[k] !== '' && data[k] !== null && data[k] !== undefined)
+    .map(k => `${k}=${encodeURIComponent(String(data[k]).trim()).replace(/%20/g, '+')}`)
     .join('&');
 
   const strToHash = passphrase
