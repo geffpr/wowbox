@@ -12,7 +12,6 @@ function encodeVal(str) {
 }
 
 function generateSignature(data, passphrase) {
-  // Payfast requires fields in SUBMISSION ORDER (not alphabetical)
   let pfOutput = '';
   for (const key of Object.keys(data)) {
     const val = data[key];
@@ -24,10 +23,7 @@ function generateSignature(data, passphrase) {
   if (passphrase) {
     strToHash += `&passphrase=${encodeVal(passphrase)}`;
   }
-  console.error('[PF] Hash string:', strToHash);
-  const sig = crypto.createHash('md5').update(strToHash).digest('hex');
-  console.error('[PF] Signature:', sig);
-  return sig;
+  return crypto.createHash('md5').update(strToHash).digest('hex');
 }
 
 export default async function handler(req, res) {
@@ -43,10 +39,15 @@ export default async function handler(req, res) {
   const MERCHANT_KEY = process.env.PAYFAST_MERCHANT_KEY;
   const PASSPHRASE   = process.env.PAYFAST_PASSPHRASE;
   const BASE_URL     = process.env.SITE_URL || 'https://wowbox.co.za';
+  const SANDBOX      = process.env.PAYFAST_SANDBOX === 'true';
 
   if (!MERCHANT_ID || !MERCHANT_KEY) {
     return res.status(500).json({ error: 'Payment provider not configured' });
   }
+
+  const PAYFAST_URL = SANDBOX
+    ? 'https://sandbox.payfast.co.za/onsite/process'
+    : 'https://www.payfast.co.za/onsite/process';
 
   // Field order matches Payfast documentation exactly
   const payload = {
@@ -71,38 +72,32 @@ export default async function handler(req, res) {
 
   payload.signature = generateSignature(payload, PASSPHRASE || '');
 
-  const postBody = new URLSearchParams(payload).toString();
-  console.error('[PF] POST body:', postBody);
-
   try {
-    const pfResponse = await fetch('https://sandbox.payfast.co.za/onsite/process', {
+    const pfResponse = await fetch(PAYFAST_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: postBody,
+      body: new URLSearchParams(payload).toString(),
     });
 
     const text = await pfResponse.text();
-    console.error('[PF] Status:', pfResponse.status);
 
     let result;
     try {
       result = JSON.parse(text);
     } catch {
-      const match = text.match(/<span class="err-msg"><strong>(.*?)<\/strong>(.*?)<\/span>/s);
-      const errMsg = match ? `${match[1]}: ${match[2].trim()}` : text.substring(0, 300);
-      console.error('[PF] Error:', errMsg);
-      return res.status(502).json({ error: errMsg });
+      console.error('[Payfast] Unexpected response:', text.substring(0, 300));
+      return res.status(502).json({ error: 'Unexpected response from payment provider' });
     }
 
     if (!result.uuid) {
-      console.error('[PF] No UUID:', JSON.stringify(result));
+      console.error('[Payfast] No UUID:', JSON.stringify(result));
       return res.status(400).json({ error: 'Payment initiation failed', details: result });
     }
 
     return res.status(200).json({ uuid: result.uuid });
 
   } catch (err) {
-    console.error('[PF] Fetch error:', err.message);
+    console.error('[Payfast] Fetch error:', err.message);
     return res.status(500).json({ error: 'Could not reach payment provider' });
   }
 }
