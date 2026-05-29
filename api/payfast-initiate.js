@@ -67,7 +67,7 @@ export default async function handler(req, res) {
   if ((name_last || '').trim())        payload.name_last        = name_last.trim();
   if ((item_description || '').trim()) payload.item_description = item_description.trim().substring(0, 255);
 
-  payload.signature = generateSignature(payload, PASSPHRASE);
+  payload.signature = generateSignature(payload, ""); // TEST: no passphrase
 
   const postBody = new URLSearchParams(payload).toString();
   console.error('[PF] POST body:', postBody);
