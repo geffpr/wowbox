@@ -14905,7 +14905,7 @@ async function admLoadFeaturedBoosts() {
   if (!tbody) return;
   try {
     var res = await db_client.from('experience_boosts')
-      .select('id,experience_name,partner_email,amount_paid,created_at,expires_at,status,paystack_reference')
+      .select('id,experience_name,partner_email,amount_paid,created_at,expires_at,status,payfast_reference')
       .order('created_at', {ascending:false});
     var rows   = res.data || [];
     var now    = new Date();
