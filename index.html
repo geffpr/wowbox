@@ -7990,7 +7990,25 @@ function browseRestoreFromURL() {
   var provinces = params.get('provinces') ? params.get('provinces').split(',') : [];
   document.querySelectorAll('.brpf').forEach(function(c){ c.checked = provinces.indexOf(c.value) >= 0; });
   var box = params.get('box');
-  if (box && boxDB[box]) appState.browseBoxId = box;
+  if (box && boxDB[box]) {
+    appState.browseBoxId = box;
+    // If accessing browse via direct URL (not via openBrowsePage), verify auth + voucher
+    if (!appState.boxActivated) {
+      setTimeout(async function() {
+        if (!currentUser) { go('home'); return; }
+        var vc = await db_client.from('vouchers')
+          .select('code, status, box_id')
+          .eq('customer_email', currentUser.email)
+          .eq('box_id', box)
+          .eq('status', 'active')
+          .limit(1)
+          .maybeSingle();
+        if (!vc.data) { go('account'); admToast('No active voucher found for this box.'); return; }
+        appState.activatedVoucher = { code: vc.data.code };
+        appState.boxActivated = true;
+      }, 800);
+    }
+  }
 }
 
 function go(page) {
@@ -9670,10 +9688,37 @@ async function confirmExpBooking() {
   const rt = e.reservation_type || 'activity';
   const data = collectBookingData(rt);
 
-  // Use real voucher code from activated voucher
+  // ── SECURITY: require authenticated user ──
+  if (!currentUser) {
+    admToast('Please sign in to book an experience.');
+    go('login');
+    return;
+  }
+
+  // ── SECURITY: require a valid, active voucher in Supabase ──
   const voucherCode = (appState.activatedVoucher && appState.activatedVoucher.code)
     ? appState.activatedVoucher.code
     : (appState.currentBoxCode || '');
+
+  if (!voucherCode) {
+    admToast('No valid voucher found. Please activate your WowBox voucher first.');
+    go('account');
+    return;
+  }
+
+  // Verify voucher belongs to this user, is active and not already booked
+  const vcCheck = await db_client
+    .from('vouchers')
+    .select('id, status, box_id, customer_email')
+    .eq('code', voucherCode)
+    .eq('customer_email', currentUser.email)
+    .eq('status', 'active')
+    .maybeSingle();
+
+  if (!vcCheck.data) {
+    admToast('This voucher is not valid or has already been used. Please contact support.');
+    return;
+  }
 
   // Populate voucher display
   document.getElementById('v-exp').textContent = e.name;
