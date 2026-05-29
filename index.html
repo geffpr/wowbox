@@ -552,6 +552,53 @@ var APP_URL = (window.location.hostname === 'localhost' || window.location.hostn
   ? window.location.origin
   : 'https://wowbox.co.za';
 
+// ─── PAYFAST TEST MODE ────────────────────────────────────────
+// Set to true to show a mock payment modal instead of real Payfast
+// Switch to false when prod account is approved
+var PAYFAST_TEST_MODE = true;
+
+function showPayfastTestModal(pfRef, total, discount, delivFee) {
+  var existing = document.getElementById('pf-test-modal');
+  if (existing) existing.remove();
+
+  var modal = document.createElement('div');
+  modal.id = 'pf-test-modal';
+  modal.style.cssText = 'position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(2,45,45,.7);backdrop-filter:blur(4px)';
+  modal.innerHTML = `
+    <div style="background:#fff;border-radius:16px;padding:32px;max-width:400px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.3);font-family:sans-serif">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px">
+        <img src="https://content.payfast.io/assets/images/logos/ni_payfast_logo.png" style="height:32px" alt="Payfast">
+        <span style="font-size:.75rem;background:#fff3cd;color:#856404;padding:3px 8px;border-radius:20px;font-weight:600">SANDBOX TEST</span>
+      </div>
+      <div style="background:#f8f9fa;border-radius:10px;padding:16px;margin-bottom:20px;text-align:center">
+        <div style="font-size:.8rem;color:#666;margin-bottom:4px">Payment total</div>
+        <div style="font-size:1.8rem;font-weight:700;color:#022d2d">R ${parseFloat(total).toLocaleString('en-ZA',{minimumFractionDigits:2})}</div>
+        <div style="font-size:.72rem;color:#999;margin-top:4px">Ref: ${pfRef}</div>
+      </div>
+      <div style="font-size:.78rem;color:#666;text-align:center;margin-bottom:18px">Simulate a payment outcome for testing:</div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <button id="pf-test-accept" style="background:#022d2d;color:#dee965;border:none;border-radius:8px;padding:14px;font-size:.95rem;font-weight:600;cursor:pointer">✓ Payment Accepted</button>
+        <button id="pf-test-decline" style="background:#fee2e2;color:#dc2626;border:none;border-radius:8px;padding:12px;font-size:.9rem;font-weight:600;cursor:pointer">✕ Payment Declined</button>
+        <button id="pf-test-cancel" style="background:#f3f4f6;color:#6b7280;border:none;border-radius:8px;padding:12px;font-size:.9rem;cursor:pointer">Cancel</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+
+  document.getElementById('pf-test-accept').onclick = function() {
+    modal.remove();
+    completeOrderConfirm(pfRef, total, discount, delivFee);
+  };
+  document.getElementById('pf-test-decline').onclick = function() {
+    modal.remove();
+    admToast('Payment declined. Please try a different payment method.');
+  };
+  document.getElementById('pf-test-cancel').onclick = function() {
+    modal.remove();
+    admToast('Payment cancelled. Your cart is still saved.');
+  };
+}
+// ─────────────────────────────────────────────────────────────
+
 function authSwitchTab(tab) {
   const isUp = tab === 'up';
   document.getElementById('auth-tab-in').classList.toggle('on', !isUp);
@@ -11347,6 +11394,13 @@ async function completeOrder() {
 
   // Open Payfast Onsite popup
   const pfRef = 'WB-' + Date.now();
+
+  // ── TEST MODE: show mock modal instead of real Payfast ──
+  if (PAYFAST_TEST_MODE) {
+    showPayfastTestModal(pfRef, total, discount, delivFee);
+    return;
+  }
+  // ────────────────────────────────────────────────────────
   try {
     const pfRes = await fetch('/api/payfast-initiate', {
       method: 'POST',
