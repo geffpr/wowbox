@@ -1771,6 +1771,20 @@ async function ppConfirmPool(price) {
       });
       if (ins.error) throw ins.error;
       admToast('&#128293; ' + expName + ' is now in the Featured pool for 30 days!');
+      // Send confirmation email to partner
+      fetch('/api/send-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'boost_started',
+          data: {
+            partnerEmail:   email,
+            experienceName: expName,
+            expiresAt:      expires.toISOString(),
+            ref:            ref
+          }
+        })
+      }).catch(function(e) { console.warn('Boost email failed:', e); });
       renderBoostPage();
     } catch(e) { admToast('Payment received but activation failed. Ref: ' + ref); }
   }

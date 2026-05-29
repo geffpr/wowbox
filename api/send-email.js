@@ -562,6 +562,93 @@ function tplBuyerConfirmation(o) {
   };
 }
 
+// ── Boost Started ────────────────────────────────────────────────────────────
+function tplBoostStarted(o) {
+  const expiry = o.expiresAt
+    ? new Date(o.expiresAt).toLocaleDateString('en-ZA', { day: 'numeric', month: 'long', year: 'numeric' })
+    : '30 days from today';
+  const content =
+    badge('🚀 Boost Active', '#7c3aed') +
+    h1('You\'re in the Featured pool!') +
+    p('Great news — <strong>' + (o.experienceName || 'Your experience') + '</strong> is now featured on WowBox for the next 30 days. Guests browsing Gift Boxes and experience pages will see your listing first.') +
+    infoTable(
+      infoRow('Experience',  o.experienceName || '—') +
+      infoRow('Active from', new Date().toLocaleDateString('en-ZA', { day: 'numeric', month: 'long', year: 'numeric' })) +
+      infoRow('Active until', expiry) +
+      infoRow('Payment ref',  o.ref || '—')
+    ) +
+    highlight('<strong>Tip:</strong> Keep your calendar up to date and your photos fresh — featured experiences with complete profiles convert best.') +
+    hr() +
+    btn('View My Boost', SITE_URL + '/partner#pp-boost') +
+    sm('Questions? <a href="mailto:support@wowbox.co.za" style="color:' + C.goldDark + '">support@wowbox.co.za</a>');
+  return {
+    subject: '🚀 Your experience is now Featured on WowBox — ' + (o.experienceName || ''),
+    html: layout(content, HEROES.partner, 'Your experience is now featured on WowBox'),
+  };
+}
+
+// ── Boost Expiring 7 Days ─────────────────────────────────────────────────────
+function tplBoostExpiring7d(o) {
+  const expiry = o.expiresAt
+    ? new Date(o.expiresAt).toLocaleDateString('en-ZA', { day: 'numeric', month: 'long', year: 'numeric' })
+    : 'in 7 days';
+  return {
+    subject: `⏰ Your WowBox boost expires in 7 days — renew to stay featured`,
+    html: layout(`
+      ${badge('⏰ Expiring Soon', '#d97706')}
+      ${h1('Your boost expires in 7 days')}
+      ${p('Your featured listing for <strong>' + (o.experienceName || 'your experience') + '</strong> will expire on <strong>' + expiry + '</strong>. Renew now to stay at the top of WowBox search results.')}
+      ${infoTable(
+        infoRow('Experience',   o.experienceName || '—') +
+        infoRow('Expires on',   expiry)
+      )}
+      ${highlight('<strong>Don\'t lose your visibility.</strong> Partners who renew without a gap see up to 3× more bookings than those who let their boost lapse.')}
+      ${hr()}
+      ${btn('Renew My Boost', SITE_URL + '/partner#pp-boost')}
+      ${sm('Not interested in renewing? Your experience will still appear organically based on rating. <a href="mailto:support@wowbox.co.za" style="color:' + C.goldDark + '">Contact us</a> with any questions.')}
+    `, HEROES.partner, 'Your WowBox featured listing expires in 7 days'),
+  };
+}
+
+// ── Boost Expiring 1 Day ──────────────────────────────────────────────────────
+function tplBoostExpiring1d(o) {
+  const expiry = o.expiresAt
+    ? new Date(o.expiresAt).toLocaleDateString('en-ZA', { day: 'numeric', month: 'long', year: 'numeric' })
+    : 'tomorrow';
+  return {
+    subject: `🔔 Last chance — your WowBox boost expires tomorrow`,
+    html: layout(`
+      ${badge('🔔 Last Chance', '#dc2626')}
+      ${h1('Your boost expires tomorrow')}
+      ${p('This is your final reminder — <strong>' + (o.experienceName || 'your experience') + '</strong> will leave the Featured pool tomorrow on <strong>' + expiry + '</strong>.')}
+      ${infoTable(
+        infoRow('Experience',  o.experienceName || '—') +
+        infoRow('Expires',     expiry)
+      )}
+      ${highlight('<strong>Renew in one click</strong> from your partner portal to keep your featured placement without any interruption.')}
+      ${hr()}
+      ${btn('Renew Now', SITE_URL + '/partner#pp-boost', '#dc2626')}
+      ${sm('<a href="mailto:support@wowbox.co.za" style="color:' + C.goldDark + '">Contact us</a> if you have any questions.')}
+    `, HEROES.partner, 'Your WowBox featured listing expires tomorrow'),
+  };
+}
+
+// ── Boost Expired ─────────────────────────────────────────────────────────────
+function tplBoostExpired(o) {
+  return {
+    subject: `Your WowBox featured listing has ended — ${o.experienceName || ''}`,
+    html: layout(`
+      ${badge('Boost Ended', '#6b7280')}
+      ${h1('Your featured listing has ended')}
+      ${p('The featured pool listing for <strong>' + (o.experienceName || 'your experience') + '</strong> has now expired. Your experience will continue to appear on WowBox based on its rating and reviews.')}
+      ${p('Ready to boost again? Rejoin the Featured pool to get your experience back to the top.')}
+      ${hr()}
+      ${btn('Rejoin Featured Pool', SITE_URL + '/partner#pp-boost')}
+      ${sm('Thank you for being a WowBox partner. Questions? <a href="mailto:support@wowbox.co.za" style="color:' + C.goldDark + '">support@wowbox.co.za</a>')}
+    `, HEROES.partner, 'Your WowBox featured listing has expired'),
+  };
+}
+
 // ════════════════════════════════════════════════════════════════════════════
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
@@ -641,6 +728,22 @@ export default async function handler(req, res) {
       case 'voucher': {
         const dest = toOverride || o.email;
         if (dest) emailJobs.push({ to: dest, ...tplVoucher(o) });
+        break;
+      }
+      case 'boost_started': {
+        if (o.partnerEmail) emailJobs.push({ to: o.partnerEmail, ...tplBoostStarted(o) });
+        break;
+      }
+      case 'boost_expiring_7d': {
+        if (o.partnerEmail) emailJobs.push({ to: o.partnerEmail, ...tplBoostExpiring7d(o) });
+        break;
+      }
+      case 'boost_expiring_1d': {
+        if (o.partnerEmail) emailJobs.push({ to: o.partnerEmail, ...tplBoostExpiring1d(o) });
+        break;
+      }
+      case 'boost_expired': {
+        if (o.partnerEmail) emailJobs.push({ to: o.partnerEmail, ...tplBoostExpired(o) });
         break;
       }
       default:
