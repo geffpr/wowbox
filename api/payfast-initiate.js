@@ -75,7 +75,7 @@ export default async function handler(req, res) {
 
   // POST to Payfast Onsite — get UUID
   try {
-    const pfResponse = await fetch('https://www.payfast.co.za/onsite/process', {
+    const pfResponse = await fetch('https://sandbox.payfast.co.za/onsite/process', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: new URLSearchParams(payload).toString(),
