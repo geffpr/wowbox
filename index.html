@@ -557,7 +557,7 @@ var APP_URL = (window.location.hostname === 'localhost' || window.location.hostn
 // Switch to false when prod account is approved
 var PAYFAST_TEST_MODE = true;
 
-function showPayfastTestModal(pfRef, total, discount, delivFee) {
+function showPayfastTestModal(pfRef, total, discount, delivFee, onAccept) {
   var existing = document.getElementById('pf-test-modal');
   if (existing) existing.remove();
 
@@ -586,7 +586,11 @@ function showPayfastTestModal(pfRef, total, discount, delivFee) {
 
   document.getElementById('pf-test-accept').onclick = function() {
     modal.remove();
-    completeOrderConfirm(pfRef, total, discount, delivFee);
+    if (typeof onAccept === 'function') {
+      onAccept();
+    } else {
+      completeOrderConfirm(pfRef, total, discount, delivFee);
+    }
   };
   document.getElementById('pf-test-decline').onclick = function() {
     modal.remove();
@@ -1750,6 +1754,33 @@ async function ppConfirmPool(price) {
   var modal = document.getElementById('pp-pool-modal');
   if (modal) modal.remove();
   var ref = 'POOL-' + expId.slice(0,6).toUpperCase() + '-' + Date.now();
+
+  async function activateBoost() {
+    admToast('<i class="fa fa-spinner fa-spin"></i> Activating&hellip;');
+    try {
+      var expires = new Date();
+      expires.setDate(expires.getDate() + 30);
+      var ins = await db_client.from('experience_boosts').insert({
+        experience_id:      expId,
+        experience_name:    expName,
+        partner_email:      email,
+        expires_at:         expires.toISOString(),
+        status:             'active',
+        amount_paid:        price,
+        payfast_reference:  ref
+      });
+      if (ins.error) throw ins.error;
+      admToast('&#128293; ' + expName + ' is now in the Featured pool for 30 days!');
+      renderBoostPage();
+    } catch(e) { admToast('Payment received but activation failed. Ref: ' + ref); }
+  }
+
+  // ── TEST MODE ──
+  if (PAYFAST_TEST_MODE) {
+    showPayfastTestModal(ref, price, 0, 0, activateBoost);
+    return;
+  }
+
   admToast('<i class="fa fa-spinner fa-spin"></i> Opening payment…');
   try {
     var pfRes = await fetch('/api/payfast-initiate', {
@@ -1760,25 +1791,7 @@ async function ppConfirmPool(price) {
     var pfData = await pfRes.json();
     if (!pfData.uuid) throw new Error(pfData.error || 'Payment initiation failed');
     window.payfast_do_onsite_payment(pfData.uuid, async function(result) {
-      if (result === true) {
-        admToast('<i class="fa fa-spinner fa-spin"></i> Activating&hellip;');
-        try {
-          var expires = new Date();
-          expires.setDate(expires.getDate() + 30);
-          var ins = await db_client.from('experience_boosts').insert({
-            experience_id:      expId,
-            experience_name:    expName,
-            partner_email:      email,
-            expires_at:         expires.toISOString(),
-            status:             'active',
-            amount_paid:        price,
-            payfast_reference:  ref
-          });
-          if (ins.error) throw ins.error;
-          admToast('&#128293; ' + expName + ' is now in the Featured pool for 30 days!');
-          renderBoostPage();
-        } catch(e) { admToast('Payment received but activation failed. Ref: ' + ref); }
-      }
+      if (result === true) activateBoost();
     }, function() { admToast('Payment cancelled.'); });
   } catch(e) { admToast('Could not open payment. Please try again.'); console.error('Payfast error:', e); }
 }
@@ -5300,8 +5313,7 @@ tr:hover td{background:var(--b50)}
       <button class="pp-nav" onclick="switchPP(this,'pp-payouts');ppLoadPayouts()"><i class="fa fa-money-bill-transfer"></i> My Payouts</button>
       <button class="pp-nav" onclick="switchPP(this,'pp-experiences')"><i class="fa fa-compass"></i> My Experiences</button>
       <button class="pp-nav" onclick="switchPP(this,'pp-subscription')"><i class="fa fa-credit-card"></i> My Subscription</button>
-      <button class="pp-nav" onclick="switchPP(this,'pp-plan')"><i class="fa fa-crown"></i> Plan &amp; Features</button>
-      <!-- Pro nav buttons — shown/unlocked when isPro() -->
+      <!-- Pro nav buttons -->
       <button class="pp-nav" onclick="switchPP(this,'pp-reviews');ppLoadReviews()"><i class="fa fa-star"></i> My Reviews <span id="pp-reviews-badge" style="display:none;margin-left:auto;background:#ef4444;color:#fff;border-radius:99px;padding:1px 6px;font-size:.6rem;font-weight:700"></span></button>
       <button class="pp-nav" id="pp-nav-analytics" onclick="switchPP(this,'pp-analytics')"><i class="fa fa-chart-line"></i> Analytics</button>
       <button class="pp-nav" id="pp-nav-calendar"  onclick="switchPP(this,'pp-calendar')"><i class="fa fa-calendar-days"></i> Calendar</button>
@@ -5311,13 +5323,6 @@ tr:hover td{background:var(--b50)}
       <button class="pp-nav" onclick="switchPP(this,'pp-settings');ppLoadSettings()"><i class="fa fa-gear"></i> Settings</button>
 
       <div style="margin-top:auto;padding-top:24px;border-top:1px solid rgba(255,255,255,.1)">
-        <div style="padding:10px 11px;background:rgba(255,255,255,.07);border-radius:var(--rs);margin-bottom:12px">
-          <div style="font-size:.67rem;color:rgba(255,255,255,.5);text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px">Current plan</div>
-          <div style="display:flex;align-items:center;justify-content:space-between">
-            <div id="pp-sb-plan-name" style="font-size:.82rem;font-weight:600;color:#fff">Free Plan</div>
-            <span id="pp-sb-plan-badge" class="pp-plan-badge ppb-free">Free</span>
-          </div>
-        </div>
         <button class="pp-nav" onclick="go('home')"><i class="fa fa-right-from-bracket"></i> Exit Portal</button>
       </div>
     </div>
@@ -5994,75 +5999,9 @@ tr:hover td{background:var(--b50)}
 
       <!-- ═══ PRO: REPORTING PRO (Analytics + Insights) ═══ -->
       <div id="pp-reporting" class="pp-sec">
-        <h2 style="font-size:1.75rem;color:var(--navy);margin-bottom:5px">Reporting Pro</h2>
-        <p style="color:var(--muted);font-size:.82rem;margin-bottom:26px">Performance summary and data-driven recommendations for your experiences.</p>
-
-        <!-- Health score + Top experience -->
-        <div style="display:grid;grid-template-columns:180px 1fr;gap:18px;margin-bottom:22px;align-items:start">
-          <div class="pp-card" style="margin-bottom:0;text-align:center">
-            <div style="font-size:.68rem;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);font-weight:700;margin-bottom:10px">Partner Health Score</div>
-            <div class="ins-score-ring" style="margin:0 auto 10px;border-color:#22c55e;color:#15803d;background:#f0fdf4">82</div>
-            <div style="font-size:.78rem;font-weight:600;color:#15803d;margin-bottom:3px">Very Good</div>
-            <div style="font-size:.7rem;color:var(--muted)">Top 28% of partners</div>
-          </div>
-          <div class="ins-card" style="margin-bottom:0">
-            <h4><i class="fa fa-trophy" style="color:#f59e0b"></i> Top performing experience</h4>
-            <div style="display:flex;align-items:center;gap:14px">
-              <img src="https://images.unsplash.com/photo-1559508551-44bff1de756b?q=80&w=200&auto=format&fit=crop" style="width:78px;height:60px;object-fit:cover;border-radius:var(--rs);flex-shrink:0" alt="">
-              <div style="flex:1">
-                <div style="font-size:.9rem;font-weight:600;color:var(--navy)">The Vineyard Retreat</div>
-                <div style="font-size:.73rem;color:var(--muted);margin:3px 0">34 bookings &middot; R33,014 revenue &middot; &#9733; 4.9</div>
-                <div class="ins-rating-row"><span style="width:56px">Bookings</span><div class="ins-rating-track"><div class="ins-rating-fill" style="width:85%;background:var(--b500)"></div></div><span style="color:var(--b600);font-weight:600">85%</span></div>
-                <div class="ins-rating-row"><span style="width:56px">Rating</span><div class="ins-rating-track"><div class="ins-rating-fill" style="width:98%;background:#22c55e"></div></div><span style="color:#15803d;font-weight:600">&#9733; 4.9</span></div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Revenue summary (linked to analytics data) -->
-        <div class="pp-card">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
-            <h3 style="font-size:.95rem;color:var(--navy)">Revenue this month</h3>
-            <button class="btn bg bsm" onclick="switchPP(document.getElementById('pp-nav-analytics'),'pp-analytics')"><i class="fa fa-chart-line"></i> Full Analytics</button>
-          </div>
-          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px">
-            <div style="text-align:center;padding:14px;background:var(--bg);border-radius:var(--rs)"><div style="font-family:'Cormorant Garamond',serif;font-size:1.6rem;font-weight:700;color:var(--navy)">R45,621</div><div style="font-size:.72rem;color:var(--muted)">Total revenue</div><div style="font-size:.7rem;color:var(--green);font-weight:600;margin-top:2px">&#8593; +12.4%</div></div>
-            <div style="text-align:center;padding:14px;background:var(--bg);border-radius:var(--rs)"><div style="font-family:'Cormorant Garamond',serif;font-size:1.6rem;font-weight:700;color:var(--navy)">47</div><div style="font-size:.72rem;color:var(--muted)">Bookings</div><div style="font-size:.7rem;color:var(--green);font-weight:600;margin-top:2px">&#8593; +8 vs last month</div></div>
-            <div style="text-align:center;padding:14px;background:var(--bg);border-radius:var(--rs)"><div style="font-family:'Cormorant Garamond',serif;font-size:1.6rem;font-weight:700;color:var(--navy)">2.6%</div><div style="font-size:.72rem;color:var(--muted)">Conversion rate</div><div style="font-size:.7rem;color:var(--green);font-weight:600;margin-top:2px">&#8593; +0.3pp</div></div>
-          </div>
-        </div>
-
-        <!-- Recommendations -->
-        <h3 style="font-size:1.05rem;color:var(--navy);margin-bottom:14px"><i class="fa fa-lightbulb" style="color:#f59e0b"></i> Recommendations</h3>
-        <div class="ins-card">
-          <h4><i class="fa fa-arrow-trend-up" style="color:var(--green)"></i> Increase weekend availability</h4>
-          <p style="font-size:.8rem;color:var(--slate);margin-bottom:8px">67% of bookings occur Fri&ndash;Sun, but only 40% of your slots are available then. Opening 3 more weekend slots/month could add an estimated <strong style="color:var(--green)">+R8,740/month</strong>.</p>
-          <button class="btn bp bsm" onclick="switchPP(document.getElementById('pp-nav-calendar'),'pp-calendar')"><i class="fa fa-calendar-days"></i> Adjust Calendar &rarr;</button>
-        </div>
-        <div class="ins-card">
-          <h4><i class="fa fa-tag" style="color:var(--b500)"></i> Pricing opportunity</h4>
-          <p style="font-size:.8rem;color:var(--slate);margin-bottom:8px">Similar experiences in Stellenbosch are priced 18% higher. Your &#9733; 4.9 rating justifies the increase. Estimated uplift: <strong style="color:var(--b600)">+R5,200/month</strong>.</p>
-          <button class="btn bg bsm" onclick="switchPP(document.querySelector('[onclick*=pp-experiences]'),'pp-experiences')"><i class="fa fa-pen"></i> Edit Experiences &rarr;</button>
-        </div>
-        <div class="ins-card">
-          <h4><i class="fa fa-rocket" style="color:#7c3aed"></i> A boost could unlock the next tier</h4>
-          <p style="font-size:.8rem;color:var(--slate);margin-bottom:8px">You're 13 bookings from Gold tier (+2% commission rate). Based on your 3.1&times; historical boost conversion, activating a boost this week could bridge that gap.</p>
-          <button class="btn bg bsm" onclick="switchPP(document.getElementById('pp-nav-boost'),'pp-boost')"><i class="fa fa-rocket"></i> Activate Boost &rarr;</button>
-        </div>
-
-        <!-- Guest feedback -->
-        <h3 style="font-size:1.05rem;color:var(--navy);margin:22px 0 14px"><i class="fa fa-star" style="color:#f59e0b"></i> Guest feedback summary</h3>
-        <div class="ins-card">
-          <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
-            <div style="text-align:center;flex-shrink:0"><div style="font-family:'Cormorant Garamond',serif;font-size:2rem;font-weight:700;color:var(--b700)">4.9</div><div style="font-size:.68rem;color:var(--muted)">Overall</div><div style="color:#f59e0b;font-size:.85rem">&#9733;&#9733;&#9733;&#9733;&#9733;</div></div>
-            <div style="flex:1;min-width:180px">
-              <div class="ins-rating-row"><span style="width:68px;color:var(--muted)">Location</span><div class="ins-rating-track"><div class="ins-rating-fill" style="width:100%"></div></div><span style="font-weight:600">5.0</span></div>
-              <div class="ins-rating-row"><span style="width:68px;color:var(--muted)">Value</span><div class="ins-rating-track"><div class="ins-rating-fill" style="width:90%"></div></div><span style="font-weight:600">4.5</span></div>
-              <div class="ins-rating-row"><span style="width:68px;color:var(--muted)">Service</span><div class="ins-rating-track"><div class="ins-rating-fill" style="width:98%"></div></div><span style="font-weight:600">4.9</span></div>
-            </div>
-            <div style="flex:1;min-width:180px;font-size:.78rem;color:var(--slate);line-height:1.7;font-style:italic">&ldquo;The most beautiful experience in the Cape &mdash; staff was exceptional and the wine pairings were outstanding.&rdquo;<br><span style="font-style:normal;font-size:.72rem;color:var(--muted)">&mdash; Amahle D., May 2025</span></div>
-          </div>
-        </div>
+        <h2 style="font-size:1.75rem;color:var(--navy);margin-bottom:5px">Reporting</h2>
+        <p style="color:var(--muted);font-size:.82rem;margin-bottom:26px">Performance summary and data-driven insights for your experiences.</p>
+        <div id="pp-reporting-body"><div style="text-align:center;padding:40px;color:var(--muted)"><i class="fa fa-spinner fa-spin" style="font-size:1.5rem"></i></div></div>
       </div>
 
 
@@ -10277,6 +10216,181 @@ async function loadExpReviews(expId) {
 // ─────────────────────────────────────────────────────────────
 // PARTNER: Settings — load, save profile, change password, Paystack
 // ─────────────────────────────────────────────────────────────
+async function ppLoadReporting() {
+  const el = document.getElementById('pp-reporting-body');
+  if (!el) return;
+  const email = appState.partnerEmail || (currentUser && currentUser.email) || '';
+  if (!email) { el.innerHTML = '<p style="color:var(--muted)">Please sign in.</p>'; return; }
+
+  el.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted)"><i class="fa fa-spinner fa-spin" style="font-size:1.5rem"></i></div>';
+
+  try {
+    const now      = new Date();
+    const m1start  = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+    const m2start  = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString();
+
+    const [expsRes, bookingsRes, reviewsRes] = await Promise.all([
+      db_client.from('experiences').select('id,name,image_url,rating,review_count,price').eq('partner_email', email).eq('is_active', true),
+      db_client.from('bookings').select('experience_id,experience_name,status,created_at,commission_amount').eq('partner_email', email).neq('status','cancelled'),
+      db_client.from('reviews').select('rating,rating_location,rating_value,rating_service,comment,reviewer_name,created_at').eq('partner_email', email).order('created_at', {ascending: false}),
+    ]);
+
+    const exps     = expsRes.data  || [];
+    const bookings = bookingsRes.data || [];
+    const reviews  = reviewsRes.data  || [];
+
+    // ── Revenue & bookings ──
+    const thisMonth = bookings.filter(b => b.created_at >= m1start);
+    const lastMonth = bookings.filter(b => b.created_at >= m2start && b.created_at < m1start);
+    const totalRev  = bookings.reduce((s, b) => s + (b.commission_amount || 0), 0);
+    const thisRev   = thisMonth.reduce((s, b) => s + (b.commission_amount || 0), 0);
+    const lastRev   = lastMonth.reduce((s, b) => s + (b.commission_amount || 0), 0);
+    const revDiff   = lastRev > 0 ? ((thisRev - lastRev) / lastRev * 100).toFixed(1) : null;
+    const bkDiff    = thisMonth.length - lastMonth.length;
+
+    // ── Top experience ──
+    const bkByExp = {};
+    bookings.forEach(b => {
+      if (!bkByExp[b.experience_id]) bkByExp[b.experience_id] = { name: b.experience_name, count: 0, rev: 0 };
+      bkByExp[b.experience_id].count++;
+      bkByExp[b.experience_id].rev += (b.commission_amount || 0);
+    });
+    const topExpId  = Object.keys(bkByExp).sort((a,b) => bkByExp[b].count - bkByExp[a].count)[0];
+    const topExp    = topExpId ? bkByExp[topExpId] : null;
+    const topExpObj = exps.find(e => e.id === topExpId);
+    const maxBk     = topExp ? topExp.count : 1;
+    const topPct    = exps.length > 1 ? Math.round((maxBk / Math.max(...Object.values(bkByExp).map(x=>x.count))) * 100) : 100;
+
+    // ── Reviews ──
+    const avgRating = reviews.length ? (reviews.reduce((s,r) => s + (r.rating||0), 0) / reviews.length).toFixed(1) : null;
+    const avgLoc    = reviews.filter(r=>r.rating_location).length ? (reviews.reduce((s,r)=>s+(r.rating_location||0),0)/reviews.filter(r=>r.rating_location).length).toFixed(1) : null;
+    const avgVal    = reviews.filter(r=>r.rating_value).length    ? (reviews.reduce((s,r)=>s+(r.rating_value||0),0)   /reviews.filter(r=>r.rating_value).length).toFixed(1)    : null;
+    const avgSvc    = reviews.filter(r=>r.rating_service).length  ? (reviews.reduce((s,r)=>s+(r.rating_service||0),0) /reviews.filter(r=>r.rating_service).length).toFixed(1)  : null;
+    const latestRev = reviews[0];
+
+    // ── Health score (0–100) ──
+    let score = 50;
+    if (avgRating)               score += Math.round((parseFloat(avgRating) - 3) * 15);
+    if (bookings.length > 10)    score += 10;
+    if (bookings.length > 30)    score += 5;
+    if (reviews.length > 5)      score += 5;
+    if (exps.length > 1)         score += 5;
+    score = Math.min(100, Math.max(0, score));
+    const scoreColor = score >= 80 ? '#15803d' : score >= 60 ? '#b45309' : '#dc2626';
+    const scoreBg    = score >= 80 ? '#f0fdf4' : score >= 60 ? '#fefce8' : '#fef2f2';
+    const scoreBdr   = score >= 80 ? '#22c55e' : score >= 60 ? '#f59e0b' : '#ef4444';
+    const scoreLabel = score >= 80 ? 'Very Good' : score >= 60 ? 'Good' : 'Needs Work';
+
+    // ── Render ──
+    const ratingStars = n => n ? '★'.repeat(Math.round(n)) + '☆'.repeat(5 - Math.round(n)) : '—';
+    const fmtR = n => n ? 'R' + Math.round(n).toLocaleString() : 'R0';
+    const topImgSrc = topExpObj && topExpObj.image_url
+      ? topExpObj.image_url + (topExpObj.image_url.includes('?') ? '&' : '?') + 'w=200&h=120&auto=format&fit=crop'
+      : 'https://images.unsplash.com/photo-1559508551-44bff1de756b?q=80&w=200&auto=format&fit=crop';
+
+    let html = '';
+
+    // Health score + top experience
+    html += `<div style="display:grid;grid-template-columns:180px 1fr;gap:18px;margin-bottom:22px;align-items:start">
+      <div class="pp-card" style="margin-bottom:0;text-align:center">
+        <div style="font-size:.68rem;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);font-weight:700;margin-bottom:10px">Partner Health Score</div>
+        <div class="ins-score-ring" style="margin:0 auto 10px;border-color:${scoreBdr};color:${scoreColor};background:${scoreBg}">${score}</div>
+        <div style="font-size:.78rem;font-weight:600;color:${scoreColor};margin-bottom:3px">${scoreLabel}</div>
+        <div style="font-size:.7rem;color:var(--muted)">${bookings.length} bookings total</div>
+      </div>`;
+
+    if (topExp) {
+      html += `<div class="ins-card" style="margin-bottom:0">
+        <h4><i class="fa fa-trophy" style="color:#f59e0b"></i> Top performing experience</h4>
+        <div style="display:flex;align-items:center;gap:14px">
+          <img src="${topImgSrc}" style="width:78px;height:60px;object-fit:cover;border-radius:var(--rs);flex-shrink:0" alt="">
+          <div style="flex:1">
+            <div style="font-size:.9rem;font-weight:600;color:var(--navy)">${topExp.name}</div>
+            <div style="font-size:.73rem;color:var(--muted);margin:3px 0">${topExp.count} bookings &middot; ${fmtR(topExp.rev)} revenue${topExpObj && topExpObj.rating ? ' &middot; &#9733; ' + topExpObj.rating : ''}</div>
+            <div class="ins-rating-row"><span style="width:56px">Bookings</span><div class="ins-rating-track"><div class="ins-rating-fill" style="width:${topPct}%;background:var(--b500)"></div></div><span style="color:var(--b600);font-weight:600">${topPct}%</span></div>
+            ${topExpObj && topExpObj.rating ? `<div class="ins-rating-row"><span style="width:56px">Rating</span><div class="ins-rating-track"><div class="ins-rating-fill" style="width:${Math.round(topExpObj.rating/5*100)}%;background:#22c55e"></div></div><span style="color:#15803d;font-weight:600">&#9733; ${topExpObj.rating}</span></div>` : ''}
+          </div>
+        </div>
+      </div>`;
+    } else {
+      html += `<div class="ins-card" style="margin-bottom:0;text-align:center;color:var(--muted)"><i class="fa fa-compass" style="font-size:1.5rem;opacity:.3;display:block;margin-bottom:8px"></i>No bookings yet</div>`;
+    }
+    html += '</div>';
+
+    // Revenue summary
+    html += `<div class="pp-card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+        <h3 style="font-size:.95rem;color:var(--navy)">Revenue this month</h3>
+        <button class="btn bg bsm" onclick="switchPP(document.getElementById('pp-nav-analytics'),'pp-analytics')"><i class="fa fa-chart-line"></i> Full Analytics</button>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px">
+        <div style="text-align:center;padding:14px;background:var(--bg);border-radius:var(--rs)">
+          <div style="font-family:'Cormorant Garamond',serif;font-size:1.6rem;font-weight:700;color:var(--navy)">${fmtR(thisRev)}</div>
+          <div style="font-size:.72rem;color:var(--muted)">Revenue this month</div>
+          ${revDiff !== null ? `<div style="font-size:.7rem;color:${parseFloat(revDiff)>=0?'var(--green)':'#dc2626'};font-weight:600;margin-top:2px">${parseFloat(revDiff)>=0?'↑':'↓'} ${Math.abs(revDiff)}% vs last month</div>` : ''}
+        </div>
+        <div style="text-align:center;padding:14px;background:var(--bg);border-radius:var(--rs)">
+          <div style="font-family:'Cormorant Garamond',serif;font-size:1.6rem;font-weight:700;color:var(--navy)">${thisMonth.length}</div>
+          <div style="font-size:.72rem;color:var(--muted)">Bookings this month</div>
+          <div style="font-size:.7rem;color:${bkDiff>=0?'var(--green)':'#dc2626'};font-weight:600;margin-top:2px">${bkDiff>=0?'↑':'↓'} ${Math.abs(bkDiff)} vs last month</div>
+        </div>
+        <div style="text-align:center;padding:14px;background:var(--bg);border-radius:var(--rs)">
+          <div style="font-family:'Cormorant Garamond',serif;font-size:1.6rem;font-weight:700;color:var(--navy)">${fmtR(totalRev)}</div>
+          <div style="font-size:.72rem;color:var(--muted)">Total revenue (all time)</div>
+        </div>
+      </div>
+    </div>`;
+
+    // Recommendations
+    html += `<h3 style="font-size:1.05rem;color:var(--navy);margin:22px 0 14px"><i class="fa fa-lightbulb" style="color:#f59e0b"></i> Recommendations</h3>`;
+    if (exps.length === 0) {
+      html += `<div class="ins-card"><p style="color:var(--muted);font-size:.82rem">Add your first experience to start receiving recommendations.</p></div>`;
+    } else {
+      if (bookings.length === 0) {
+        html += `<div class="ins-card"><h4><i class="fa fa-rocket" style="color:#7c3aed"></i> Get your first booking</h4><p style="font-size:.8rem;color:var(--slate);margin-bottom:8px">You have ${exps.length} experience${exps.length>1?'s':''} listed. Boost your visibility to attract your first guests.</p><button class="btn bg bsm" onclick="switchPP(document.getElementById('pp-nav-boost'),'pp-boost')"><i class="fa fa-rocket"></i> Activate Boost &rarr;</button></div>`;
+      } else {
+        if (avgRating && parseFloat(avgRating) >= 4.5) {
+          html += `<div class="ins-card"><h4><i class="fa fa-tag" style="color:var(--b500)"></i> Pricing opportunity</h4><p style="font-size:.8rem;color:var(--slate);margin-bottom:8px">Your &#9733; ${avgRating} rating puts you in the top tier. Consider reviewing your pricing to reflect your quality.</p><button class="btn bg bsm" onclick="switchPP(document.querySelector('[onclick*=pp-experiences]'),'pp-experiences')"><i class="fa fa-pen"></i> Edit Experiences &rarr;</button></div>`;
+        }
+        if (thisMonth.length < lastMonth.length && lastMonth.length > 0) {
+          html += `<div class="ins-card"><h4><i class="fa fa-rocket" style="color:#7c3aed"></i> Bookings are down this month</h4><p style="font-size:.8rem;color:var(--slate);margin-bottom:8px">You had ${lastMonth.length} bookings last month vs ${thisMonth.length} this month. A boost could help recover visibility.</p><button class="btn bg bsm" onclick="switchPP(document.getElementById('pp-nav-boost'),'pp-boost')"><i class="fa fa-rocket"></i> Activate Boost &rarr;</button></div>`;
+        }
+        html += `<div class="ins-card"><h4><i class="fa fa-calendar-days" style="color:var(--green)"></i> Keep your calendar up to date</h4><p style="font-size:.8rem;color:var(--slate);margin-bottom:8px">Guests book faster when availability is clearly shown. Make sure your calendar reflects real openings.</p><button class="btn bp bsm" onclick="switchPP(document.getElementById('pp-nav-calendar'),'pp-calendar')"><i class="fa fa-calendar-days"></i> Adjust Calendar &rarr;</button></div>`;
+      }
+    }
+
+    // Guest feedback
+    if (reviews.length > 0) {
+      const stars = n => n ? '★'.repeat(Math.round(parseFloat(n))) + '☆'.repeat(5-Math.round(parseFloat(n))) : '';
+      html += `<h3 style="font-size:1.05rem;color:var(--navy);margin:22px 0 14px"><i class="fa fa-star" style="color:#f59e0b"></i> Guest feedback summary</h3>
+      <div class="ins-card">
+        <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+          <div style="text-align:center;flex-shrink:0">
+            <div style="font-family:'Cormorant Garamond',serif;font-size:2rem;font-weight:700;color:var(--b700)">${avgRating}</div>
+            <div style="font-size:.68rem;color:var(--muted)">Overall (${reviews.length} reviews)</div>
+            <div style="color:#f59e0b;font-size:.85rem">${stars(avgRating)}</div>
+          </div>
+          <div style="flex:1;min-width:180px">
+            ${avgLoc ? `<div class="ins-rating-row"><span style="width:68px;color:var(--muted)">Location</span><div class="ins-rating-track"><div class="ins-rating-fill" style="width:${Math.round(parseFloat(avgLoc)/5*100)}%"></div></div><span style="font-weight:600">${avgLoc}</span></div>` : ''}
+            ${avgVal ? `<div class="ins-rating-row"><span style="width:68px;color:var(--muted)">Value</span><div class="ins-rating-track"><div class="ins-rating-fill" style="width:${Math.round(parseFloat(avgVal)/5*100)}%"></div></div><span style="font-weight:600">${avgVal}</span></div>` : ''}
+            ${avgSvc ? `<div class="ins-rating-row"><span style="width:68px;color:var(--muted)">Service</span><div class="ins-rating-track"><div class="ins-rating-fill" style="width:${Math.round(parseFloat(avgSvc)/5*100)}%"></div></div><span style="font-weight:600">${avgSvc}</span></div>` : ''}
+          </div>
+          ${latestRev && latestRev.comment ? `<div style="flex:1;min-width:180px;font-size:.78rem;color:var(--slate);line-height:1.7;font-style:italic">&ldquo;${latestRev.comment}&rdquo;<br><span style="font-style:normal;font-size:.72rem;color:var(--muted)">&mdash; ${latestRev.reviewer_name || 'Guest'}, ${new Date(latestRev.created_at).toLocaleDateString('en-ZA',{month:'long',year:'numeric'})}</span></div>` : ''}
+        </div>
+      </div>`;
+    } else {
+      html += `<h3 style="font-size:1.05rem;color:var(--navy);margin:22px 0 14px"><i class="fa fa-star" style="color:#f59e0b"></i> Guest feedback</h3>
+      <div class="ins-card" style="text-align:center;color:var(--muted)"><i class="fa fa-star" style="font-size:1.5rem;opacity:.3;display:block;margin-bottom:8px"></i>No reviews yet</div>`;
+    }
+
+    el.innerHTML = html;
+
+  } catch(err) {
+    console.error('[Reporting]', err);
+    el.innerHTML = '<div style="color:var(--muted);padding:20px">Could not load reporting data. Please try again.</div>';
+  }
+}
+
 async function ppLoadSettings() {
   if (!currentUser) return;
   // Fill email (readonly)
@@ -15304,7 +15418,7 @@ function switchPP(btn, sectionId) {
   if (sectionId === 'pp-analytics')  renderAnalytics('7d');
   if (sectionId === 'pp-calendar')   renderCalendar();
   if (sectionId === 'pp-boost')      renderBoostPage();
-  if (sectionId === 'pp-reporting')  { /* static content */ }
+  if (sectionId === 'pp-reporting')  { ppLoadReporting(); }
   if (sectionId === 'pp-plan')       renderPlanPage();
 }
 function ppProNav(btn, sectionId) {
@@ -16426,16 +16540,13 @@ function updatePlanLockedUI() {
   document.querySelectorAll('.pp-open-row').forEach(el => {
     el.style.display = pro ? 'block' : 'none';
   });
-  // Sidebar Pro nav buttons: unlock when pro
-  ['pp-nav-boost','pp-nav-reporting'].forEach(id => { /* all free now — no-op */
+  // Ensure Calendar, Boost, Reporting are always full white — never locked
+  ['pp-nav-calendar','pp-nav-boost','pp-nav-reporting'].forEach(id => {
     const btn = document.getElementById(id);
     if (!btn) return;
-    if (pro) {
-      btn.classList.remove('pro-nav-locked');
-      btn.querySelector('.pp-nav-lock')?.remove();
-    } else {
-      btn.classList.add('pro-nav-locked');
-    }
+    btn.classList.remove('pro-nav-locked');
+    const lock = btn.querySelector('.pp-nav-lock');
+    if (lock) lock.remove();
   });
   // Plan CTA footer: hide when pro
   const cta = document.getElementById('pp-plan-cta-footer');
@@ -17591,13 +17702,6 @@ async function admRunSchemaDiag() {
     </div>
   </div>
 </div>
-
-<!-- Test Pro floating button -->
-<button class="test-pro-fab" id="test-pro-fab" onclick="toggleTestPro()">
-  <i class="fa fa-flask"></i>
-  <span id="test-pro-fab-label">Test Pro Mode</span>
-</button>
-
 
 
 
