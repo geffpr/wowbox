@@ -8174,7 +8174,7 @@ function go(page) {
   if (window.location.pathname !== cleanPath) {
     history.pushState(null, '', cleanPath);
   }
-  if (page === 'allboxes' || page === 'home') { renderBoxGrids(); loadFeaturedSection('allboxes-featured-section'); }
+  if (page === 'allboxes' || page === 'home') { renderBoxGrids(); }
   if (page === 'cart') renderCart();
   if (page === 'checkout') renderCheckout();
   if (page === 'reviews') renderReviewsPage();
