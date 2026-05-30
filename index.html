@@ -4106,6 +4106,9 @@ tr:hover td{background:var(--b50)}
         <div style="display:inline-flex;align-items:center;gap:6px;padding:5px 13px;background:var(--b50);border:1px solid var(--b200);border-radius:99px;font-size:.73rem;color:var(--b700);font-weight:600;margin-bottom:8px" id="prod-db-badge"></div>
       </div>
 
+      <!-- FEATURED THIS MONTH (smart pool) -->
+      <div id="prod-featured-section" style="margin-bottom:8px"></div>
+
       <!-- EXPERIENCES INCLUDED -->
       <div class="exp-sec" id="prod-exp-sec">
         <div class="row" style="margin-bottom:14px">
@@ -8648,6 +8651,14 @@ function loadProduct(boxId) {
   const b = boxDB[boxId];
   if (!b) return;
   const isSurprise = boxId === 'surprise';
+
+  // Load featured/boosted experiences for this box
+  if (!isSurprise) {
+    loadFeaturedSection('prod-featured-section');
+  } else {
+    var pf = document.getElementById('prod-featured-section');
+    if (pf) pf.innerHTML = '';
+  }
 
   document.getElementById('prod-bc').textContent = b.name;
   document.getElementById('prod-title-r').textContent = b.name;
