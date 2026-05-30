@@ -7958,6 +7958,7 @@ const appState = {
   browseVoucherExpiry: null,
   browseView: 'list',
   browsePage: 1,
+  boostedExpIds: new Set(),
   browsePerPage: 6,
   // 'preview'  → pre-purchase: show discovery + buy CTA only
   // 'booking'  → post-purchase: show reservation form
@@ -8319,6 +8320,13 @@ function openBrowsePage(boxId, expiresAt, voucherCode) {
   clearBrowseFilters(true);
   sessionStorage.setItem('wowbox_browse_box', appState.browseBoxId || '');
   go('browse');
+  // Load active boosts for featured indicators
+  if (typeof db_client !== 'undefined') {
+    db_client.from('experience_boosts').select('experience_id').eq('status','active').gte('expires_at', new Date().toISOString()).then(function(res) {
+      appState.boostedExpIds = new Set((res.data || []).map(function(b){ return b.experience_id; }));
+      renderBrowse();
+    });
+  }
   // Refresh box data from Supabase to get correct name + experience count
   if (boxId && typeof db_client !== 'undefined') {
     db_client.from('boxes').select('*').eq('id', boxId).limit(1).then(function(res) {
@@ -8396,20 +8404,31 @@ function renderBrowse() {
   document.getElementById('browse-box-meta').textContent = b.cnt + ' experiences included' + browseExpiryStr;
 
   const items = getBrowseFiltered();
-  const total = items.length;
+  // Sort boosted experiences first
+  const sortedItems = [...items].sort((a, b) => {
+    const aB = appState.boostedExpIds.has(a.id) ? 1 : 0;
+    const bB = appState.boostedExpIds.has(b.id) ? 1 : 0;
+    return bB - aB;
+  });
+  const total = sortedItems.length;
   const page  = appState.browsePage;
   const pp    = appState.browsePerPage;
-  const paged = items.slice((page-1)*pp, page*pp);
+  const paged = sortedItems.slice((page-1)*pp, page*pp);
 
   document.getElementById('browse-count').textContent = `${total} experience${total!==1?'s':''} found`;
 
   const rtTypeLabels = {accommodation:'🏨',dining:'🍽️',wellness:'🧖',activity:'🏄',rental:'🚗',event:'🎉'};
   const rtCls = {accommodation:'rt-accommodation',dining:'rt-dining',wellness:'rt-wellness',activity:'rt-activity',rental:'rt-rental',event:'rt-event'};
 
-  const cardHTML = (e) => `
-    <div class="browse-ecard" onclick="appState.expContext='booking';appState.currentBoxId='${bid}';loadExp('${e.id}');go('expdetail')">
+  const cardHTML = (e) => {
+    const isBoosted = appState.boostedExpIds.has(e.id);
+    const borderStyle = isBoosted ? 'border:2px solid #f59e0b;' : '';
+    const featBadge = isBoosted ? `<span style="position:absolute;top:8px;left:8px;background:#f59e0b;color:#fff;border-radius:99px;padding:2px 9px;font-size:.65rem;font-weight:700;z-index:3">⭐ Featured</span>` : '';
+    return `
+    <div class="browse-ecard" style="${borderStyle}" onclick="appState.expContext='booking';appState.currentBoxId='${bid}';loadExp('${e.id}');go('expdetail')">
       <div class="browse-ecard-img" style="position:relative">
         <img src="${e.img}${e.img.includes('?') ? '&' : '?'}h=192&auto=format&fit=crop" loading="lazy">
+        ${featBadge}
         <button class="wl-exp-btn" data-id="${e.id}" onclick="wlToggleExp('${e.id}',event)" style="position:absolute;top:8px;right:8px;background:rgba(0,0,0,.3);border:none;border-radius:50%;width:30px;height:30px;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:2">${wlHasExp(e.id)?'<i class="fa fa-heart" style="color:#ef4444"></i>':'<i class="fa fa-heart" style="color:rgba(255,255,255,.65)"></i>'}</button>
       </div>
       <div class="browse-ecard-info">
@@ -8431,12 +8450,11 @@ function renderBrowse() {
         <button class="btn bp bsm" onclick="event.stopPropagation();appState.expContext='booking';appState.currentBoxId='${bid}';loadExp('${e.id}');go('expdetail')">Reserve <i class="fa fa-arrow-right"></i></button>
       </div>
     </div>`;
+  };
 
   document.getElementById('browse-exp-items').innerHTML = paged.map(e => cardHTML(e)).join('') ||
     '<div style="padding:40px;text-align:center;color:var(--muted)"><i class="fa fa-magnifying-glass" style="font-size:2rem;display:block;margin-bottom:12px;color:var(--b200)"></i>No experiences match your filters. Try adjusting or clearing them.</div>';
 
-  // Featured section
-  loadFeaturedSection('browse-featured-section');
   // Pagination
   renderBrowsePagination(total);
 
@@ -8646,10 +8664,8 @@ function loadProduct(boxId) {
 
   // Load featured/boosted experiences for this box
   if (!isSurprise) {
-    loadFeaturedSection('prod-featured-section');
-  } else {
-    var pf = document.getElementById('prod-featured-section');
-    if (pf) pf.innerHTML = '';
+    var pfEl = document.getElementById('prod-featured-section');
+    if (pfEl) pfEl.innerHTML = '';
   }
 
   document.getElementById('prod-bc').textContent = b.name;
@@ -8865,11 +8881,13 @@ async function fetchProductExps(boxId) {
   if (typeof db_client === 'undefined' || !boxId) return;
   try {
     // Parallel: direct exps + box→db links + databases table
-    var [r1, rLinks, dbsRes] = await Promise.all([
+    var [r1, rLinks, dbsRes, bRes] = await Promise.all([
       db_client.from('experiences').select('*').eq('is_active', true).eq('box_id', boxId),
       db_client.from('box_database_links').select('database_id').eq('box_id', boxId),
-      db_client.from('databases').select('id,name,icon').eq('is_active', true)
+      db_client.from('databases').select('id,name,icon').eq('is_active', true),
+      db_client.from('experience_boosts').select('experience_id').eq('status','active').gte('expires_at', new Date().toISOString())
     ]);
+    appState.boostedExpIds = new Set((bRes.data || []).map(function(b){ return b.experience_id; }));
 
     var direct = r1.data || [];
     var dbIds  = (rLinks.data || []).map(function(l){ return l.database_id; });
@@ -9051,7 +9069,13 @@ async function loadExpFromSupabase() {
 
 function renderExpList() {
   buildExpLocFilter();
-  const items = getFilteredExps();
+  const raw   = getFilteredExps();
+  // Sort boosted experiences first
+  const items = [...raw].sort((a, b) => {
+    const aB = appState.boostedExpIds.has(a.id) ? 1 : 0;
+    const bB = appState.boostedExpIds.has(b.id) ? 1 : 0;
+    return bB - aB;
+  });
   const page = appState.expPage;
   const perPage = appState.expPerPage;
   const start = (page - 1) * perPage;
@@ -9060,11 +9084,16 @@ function renderExpList() {
   const typeClass = {hotel:'t-hotel',restaurant:'t-resto',spa:'t-spa',activity:'t-act'};
   const listEl = document.getElementById('exp-list-items');
   if (!listEl) return;
-  listEl.innerHTML = pageItems.map(e => `
-    <div class="ecard ecard-nav" data-expid="${e.id}" style="position:relative">
+  listEl.innerHTML = pageItems.map(e => {
+    const isBoosted = appState.boostedExpIds.has(e.id);
+    const borderStyle = isBoosted ? 'border:2px solid #f59e0b;' : '';
+    const featuredBadge = isBoosted ? '<span style="position:absolute;top:8px;right:8px;background:#f59e0b;color:#fff;border-radius:99px;padding:2px 9px;font-size:.65rem;font-weight:700;z-index:5">⭐ Featured</span>' : '';
+    return `
+    <div class="ecard ecard-nav" data-expid="${e.id}" style="position:relative;${borderStyle}">
       <button class="wl-exp-btn" data-id="${e.id}" style="position:absolute;top:8px;left:8px;background:rgba(0,0,0,.35);border:none;border-radius:50%;width:28px;height:28px;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:5">${wlHasExp(e.id)?'<i class="fa fa-heart" style="color:#ef4444"></i>':'<i class="fa fa-heart" style="color:rgba(255,255,255,.65)"></i>'}</button>
-      <div class="ecard-img">
+      <div class="ecard-img" style="position:relative">
         <img src="${e.img}${e.img.includes('?') ? '&' : '?'}h=160&auto=format&fit=crop" loading="lazy">
+        ${featuredBadge}
       </div>
       <div class="ecard-info">
         <h4>${e.name}</h4>
@@ -9080,9 +9109,9 @@ function renderExpList() {
         <span class="txt-sm txt-muted">${e.loc}</span>
         <button class="btn bp bsm ecard-nav" data-expid="${e.id}">View <i class="fa fa-arrow-right"></i></button>
       </div>
-    </div>`).join('') || '<p style="color:var(--muted);font-size:.85rem;padding:20px 0">No experiences match your filters.</p>';
-  renderPagination(items.length);
-  // Event delegation — avoids inline onclick issues
+    </div>`;
+  }).join('') || '<p style="color:var(--muted);font-size:.85rem;padding:20px 0">No experiences match your filters.</p>';
+  renderPagination(raw.length);
   var listEl2 = document.getElementById('exp-list-items');
   if (listEl2) { listEl2.onclick = function(ev) {
     var wlBtn = ev.target.closest('.wl-exp-btn');
