@@ -6181,6 +6181,7 @@ tr:hover td{background:var(--b50)}
       <button class="anl"     onclick="switchAdm(this,'adm-coupons')"><i class="fa fa-tag"></i> Coupons</button>
       <button class="anl"     onclick="switchAdm(this,'adm-activate')"><i class="fa fa-box-open"></i> Activate Boxes <span style="background:linear-gradient(135deg,#10b981,#059669);color:#fff;border-radius:99px;padding:1px 7px;font-size:.58rem;font-weight:700;margin-left:auto">RETAIL</span></button>
       <button class="anl"     onclick="switchAdm(this,'adm-cities');renderAdmCities()"><i class="fa fa-map-location-dot"></i> Cities <span id="adm-cities-badge" style="display:none;margin-left:auto;background:var(--b600);color:#fff;border-radius:99px;padding:1px 7px;font-size:.6rem;font-weight:700"></span></button>
+      <button class="anl"     onclick="switchAdm(this,'adm-pool');admLoadPoolActivity()"><i class="fa fa-rocket"></i> Pool Activity <span id="adm-pool-badge" style="display:none;margin-left:auto;background:#7c3aed;color:#fff;border-radius:99px;padding:1px 7px;font-size:.6rem;font-weight:700"></span></button>
       <div style="height:1px;background:rgba(255,255,255,.08);margin:10px 0"></div>
       <button class="anl"     onclick="switchAdm(this,'adm-users');admLoadUsers()"><i class="fa fa-users"></i> Users</button>
       <button class="anl"     onclick="switchAdm(this,'adm-partners-crm');admLoadPartnersCRM()"><i class="fa fa-building"></i> Partners</button>
@@ -7526,6 +7527,16 @@ tr:hover td{background:var(--b50)}
             <span id="adm-seo-status" style="font-size:.78rem;color:var(--muted)"></span>
           </div>
         </div>
+      </div>
+
+      <!-- ══ POOL ACTIVITY ══ -->
+      <div id="adm-pool" class="adm-sec" style="display:none">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:20px">
+          <h2 style="font-size:1.1rem;font-weight:700;color:var(--navy);margin:0"><i class="fa fa-rocket" style="color:#7c3aed"></i> Pool Activity</h2>
+          <button class="btn bp bsm" onclick="admLoadPoolActivity()"><i class="fa fa-rotate-right"></i> Refresh</button>
+        </div>
+        <div id="adm-pool-stats" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:24px"></div>
+        <div id="adm-pool-body"><div style="text-align:center;padding:40px;color:var(--muted)"><i class="fa fa-spinner fa-spin" style="font-size:1.5rem"></i></div></div>
       </div>
 
     </div><!-- /adm-main -->
@@ -17309,6 +17320,117 @@ function admExportUsersCSV() {
 ═══════════════════════════════════════════════════════════════ */
 let _admPCRMData = [];
 let _admSelectedPartnerId = null;
+
+// ─────────────────────────────────────────────────────────────
+// ADMIN: Pool Activity
+// ─────────────────────────────────────────────────────────────
+async function admLoadPoolActivity() {
+  var statsEl = document.getElementById('adm-pool-stats');
+  var bodyEl  = document.getElementById('adm-pool-body');
+  if (!bodyEl) return;
+  bodyEl.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted)"><i class="fa fa-spinner fa-spin" style="font-size:1.5rem"></i></div>';
+
+  try {
+    var res = await db_client.from('experience_boosts')
+      .select('id,experience_name,partner_email,amount_paid,created_at,expires_at,status,payfast_reference')
+      .order('created_at', { ascending: false });
+    var rows = res.data || [];
+    var now  = new Date();
+
+    var active    = rows.filter(function(r){ return r.status === 'active' && new Date(r.expires_at) > now; });
+    var expiring  = active.filter(function(r){ return (new Date(r.expires_at) - now) / 86400000 <= 7; });
+    var recent    = rows.filter(function(r){ return r.status !== 'active' && (now - new Date(r.created_at)) / 86400000 <= 30; });
+    var revenue   = rows.reduce(function(s, r){ return s + (r.amount_paid || 0); }, 0);
+
+    // Stats cards
+    if (statsEl) {
+      statsEl.innerHTML =
+        admPoolStat('Active boosts',    active.length,   '#7c3aed', 'fa-rocket') +
+        admPoolStat('Expiring ≤7 days', expiring.length, '#d97706', 'fa-clock') +
+        admPoolStat('Total revenue',    'R' + revenue.toLocaleString(), '#15803d', 'fa-coins') +
+        admPoolStat('All time boosts',  rows.length,     '#0369a1', 'fa-chart-bar');
+      // Update badge
+      var badge = document.getElementById('adm-pool-badge');
+      if (badge) { badge.textContent = active.length; badge.style.display = active.length ? 'inline' : 'none'; }
+    }
+
+    var html = '';
+
+    // Active boosts table
+    html += '<div style="margin-bottom:28px">';
+    html += '<div style="font-size:.85rem;font-weight:700;color:var(--navy);margin-bottom:10px">Active Boosts (' + active.length + ')</div>';
+    if (active.length) {
+      html += '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:.78rem">';
+      html += '<thead><tr style="background:var(--bg)">' +
+        '<th style="padding:8px 12px;text-align:left;color:var(--muted);font-weight:600">Partner</th>' +
+        '<th style="padding:8px 12px;text-align:left;color:var(--muted);font-weight:600">Experience</th>' +
+        '<th style="padding:8px 12px;text-align:center;color:var(--muted);font-weight:600">Days left</th>' +
+        '<th style="padding:8px 12px;text-align:center;color:var(--muted);font-weight:600">Paid</th>' +
+        '<th style="padding:8px 12px;text-align:left;color:var(--muted);font-weight:600">Expires</th>' +
+        '</tr></thead><tbody>';
+      active.forEach(function(r) {
+        var daysLeft = Math.ceil((new Date(r.expires_at) - now) / 86400000);
+        var badge    = daysLeft <= 3  ? '<span style="background:#fee2e2;color:#dc2626;border-radius:99px;padding:2px 7px;font-size:.65rem;font-weight:700">' + daysLeft + 'd</span>'
+                     : daysLeft <= 7  ? '<span style="background:#fef9c3;color:#b45309;border-radius:99px;padding:2px 7px;font-size:.65rem;font-weight:700">' + daysLeft + 'd</span>'
+                     : '<span style="background:#f0fdf4;color:#15803d;border-radius:99px;padding:2px 7px;font-size:.65rem;font-weight:700">' + daysLeft + 'd</span>';
+        html += '<tr style="border-top:1px solid var(--border)">' +
+          '<td style="padding:9px 12px;color:var(--muted)">' + (r.partner_email || '—') + '</td>' +
+          '<td style="padding:9px 12px;font-weight:600;color:var(--navy)">' + (r.experience_name || '—') + '</td>' +
+          '<td style="padding:9px 12px;text-align:center">' + badge + '</td>' +
+          '<td style="padding:9px 12px;text-align:center;color:var(--navy);font-weight:600">R' + (r.amount_paid || 0).toLocaleString() + '</td>' +
+          '<td style="padding:9px 12px;color:var(--muted)">' + new Date(r.expires_at).toLocaleDateString('en-ZA', { day:'numeric', month:'short', year:'numeric' }) + '</td>' +
+          '</tr>';
+      });
+      html += '</tbody></table></div>';
+    } else {
+      html += '<div style="padding:20px;text-align:center;color:var(--muted);font-size:.82rem">No active boosts at the moment.</div>';
+    }
+    html += '</div>';
+
+    // Recent history table
+    var history = rows.filter(function(r){ return r.status !== 'active'; }).slice(0, 20);
+    html += '<div>';
+    html += '<div style="font-size:.85rem;font-weight:700;color:var(--navy);margin-bottom:10px">Recent History</div>';
+    if (history.length) {
+      html += '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:.78rem">';
+      html += '<thead><tr style="background:var(--bg)">' +
+        '<th style="padding:8px 12px;text-align:left;color:var(--muted);font-weight:600">Partner</th>' +
+        '<th style="padding:8px 12px;text-align:left;color:var(--muted);font-weight:600">Experience</th>' +
+        '<th style="padding:8px 12px;text-align:center;color:var(--muted);font-weight:600">Status</th>' +
+        '<th style="padding:8px 12px;text-align:center;color:var(--muted);font-weight:600">Paid</th>' +
+        '<th style="padding:8px 12px;text-align:left;color:var(--muted);font-weight:600">Date</th>' +
+        '</tr></thead><tbody>';
+      history.forEach(function(r) {
+        var statusBadge = r.status === 'expired'   ? '<span style="background:#f3f4f6;color:#6b7280;border-radius:99px;padding:2px 7px;font-size:.65rem;font-weight:700">Expired</span>'
+                        : r.status === 'cancelled' ? '<span style="background:#fee2e2;color:#dc2626;border-radius:99px;padding:2px 7px;font-size:.65rem;font-weight:700">Cancelled</span>'
+                        : '<span style="background:#f0fdf4;color:#15803d;border-radius:99px;padding:2px 7px;font-size:.65rem;font-weight:700">' + r.status + '</span>';
+        html += '<tr style="border-top:1px solid var(--border)">' +
+          '<td style="padding:9px 12px;color:var(--muted)">' + (r.partner_email || '—') + '</td>' +
+          '<td style="padding:9px 12px;font-weight:600;color:var(--navy)">' + (r.experience_name || '—') + '</td>' +
+          '<td style="padding:9px 12px;text-align:center">' + statusBadge + '</td>' +
+          '<td style="padding:9px 12px;text-align:center;color:var(--navy);font-weight:600">R' + (r.amount_paid || 0).toLocaleString() + '</td>' +
+          '<td style="padding:9px 12px;color:var(--muted)">' + new Date(r.created_at).toLocaleDateString('en-ZA', { day:'numeric', month:'short', year:'numeric' }) + '</td>' +
+          '</tr>';
+      });
+      html += '</tbody></table></div>';
+    } else {
+      html += '<div style="padding:20px;text-align:center;color:var(--muted);font-size:.82rem">No history yet.</div>';
+    }
+    html += '</div>';
+
+    bodyEl.innerHTML = html;
+
+  } catch(e) {
+    bodyEl.innerHTML = '<div style="padding:20px;color:#ef4444;font-size:.82rem">Error loading pool data: ' + e.message + '</div>';
+  }
+}
+
+function admPoolStat(label, value, color, icon) {
+  return '<div style="background:var(--white);border:1px solid var(--border);border-radius:10px;padding:16px 18px">' +
+    '<div style="font-size:.7rem;color:var(--muted);margin-bottom:4px"><i class="fa ' + icon + '" style="color:' + color + '"></i> ' + label + '</div>' +
+    '<div style="font-size:1.4rem;font-weight:700;color:' + color + '">' + value + '</div>' +
+    '</div>';
+}
 
 async function admLoadPartnersCRM() {
   document.getElementById('adm-partners-crm-subtitle').textContent = 'Loading…';
