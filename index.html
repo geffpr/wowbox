@@ -1888,7 +1888,7 @@ function getAlgoContext() {
 
 function scoreExperience(exp, context, boostedIds) {
   var score = 0;
-  if (boostedIds.has(exp.id)) score += 40;
+  if (boostedIds.has(exp.id)) score += 100;
   score += (exp.rating || 0) * 4;
   score += Math.min((exp.review_count || 0) * 0.3, 10);
   if (context.boxId && exp.box_id === context.boxId) score += 25;
