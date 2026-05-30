@@ -1889,21 +1889,14 @@ function getAlgoContext() {
 function scoreExperience(exp, context, boostedIds) {
   var score = 0;
   if (boostedIds.has(exp.id)) score += 100;
-  score += (exp.rating || 0) * 4;
-  score += Math.min((exp.review_count || 0) * 0.3, 10);
   if (context.boxId && exp.box_id === context.boxId) score += 25;
-  if (context.boxId && exp.location) {
-    var loc = (exp.location || '').toLowerCase();
-    var box = context.boxId.toLowerCase();
-    if ((box.includes('cape') || box.includes('coast') || box.includes('winelands')) &&
-        (loc.includes('cape') || loc.includes('stellenbosch') || loc.includes('franschhoek') || loc.includes('western cape'))) score += 15;
-    if ((box.includes('joburg') || box.includes('gauteng') || box.includes('jhb')) &&
-        (loc.includes('johannesburg') || loc.includes('sandton') || loc.includes('gauteng') || loc.includes('pretoria'))) score += 15;
-  }
+  if (context.province && exp.province && exp.province.toLowerCase() === context.province.toLowerCase()) score += 20;
+  if (context.city && exp.city && exp.city.toLowerCase() === context.city.toLowerCase()) score += 15;
+  if (context.category && exp.category && exp.category.toLowerCase() === context.category.toLowerCase()) score += 10;
   if (exp.created_at) {
     var daysSince = (Date.now() - new Date(exp.created_at)) / 86400000;
-    if (daysSince < 30)       score += 5;
-    else if (daysSince < 90)  score += 2;
+    if (daysSince < 30)      score += 5;
+    else if (daysSince < 90) score += 2;
   }
   return score;
 }
@@ -1922,9 +1915,9 @@ async function loadFeaturedSection(containerId) {
     var boostedIds = new Set((bRes.data || []).map(function(b){ return b.experience_id; }));
 
     var fbRes = await db_client.from('experiences')
-      .select('id,name,description,image_url,partner_name,location,rating,review_count,box_id,created_at')
+      .select('id,name,description,image_url,partner_name,location,city,province,category,box_id,created_at')
       .eq('is_active', true)
-      .order('rating', { ascending: false })
+      .order('created_at', { ascending: false })
       .limit(12);
     var allCandidates = fbRes.data || [];
 
@@ -1934,7 +1927,7 @@ async function loadFeaturedSection(containerId) {
       });
       if (missingBoosts.length) {
         var mRes = await db_client.from('experiences')
-          .select('id,name,description,image_url,partner_name,location,rating,review_count,box_id,created_at')
+          .select('id,name,description,image_url,partner_name,location,city,province,category,box_id,created_at')
           .in('id', missingBoosts)
           .eq('is_active', true);
         allCandidates = allCandidates.concat(mRes.data || []);
@@ -1956,21 +1949,20 @@ async function loadFeaturedSection(containerId) {
     html += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px;margin-bottom:24px">';
 
     exps.forEach(function(e) {
-      var img    = e.image_url || 'https://images.unsplash.com/photo-1571896349842-33c89424de2d?w=600&auto=format&fit=crop';
-      var imgSrc = img + (img.includes('?') ? '&' : '?') + 'h=280&auto=format&fit=crop';
+      var img       = e.image_url || 'https://images.unsplash.com/photo-1571896349842-33c89424de2d?w=600&auto=format&fit=crop';
+      var imgSrc    = img + (img.includes('?') ? '&' : '?') + 'h=280&auto=format&fit=crop';
       var isBoosted = boostedIds.has(e.id);
+      var locStr    = [e.city, e.province].filter(Boolean).join(', ') || e.location || '';
       html += '<div style="background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,.07);cursor:pointer;border:1.5px solid ' + (isBoosted ? '#f59e0b' : 'var(--b100)') + '" onclick="loadExp(\'' + e.id + '\');go(\'expdetail\')">';
       html += '<div style="height:140px;overflow:hidden;position:relative">';
       html += '<img src="' + imgSrc + '" style="width:100%;height:100%;object-fit:cover" loading="lazy">';
-      html += '<div style="position:absolute;top:8px;left:8px;background:' + (isBoosted ? '#f59e0b' : 'rgba(0,0,0,.45)') + ';color:#fff;border-radius:99px;padding:2px 9px;font-size:.65rem;font-weight:700">' + (isBoosted ? '&#11088; Featured' : '&#9733; Top Rated') + '</div>';
+      html += '<div style="position:absolute;top:8px;left:8px;background:' + (isBoosted ? '#f59e0b' : 'rgba(0,0,0,.45)') + ';color:#fff;border-radius:99px;padding:2px 9px;font-size:.65rem;font-weight:700">' + (isBoosted ? '&#11088; Featured' : '&#9733; Top Pick') + '</div>';
       html += '</div>';
       html += '<div style="padding:12px">';
       html += '<div style="font-size:.85rem;font-weight:700;color:var(--navy);margin-bottom:3px">' + e.name + '</div>';
-      html += '<div style="font-size:.72rem;color:var(--muted);margin-bottom:6px">' + (e.partner_name||'') + (e.location ? ' &middot; ' + e.location : '') + '</div>';
-      html += '<div style="display:flex;align-items:center;gap:8px">';
-      if (e.rating) html += '<span style="font-size:.75rem;color:var(--amber)">&#9733; ' + e.rating + '</span>';
-      if (e.review_count) html += '<span style="font-size:.72rem;color:var(--muted)">(' + e.review_count + ')</span>';
-      html += '</div></div></div>';
+      html += '<div style="font-size:.72rem;color:var(--muted);margin-bottom:6px">' + (e.partner_name || '') + (locStr ? ' &middot; ' + locStr : '') + '</div>';
+      if (e.category) html += '<div style="font-size:.68rem;color:var(--b600);font-weight:600;text-transform:uppercase;letter-spacing:.03em">' + e.category + '</div>';
+      html += '</div></div>';
     });
 
     html += '</div>';
