@@ -1874,37 +1874,80 @@ async function ppRenewBoost(btn, price) {
 
 
 
+// ── Smart pool context ───────────────────────────────────────
+function getAlgoContext() {
+  var params = new URLSearchParams(window.location.search);
+  var boxId  = params.get('box') || appState.browseBoxId || '';
+  var locHint = '';
+  if (appState.cart && appState.cart.length) {
+    var cartBox = appState.cart.find(function(c){ return c.id && c.id !== 'video-message' && c.id !== 'chance-boost'; });
+    if (cartBox) locHint = cartBox.id;
+  }
+  return { boxId: boxId, locHint: locHint };
+}
+
+function scoreExperience(exp, context, boostedIds) {
+  var score = 0;
+  if (boostedIds.has(exp.id)) score += 40;
+  score += (exp.rating || 0) * 4;
+  score += Math.min((exp.review_count || 0) * 0.3, 10);
+  if (context.boxId && exp.box_id === context.boxId) score += 25;
+  if (context.boxId && exp.location) {
+    var loc = (exp.location || '').toLowerCase();
+    var box = context.boxId.toLowerCase();
+    if ((box.includes('cape') || box.includes('coast') || box.includes('winelands')) &&
+        (loc.includes('cape') || loc.includes('stellenbosch') || loc.includes('franschhoek') || loc.includes('western cape'))) score += 15;
+    if ((box.includes('joburg') || box.includes('gauteng') || box.includes('jhb')) &&
+        (loc.includes('johannesburg') || loc.includes('sandton') || loc.includes('gauteng') || loc.includes('pretoria'))) score += 15;
+  }
+  if (exp.created_at) {
+    var daysSince = (Date.now() - new Date(exp.created_at)) / 86400000;
+    if (daysSince < 30)       score += 5;
+    else if (daysSince < 90)  score += 2;
+  }
+  return score;
+}
+
 async function loadFeaturedSection(containerId) {
   var el = document.getElementById(containerId);
   if (!el) return;
   try {
-    var now = new Date().toISOString();
-    var res = await db_client.from('experience_boosts')
-      .select('experience_id,experience_name,partner_email')
+    var context = getAlgoContext();
+    var now     = new Date().toISOString();
+
+    var bRes   = await db_client.from('experience_boosts')
+      .select('experience_id')
       .eq('status','active')
       .gte('expires_at', now);
-    var boosted = res.data || [];
-    var exps = [];
+    var boostedIds = new Set((bRes.data || []).map(function(b){ return b.experience_id; }));
 
-    if (boosted.length >= 1) {
-      var ids = boosted.map(function(b){ return b.experience_id; });
-      var eRes = await db_client.from('experiences')
-        .select('id,name,description,image_url,partner_name,location,rating,review_count')
-        .in('id', ids)
-        .eq('is_active', true);
-      exps = (eRes.data || []).sort(function(a,b){ return (b.rating||0) - (a.rating||0); }).slice(0,3);
+    var fbRes = await db_client.from('experiences')
+      .select('id,name,description,image_url,partner_name,location,rating,review_count,box_id,created_at')
+      .eq('is_active', true)
+      .order('rating', { ascending: false })
+      .limit(12);
+    var allCandidates = fbRes.data || [];
+
+    if (boostedIds.size > 0) {
+      var missingBoosts = Array.from(boostedIds).filter(function(id){
+        return !allCandidates.some(function(e){ return e.id === id; });
+      });
+      if (missingBoosts.length) {
+        var mRes = await db_client.from('experiences')
+          .select('id,name,description,image_url,partner_name,location,rating,review_count,box_id,created_at')
+          .in('id', missingBoosts)
+          .eq('is_active', true);
+        allCandidates = allCandidates.concat(mRes.data || []);
+      }
     }
 
-    if (!exps.length) {
-      var fbRes = await db_client.from('experiences')
-        .select('id,name,description,image_url,partner_name,location,rating,review_count')
-        .eq('is_active', true)
-        .order('rating', {ascending:false})
-        .limit(3);
-      exps = fbRes.data || [];
-    }
+    if (!allCandidates.length) { el.innerHTML = ''; return; }
 
-    if (!exps.length) { el.innerHTML = ''; return; }
+    var scored = allCandidates.map(function(e) {
+      return { exp: e, score: scoreExperience(e, context, boostedIds) };
+    });
+    scored.sort(function(a,b){ return b.score - a.score; });
+    var exps = scored.slice(0, 3).map(function(s){ return s.exp; });
 
     var html = '<div style="margin-bottom:8px;display:flex;align-items:center;gap:8px">';
     html += '<span style="background:linear-gradient(135deg,#fef3c7,#fde68a);border:1px solid #f59e0b;border-radius:99px;padding:3px 12px;font-size:.72rem;font-weight:700;color:#92400e">&#11088; Featured this month</span>';
@@ -1913,11 +1956,13 @@ async function loadFeaturedSection(containerId) {
     html += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px;margin-bottom:24px">';
 
     exps.forEach(function(e) {
-      var img = e.image_url || 'https://images.unsplash.com/photo-1571896349842-33c89424de2d?w=600&auto=format&fit=crop';
-      html += '<div style="background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,.07);cursor:pointer;border:1.5px solid var(--b100)" onclick="loadExp(\'' + e.id + '\');go(\'expdetail\')">';
+      var img    = e.image_url || 'https://images.unsplash.com/photo-1571896349842-33c89424de2d?w=600&auto=format&fit=crop';
+      var imgSrc = img + (img.includes('?') ? '&' : '?') + 'h=280&auto=format&fit=crop';
+      var isBoosted = boostedIds.has(e.id);
+      html += '<div style="background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,.07);cursor:pointer;border:1.5px solid ' + (isBoosted ? '#f59e0b' : 'var(--b100)') + '" onclick="loadExp(\'' + e.id + '\');go(\'expdetail\')">';
       html += '<div style="height:140px;overflow:hidden;position:relative">';
-      html += '<img src="' + img + '" style="width:100%;height:100%;object-fit:cover" loading="lazy">';
-      html += '<div style="position:absolute;top:8px;left:8px;background:#f59e0b;color:#fff;border-radius:99px;padding:2px 9px;font-size:.65rem;font-weight:700">&#11088; Featured</div>';
+      html += '<img src="' + imgSrc + '" style="width:100%;height:100%;object-fit:cover" loading="lazy">';
+      html += '<div style="position:absolute;top:8px;left:8px;background:' + (isBoosted ? '#f59e0b' : 'rgba(0,0,0,.45)') + ';color:#fff;border-radius:99px;padding:2px 9px;font-size:.65rem;font-weight:700">' + (isBoosted ? '&#11088; Featured' : '&#9733; Top Rated') + '</div>';
       html += '</div>';
       html += '<div style="padding:12px">';
       html += '<div style="font-size:.85rem;font-weight:700;color:var(--navy);margin-bottom:3px">' + e.name + '</div>';
