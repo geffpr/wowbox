@@ -6302,6 +6302,12 @@ tr:hover td{background:var(--b50)}
                 <option>Active</option><option>Draft</option><option>Archived</option>
               </select>
             </div>
+            <div class="fg" style="margin-top:4px">
+              <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:600">
+                <input type="checkbox" id="abf-featured" style="width:16px;height:16px;cursor:pointer">
+                ⭐ Featured box — appears first in the grid with gold border
+              </label>
+            </div>
             <!-- Images (up to 4) -->
             <div class="fg">
               <label>Images (up to 4)</label>
@@ -8546,7 +8552,8 @@ async function renderBoxGrids() {
           name: b.name, price: b.price, db: b.database_name,
           cnt: local.cnt || b.experience_count,
           img: b.image_url || localImgs[b.id],
-          badge: b.badge, rating: b.rating, sold: b.sold_count, desc: b.description
+          badge: b.badge, rating: b.rating, sold: b.sold_count, desc: b.description,
+          featured: b.is_featured || false
         };
       });
     }
@@ -8584,15 +8591,22 @@ async function renderBoxGrids() {
 
   if (!boxes || !boxes.length) { console.error('No boxes to display'); return; }
 
+  // Sort: featured boxes first, then by sold_count
+  boxes.sort(function(a, b) {
+    if (a.is_featured && !b.is_featured) return -1;
+    if (!a.is_featured && b.is_featured) return 1;
+    return (b.sold_count || 0) - (a.sold_count || 0);
+  });
+
   const html = boxes.map(b => {
-    const isPremium = b.price >= 3499;
+    const isFeatured = b.is_featured || false;
     // Always use local image as fallback if Supabase image_url is empty
     const imgSrc = b.image_url || localImgs[b.id] || '';
-    return `<div class="bcard${isPremium?' premium-border':''}" onclick="loadProduct('${b.id}');go('product')">
+    return `<div class="bcard${isFeatured?' premium-border':''}" onclick="loadProduct('${b.id}');go('product')">
       <div class="bcard-img">
         <img src="${imgSrc}" alt="${b.name}" loading="lazy">
         <div class="bcard-ov"></div>
-        <div class="badge${isPremium?' gold':''}">${b.badge}</div>
+        <div class="badge${isFeatured?' gold':''}">${b.badge}</div>
         <div class="exp-badge"><i class="fa fa-layer-group"></i> ${b.experience_count} experiences</div>
         <button class="wl-box-btn" data-id="${b.id}" onclick="wlToggleBox('${b.id}',event)" style="position:absolute;top:10px;right:10px;background:rgba(0,0,0,.35);border:none;border-radius:50%;width:32px;height:32px;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:2" title="Save to wishlist">${wlHasBox(b.id)?'<i class="fa fa-heart" style="color:#ef4444"></i>':'<i class="fa fa-heart" style="color:rgba(255,255,255,.7)"></i>'}</button>
       </div>
@@ -8631,7 +8645,8 @@ async function renderBoxGrids() {
       badge:  b.badge,
       rating: b.rating,
       sold:   b.sold_count,
-      desc:   b.description
+      desc:   b.description,
+      featured: b.is_featured || false
     };
     // Override with real database name from Supabase databases table
     if (dbNameMap[b.id]) boxDB[b.id].db = dbNameMap[b.id];
@@ -12086,12 +12101,12 @@ function renderBoxGrid() {
 
   const html = keys.map(k => {
     const b = boxDB[k];
-    const isPremium = b.price >= 3499;
-    return `<div class="bcard${isPremium?' premium-border':''}" onclick="loadProduct('${k}');go('product')">
+    const isFeatured = b.featured || false;
+    return `<div class="bcard${isFeatured?' premium-border':''}" onclick="loadProduct('${k}');go('product')">
       <div class="bcard-img">
         <img src="${b.img}" alt="${b.name}" loading="lazy">
         <div class="bcard-ov"></div>
-        <div class="badge${isPremium?' gold':''}">${b.badge}</div>
+        <div class="badge${isFeatured?' gold':''}">${b.badge}</div>
         <div class="exp-badge"><i class="fa fa-layer-group"></i> ${b.cnt} experiences</div>
       </div>
       <div class="bcard-body">
@@ -13370,6 +13385,7 @@ async function admShowBoxForm(boxId) {
     document.getElementById('abf-name').value  = b.name;
     document.getElementById('abf-price').value = b.price;
     document.getElementById('abf-desc').value  = b.desc || '';
+    document.getElementById('abf-featured').checked = b.featured || false;
     const imgs4 = (b.images && b.images.length) ? b.images : (b.img ? [b.img] : []);
     abfLoadImgSlots(imgs4);
     // Load databases from box_database_links
@@ -13389,6 +13405,7 @@ async function admShowBoxForm(boxId) {
     document.getElementById('abf-name').value  = '';
     document.getElementById('abf-price').value = '';
     document.getElementById('abf-desc').value  = '';
+    document.getElementById('abf-featured').checked = false;
     abfResetImgSlots();
   }
 }
@@ -13710,9 +13727,10 @@ function admRemoveBoxImg(idx) {
   renderBoxGallery();
 }
 async function admSaveBox() {
-  const name  = document.getElementById('abf-name')?.value?.trim();
-  const price = parseInt(document.getElementById('abf-price')?.value || '0');
-  const desc  = document.getElementById('abf-desc')?.value?.trim() || '';
+  const name     = document.getElementById('abf-name')?.value?.trim();
+  const price    = parseInt(document.getElementById('abf-price')?.value || '0');
+  const desc     = document.getElementById('abf-desc')?.value?.trim() || '';
+  const featured = document.getElementById('abf-featured')?.checked || false;
 
   if (!name || !price) { admToast('Please fill in box name and price.'); return; }
 
@@ -13733,6 +13751,7 @@ async function admSaveBox() {
     price,
     description:   desc,
     is_active:     true,
+    is_featured:   featured,
     images:        allImgs,
     ...(mainImg ? { image_url: mainImg } : {}),
   };
@@ -13744,9 +13763,10 @@ async function admSaveBox() {
       savedId = appState.editingBoxId;
       result = await db_client.from('boxes').update(payload).eq('id', savedId);
       if (boxDB[savedId]) {
-        boxDB[savedId].name  = name;
-        boxDB[savedId].price = price;
-        boxDB[savedId].desc  = desc;
+        boxDB[savedId].name     = name;
+        boxDB[savedId].price    = price;
+        boxDB[savedId].desc     = desc;
+        boxDB[savedId].featured = featured;
         if (mainImg) boxDB[savedId].img = mainImg;
         boxDB[savedId].images = allImgs.filter(function(u){ return u && u.trim(); });
       }
