@@ -1699,7 +1699,10 @@ async function renderBoostPage() {
     html += '<div style="font-size:.72rem;color:var(--muted)">Active until ' + expiry + ' &middot; ' + daysLeft + ' days remaining</div>';
     html += '</div>';
     var safeName = (myBoost.experience_name || '').replace(/"/g, '&quot;');
+    html += '<div style="display:flex;gap:8px;flex-wrap:wrap">';
+    html += '<button class="btn bp bsm" data-bid="' + myBoost.id + '" data-bname="' + safeName + '" data-bexpid="' + (myBoost.experience_id||'') + '" data-bemail="' + (myBoost.partner_email||'') + '" onclick="ppRenewBoost(this,' + price + ')"><i class="fa fa-rotate-right"></i> Renew 30 days</button>';
     html += '<button class="btn bg bsm" style="color:var(--red)" data-bid="' + myBoost.id + '" data-bname="' + safeName + '" onclick="ppCancelBoost(this)"><i class="fa fa-stop-circle"></i> Leave pool</button>';
+    html += '</div>';
     html += '</div></div>';
   } else {
     if (!myExps.length) {
@@ -1821,6 +1824,54 @@ async function ppCancelBoost(btn) {
     renderBoostPage();
   } catch(e) { admToast('Error: '+e.message); }
 }
+
+async function ppRenewBoost(btn, price) {
+  var boostId = btn.dataset.bid;
+  var expName = btn.dataset.bname || '';
+  var expId   = btn.dataset.bexpid || '';
+  var email   = btn.dataset.bemail || appState.partnerEmail || (currentUser && currentUser.email) || '';
+  var ref     = 'RENEW-' + expId.slice(0,6).toUpperCase() + '-' + Date.now();
+
+  var onAccept = async function() {
+    admToast('<i class="fa fa-spinner fa-spin"></i> Renewing boost&hellip;');
+    try {
+      var newExpiry = new Date();
+      newExpiry.setDate(newExpiry.getDate() + 30);
+      var upd = await db_client.from('experience_boosts').update({
+        expires_at:        newExpiry.toISOString(),
+        payfast_reference: ref,
+        status:            'active'
+      }).eq('id', boostId);
+      if (upd.error) throw upd.error;
+      // Send confirmation email
+      fetch('/api/send-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'boost_started', data: { partnerEmail: email, experienceName: expName, expiresAt: newExpiry.toISOString(), ref: ref } })
+      }).catch(function(e) { console.warn('Boost renew email failed:', e); });
+      admToast('&#128293; ' + expName + ' renewed — featured for another 30 days!');
+      renderBoostPage();
+    } catch(e) { admToast('Renewal failed: ' + e.message); }
+  };
+
+  if (typeof PAYFAST_TEST_MODE !== 'undefined' && PAYFAST_TEST_MODE) {
+    showPayfastTestModal(ref, price, 0, 0, onAccept);
+  } else {
+    try {
+      var pfRes = await fetch('/api/payfast-initiate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ amount: price, email: email, name_first: expName.split(' ')[0] || expName, item_name: 'WowBox Featured Pool Renewal — ' + expName, m_payment_id: ref })
+      });
+      var pfData = await pfRes.json();
+      if (!pfData.uuid) throw new Error(pfData.error || 'Payment initiation failed');
+      window.payfast_do_onsite_payment(pfData.uuid, function(result) {
+        if (result === true) onAccept();
+      }, function() { admToast('Payment cancelled.'); });
+    } catch(e) { admToast('Could not open payment. Please try again.'); }
+  }
+}
+
 
 
 async function loadFeaturedSection(containerId) {
