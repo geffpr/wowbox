@@ -2409,7 +2409,7 @@ nav{position:sticky;top:0;z-index:300;background:rgba(255,255,255,.95);
 .prod-layout > div:nth-child(2){grid-column:1;grid-row:2}
 .prod-layout > div:nth-child(3){grid-column:2;grid-row:1/3;position:relative}
 .gallery-main{height:430px;border-radius:var(--rx);overflow:hidden;margin-bottom:10px}
-.gallery-main img{width:100%;height:100%;object-fit:cover}
+.gallery-main img{height:100%}
 .gallery-thumbs{display:flex;gap:9px}
 .gthumb{flex:1;height:78px;border-radius:var(--rs);overflow:hidden;
   cursor:pointer;border:2px solid transparent;transition:border-color .15s}
@@ -3157,8 +3157,6 @@ tr:hover td{background:var(--b50)}
 
 /* ─── BROWSE PAGE (post-purchase) ─── */
 .browse-layout{display:grid;grid-template-columns:260px 1fr;min-height:calc(100vh - 68px)}
-.browse-filter-btn{display:none}
-.browse-filter-overlay{display:none}
 .browse-sidebar{background:var(--white);border-right:1px solid var(--border);padding:24px 18px;position:sticky;top:68px;height:calc(100vh - 68px);overflow-y:auto}
 .browse-sidebar h4{font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:10px;margin-top:20px}
 .browse-sidebar h4:first-child{margin-top:0}
@@ -3327,8 +3325,8 @@ tr:hover td{background:var(--b50)}
 
   /* ── Product page ── */
   /* Mobile: 1) galerie  2) panel achat  3) description/exp/reviews */
-  .prod-layout { grid-template-columns: 1fr; gap: 0; padding: 0; max-width: 100vw; overflow-x: hidden; }
-  .prod-gallery-wrap { grid-column: 1; grid-row: auto; order: 1; max-width: 100vw; overflow: hidden; }
+  .prod-layout { grid-template-columns: 1fr; gap: 0; padding: 0; }
+  .prod-gallery-wrap { grid-column: 1; grid-row: auto; order: 1; }
   .prod-layout > div:nth-child(2) { grid-column: 1; grid-row: auto; order: 3; padding: 16px 16px 24px; }
   .prod-layout > div:nth-child(3) { grid-column: 1; grid-row: auto; order: 2; padding: 0 16px 12px; }
   .prod-layout > div:nth-child(3) > div { position: static !important; }
@@ -3339,7 +3337,12 @@ tr:hover td{background:var(--b50)}
   .gthumb { height: 60px; }
   .prod-price { font-size: 2rem; }
   .exp-filters { flex-direction: column; }
-  .exp-filters .efi { min-width: 0; }
+  .exp-filters .efi { min-width: 0; width: 100%; max-width: 100%; box-sizing: border-box; }
+  #page-product { overflow-x: hidden; }
+  .pcard { width: 100%; box-sizing: border-box; }
+  .dtype { max-width: 100%; box-sizing: border-box; }
+  .prod-layout > div:nth-child(2),
+  .prod-layout > div:nth-child(3) { max-width: 100vw; overflow-x: hidden; }
   .vtog { align-self: flex-start; }
   .exp-sec { padding-top: 28px; margin-top: 24px; }
 
@@ -3426,27 +3429,9 @@ tr:hover td{background:var(--b50)}
   .ord-detail { padding: 18px; }
   .ord-detail > div { grid-template-columns: 1fr !important; gap: 16px; }
 
-  /* ── Reviews grid ── */
-  .exp-rev-grid { grid-template-columns: 1fr !important; }
-
   /* ── Browse page ── */
   .browse-layout { grid-template-columns: 1fr; }
-  .browse-sidebar {
-    display: none;
-    position: fixed;
-    inset: 0;
-    z-index: 999;
-    width: 85vw;
-    max-width: 320px;
-    height: 100vh;
-    overflow-y: auto;
-    box-shadow: 4px 0 24px rgba(0,0,0,.18);
-    top: 0;
-  }
-  .browse-sidebar.mobile-open { display: block; }
-  .browse-filter-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.4); z-index: 998; }
-  .browse-filter-overlay.mobile-open { display: block; }
-  .browse-filter-btn { display: flex; }
+  .browse-sidebar { display: none; }
   .browse-main { padding: 16px; }
   .browse-header { flex-wrap: wrap; gap: 10px; padding: 16px; }
   .browse-header > .vtog { width: 100%; }
@@ -4412,7 +4397,7 @@ tr:hover td{background:var(--b50)}
       </div>
 
       <div id="exp-tab-reviews" style="display:none">
-        <div style="display:grid;grid-template-columns:min(220px,35%) 1fr;gap:24px;margin-bottom:24px" class="exp-rev-grid">
+        <div style="display:grid;grid-template-columns:220px 1fr;gap:24px;margin-bottom:24px">
           <div class="rv-score-big">
             <div class="big-num" id="exp-rv-num">4.9</div>
             <div style="color:var(--amber);font-size:1.1rem;margin:4px 0">★★★★★</div>
@@ -7622,9 +7607,7 @@ tr:hover td{background:var(--b50)}
 <div id="page-browse" class="page">
   <div class="browse-layout">
     <!-- Sidebar Filters -->
-    <div class="browse-sidebar" id="browse-sidebar">
-      <!-- Mobile close button -->
-      <button onclick="closeBrowseFilterMobile()" style="display:none" id="browse-sidebar-close" style="width:100%;text-align:right;background:none;border:none;padding:8px 0 16px;font-size:.85rem;color:var(--muted);cursor:pointer"><i class="fa fa-xmark"></i> Close filters</button>
+    <div class="browse-sidebar">
       <div style="margin-bottom:18px">
         <input class="fi" type="text" id="browse-search" placeholder="🔍  Search experiences…" oninput="renderBrowse()" style="padding:10px 13px">
       </div>
@@ -7709,15 +7692,8 @@ tr:hover td{background:var(--b50)}
       <button class="btn bg" style="width:100%;justify-content:center;padding:9px;font-size:.78rem" onclick="clearBrowseFilters()"><i class="fa fa-xmark"></i> Clear all filters</button>
     </div>
 
-    <!-- Mobile filter overlay -->
-    <div class="browse-filter-overlay" id="browse-filter-overlay" onclick="closeBrowseFilterMobile()"></div>
-
     <!-- Main content -->
     <div class="browse-main">
-      <!-- Mobile filter button -->
-      <button class="browse-filter-btn btn bg" id="browse-filter-btn" onclick="openBrowseFilterMobile()" style="width:100%;justify-content:center;margin-bottom:12px;padding:11px;font-weight:600">
-        <i class="fa fa-sliders"></i> Filters
-      </button>
       <div class="browse-header" id="browse-hdr">
         <div class="browse-header-icon"><img id="browse-box-img" src="" alt=""></div>
         <div style="flex:1">
@@ -8517,25 +8493,6 @@ function renderBrowsePagination(total) {
     (p<pages ? `<div class="pnum" onclick="browsePg(${p+1})"><i class="fa fa-chevron-right" style="font-size:.65rem"></i></div>` : '');
 }
 
-function openBrowseFilterMobile() {
-  var sb  = document.getElementById('browse-sidebar');
-  var ov  = document.getElementById('browse-filter-overlay');
-  var cls = document.getElementById('browse-sidebar-close');
-  if (sb)  sb.classList.add('mobile-open');
-  if (ov)  ov.classList.add('mobile-open');
-  if (cls) cls.style.display = 'block';
-  document.body.style.overflow = 'hidden';
-}
-function closeBrowseFilterMobile() {
-  var sb  = document.getElementById('browse-sidebar');
-  var ov  = document.getElementById('browse-filter-overlay');
-  var cls = document.getElementById('browse-sidebar-close');
-  if (sb)  sb.classList.remove('mobile-open');
-  if (ov)  ov.classList.remove('mobile-open');
-  if (cls) cls.style.display = 'none';
-  document.body.style.overflow = '';
-}
-
 function browsePg(p) { appState.browsePage = p; renderBrowse(); window.scrollTo({top:200,behavior:'smooth'}); }
 
 function setBrowseView(v) {
@@ -8749,7 +8706,7 @@ function loadProduct(boxId) {
   document.getElementById('prod-exp-note').textContent = isSurprise
     ? '🎰 Spin the wheel below to preview random experiences'
     : appState.boxActivated ? '✅ Your box is active — click "Book" to reserve an experience.' : '🔒 Browse experiences — purchase or activate a box to book.';
-  document.getElementById('prod-stars-r').innerHTML = '★★★★★ ' + (b.rating || '—') + ' <span style="color:var(--muted)">·</span>';
+  document.getElementById('prod-stars-r').innerHTML = '★★★★★ ' + b.rating + ' <span style="color:var(--muted)">·</span>';
   document.getElementById('prod-rev-count-r').textContent = b.sold + ' reviews';
   appState.priceBase = b.price;
   document.getElementById('qty-v').textContent = '1';
