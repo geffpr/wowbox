@@ -8174,7 +8174,7 @@ function go(page) {
   if (window.location.pathname !== cleanPath) {
     history.pushState(null, '', cleanPath);
   }
-  if (page === 'allboxes' || page === 'home') { renderBoxGrids(); }
+  if (page === 'allboxes' || page === 'home') { renderBoxGrids(); loadFeaturedSection('allboxes-featured-section'); }
   if (page === 'cart') renderCart();
   if (page === 'checkout') renderCheckout();
   if (page === 'reviews') renderReviewsPage();
@@ -8536,6 +8536,7 @@ async function renderBoxGrids() {
   Object.entries(boxDB).forEach(([id, b]) => { localImgs[id] = b.img; });
 
   let boxes = null;
+  let realExpCnt = {};  // declared outside try so it's accessible in boxes.map()
   var dbNameMap = {}; // box_id → primary database name from Supabase
   try {
     const [boxRes, dbRes, linkRes, expCntRes] = await Promise.all([
@@ -8544,8 +8545,7 @@ async function renderBoxGrids() {
       db_client.from('box_database_links').select('box_id, database_id'),
       db_client.from('experiences').select('box_id').eq('is_active', true)
     ]);
-    // Build real count map: box_id → count of active experiences
-    const realExpCnt = {};
+    // Build real count map
     (expCntRes.data || []).forEach(function(e) {
       if (e.box_id) realExpCnt[e.box_id] = (realExpCnt[e.box_id] || 0) + 1;
     });
@@ -8606,7 +8606,7 @@ async function renderBoxGrids() {
 
   const html = boxes.map(b => {
     const isFeatured = b.is_featured || false;
-    const realCnt = realExpCnt[b.id] !== undefined ? realExpCnt[b.id] : b.experience_count;
+    const realCnt    = realExpCnt[b.id] !== undefined ? realExpCnt[b.id] : b.experience_count;
     // Always use local image as fallback if Supabase image_url is empty
     const imgSrc = b.image_url || localImgs[b.id] || '';
     return `<div class="bcard${isFeatured?' premium-border':''}" onclick="loadProduct('${b.id}');go('product')">
