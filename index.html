@@ -8538,11 +8538,17 @@ async function renderBoxGrids() {
   let boxes = null;
   var dbNameMap = {}; // box_id → primary database name from Supabase
   try {
-    const [boxRes, dbRes, linkRes] = await Promise.all([
+    const [boxRes, dbRes, linkRes, expCntRes] = await Promise.all([
       db_client.from('boxes').select('*').eq('is_active', true).order('sold_count', { ascending: false }),
       db_client.from('databases').select('id, name, experience_count'),
-      db_client.from('box_database_links').select('box_id, database_id')
+      db_client.from('box_database_links').select('box_id, database_id'),
+      db_client.from('experiences').select('box_id').eq('is_active', true)
     ]);
+    // Build real count map: box_id → count of active experiences
+    const realExpCnt = {};
+    (expCntRes.data || []).forEach(function(e) {
+      if (e.box_id) realExpCnt[e.box_id] = (realExpCnt[e.box_id] || 0) + 1;
+    });
     if (!boxRes.error && boxRes.data && boxRes.data.length > 0) {
       boxes = boxRes.data;
       // Sync Supabase data into local boxDB, keeping local image if Supabase has none
@@ -8600,6 +8606,7 @@ async function renderBoxGrids() {
 
   const html = boxes.map(b => {
     const isFeatured = b.is_featured || false;
+    const realCnt = realExpCnt[b.id] !== undefined ? realExpCnt[b.id] : b.experience_count;
     // Always use local image as fallback if Supabase image_url is empty
     const imgSrc = b.image_url || localImgs[b.id] || '';
     return `<div class="bcard${isFeatured?' premium-border':''}" onclick="loadProduct('${b.id}');go('product')">
@@ -8607,7 +8614,7 @@ async function renderBoxGrids() {
         <img src="${imgSrc}" alt="${b.name}" loading="lazy">
         <div class="bcard-ov"></div>
         <div class="badge${isFeatured?' gold':''}">${b.badge}</div>
-        <div class="exp-badge"><i class="fa fa-layer-group"></i> ${b.experience_count} experiences</div>
+        <div class="exp-badge"><i class="fa fa-layer-group"></i> ${realCnt} experience${realCnt !== 1 ? 's' : ''}</div>
         <button class="wl-box-btn" data-id="${b.id}" onclick="wlToggleBox('${b.id}',event)" style="position:absolute;top:10px;right:10px;background:rgba(0,0,0,.35);border:none;border-radius:50%;width:32px;height:32px;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:2" title="Save to wishlist">${wlHasBox(b.id)?'<i class="fa fa-heart" style="color:#ef4444"></i>':'<i class="fa fa-heart" style="color:rgba(255,255,255,.7)"></i>'}</button>
       </div>
       <div class="bcard-body">
@@ -8639,7 +8646,7 @@ async function renderBoxGrids() {
       name:   b.name,
       price:  b.price,
       db:     b.database_name,
-      cnt:    (boxDB[b.id] && boxDB[b.id].cnt) || b.experience_count,
+      cnt:    realExpCnt[b.id] !== undefined ? realExpCnt[b.id] : ((boxDB[b.id] && boxDB[b.id].cnt) || b.experience_count),
       img:    resolvedImg,
       images: resolvedImgs,
       badge:  b.badge,
