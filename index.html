@@ -5285,6 +5285,22 @@ tr:hover td{background:var(--b50)}
           </select>
         </div>
         <div class="fg"><label>Password *</label><input class="fi" id="pl-pw" type="password" placeholder="Min. 6 characters"></div>
+        <div class="fg"><label>Business registration number (CIPC) *</label><input class="fi" id="pl-reg-num" type="text" placeholder="e.g. 2023/123456/07"></div>
+        <div class="fg">
+          <label>Business type *</label>
+          <select class="fi" id="pl-biz-type">
+            <option value="">Select...</option>
+            <option>Sole Proprietor</option>
+            <option>Private Company (Pty) Ltd</option>
+            <option>Close Corporation (CC)</option>
+            <option>Trust</option>
+            <option>Non-Profit Organisation</option>
+            <option>Other</option>
+          </select>
+        </div>
+        <div class="fg"><label>VAT number <span style="color:var(--muted);font-weight:400">(optional)</span></label><input class="fi" id="pl-vat" type="text" placeholder="e.g. 4123456789"></div>
+        <div class="fg"><label>Website or Instagram URL <span style="color:var(--muted);font-weight:400">(optional)</span></label><input class="fi" id="pl-website" type="url" placeholder="https://yoursite.co.za or @handle"></div>
+        <div class="fg"><label>Brief description of your experience(s) *</label><textarea class="fi" id="pl-exp-desc" rows="3" placeholder="Tell us what guests will experience — location, activity, what makes it special…" style="resize:vertical"></textarea></div>
         <div class="fg" style="margin-bottom:4px">
           <label>Address / Location *</label>
           <input class="fi" id="pl-city" type="text" placeholder="Start typing your address or venue…" autocomplete="off">
@@ -5292,6 +5308,10 @@ tr:hover td{background:var(--b50)}
           <input type="hidden" id="pl-lng">
           <div style="font-size:.7rem;color:var(--muted);margin-top:4px"><i class="fa fa-map-pin" style="color:var(--b500)"></i> Select from the dropdown to auto-fill coordinates</div>
         </div>
+        <label style="display:flex;align-items:flex-start;gap:10px;margin-bottom:18px;cursor:pointer;font-size:.8rem;color:#374151;line-height:1.5">
+          <input type="checkbox" id="pl-terms" style="margin-top:2px;flex-shrink:0;width:15px;height:15px;cursor:pointer">
+          <span>I have read and agree to the WowBox <a href="/terms" target="_blank" style="color:var(--b600);text-decoration:underline">Partner Terms & Conditions</a> and confirm I am authorised to list services on behalf of my business. *</span>
+        </label>
         <div style="font-size:.72rem;color:#64748b;margin-bottom:18px">Your application will be reviewed within 24 hours. You will receive a confirmation email once approved.</div>
         <button type="button" class="btn bp block" id="pl-submit-btn" onclick="plSubmitPartner()"><i class="fa fa-paper-plane"></i> Submit application</button>
       </div>
@@ -11390,9 +11410,15 @@ async function plSubmitPartner() {
   var phone    = (document.getElementById('pl-phone')     ||{value:''}).value.trim();
   var type     = (document.getElementById('pl-type')      ||{value:''}).value;
   var pw       = (document.getElementById('pl-pw')        ||{value:''}).value;
+  var regNum   = (document.getElementById('pl-reg-num')   ||{value:''}).value.trim();
+  var bizType  = (document.getElementById('pl-biz-type')  ||{value:''}).value;
+  var vat      = (document.getElementById('pl-vat')       ||{value:''}).value.trim();
+  var website  = (document.getElementById('pl-website')   ||{value:''}).value.trim();
+  var expDesc  = (document.getElementById('pl-exp-desc')  ||{value:''}).value.trim();
   var city     = (document.getElementById('pl-city')      ||{value:''}).value.trim();
   var lat      = parseFloat((document.getElementById('pl-lat')  ||{value:''}).value) || null;
   var lng      = parseFloat((document.getElementById('pl-lng')  ||{value:''}).value) || null;
+  var terms    = (document.getElementById('pl-terms')     ||{checked:false}).checked;
   var errEl    = document.getElementById('pl-error');
   var sucEl    = document.getElementById('pl-success');
   var btn      = document.getElementById('pl-submit-btn');
@@ -11400,7 +11426,7 @@ async function plSubmitPartner() {
   if (errEl) errEl.style.display = 'none';
   if (sucEl) sucEl.style.display = 'none';
 
-  if (!bizName || !contact || !email || !phone || !type || !pw || !city) {
+  if (!bizName || !contact || !email || !phone || !type || !pw || !regNum || !bizType || !expDesc || !city) {
     if (errEl) { errEl.textContent = 'Please fill in all required fields.'; errEl.style.display = 'block'; }
     return;
   }
@@ -11410,6 +11436,10 @@ async function plSubmitPartner() {
   }
   if (pw.length < 6) {
     if (errEl) { errEl.textContent = 'Password must be at least 6 characters.'; errEl.style.display = 'block'; }
+    return;
+  }
+  if (!terms) {
+    if (errEl) { errEl.textContent = 'Please accept the Partner Terms & Conditions to continue.'; errEl.style.display = 'block'; }
     return;
   }
 
@@ -11437,15 +11467,21 @@ async function plSubmitPartner() {
     // Save partner application details
     try {
       await db_client.from('partners').insert({
-        name:        bizName,
-        contact:     contact,
-        email:       email,
-        phone:       phone,
-        type:        type,
-        city:        city,
-        lat:         lat,
-        lng:         lng,
-        status:      'pending',
+        name:                    bizName,
+        contact:                 contact,
+        email:                   email,
+        phone:                   phone,
+        type:                    type,
+        city:                    city,
+        lat:                     lat,
+        lng:                     lng,
+        status:                  'pending',
+        registration_number:     regNum,
+        business_type:           bizType,
+        vat_number:              vat || null,
+        website_url:             website || null,
+        experience_description:  expDesc,
+        terms_accepted_at:       new Date().toISOString(),
       });
     } catch(e2) { console.warn('partners table:', e2.message); }
 
@@ -11479,10 +11515,12 @@ async function plSubmitPartner() {
       sucEl.style.display = 'block';
     }
     // Clear form
-    ['pl-biz-name','pl-contact','pl-email','pl-phone','pl-pw','pl-city'].forEach(function(id) {
+    ['pl-biz-name','pl-contact','pl-email','pl-phone','pl-pw','pl-city','pl-reg-num','pl-vat','pl-website','pl-exp-desc'].forEach(function(id) {
       var el = document.getElementById(id); if (el) el.value = '';
     });
     var typeEl = document.getElementById('pl-type'); if (typeEl) typeEl.value = '';
+    var bizTypeEl = document.getElementById('pl-biz-type'); if (bizTypeEl) bizTypeEl.value = '';
+    var termsEl = document.getElementById('pl-terms'); if (termsEl) termsEl.checked = false;
 
   } catch(e) {
     var msg = e.message || 'An error occurred.';
@@ -14474,32 +14512,57 @@ async function renderAdmPartnerApps() {
   var listEl = document.getElementById('adm-partner-apps-list');
   if (!listEl) return;
   try {
-    var res = await db_client.from('user_profiles')
-      .select('id,email,full_name,partner_name,created_at,status,role')
-      .eq('role', 'pending_partner')
-      .order('created_at', { ascending: false });
-    if (res.error) throw res.error;
-    var apps = res.data || [];
+    var [profRes, partRes] = await Promise.all([
+      db_client.from('user_profiles').select('id,email,full_name,partner_name,created_at,status,role').eq('role','pending_partner').order('created_at',{ascending:false}),
+      db_client.from('partners').select('email,phone,type,city,registration_number,business_type,vat_number,website_url,experience_description,terms_accepted_at').eq('status','pending')
+    ]);
+    if (profRes.error) throw profRes.error;
+    var apps = profRes.data || [];
+    // Build partners map by email
+    var partMap = {};
+    (partRes.data||[]).forEach(function(p){ partMap[p.email] = p; });
+
     if (!apps.length) {
       listEl.innerHTML = '<div style="padding:24px;text-align:center;color:var(--muted);font-size:.85rem"><i class="fa fa-inbox" style="font-size:1.5rem;opacity:.3;display:block;margin-bottom:8px"></i>No pending applications.</div>';
       return;
     }
     listEl.innerHTML = apps.map(function(a) {
+      var p = partMap[a.email] || {};
       var date = a.created_at ? new Date(a.created_at).toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'}) : '—';
+      var termsDate = p.terms_accepted_at ? new Date(p.terms_accepted_at).toLocaleString('en-ZA',{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}) : null;
+      var infoRow = function(label, value) {
+        if (!value) return '';
+        return '<div style="display:flex;gap:8px;font-size:.78rem;margin-bottom:4px"><span style="color:var(--muted);min-width:140px;flex-shrink:0">' + label + '</span><span style="color:var(--navy);font-weight:500">' + value + '</span></div>';
+      };
       return '<div class="atbl" style="margin-bottom:12px">'
         + '<div class="atbl-hdr" style="background:linear-gradient(135deg,#fffbeb,#fef3c7)">'
         + '<span style="font-weight:600;font-size:.85rem;color:var(--navy)">' + (a.partner_name||a.full_name||'Unknown') + '</span>'
         + '<span class="sbadge sb-p" style="margin-left:8px">Pending</span>'
         + '<span style="font-size:.72rem;color:var(--muted);margin-left:auto">' + date + '</span>'
         + '</div>'
-        + '<div style="padding:12px 18px;display:flex;align-items:center;gap:16px;flex-wrap:wrap">'
-        + '<div style="font-size:.82rem;color:var(--navy)">' + (a.email||'—') + '</div>'
-        + '<div style="margin-left:auto;display:flex;gap:8px">'
-        + '<button class="btn bgreen bsm" onclick="admApprovePartner(\'' + a.id + '\')"><i class="fa fa-check"></i> Approve</button>'
-        + '<button class="btn bg bsm" style="color:var(--red);border-color:#fca5a5" onclick="admRejectPartner(\'' + a.id + '\')"><i class="fa fa-xmark"></i> Reject</button>'
-        + '</div></div></div>';
+        + '<div style="padding:14px 18px">'
+        + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0 24px;margin-bottom:12px">'
+        + '<div>'
+        + infoRow('Email', a.email)
+        + infoRow('Phone', p.phone)
+        + infoRow('Category', p.type)
+        + infoRow('Location', p.city)
+        + infoRow('Website', p.website_url ? '<a href="'+p.website_url+'" target="_blank" style="color:var(--b600)">'+p.website_url+'</a>' : null)
+        + '</div>'
+        + '<div>'
+        + infoRow('CIPC Number', p.registration_number)
+        + infoRow('Business type', p.business_type)
+        + infoRow('VAT number', p.vat_number)
+        + infoRow('T&C accepted', termsDate ? '✅ ' + termsDate : '❌ Not recorded')
+        + '</div>'
+        + '</div>'
+        + (p.experience_description ? '<div style="background:var(--bg);border-radius:8px;padding:10px 14px;font-size:.78rem;color:var(--navy);margin-bottom:12px"><strong>Experience description:</strong><br>' + p.experience_description + '</div>' : '')
+        + '<div style="display:flex;gap:8px">'
+        + '<button class="btn bgreen bsm" onclick="admApprovePartner(\''+a.id+'\')"><i class="fa fa-check"></i> Approve</button>'
+        + '<button class="btn bg bsm" style="color:var(--red);border-color:#fca5a5" onclick="admRejectPartner(\''+a.id+'\')"><i class="fa fa-xmark"></i> Reject</button>'
+        + '</div>'
+        + '</div></div>';
     }).join('');
-    // Update badge
     var b = document.getElementById('adm-partner-apps-badge');
     if (b) { b.textContent = apps.length; b.style.display = apps.length ? '' : 'none'; }
   } catch(e) {
