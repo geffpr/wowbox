@@ -1241,23 +1241,39 @@ async function loadUserBoxes(email) {
       // Leave a review button for used vouchers — fetch linked booking
       if (st === 'used') {
         (function(vc) {
+          var userEmail = currentUser ? currentUser.email : '';
           db_client.from('bookings').select('id,experience_id,experience_name,box_id,box_name')
             .eq('voucher_code', vc).in('status',['used','completed']).limit(1).maybeSingle()
             .then(function(bkRes) {
-              var card = document.querySelector('[data-vcode="'+vc+'"]');
-              if (!card) return;
-              var actionsEl = card.querySelector('.v-actions');
-              if (!actionsEl) return;
               var bk = bkRes.data || {};
-              var revBtn = document.createElement('button');
-              revBtn.className = 'btn bsm';
-              revBtn.style.cssText = 'background:#fef3c7;color:#92400e;border:1px solid #fcd34d';
-              revBtn.innerHTML = '<i class="fa fa-star"></i> Review';
-              revBtn.onclick = function(){
-                var bxName = (typeof boxDB !== 'undefined' && boxDB[bk.box_name||''] && boxDB[bk.box_name||''].name) || bk.box_name || '';
-                openReviewFromBox(bk.experience_id||null, bk.experience_name||bxName||'WowBox experience', bk.id||null, vc, bxName, bk.box_id||null);
-              };
-              actionsEl.appendChild(revBtn);
+              if (!bk.id) return;
+              // Check if already reviewed for this booking
+              db_client.from('experience_reviews').select('id')
+                .eq('user_email', userEmail)
+                .eq('booking_id', bk.id)
+                .maybeSingle()
+                .then(function(revRes) {
+                  var card = document.querySelector('[data-vcode="'+vc+'"]');
+                  if (!card) return;
+                  var actionsEl = card.querySelector('.v-actions');
+                  if (!actionsEl) return;
+                  if (revRes.data) {
+                    var reviewedEl = document.createElement('span');
+                    reviewedEl.style.cssText = 'font-size:.72rem;color:var(--green);display:flex;align-items:center;gap:4px;padding:4px 6px';
+                    reviewedEl.innerHTML = '<i class="fa fa-check-circle"></i> Reviewed';
+                    actionsEl.appendChild(reviewedEl);
+                  } else {
+                    var revBtn = document.createElement('button');
+                    revBtn.className = 'btn bsm';
+                    revBtn.style.cssText = 'background:#fef3c7;color:#92400e;border:1px solid #fcd34d';
+                    revBtn.innerHTML = '<i class="fa fa-star"></i> Review';
+                    revBtn.onclick = function(){
+                      var bxName = (typeof boxDB !== 'undefined' && boxDB[bk.box_name||''] && boxDB[bk.box_name||''].name) || bk.box_name || '';
+                      openReviewFromBox(bk.experience_id||null, bk.experience_name||bxName||'WowBox experience', bk.id||null, vc, bxName, bk.box_id||null);
+                    };
+                    actionsEl.appendChild(revBtn);
+                  }
+                });
             });
         })(v.code);
       }
@@ -10378,7 +10394,7 @@ function openReviewFromBox(expId, expName, bookingId, voucherCode, boxName, boxI
     + '<textarea class="fi" id="'+pid+'-text" rows="3" placeholder="Share your experience..." style="margin-bottom:8px;font-size:.82rem"></textarea>'
     + '<input class="fi" id="'+pid+'-name" placeholder="Display name (e.g. Sarah M.)" style="margin-bottom:10px;font-size:.82rem">'
     + '<div style="display:flex;gap:8px">'+btnSubmit+btnCancel+'</div></div>';
-  pendEl.insertAdjacentHTML('afterbegin', '<h3 style="font-size:1rem;color:var(--navy);margin-bottom:14px"><i class="fa fa-star" style="color:#f59e0b"></i> Leave a review</h3>' + formHtml);
+  pendEl.insertAdjacentHTML('afterbegin', formHtml);
   pendEl.scrollIntoView({behavior:'smooth', block:'nearest'});
 }
 
