@@ -10337,7 +10337,20 @@ async function submitUserReview(expId, bookingId, prefix, expName, boxName, boxI
       admToast('\u2705 Review submitted — thanks! It will appear after moderation.');
       if (currentUser) loadUserReviews(currentUser.email);
     }
-  } catch(e) { admToast('Error: '+e.message); }
+  } catch(e) {
+    if (e.code === '23505' || (e.message && e.message.includes('duplicate key'))) {
+      var card = document.getElementById('card-'+prefix);
+      if (card) {
+        card.innerHTML = '<div style="display:flex;align-items:center;gap:10px;padding:8px 0">'
+          + '<i class="fa fa-check-circle" style="color:var(--green);font-size:1.3rem"></i>'
+          + '<div style="font-size:.85rem;color:var(--muted)">You\'ve already reviewed this experience.</div></div>';
+      } else {
+        admToast('You\'ve already reviewed this experience.');
+      }
+    } else {
+      admToast('Error: '+e.message);
+    }
+  }
 }
 
 function openReviewFromBox(expId, expName, bookingId, voucherCode, boxName, boxId) {
