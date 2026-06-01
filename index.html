@@ -2944,6 +2944,20 @@ nav{position:sticky;top:0;z-index:300;background:rgba(255,255,255,.95);
 .pp-nav.on{background:var(--b600);color:#fff}
 .pp-main{padding:32px 36px;background:var(--bg);overflow-y:auto}
 .pp-sec{display:none}.pp-sec.on{display:block}
+.pp-onboarding{background:linear-gradient(135deg,#fffbeb,#fef9f0);border:1.5px solid #f59e0b;border-radius:var(--rx);padding:20px 24px;margin-bottom:24px}
+.pp-onboarding-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.pp-onboarding-steps{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.pp-ob-step{display:flex;align-items:center;gap:10px;background:var(--white);border:1.5px solid var(--border);border-radius:var(--rs);padding:10px 14px;cursor:pointer;transition:border-color .15s}
+.pp-ob-step:hover{border-color:var(--b400)}
+.pp-ob-step.done{border-color:#86efac;background:#f0fdf4;cursor:default}
+.pp-ob-step-ico{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:.85rem}
+.pp-ob-step:not(.done) .pp-ob-step-ico{background:var(--b50);color:var(--b600)}
+.pp-ob-step.done .pp-ob-step-ico{background:#bbf7d0;color:#16a34a}
+.pp-ob-step-txt{flex:1;min-width:0}
+.pp-ob-step-lbl{font-weight:600;color:var(--navy);font-size:.78rem;margin-bottom:1px}
+.pp-ob-step-sub{font-size:.7rem;color:var(--muted)}
+.pp-ob-step.done .pp-ob-step-lbl{color:#15803d}
+@media(max-width:768px){.pp-onboarding-steps{grid-template-columns:1fr}.pp-ob-step-sub{display:none}}
 .pp-kpis{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:13px;margin-bottom:26px}
 .pp-kpi{background:var(--white);border-radius:var(--r);border:1.5px solid var(--border);padding:18px}
 .pp-kpi-ico{width:34px;height:34px;border-radius:var(--rs);display:flex;align-items:center;
@@ -5478,6 +5492,56 @@ tr:hover td{background:var(--b50)}
 
       <!-- ═══ SECTION: OVERVIEW ═══ -->
       <div id="pp-overview" class="pp-sec on">
+
+        <!-- Onboarding checklist — shown until all steps complete -->
+        <div class="pp-onboarding" id="pp-onboarding-block" style="display:none">
+          <div class="pp-onboarding-hdr">
+            <div>
+              <div style="font-size:.95rem;font-weight:700;color:#92400e;margin-bottom:2px">🚀 Getting started</div>
+              <div id="pp-ob-progress-txt" style="font-size:.75rem;color:#b45309">Complete these steps to start receiving bookings</div>
+            </div>
+            <div style="text-align:right">
+              <div id="pp-ob-count" style="font-size:1.1rem;font-weight:700;color:#92400e">0/4</div>
+              <div style="height:6px;width:100px;background:#fde68a;border-radius:99px;margin-top:4px;overflow:hidden">
+                <div id="pp-ob-bar" style="height:100%;background:#f59e0b;border-radius:99px;width:0%;transition:width .4s"></div>
+              </div>
+            </div>
+          </div>
+          <div class="pp-onboarding-steps">
+            <div class="pp-ob-step" id="pp-ob-step-profile" onclick="switchPP(document.getElementById('pp-nav-settings'),'pp-settings')">
+              <div class="pp-ob-step-ico"><i class="fa fa-user"></i></div>
+              <div class="pp-ob-step-txt">
+                <div class="pp-ob-step-lbl">Complete your profile</div>
+                <div class="pp-ob-step-sub">Add your business name and details</div>
+              </div>
+              <i class="fa fa-chevron-right" style="color:var(--muted);font-size:.7rem"></i>
+            </div>
+            <div class="pp-ob-step" id="pp-ob-step-exp" onclick="switchPP(document.getElementById('pp-nav-experiences'),'pp-experiences')">
+              <div class="pp-ob-step-ico"><i class="fa fa-star"></i></div>
+              <div class="pp-ob-step-txt">
+                <div class="pp-ob-step-lbl">Add your first experience</div>
+                <div class="pp-ob-step-sub">Create a listing guests can book</div>
+              </div>
+              <i class="fa fa-chevron-right" style="color:var(--muted);font-size:.7rem"></i>
+            </div>
+            <div class="pp-ob-step" id="pp-ob-step-payout" onclick="switchPP(document.getElementById('pp-nav-payouts'),'pp-payouts')">
+              <div class="pp-ob-step-ico"><i class="fa fa-building-columns"></i></div>
+              <div class="pp-ob-step-txt">
+                <div class="pp-ob-step-lbl">Set up payouts</div>
+                <div class="pp-ob-step-sub">Connect your bank to receive payments</div>
+              </div>
+              <i class="fa fa-chevron-right" style="color:var(--muted);font-size:.7rem"></i>
+            </div>
+            <div class="pp-ob-step" id="pp-ob-step-calendar" onclick="switchPP(document.getElementById('pp-nav-calendar'),'pp-calendar')">
+              <div class="pp-ob-step-ico"><i class="fa fa-calendar-days"></i></div>
+              <div class="pp-ob-step-txt">
+                <div class="pp-ob-step-lbl">Set your availability</div>
+                <div class="pp-ob-step-sub">Open your calendar to bookings</div>
+              </div>
+              <i class="fa fa-chevron-right" style="color:var(--muted);font-size:.7rem"></i>
+            </div>
+          </div>
+        </div>
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px">
           <div>
             <h2 id="pp-welcome-title" style="font-size:1.75rem;color:var(--navy)">Welcome 👋</h2>
@@ -15737,6 +15801,7 @@ function initPartnerPage() {
   // Load real data from Supabase
   loadPartnerPortalData();
   loadPartnerExperiences();
+  ppCheckOnboarding();
   // Load section-specific data for hash-restored section
   if (ppStart === 'pp-payouts')   ppLoadPayouts();
   if (ppStart === 'pp-reviews')   ppLoadReviews();
@@ -15744,6 +15809,104 @@ function initPartnerPage() {
   if (ppStart === 'pp-analytics') setTimeout(function(){ renderAnalytics('7d'); }, 100);
   if (ppStart === 'pp-calendar')  setTimeout(function(){ renderCalendar(); }, 100);
   if (ppStart === 'pp-boost')     setTimeout(function(){ renderBoostPage(); }, 100);
+}
+
+// ─────────────────────────────────────────────────────────────
+// PARTNER: Onboarding checklist
+// ─────────────────────────────────────────────────────────────
+async function ppCheckOnboarding() {
+  var email = appState.partnerEmail || (currentUser && currentUser.email) || '';
+  if (!email) return;
+
+  // Show welcome modal once per device
+  var welcomeKey = 'wowbox_partner_welcomed_' + email;
+  if (!localStorage.getItem(welcomeKey)) {
+    ppShowWelcomeModal();
+    localStorage.setItem(welcomeKey, '1');
+  }
+
+  var block = document.getElementById('pp-onboarding-block');
+  if (!block) return;
+
+  try {
+    var [profRes, expRes] = await Promise.all([
+      db_client.from('user_profiles').select('full_name,partner_name,phone').eq('id', currentUser.id).maybeSingle(),
+      db_client.from('experiences').select('id').eq('partner_email', email).eq('is_active', true).limit(1)
+    ]);
+
+    var prof     = profRes.data || {};
+    var hasExps  = !!(expRes.data && expRes.data.length);
+    var hasProf  = !!(prof.full_name && prof.phone);
+
+    // Step 4 (calendar): check if any availability exists
+    var calRes   = await db_client.from('availability').select('id').eq('partner_email', email).limit(1);
+    var hasCal   = !!(calRes.data && calRes.data.length);
+
+    // Step 3 (payout): check user_profiles bank info
+    var hasPayout = !!(prof.bank_account_number || prof.payfast_connected);
+
+    var steps = [
+      { id: 'pp-ob-step-profile',  done: hasProf },
+      { id: 'pp-ob-step-exp',      done: hasExps },
+      { id: 'pp-ob-step-payout',   done: hasPayout },
+      { id: 'pp-ob-step-calendar', done: hasCal },
+    ];
+
+    var doneCount = steps.filter(function(s){ return s.done; }).length;
+    var pct = Math.round(doneCount / steps.length * 100);
+
+    // Update each step
+    steps.forEach(function(s) {
+      var el = document.getElementById(s.id);
+      if (!el) return;
+      if (s.done) {
+        el.classList.add('done');
+        var ico = el.querySelector('.pp-ob-step-ico');
+        if (ico) ico.innerHTML = '<i class="fa fa-check"></i>';
+        var arr = el.querySelector('.fa-chevron-right');
+        if (arr) arr.style.display = 'none';
+      }
+    });
+
+    // Update progress
+    var cnt = document.getElementById('pp-ob-count');
+    var bar = document.getElementById('pp-ob-bar');
+    var txt = document.getElementById('pp-ob-progress-txt');
+    if (cnt) cnt.textContent = doneCount + '/' + steps.length;
+    if (bar) bar.style.width = pct + '%';
+    if (txt && doneCount === steps.length) txt.textContent = '🎉 All set — you\'re ready to receive bookings!';
+
+    // Hide block if all done
+    if (doneCount === steps.length) {
+      setTimeout(function(){ if (block) block.style.display = 'none'; }, 2000);
+    } else {
+      block.style.display = 'block';
+    }
+  } catch(e) {
+    console.warn('ppCheckOnboarding:', e.message);
+  }
+}
+
+function ppShowWelcomeModal() {
+  var existing = document.getElementById('pp-welcome-modal');
+  if (existing) existing.remove();
+  var m = document.createElement('div');
+  m.id = 'pp-welcome-modal';
+  m.style.cssText = 'position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(2,45,45,.6);backdrop-filter:blur(4px)';
+  m.innerHTML = '<div style="background:#fff;border-radius:20px;padding:36px;max-width:480px;width:100%;box-shadow:0 24px 60px rgba(0,0,0,.25);text-align:center">'
+    + '<div style="font-size:2.5rem;margin-bottom:12px">🎉</div>'
+    + '<h2 style="font-size:1.4rem;color:var(--navy);margin-bottom:8px">Welcome to WowBox!</h2>'
+    + '<p style="font-size:.85rem;color:var(--muted);margin-bottom:24px;line-height:1.6">Your partner account is ready. To start receiving bookings from gift box recipients, complete a few quick steps.</p>'
+    + '<div style="background:var(--bg);border-radius:12px;padding:16px;margin-bottom:24px;text-align:left">'
+    + '<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px"><div style="width:24px;height:24px;background:var(--b600);color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.72rem;font-weight:700;flex-shrink:0">1</div><span style="font-size:.82rem;color:var(--navy)">Complete your profile</span></div>'
+    + '<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px"><div style="width:24px;height:24px;background:var(--b600);color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.72rem;font-weight:700;flex-shrink:0">2</div><span style="font-size:.82rem;color:var(--navy)">Add your first experience</span></div>'
+    + '<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px"><div style="width:24px;height:24px;background:var(--b600);color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.72rem;font-weight:700;flex-shrink:0">3</div><span style="font-size:.82rem;color:var(--navy)">Connect your payout account</span></div>'
+    + '<div style="display:flex;align-items:center;gap:10"><div style="width:24px;height:24px;background:var(--b600);color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.72rem;font-weight:700;flex-shrink:0">4</div><span style="font-size:.82rem;color:var(--navy)">Set your availability</span></div>'
+    + '</div>'
+    + '<button onclick="document.getElementById(\'pp-welcome-modal\').remove()" style="background:var(--b600);color:#fff;border:none;border-radius:10px;padding:13px 32px;font-size:.9rem;font-weight:700;cursor:pointer;width:100%">Let\'s get started →</button>'
+    + '</div>';
+  document.body.appendChild(m);
+  m.onclick = function(e){ if (e.target === m) m.remove(); };
 }
 
 async function loadPartnerPortalData() {
