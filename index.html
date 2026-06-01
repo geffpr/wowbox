@@ -10249,12 +10249,17 @@ async function loadUserReviews(email) {
     .order('validated_at', { ascending: false });
 
   var myRevRes = await db_client.from('experience_reviews')
-    .select('id, experience_id, box_id')
+    .select('id, experience_id, box_id, booking_id')
     .eq('user_email', email);
 
-  // Deduplicate by (experience_id + box_id) — 1 review per experience per box
-  var reviewed = new Set((myRevRes.data||[]).map(function(r){ return r.experience_id + '|' + (r.box_id||''); }));
-  var toReview = (bRes.data||[]).filter(function(b){ return !reviewed.has(b.experience_id + '|' + (b.box_id||'')); });
+  // Deduplicate by booking_id (if set) OR by (experience_id + box_id) for legacy reviews
+  var reviewedBookings = new Set((myRevRes.data||[]).filter(function(r){ return r.booking_id; }).map(function(r){ return r.booking_id; }));
+  var reviewedExpBox   = new Set((myRevRes.data||[]).filter(function(r){ return !r.booking_id; }).map(function(r){ return r.experience_id + '|' + (r.box_id||''); }));
+  var toReview = (bRes.data||[]).filter(function(b){
+    if (reviewedBookings.has(b.id)) return false;
+    if (!b.id && reviewedExpBox.has(b.experience_id + '|' + (b.box_id||''))) return false;
+    return true;
+  });
 
   // Badge
   var badge = document.getElementById('dash-reviews-badge');
@@ -10313,6 +10318,7 @@ async function submitUserReview(expId, bookingId, prefix, expName, boxName, boxI
       experience_name: expName || expId,
       box_id:          boxId  || null,
       box_name:        boxName || null,
+      booking_id:      bookingId || null,
       user_email:      currentUser ? currentUser.email : '',
       display_name:    name || null,
       rating:          rating,
