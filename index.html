@@ -609,7 +609,8 @@ function authSwitchTab(tab) {
   document.getElementById('auth-tab-up').classList.toggle('on',  isUp);
   document.getElementById('auth-name-field').style.display = isUp ? 'block' : 'none';
   document.getElementById('auth-forgot').style.display     = isUp ? 'none'  : 'block';
-  document.getElementById('auth-submit-label').textContent = isUp ? 'Create account' : 'Sign in';
+  var submitLabel = document.getElementById('auth-submit-label');
+  if (submitLabel) submitLabel.textContent = isUp ? 'Create account' : 'Sign in';
   authClearMessages();
 }
 function authClearMessages() {
