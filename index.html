@@ -1574,17 +1574,26 @@ async function renderAnalytics(period) {
       allDays.push(dt.toISOString().slice(0,10));
     }
     var maxVal = Math.max(1, Math.max.apply(null, allDays.map(function(d){ return buckets[d]||0; })));
-    if (barEl) barEl.innerHTML = allDays.map(function(d){
-      var pct = Math.round(((buckets[d]||0)/maxVal)*100);
-      return '<div class="an-bar" title="'+d+': '+fmt(buckets[d]||0)+'" style="height:100%;display:flex;flex-direction:column;justify-content:flex-end;flex:1">'
-           + '<div class="an-bar-fill" style="height:'+Math.max(2,pct)+'%;background:var(--b500);border-radius:3px 3px 0 0;transition:height .3s"></div>'
-           + '</div>';
-    }).join('');
-    // Labels: show only first, middle, last
-    if (labelsEl) labelsEl.innerHTML = allDays.map(function(d, i){
-      var show = i === 0 || i === Math.floor(allDays.length/2) || i === allDays.length-1;
-      return '<div style="flex:1;font-size:.6rem;color:var(--muted);text-align:center">'+(show ? d.slice(5) : '')+'</div>';
-    }).join('');
+    if (barEl) {
+      barEl.style.cssText = 'display:flex;align-items:flex-end;gap:2px;height:120px;position:relative;border-left:1px solid var(--border);border-bottom:1px solid var(--border);padding:18px 0 0 4px';
+      // Y-axis label
+      barEl.innerHTML = '<div style="position:absolute;left:-2px;top:0;font-size:.6rem;color:var(--muted);transform:translateX(-100%);white-space:nowrap">'+fmt(maxVal)+'</div>'
+        + '<div style="position:absolute;left:-2px;bottom:0;font-size:.6rem;color:var(--muted);transform:translateX(-100%)">R0</div>'
+        + allDays.map(function(d){
+          var val = buckets[d] || 0;
+          var pct = Math.round((val/maxVal)*100);
+          var label = d.slice(5); // MM-DD
+          var showLabel = days <= 14 || d === allDays[0] || d === allDays[Math.floor(allDays.length/2)] || d === allDays[allDays.length-1];
+          return '<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;position:relative;cursor:pointer" class="an-bar-wrap">'
+            + (val > 0 ? '<div style="font-size:.55rem;color:var(--b700);font-weight:600;margin-bottom:1px">'+fmt(val)+'</div>' : '')
+            + '<div style="width:100%;background:var(--b500);border-radius:2px 2px 0 0;height:'+Math.max(2,pct)+'%;transition:height .3s;position:relative" title="'+d+': '+fmt(val)+'">'
+            + '<div style="display:none;position:absolute;bottom:105%;left:50%;transform:translateX(-50%);background:var(--navy);color:#fff;padding:3px 7px;border-radius:5px;font-size:.65rem;white-space:nowrap;z-index:10" class="an-tooltip">'+d+'<br>'+fmt(val)+'</div>'
+            + '</div>'
+            + (showLabel ? '<div style="font-size:.55rem;color:var(--muted);margin-top:2px;white-space:nowrap">'+label+'</div>' : '<div style="font-size:.55rem">&nbsp;</div>')
+            + '</div>';
+        }).join('');
+    }
+    if (labelsEl) labelsEl.style.display = 'none'; // labels now inline
 
     // By experience breakdown
     var bkByExp = {};
@@ -1605,11 +1614,13 @@ async function renderAnalytics(period) {
 
     // Recent bookings table
     if (bkTbody) bkTbody.innerHTML = bookings.length ? bookings.slice(0,10).map(function(b){
-      var guest = b.customer_email ? b.customer_email.split('@')[0] : 'Guest';
+      var guest = b.customer_name || b.guest_name || (b.customer_email ? b.customer_email.split('@')[0] : 'Guest');
       var dt    = b.created_at ? new Date(b.created_at).toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'}) : '—';
-      var stBadge = b.status === 'completed' || b.status === 'used' ? '<span class="sbadge sb-a">Paid</span>' : '<span class="sbadge sb-p">Pending</span>';
+      var amt   = b.payout_amount ? fmt(b.payout_amount) : '<span style="color:var(--muted)">—</span>';
+      var amtColor = b.payout_amount ? 'color:var(--green);font-weight:600' : '';
+      var stBadge = (b.status === 'completed' || b.status === 'used') ? '<span class="sbadge sb-a">Paid</span>' : '<span class="sbadge sb-p">Pending</span>';
       return '<tr><td>'+(b.experience_name||'—')+'</td><td>'+guest+'</td><td>'+dt+'</td>'
-           + '<td style="color:var(--green);font-weight:600">'+fmt(b.payout_amount||0)+'</td>'
+           + '<td style="'+amtColor+'">'+amt+'</td>'
            + '<td>'+stBadge+'</td></tr>';
     }).join('') : '<tr><td colspan="5" style="text-align:center;padding:16px;color:var(--muted)">No bookings this period.</td></tr>';
 
@@ -3631,6 +3642,7 @@ tr:hover td{background:var(--b50)}
 .pp-open-row{display:none;margin-top:6px}
 /* Analytics */
 .an-kpi-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:13px;margin-bottom:22px}
+.an-bar-wrap:hover .an-tooltip{display:block!important}
 .an-kpi-card{background:var(--white);border-radius:var(--r);border:1.5px solid var(--border);padding:16px}
 .an-kpi-val{font-family:'Cormorant Garamond',serif;font-size:1.65rem;font-weight:700;color:var(--navy);line-height:1}
 .an-kpi-lbl{font-size:.67rem;color:var(--muted);margin-top:3px}
