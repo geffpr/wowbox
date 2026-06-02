@@ -1444,7 +1444,6 @@ function planUpgradeClick() {
     admToast('You are already subscribed to the Pro Plan.');
     return;
   }
-  switchPP(document.querySelector('[onclick*=pp-subscription]'), 'pp-subscription');
   showProPaymentForm();
 }
 
@@ -1502,52 +1501,86 @@ function setAnalyticsPeriod(period, btn) {
   renderAnalytics(period);
 }
 
-function renderAnalytics(period) {
-  period = period || anPeriod;
-  const d = analyticsData[period] || analyticsData['7d'];
-  // KPIs
-  const kpiEl = document.getElementById('an-kpi-grid');
-  if (kpiEl) kpiEl.innerHTML = [
-    {val:'R'+d.rev.toLocaleString(), lbl:'Total Revenue', chg:'+12.4%', up:true, bg:'#fef3c7', ico:'fa-sack-dollar', c:'#d97706'},
-    {val:d.bk, lbl:'Bookings', chg:'+8 vs prev period', up:true, bg:'#dbeafe', ico:'fa-calendar-check', c:'#2563eb'},
-    {val:d.views.toLocaleString(), lbl:'Profile views', chg:'', up:true, bg:'#ede9fe', ico:'fa-eye', c:'#7c3aed'},
-    {val:d.cvr+'%', lbl:'Conversion rate', chg:'', up:true, bg:'#d1fae5', ico:'fa-arrow-trend-up', c:'#059669'},
-  ].map(k =>
-    `<div class="an-kpi-card">
-      <div class="pp-kpi-ico" style="background:${k.bg};margin-bottom:8px"><i class="fa ${k.ico}" style="color:${k.c}"></i></div>
-      <div class="an-kpi-val">${k.val}</div>
-      <div class="an-kpi-lbl">${k.lbl}</div>
-      ${k.chg ? `<div class="an-kpi-chg chg-up">&#8593; ${k.chg}</div>` : ''}
-    </div>`).join('');
+async function renderAnalytics(period) {
+  period = period || '30d';
+  var email = appState.partnerEmail || (currentUser && currentUser.email) || '';
+  if (!email) return;
 
-  // Bar chart
-  const chartEl  = document.getElementById('an-bar-chart');
-  const labelsEl = document.getElementById('an-bar-labels');
-  if (chartEl) {
-    const max = Math.max(...d.bars);
-    chartEl.innerHTML = d.bars.map((v,i) =>
-      `<div class="an-bar-col">
-        <div class="an-bar${i===d.bars.length-1?' hl':''}" style="height:${Math.round(v/max*100)}%" title="R${v.toLocaleString()}"></div>
-      </div>`).join('');
-    if (labelsEl) labelsEl.innerHTML = d.labels.map(l =>
-      `<div class="an-bar-lbl" style="flex:1;text-align:center">${l}</div>`).join('');
+  var kpiEl    = document.getElementById('an-kpi-grid');
+  var chartEl  = document.getElementById('an-chart-wrap');
+  var expEl    = document.getElementById('an-exp-list');
+  if (kpiEl)   kpiEl.innerHTML   = '<div style="color:var(--muted);font-size:.82rem;padding:12px">Loading…</div>';
+  if (chartEl) chartEl.innerHTML = '';
+  if (expEl)   expEl.innerHTML   = '';
+
+  try {
+    var days    = period === '7d' ? 7 : period === '30d' ? 30 : 90;
+    var fromDt  = new Date(Date.now() - days * 86400000).toISOString();
+    var prevDt  = new Date(Date.now() - days * 2 * 86400000).toISOString();
+
+    var [bkRes, prevRes, expRes, revRes] = await Promise.all([
+      db_client.from('bookings').select('experience_id,experience_name,payout_amount,created_at').eq('partner_email', email).gte('created_at', fromDt).neq('status','cancelled'),
+      db_client.from('bookings').select('payout_amount').eq('partner_email', email).gte('created_at', prevDt).lt('created_at', fromDt).neq('status','cancelled'),
+      db_client.from('experiences').select('id,name').eq('partner_email', email).eq('is_active', true),
+      db_client.from('experience_reviews').select('rating,experience_id').eq('status','approved')
+    ]);
+
+    var bookings  = bkRes.data  || [];
+    var prevBks   = prevRes.data || [];
+    var exps      = expRes.data  || [];
+    var expIds    = new Set(exps.map(function(e){ return e.id; }));
+    var reviews   = (revRes.data || []).filter(function(r){ return expIds.has(r.experience_id); });
+
+    var revenue   = bookings.reduce(function(s,b){ return s + (b.payout_amount||0); }, 0);
+    var prevRev   = prevBks.reduce(function(s,b){ return s + (b.payout_amount||0); }, 0);
+    var bkCount   = bookings.length;
+    var prevBkCnt = prevBks.length;
+    var avgRating = reviews.length ? (reviews.reduce(function(s,r){ return s+(r.rating||0); },0)/reviews.length).toFixed(1) : null;
+
+    var revDiff   = prevRev   > 0 ? ((revenue  - prevRev  ) / prevRev   * 100).toFixed(0) : null;
+    var bkDiff    = prevBkCnt > 0 ? ((bkCount  - prevBkCnt) / prevBkCnt * 100).toFixed(0) : null;
+
+    var fmt = function(n){ return 'R' + Math.round(n).toLocaleString(); };
+    var badge = function(diff) {
+      if (diff === null) return '';
+      var up = parseFloat(diff) >= 0;
+      return '<span style="font-size:.7rem;padding:2px 7px;border-radius:99px;background:'+(up?'#dcfce7':'#fee2e2')+';color:'+(up?'#15803d':'#dc2626')+'">'+(up?'↑':'↓')+Math.abs(diff)+'% vs prev</span>';
+    };
+
+    // KPI cards
+    if (kpiEl) kpiEl.innerHTML = [
+      { label:'Revenue', val: fmt(revenue),           sub: badge(revDiff),             ico:'fa-money-bill-wave', bg:'#fef3c7', ic:'#d97706' },
+      { label:'Bookings', val: bkCount,               sub: badge(bkDiff),              ico:'fa-calendar-check',  bg:'#dbeafe', ic:'#1d4ed8' },
+      { label:'Avg Rating', val: avgRating ? '★ '+avgRating : '—', sub: reviews.length+' reviews', ico:'fa-star', bg:'#fef9c3', ic:'#ca8a04' },
+      { label:'Experiences', val: exps.length,        sub: 'active listings',          ico:'fa-layer-group',     bg:'#d1fae5', ic:'#059669' },
+    ].map(function(k){
+      return '<div class="pp-kpi"><div class="pp-kpi-ico" style="background:'+k.bg+'"><i class="fa '+k.ico+'" style="color:'+k.ic+'"></i></div>'
+           + '<div class="pp-kpi-val">'+k.val+'</div><div class="pp-kpi-lbl">'+k.label+'</div>'
+           + (k.sub ? '<div style="font-size:.7rem;color:var(--muted);margin-top:2px">'+k.sub+'</div>' : '')
+           + '</div>';
+    }).join('');
+
+    // Experience breakdown
+    var bkByExp = {};
+    bookings.forEach(function(b){
+      if (!bkByExp[b.experience_id]) bkByExp[b.experience_id] = { name: b.experience_name, count: 0, rev: 0 };
+      bkByExp[b.experience_id].count++;
+      bkByExp[b.experience_id].rev += (b.payout_amount||0);
+    });
+    var sorted = Object.values(bkByExp).sort(function(a,b){ return b.count-a.count; });
+    var maxCnt = sorted.length ? sorted[0].count : 1;
+    if (expEl) expEl.innerHTML = sorted.length ? sorted.map(function(e){
+      return '<div class="an-exp-row"><div class="an-exp-name">'+e.name+'</div>'
+           + '<div style="flex:1;min-width:80px"><div class="an-exp-bar"><div class="an-exp-bar-fill" style="width:'+Math.round(e.count/maxCnt*100)+'%"></div></div></div>'
+           + '<div style="font-size:.78rem;font-weight:600;color:var(--navy);min-width:60px;text-align:right">'+e.count+' bk</div>'
+           + '<div style="font-size:.78rem;color:var(--muted);min-width:64px;text-align:right">'+fmt(e.rev)+'</div>'
+           + '</div>';
+    }).join('') : '<div style="color:var(--muted);font-size:.82rem;padding:12px">No bookings in this period.</div>';
+
+  } catch(err) {
+    console.warn('renderAnalytics:', err.message);
+    if (kpiEl) kpiEl.innerHTML = '<div style="color:#dc2626;font-size:.82rem">Error loading analytics.</div>';
   }
-
-  // By experience
-  const bdEl = document.getElementById('an-exp-breakdown');
-  if (bdEl) bdEl.innerHTML = [
-    {name:'The Vineyard Retreat', pct:72, rev:'R33,014'},
-    {name:'Estate Wine Tasting',  pct:28, rev:'R12,607'},
-  ].map(e =>
-    `<div class="an-exp-row">
-      <div style="flex:1">
-        <div style="display:flex;justify-content:space-between;font-size:.78rem;margin-bottom:4px">
-          <span style="font-weight:500;color:var(--navy)">${e.name}</span>
-          <span style="color:var(--green);font-weight:600">${e.rev}</span>
-        </div>
-        <div class="an-exp-bar-track"><div class="an-exp-bar-fill" style="width:${e.pct}%"></div></div>
-      </div>
-    </div>`).join('');
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -5473,7 +5506,6 @@ tr:hover td{background:var(--b50)}
       <button class="pp-nav" onclick="switchPP(this,'pp-validate')"><i class="fa fa-qrcode"></i> Validate Voucher</button>
       <button class="pp-nav" onclick="switchPP(this,'pp-payouts');ppLoadPayouts()"><i class="fa fa-money-bill-transfer"></i> My Payouts</button>
       <button class="pp-nav" onclick="switchPP(this,'pp-experiences')"><i class="fa fa-compass"></i> My Experiences</button>
-      <button class="pp-nav" onclick="switchPP(this,'pp-subscription')"><i class="fa fa-credit-card"></i> My Subscription</button>
       <!-- Pro nav buttons -->
       <button class="pp-nav" onclick="switchPP(this,'pp-reviews');ppLoadReviews()"><i class="fa fa-star"></i> My Reviews <span id="pp-reviews-badge" style="display:none;margin-left:auto;background:#ef4444;color:#fff;border-radius:99px;padding:1px 6px;font-size:.6rem;font-weight:700"></span></button>
       <button class="pp-nav" id="pp-nav-analytics" onclick="switchPP(this,'pp-analytics')"><i class="fa fa-chart-line"></i> Analytics</button>
@@ -5525,7 +5557,7 @@ tr:hover td{background:var(--b50)}
               </div>
               <i class="fa fa-chevron-right" style="color:var(--muted);font-size:.7rem"></i>
             </div>
-            <div class="pp-ob-step" id="pp-ob-step-payout" onclick="switchPP(document.getElementById('pp-nav-payouts'),'pp-payouts')">
+            <div class="pp-ob-step" id="pp-ob-step-payout" onclick="switchPP(document.getElementById('pp-nav-settings'),'pp-settings')">
               <div class="pp-ob-step-ico"><i class="fa fa-building-columns"></i></div>
               <div class="pp-ob-step-txt">
                 <div class="pp-ob-step-lbl">Set up payouts</div>
@@ -5687,6 +5719,9 @@ tr:hover td{background:var(--b50)}
             <h2 style="font-size:1.75rem;color:var(--navy);margin-bottom:3px">My Payouts</h2>
             <p style="color:var(--muted);font-size:.82rem">Track your earnings and payout history from validated experiences.</p>
           </div>
+          <button class="btn bp bsm" onclick="switchPP(document.getElementById('pp-nav-settings'),'pp-settings')" style="flex-shrink:0">
+            <i class="fa fa-building-columns"></i> Connect bank details
+          </button>
         </div>
         <div class="pp-kpis" style="margin-bottom:22px">
           <div class="pp-kpi">
@@ -6010,7 +6045,7 @@ tr:hover td{background:var(--b50)}
             <div style="font-size:.88rem;font-weight:700;color:var(--navy)">You are subscribed to the Pro Plan</div>
             <div id="pp-plan-pro-since" style="font-size:.75rem;color:var(--muted);margin-top:2px">All Pro features are active.</div>
           </div>
-          <button class="btn bg bsm" style="margin-left:auto" onclick="switchPP(document.querySelector('[onclick*=pp-subscription]'),'pp-subscription')"><i class="fa fa-credit-card"></i> Manage</button>
+          <button class="btn bg bsm" style="margin-left:auto" onclick="switchPP(document.getElementById('pp-nav-settings'),'pp-settings')"><i class="fa fa-gear"></i> Settings</button>
         </div>
 
         <!-- Current plan card (dynamic) -->
@@ -10530,21 +10565,23 @@ async function ppLoadReporting() {
     const m2start  = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString();
 
     const [expsRes, bookingsRes, reviewsRes] = await Promise.all([
-      db_client.from('experiences').select('id,name,image_url,rating,review_count,price').eq('partner_email', email).eq('is_active', true),
-      db_client.from('bookings').select('experience_id,experience_name,status,created_at,commission_amount').eq('partner_email', email).neq('status','cancelled'),
-      db_client.from('reviews').select('rating,rating_location,rating_value,rating_service,comment,reviewer_name,created_at').eq('partner_email', email).order('created_at', {ascending: false}),
+      db_client.from('experiences').select('id,name,image_url,price').eq('partner_email', email).eq('is_active', true),
+      db_client.from('bookings').select('experience_id,experience_name,status,created_at,payout_amount').eq('partner_email', email).neq('status','cancelled'),
+      db_client.from('experience_reviews').select('rating,text,display_name,created_at,experience_id,experience_name').eq('status','approved').order('created_at', {ascending: false}),
     ]);
 
     const exps     = expsRes.data  || [];
     const bookings = bookingsRes.data || [];
-    const reviews  = reviewsRes.data  || [];
+    // Filter reviews to only this partner's experiences
+    const partnerExpIds = new Set(exps.map(function(e){ return e.id; }));
+    const reviews  = (reviewsRes.data || []).filter(function(r){ return partnerExpIds.has(r.experience_id); });
 
     // ── Revenue & bookings ──
     const thisMonth = bookings.filter(b => b.created_at >= m1start);
     const lastMonth = bookings.filter(b => b.created_at >= m2start && b.created_at < m1start);
-    const totalRev  = bookings.reduce((s, b) => s + (b.commission_amount || 0), 0);
-    const thisRev   = thisMonth.reduce((s, b) => s + (b.commission_amount || 0), 0);
-    const lastRev   = lastMonth.reduce((s, b) => s + (b.commission_amount || 0), 0);
+    const totalRev  = bookings.reduce((s, b) => s + (b.payout_amount || 0), 0);
+    const thisRev   = thisMonth.reduce((s, b) => s + (b.payout_amount || 0), 0);
+    const lastRev   = lastMonth.reduce((s, b) => s + (b.payout_amount || 0), 0);
     const revDiff   = lastRev > 0 ? ((thisRev - lastRev) / lastRev * 100).toFixed(1) : null;
     const bkDiff    = thisMonth.length - lastMonth.length;
 
@@ -10553,7 +10590,7 @@ async function ppLoadReporting() {
     bookings.forEach(b => {
       if (!bkByExp[b.experience_id]) bkByExp[b.experience_id] = { name: b.experience_name, count: 0, rev: 0 };
       bkByExp[b.experience_id].count++;
-      bkByExp[b.experience_id].rev += (b.commission_amount || 0);
+      bkByExp[b.experience_id].rev += (b.payout_amount || 0);
     });
     const topExpId  = Object.keys(bkByExp).sort((a,b) => bkByExp[b].count - bkByExp[a].count)[0];
     const topExp    = topExpId ? bkByExp[topExpId] : null;
@@ -10563,9 +10600,6 @@ async function ppLoadReporting() {
 
     // ── Reviews ──
     const avgRating = reviews.length ? (reviews.reduce((s,r) => s + (r.rating||0), 0) / reviews.length).toFixed(1) : null;
-    const avgLoc    = reviews.filter(r=>r.rating_location).length ? (reviews.reduce((s,r)=>s+(r.rating_location||0),0)/reviews.filter(r=>r.rating_location).length).toFixed(1) : null;
-    const avgVal    = reviews.filter(r=>r.rating_value).length    ? (reviews.reduce((s,r)=>s+(r.rating_value||0),0)   /reviews.filter(r=>r.rating_value).length).toFixed(1)    : null;
-    const avgSvc    = reviews.filter(r=>r.rating_service).length  ? (reviews.reduce((s,r)=>s+(r.rating_service||0),0) /reviews.filter(r=>r.rating_service).length).toFixed(1)  : null;
     const latestRev = reviews[0];
 
     // ── Health score (0–100) ──
@@ -10670,12 +10704,8 @@ async function ppLoadReporting() {
             <div style="font-size:.68rem;color:var(--muted)">Overall (${reviews.length} reviews)</div>
             <div style="color:#f59e0b;font-size:.85rem">${stars(avgRating)}</div>
           </div>
-          <div style="flex:1;min-width:180px">
-            ${avgLoc ? `<div class="ins-rating-row"><span style="width:68px;color:var(--muted)">Location</span><div class="ins-rating-track"><div class="ins-rating-fill" style="width:${Math.round(parseFloat(avgLoc)/5*100)}%"></div></div><span style="font-weight:600">${avgLoc}</span></div>` : ''}
-            ${avgVal ? `<div class="ins-rating-row"><span style="width:68px;color:var(--muted)">Value</span><div class="ins-rating-track"><div class="ins-rating-fill" style="width:${Math.round(parseFloat(avgVal)/5*100)}%"></div></div><span style="font-weight:600">${avgVal}</span></div>` : ''}
-            ${avgSvc ? `<div class="ins-rating-row"><span style="width:68px;color:var(--muted)">Service</span><div class="ins-rating-track"><div class="ins-rating-fill" style="width:${Math.round(parseFloat(avgSvc)/5*100)}%"></div></div><span style="font-weight:600">${avgSvc}</span></div>` : ''}
-          </div>
-          ${latestRev && latestRev.comment ? `<div style="flex:1;min-width:180px;font-size:.78rem;color:var(--slate);line-height:1.7;font-style:italic">&ldquo;${latestRev.comment}&rdquo;<br><span style="font-style:normal;font-size:.72rem;color:var(--muted)">&mdash; ${latestRev.reviewer_name || 'Guest'}, ${new Date(latestRev.created_at).toLocaleDateString('en-ZA',{month:'long',year:'numeric'})}</span></div>` : ''}
+          <div style="flex:1;min-width:180px"></div>
+          ${latestRev && latestRev.text ? `<div style="flex:1;min-width:180px;font-size:.78rem;color:var(--slate);line-height:1.7;font-style:italic">&ldquo;${latestRev.text}&rdquo;<br><span style="font-style:normal;font-size:.72rem;color:var(--muted)">&mdash; ${latestRev.display_name || 'Guest'}, ${new Date(latestRev.created_at).toLocaleDateString('en-ZA',{month:'long',year:'numeric'})}</span></div>` : ''}
         </div>
       </div>`;
     } else {
@@ -15749,7 +15779,7 @@ function confirmRouletteBooking() {
 /* ══════════════════════════════════════════════════════════════
    PARTNER PORTAL
 ══════════════════════════════════════════════════════════════ */
-const PP_SECTIONS = ['pp-overview','pp-validate','pp-payouts','pp-experiences','pp-subscription','pp-plan','pp-analytics','pp-calendar','pp-boost','pp-reporting','pp-reviews','pp-settings'];
+const PP_SECTIONS = ['pp-overview','pp-validate','pp-payouts','pp-experiences','pp-plan','pp-analytics','pp-calendar','pp-boost','pp-reporting','pp-reviews','pp-settings'];
 
 function switchPP(btn, sectionId) {
   PP_SECTIONS.forEach(id => {
