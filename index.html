@@ -4203,10 +4203,6 @@ tr:hover td{background:var(--b50)}
 
 <!-- ═══════════════════════ PAGE: PRODUCT (BOX DETAIL) ════════════ -->
 <div id="page-product" class="page">
-  <!-- Box navigation arrows -->
-  <div id="box-nav-prev" class="box-nav-arrow" onclick="ppBoxNav(-1)"><i class="fa fa-chevron-left"></i></div>
-  <div id="box-nav-next" class="box-nav-arrow" onclick="ppBoxNav(1)"><i class="fa fa-chevron-right"></i></div>
-  <div id="box-nav-indicator"></div>
   <div class="prod-layout">
     <!-- GALLERY (own direct child for mobile ordering) -->
     <div class="prod-gallery-wrap">
@@ -8950,7 +8946,6 @@ function loadProduct(boxId) {
     var pfEl = document.getElementById('prod-featured-section');
     if (pfEl) pfEl.innerHTML = '';
   }
-  ppUpdateNavArrows();
 
   document.getElementById('prod-bc').textContent = b.name;
   document.getElementById('prod-title-r').textContent = b.name;
@@ -8987,6 +8982,26 @@ function loadProduct(boxId) {
     div.appendChild(img);
     thumbsEl.appendChild(div);
   });
+
+  // Touch swipe on gallery main image
+  var galleryMain = document.getElementById('prod-gallery-main');
+  if (galleryMain && imgs.length > 1) {
+    var swipeStartX = 0;
+    galleryMain._swipeStart = function(e) { swipeStartX = (e.touches ? e.touches[0].clientX : e.clientX); };
+    galleryMain._swipeEnd   = function(e) {
+      var endX  = (e.changedTouches ? e.changedTouches[0].clientX : e.clientX);
+      var delta = swipeStartX - endX;
+      if (Math.abs(delta) < 50) return;
+      var thumbs = Array.from(document.querySelectorAll('.gthumb'));
+      var cur    = thumbs.findIndex(function(t){ return t.classList.contains('on'); });
+      var next   = delta > 0 ? cur + 1 : cur - 1;
+      if (next >= 0 && next < thumbs.length) thumbs[next].click();
+    };
+    galleryMain.removeEventListener('touchstart', galleryMain._swipeStart);
+    galleryMain.removeEventListener('touchend',   galleryMain._swipeEnd);
+    galleryMain.addEventListener('touchstart', galleryMain._swipeStart, { passive: true });
+    galleryMain.addEventListener('touchend',   galleryMain._swipeEnd,   { passive: true });
+  }
 
   // Toggle surprise vs normal experience section
   document.getElementById('prod-exp-sec').style.display = isSurprise ? 'none' : 'block';
