@@ -14,6 +14,10 @@
     {
       "path": "/api/process-boost-notifications",
       "schedule": "0 8 * * *"
+    },
+    {
+      "path": "/api/keep-alive",
+      "schedule": "0 6 */3 * *"
     }
   ]
 }
