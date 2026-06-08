@@ -2500,6 +2500,11 @@ nav{position:sticky;top:0;z-index:300;background:rgba(255,255,255,.95);
 .cat:hover,.cat.on{border-color:var(--b500);background:var(--b50);color:var(--b600)}
 
 /* ─── PRODUCT PAGE ─── */
+.box-nav-arrow{position:fixed;top:50%;transform:translateY(-50%);z-index:200;width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,.92);border:1.5px solid var(--border);box-shadow:0 2px 10px rgba(0,0,0,.12);display:none;align-items:center;justify-content:center;cursor:pointer;transition:background .15s,box-shadow .15s;color:var(--navy);font-size:.95rem}
+.box-nav-arrow:hover{background:#fff;box-shadow:0 4px 16px rgba(0,0,0,.18)}
+#box-nav-prev{left:10px}
+#box-nav-next{right:10px}
+#box-nav-indicator{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);z-index:200;background:rgba(0,0,0,.55);color:#fff;border-radius:99px;padding:4px 14px;font-size:.72rem;font-weight:600;display:none;pointer-events:none}
 .prod-layout{display:grid;grid-template-columns:1fr 380px;gap:44px;
   max-width:1240px;margin:0 auto;padding:36px 40px;align-items:start}
 /* Desktop: gallery-wrap + left-content share col 1, right panel = col 2 */
@@ -3443,6 +3448,8 @@ tr:hover td{background:var(--b50)}
   .prod-layout > div:nth-child(3) { grid-column: 1; grid-row: auto; order: 2; padding: 0 16px 12px; }
   .prod-layout > div:nth-child(3) > div { position: static !important; }
   #prod-breadcrumb { padding: 12px 0 0; }
+  /* Box nav arrows */
+  .box-nav-arrow { display: flex; }
   .gallery-main { height: 260px; border-radius: 0; margin-bottom: 10px; }
   .gallery-thumbs { gap: 6px; padding: 0 4px; }
   .gallery-thumbs { gap: 6px; }
@@ -4196,6 +4203,10 @@ tr:hover td{background:var(--b50)}
 
 <!-- ═══════════════════════ PAGE: PRODUCT (BOX DETAIL) ════════════ -->
 <div id="page-product" class="page">
+  <!-- Box navigation arrows -->
+  <div id="box-nav-prev" class="box-nav-arrow" onclick="ppBoxNav(-1)"><i class="fa fa-chevron-left"></i></div>
+  <div id="box-nav-next" class="box-nav-arrow" onclick="ppBoxNav(1)"><i class="fa fa-chevron-right"></i></div>
+  <div id="box-nav-indicator"></div>
   <div class="prod-layout">
     <!-- GALLERY (own direct child for mobile ordering) -->
     <div class="prod-gallery-wrap">
@@ -8328,6 +8339,9 @@ function go(page) {
     }
   } else if (page === 'product' && appState.currentBoxId) {
     cleanPath = '/box/' + appState.currentBoxId;
+    // Save scroll position for back-navigation
+    sessionStorage.setItem('wowbox_allboxes_scroll', window.scrollY);
+    sessionStorage.setItem('wowbox_allboxes_lastbox', appState.currentBoxId);
     // Update OG tags for box
     var boxB = boxDB[appState.currentBoxId];
     if (boxB) {
@@ -8356,10 +8370,40 @@ function go(page) {
     updateOGTags({});
   }
 
+  // Hide box nav arrows when leaving product page
+  if (page !== 'product') {
+    var pv = document.getElementById('box-nav-prev');
+    var nx = document.getElementById('box-nav-next');
+    var ni = document.getElementById('box-nav-indicator');
+    if (pv) pv.style.display = 'none';
+    if (nx) nx.style.display = 'none';
+    if (ni) ni.style.display = 'none';
+  }
+
   if (window.location.pathname !== cleanPath) {
     history.pushState(null, '', cleanPath);
   }
-  if (page === 'allboxes' || page === 'home') { renderBoxGrids(); }
+  if (page === 'allboxes' || page === 'home') {
+    renderBoxGrids().then(function() {
+      var savedScroll  = sessionStorage.getItem('wowbox_allboxes_scroll');
+      var savedBoxId   = sessionStorage.getItem('wowbox_allboxes_lastbox');
+      if (savedScroll !== null) {
+        // Try to scroll to the last viewed box card
+        if (savedBoxId) {
+          var boxCard = document.querySelector('[onclick*="loadProduct(\''+savedBoxId+'\'"]');
+          if (boxCard) {
+            setTimeout(function(){ boxCard.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 100);
+          } else {
+            setTimeout(function(){ window.scrollTo({ top: parseInt(savedScroll), behavior: 'smooth' }); }, 100);
+          }
+        } else {
+          setTimeout(function(){ window.scrollTo({ top: parseInt(savedScroll), behavior: 'smooth' }); }, 100);
+        }
+        sessionStorage.removeItem('wowbox_allboxes_scroll');
+        sessionStorage.removeItem('wowbox_allboxes_lastbox');
+      }
+    });
+  }
   if (page === 'cart') renderCart();
   if (page === 'checkout') renderCheckout();
   if (page === 'reviews') renderReviewsPage();
@@ -8863,6 +8907,38 @@ async function renderBoxGrids() {
 const thumbImages = {
   'couples-retreat': ['https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?q=80&w=800','https://images.unsplash.com/photo-1559508551-44bff1de756b?q=80&w=800','https://images.unsplash.com/photo-1571003123894-1f0594d2b5d9?q=80&w=800','https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?q=80&w=800'],
 };
+// ── Box navigation arrows ─────────────────────────────────────
+function ppBoxNav(dir) {
+  var ids = Object.keys(boxDB);
+  if (!ids.length) return;
+  var cur = ids.indexOf(appState.currentBoxId);
+  if (cur === -1) return;
+  var next = cur + dir;
+  if (next < 0 || next >= ids.length) return;
+  loadProduct(ids[next]);
+  go('product');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function ppUpdateNavArrows() {
+  var ids  = Object.keys(boxDB);
+  var cur  = ids.indexOf(appState.currentBoxId);
+  var prev = document.getElementById('box-nav-prev');
+  var next = document.getElementById('box-nav-next');
+  var ind  = document.getElementById('box-nav-indicator');
+  if (!prev || !next) return;
+  prev.style.display = cur > 0              ? 'flex' : 'none';
+  next.style.display = cur < ids.length - 1 ? 'flex' : 'none';
+  if (ind) {
+    if (ids.length > 1) {
+      ind.style.display = 'block';
+      ind.textContent   = (cur + 1) + ' / ' + ids.length;
+    } else {
+      ind.style.display = 'none';
+    }
+  }
+}
+
 function loadProduct(boxId) {
   appState.currentBoxId = boxId;
   const b = boxDB[boxId];
@@ -8874,6 +8950,7 @@ function loadProduct(boxId) {
     var pfEl = document.getElementById('prod-featured-section');
     if (pfEl) pfEl.innerHTML = '';
   }
+  ppUpdateNavArrows();
 
   document.getElementById('prod-bc').textContent = b.name;
   document.getElementById('prod-title-r').textContent = b.name;
