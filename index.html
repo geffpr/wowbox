@@ -8903,6 +8903,35 @@ async function renderBoxGrids() {
 const thumbImages = {
   'couples-retreat': ['https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?q=80&w=800','https://images.unsplash.com/photo-1559508551-44bff1de756b?q=80&w=800','https://images.unsplash.com/photo-1571003123894-1f0594d2b5d9?q=80&w=800','https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?q=80&w=800'],
 };
+// ── Gallery swipe (declared once, reattached per box) ────────
+var _galSwipeX = 0;
+function _galOnTouchStart(e) {
+  _galSwipeX = e.touches ? e.touches[0].clientX : e.clientX;
+}
+function _galOnTouchEnd(e) {
+  var endX  = e.changedTouches ? e.changedTouches[0].clientX : e.clientX;
+  var delta = _galSwipeX - endX;
+  if (Math.abs(delta) < 50) return;
+  var thumbs = Array.from(document.querySelectorAll('.gthumb'));
+  var cur    = thumbs.findIndex(function(t){ return t.classList.contains('on'); });
+  var next   = delta > 0 ? cur + 1 : cur - 1;
+  if (next >= 0 && next < thumbs.length) {
+    swapImg(thumbs[next], thumbs[next].querySelector('img') ? thumbs[next].querySelector('img').src : '');
+    // Use stored src for full-res version
+    var imgs = window._galleryImgs || [];
+    if (imgs[next]) swapImg(thumbs[next], imgs[next]);
+  }
+}
+function galleryAttachSwipe() {
+  var el = document.getElementById('prod-gallery-main');
+  if (!el) return;
+  // Always remove first (safe even if not attached)
+  el.removeEventListener('touchstart', _galOnTouchStart);
+  el.removeEventListener('touchend',   _galOnTouchEnd);
+  el.addEventListener('touchstart', _galOnTouchStart, { passive: true });
+  el.addEventListener('touchend',   _galOnTouchEnd,   { passive: true });
+}
+
 // ── Box navigation arrows ─────────────────────────────────────
 function ppBoxNav(dir) {
   var ids = Object.keys(boxDB);
@@ -8965,6 +8994,7 @@ function loadProduct(boxId) {
   document.getElementById('qty-total').textContent = 'R' + b.price.toLocaleString();
 
   const imgs = (b.images && b.images.length) ? b.images : (b.img ? [b.img] : []);
+  window._galleryImgs = imgs; // store for swipe handler
   // Set main image from imgs array
   document.getElementById('prod-img').src = imgs[0] || b.img || '';
   // Use DOM to avoid URL corruption in onclick attributes
@@ -8983,25 +9013,8 @@ function loadProduct(boxId) {
     thumbsEl.appendChild(div);
   });
 
-  // Touch swipe on gallery main image
-  var galleryMain = document.getElementById('prod-gallery-main');
-  if (galleryMain && imgs.length > 1) {
-    var swipeStartX = 0;
-    galleryMain._swipeStart = function(e) { swipeStartX = (e.touches ? e.touches[0].clientX : e.clientX); };
-    galleryMain._swipeEnd   = function(e) {
-      var endX  = (e.changedTouches ? e.changedTouches[0].clientX : e.clientX);
-      var delta = swipeStartX - endX;
-      if (Math.abs(delta) < 50) return;
-      var thumbs = Array.from(document.querySelectorAll('.gthumb'));
-      var cur    = thumbs.findIndex(function(t){ return t.classList.contains('on'); });
-      var next   = delta > 0 ? cur + 1 : cur - 1;
-      if (next >= 0 && next < thumbs.length) thumbs[next].click();
-    };
-    galleryMain.removeEventListener('touchstart', galleryMain._swipeStart);
-    galleryMain.removeEventListener('touchend',   galleryMain._swipeEnd);
-    galleryMain.addEventListener('touchstart', galleryMain._swipeStart, { passive: true });
-    galleryMain.addEventListener('touchend',   galleryMain._swipeEnd,   { passive: true });
-  }
+  // Attach global swipe handler for gallery
+  galleryAttachSwipe();
 
   // Toggle surprise vs normal experience section
   document.getElementById('prod-exp-sec').style.display = isSurprise ? 'none' : 'block';
