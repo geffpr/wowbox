@@ -154,57 +154,78 @@ async function sendEmail({ to, subject, html, replyTo }) {
 // TEMPLATES
 // ════════════════════════════════════════════════════════════════════════════
 
-function tplStatusDelivered(o) {
+// Email A — sent to BUYER: includes price
+function tplBuyerConfirmation(o) {
   const isPhysical = o.type === 'Physical' || o.type === 'Mixed';
-
+  const isGift = !!(o.recipientEmail && o.recipientEmail !== o.email);
   const items = (o.items || []).map(i =>
-    `<div style="display:flex;justify-content:space-between;align-items:center;
-      padding:12px 0;border-bottom:1px solid #f5ede6">
+    `<div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid #f5ede6">
       <span style="font-size:14px;color:${C.text};font-weight:600">${i.name}</span>
-      <span style="font-family:'Courier New',monospace;font-size:13px;color:${C.midBrown};
-        font-weight:700;letter-spacing:1px;background:#fef3c7;padding:3px 10px;border-radius:6px">${i.code}</span>
+      <span style="font-family:'Courier New',monospace;font-size:13px;color:${C.midBrown};font-weight:700;letter-spacing:1px;background:#fef3c7;padding:3px 10px;border-radius:6px">${i.code}</span>
     </div>`
   ).join('');
-
-  const headline = isPhysical
-    ? 'Your WowBox has arrived, ' + o.name + '!'
-    : 'Your WowBox is ready, ' + o.name + '!';
-
-  const intro = isPhysical
-    ? "Great news — your WowBox has been delivered! Your voucher codes are below. Enter your code on our website to start browsing and booking your experiences."
-    : "Your gift experience has been confirmed. Your voucher codes are below — share this email with your lucky recipient!";
-
-  const deliveryLabel = isPhysical
-    ? 'Physical box — delivered'
-    : 'E-Box — Instant digital delivery';
-
-  const subjectPrefix = isPhysical ? '📦 Your WowBox has arrived' : '🎁 Your WowBox is ready';
-
+  const deliveryLabel = isPhysical ? 'Physical box — 2–3 business days' : 'E-Box — Instant digital delivery';
+  const subjectPrefix = isPhysical ? '📦 Order confirmed' : '🎁 Order confirmed';
+  const intro = isGift
+    ? `Your gift has been prepared. ${isPhysical ? 'It will be shipped shortly.' : 'A separate gift email has been sent to <strong>' + (o.recipientName || o.recipientEmail) + '</strong>.'}`
+    : 'Your WowBox is ready. Your voucher code is below — enjoy your experience!';
   return {
     subject: `${subjectPrefix} — ${o.id}`,
     html: layout(`
-      ${badge(isPhysical ? '📦 Delivered' : '🎁 Order Confirmed', '#059669')}
-      ${h1(headline)}
+      ${badge(isPhysical ? '📦 Order Confirmed' : '🎁 Order Confirmed', '#059669')}
+      ${h1('Your WowBox order is confirmed, ' + o.name + '!')}
       ${p(intro)}
       ${hr()}
-      ${h2('Your Voucher Codes')}
+      ${h2('Your Voucher Code' + ((o.items||[]).length > 1 ? 's' : ''))}
       <div style="background:${C.card};border-radius:10px;padding:4px 16px;margin:16px 0">${items}</div>
       ${infoTable(
         infoRow('Order ref', o.id || '—') +
         infoRow('Date', o.date || new Date().toLocaleDateString('en-ZA')) +
         infoRow('Delivery', deliveryLabel) +
         infoRow('Total paid', o.total || '—') +
-        (o.bookingReference ? infoRow('Booking reference', `<strong style="font-family:'Courier New',monospace;color:#15803d;letter-spacing:1px">${o.bookingReference}</strong>`) : '')
+        (isGift ? infoRow('Gift recipient', o.recipientName || o.recipientEmail || '—') : '') +
+        (o.bookingReference ? infoRow('Booking ref', '<strong style="font-family:monospace;color:#15803d;letter-spacing:1px">' + o.bookingReference + '</strong>') : '')
       )}
-      ${o.giftMsg ? highlight(`<strong>Gift message:</strong><br><em style="font-family:Georgia,serif;font-size:15px">"${o.giftMsg}"</em>`) : ''}
-      ${o.videoToken ? highlight(`<strong>🎬 Video message included</strong><br><a href="${SITE_URL}/gift-video/${o.videoToken}" style="color:${C.goldDark}">Watch the video &rarr;</a>`) : ''}
+      ${o.videoToken ? highlight('<strong>🎬 Video message included</strong><br>Your video has been sent with the gift.') : ''}
       ${hr()}
-      ${p('<strong>How to use your WowBox:</strong><br>1. Go to <a href="' + SITE_URL + '/redeem" style="color:' + C.goldDark + '">wowbox.co.za/redeem</a> and enter your code<br>2. Browse the experiences in your box<br>3. Book directly with the partner')}
-      ${btn('Browse Your Experiences', SITE_URL + '/redeem')}
+      ${p('<strong>How to use WowBox:</strong><br>1. Go to <a href="' + SITE_URL + '/redeem" style="color:' + C.goldDark + '">wowbox.co.za/redeem</a> and enter your code<br>2. Browse the experiences in your box<br>3. Book directly with the partner')}
+      ${btn('View My Account', SITE_URL + '/my-account')}
       ${sm('Need help? <a href="mailto:support@wowbox.co.za" style="color:' + C.goldDark + '">support@wowbox.co.za</a>')}
-    `, HEROES.order, isPhysical ? 'Your WowBox voucher codes are here' : 'Your WowBox voucher codes are inside'),
+    `, HEROES.order, 'Your WowBox order is confirmed'),
   };
 }
+
+// Email B — sent to RECIPIENT: no price, gift-focused
+function tplRecipientGift(o) {
+  const items = (o.items || []).map(i =>
+    `<div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid #f5ede6">
+      <span style="font-size:14px;color:${C.text};font-weight:600">${i.name}</span>
+      <span style="font-family:'Courier New',monospace;font-size:13px;color:${C.midBrown};font-weight:700;letter-spacing:1px;background:#fef3c7;padding:3px 10px;border-radius:6px">${i.code}</span>
+    </div>`
+  ).join('');
+  const recipientFirst = (o.recipientName || 'there').split(' ')[0];
+  const senderName = o.name || 'Someone special';
+  return {
+    subject: `🎁 You've received a WowBox gift from ${senderName}!`,
+    html: layout(`
+      ${badge('🎁 You Have a Gift!', C.midBrown)}
+      ${h1('You have received a gift, ' + recipientFirst + '!')}
+      ${p('<strong>' + senderName + '</strong> has gifted you a WowBox experience. Your voucher code is below — use it to browse and book your experience.')}
+      ${o.giftMsg ? highlight('<strong>💌 A message from ' + senderName + ':</strong><br><em style="font-family:Georgia,serif;font-size:15px">"' + o.giftMsg + '"</em>') : ''}
+      ${o.videoToken ? highlight('<strong>🎬 Video message from ' + senderName + '</strong><br><a href="' + SITE_URL + '/gift-video/' + o.videoToken + '" style="color:' + C.goldDark + '">Watch the video &rarr;</a>') : ''}
+      ${hr()}
+      ${h2('Your Voucher Code' + ((o.items||[]).length > 1 ? 's' : ''))}
+      <div style="background:${C.card};border-radius:10px;padding:4px 16px;margin:16px 0">${items}</div>
+      ${hr()}
+      ${p('<strong>How to redeem your WowBox gift:</strong><br>1. Go to <a href="' + SITE_URL + '/redeem" style="color:' + C.goldDark + '">wowbox.co.za/redeem</a> and enter your code<br>2. Browse the experiences in your box<br>3. Book directly with the partner')}
+      ${btn('Redeem My Gift', SITE_URL + '/redeem')}
+      ${sm('Questions? <a href="mailto:support@wowbox.co.za" style="color:' + C.goldDark + '">support@wowbox.co.za</a>')}
+    `, HEROES.order, senderName + ' has sent you an unforgettable experience'),
+  };
+}
+
+// Legacy alias
+function tplStatusDelivered(o) { return tplBuyerConfirmation(o); }
 
 function tplStatusPending(o) {
   return {
@@ -530,38 +551,6 @@ function tplRefundConfirmation(o) {
 }
 
 
-function tplBuyerConfirmation(o) {
-  const items = (o.items || []).map(i =>
-    `<div style="display:flex;justify-content:space-between;align-items:center;
-      padding:12px 0;border-bottom:1px solid #f5ede6">
-      <span style="font-size:14px;color:${C.text};font-weight:600">${i.name}</span>
-      <span style="font-family:'Courier New',monospace;font-size:13px;color:${C.midBrown};
-        font-weight:700;letter-spacing:1px;background:#fef3c7;padding:3px 10px;border-radius:6px">${i.code}</span>
-    </div>`
-  ).join('');
-  return {
-    subject: `✅ Your WowBox order is confirmed — ${o.id}`,
-    html: layout(`
-      ${badge('✅ Order Confirmed', '#059669')}
-      ${h1('Thank you, ' + o.name + '!')}
-      ${p('Your WowBox gift has been sent to <strong>' + (o.recipientName || o.recipientEmail || 'the recipient') + '</strong>. Their voucher code has been delivered to <strong>' + (o.recipientEmail || '—') + '</strong>.')}
-      ${hr()}
-      ${infoTable(
-        infoRow('Order ref', o.id || '—') +
-        infoRow('Date', o.date || new Date().toLocaleDateString('en-ZA')) +
-        infoRow('Recipient', o.recipientName || o.recipientEmail || '—') +
-        infoRow('Delivery', 'E-Box — Instant digital delivery') +
-        infoRow('Total paid', o.total || '—')
-      )}
-      ${o.giftMsg ? highlight(`<strong>Your gift message:</strong><br><em style="font-family:Georgia,serif;font-size:15px">"${o.giftMsg}"</em>`) : ''}
-      ${items ? `${h2('Voucher codes sent')}<div style="background:${C.card};border-radius:10px;padding:4px 16px;margin:16px 0">${items}</div>` : ''}
-      ${hr()}
-      ${btn('View My Orders', SITE_URL + '/my-account')}
-      ${sm('Need help? <a href="mailto:support@wowbox.co.za" style="color:' + C.goldDark + '">support@wowbox.co.za</a>')}
-    `, HEROES.order, 'Your WowBox gift has been delivered to the recipient'),
-  };
-}
-
 // ── Boost Started ────────────────────────────────────────────────────────────
 function tplBoostStarted(o) {
   const expiry = o.expiresAt
@@ -665,7 +654,11 @@ export default async function handler(req, res) {
       case 'status_delivered':
       case 'resend': {
         const dest = toOverride || o.email;
-        if (dest) emailJobs.push({ to: dest, ...tplStatusDelivered(o) });
+        if (dest) emailJobs.push({ to: dest, ...tplBuyerConfirmation(o) });
+        // Send separate gift email to recipient if different from buyer
+        if (!toOverride && o.recipientEmail && o.recipientEmail !== o.email) {
+          emailJobs.push({ to: o.recipientEmail, ...tplRecipientGift(o) });
+        }
         break;
       }
       case 'status_pending': {
