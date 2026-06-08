@@ -7722,7 +7722,42 @@ tr:hover td{background:var(--b50)}
       <div id="adm-settings" style="display:none">
         <div style="margin-bottom:26px">
           <h2 style="font-size:1.7rem;color:var(--navy)">Site Settings</h2>
-          <p style="color:var(--muted);font-size:.82rem">Manage the hero background image and global SEO settings.</p>
+          <p style="color:var(--muted);font-size:.82rem">Manage the hero background image, pre-launch mode and global SEO settings.</p>
+        </div>
+
+        <!-- Pre-launch Mode -->
+        <div class="atbl" style="padding:20px;margin-bottom:22px;border:2px solid #f59e0b">
+          <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:16px">
+            <div>
+              <h3 style="font-size:.95rem;color:var(--navy);margin-bottom:3px"><i class="fa fa-rocket" style="color:#f59e0b"></i> Pre-launch Mode</h3>
+              <p style="font-size:.75rem;color:var(--muted);margin:0">When enabled, visitors see a "Coming Soon" landing page. Admin &amp; Partner portals stay accessible.</p>
+            </div>
+            <label style="display:flex;align-items:center;gap:10px;cursor:pointer">
+              <span style="font-size:.82rem;font-weight:600;color:var(--navy)" id="adm-prelaunch-label">OFF</span>
+              <div style="position:relative;width:44px;height:24px" onclick="admTogglePrelaunch()">
+                <input type="checkbox" id="adm-prelaunch-toggle" style="opacity:0;width:0;height:0;position:absolute">
+                <div id="adm-prelaunch-track" style="position:absolute;inset:0;border-radius:99px;background:var(--border);transition:background .2s;cursor:pointer"></div>
+                <div id="adm-prelaunch-thumb" style="position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:#fff;transition:transform .2s;box-shadow:0 1px 4px rgba(0,0,0,.2)"></div>
+              </div>
+            </label>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;flex-wrap:wrap" class="adm-prelaunch-config">
+            <div>
+              <label style="font-size:.72rem;color:var(--muted);display:block;margin-bottom:5px">Landing page message</label>
+              <textarea class="fi" id="adm-prelaunch-msg" rows="3" placeholder="We're curating the best experiences in South Africa. Be the first to know when we launch!" style="resize:vertical"></textarea>
+            </div>
+            <div>
+              <label style="font-size:.72rem;color:var(--muted);display:block;margin-bottom:5px">Landing page background image</label>
+              <input type="file" id="adm-prelaunch-file" accept="image/*" class="fi" style="width:100%;padding:8px">
+              <div id="adm-prelaunch-img-status" style="font-size:.72rem;color:var(--muted);margin-top:4px"></div>
+              <img id="adm-prelaunch-preview" src="" alt="" style="margin-top:8px;width:100%;height:80px;object-fit:cover;border-radius:var(--rs);border:1.5px solid var(--border);display:none">
+            </div>
+          </div>
+          <div style="display:flex;gap:10px;align-items:center;margin-top:14px;flex-wrap:wrap">
+            <button class="btn bp bsm" onclick="admSavePrelaunch()"><i class="fa fa-floppy-disk"></i> Save pre-launch settings</button>
+            <span id="adm-prelaunch-status" style="font-size:.78rem;color:var(--muted)"></span>
+            <span style="margin-left:auto;font-size:.75rem;color:var(--muted)">Waitlist: <strong id="adm-waitlist-count">—</strong> signups</span>
+          </div>
         </div>
 
         <!-- Hero Image -->
@@ -13405,7 +13440,7 @@ function switchAdm(btn, tab) {
   if (tab === 'adm-orders')        loadOrdersFromSupabase();
   if (tab === 'adm-usage')         { renderUsageTable(); loadUsageFromSupabase(); }
   if (tab === 'adm-comm')          { loadAdminCommissionPayouts(); loadCommissionRates(); admLoadFeaturedBoosts(); }
-  if (tab === 'adm-settings')      admLoadSiteSettings();
+  if (tab === 'adm-settings')      { admLoadSiteSettings(); loadPrelaunchSettings(); }
   if (tab === 'adm-pricing')       renderAdmPricing();
   if (tab === 'adm-reviews')       admLoadReviews();
   if (tab === 'adm-coupons')       loadCoupons();
@@ -17466,6 +17501,8 @@ async function admDeleteCoupon(id, code) {
 /* ── Site Settings — load hero image + SEO from Supabase on startup ── */
 async function loadSiteSettingsOnStartup() {
   try {
+    // Check pre-launch mode first
+    await checkPrelaunchMode();
     var res = await db_client.from('site_settings').select('key,value');
     if (res.error || !res.data) return;
     var settings = {};
@@ -18261,6 +18298,137 @@ async function admLoadAccessList() {
   }
 }
 
+/* ── Pre-launch Mode ── */
+async function loadPrelaunchSettings() {
+  try {
+    var res = await db_client.from('site_settings').select('key,value');
+    var s = {};
+    (res.data||[]).forEach(function(r){ s[r.key] = r.value; });
+    // Populate admin form
+    var toggle  = document.getElementById('adm-prelaunch-toggle');
+    var label   = document.getElementById('adm-prelaunch-label');
+    var msg     = document.getElementById('adm-prelaunch-msg');
+    var preview = document.getElementById('adm-prelaunch-preview');
+    var wlCount = document.getElementById('adm-waitlist-count');
+    if (toggle) { toggle.checked = s.pre_launch_mode === 'true'; admUpdatePrelaunchToggleUI(); }
+    if (msg)    msg.value = s.pre_launch_message || '';
+    if (preview && s.pre_launch_image) { preview.src = s.pre_launch_image; preview.style.display = 'block'; }
+    // Waitlist count
+    if (wlCount) {
+      var wlRes = await db_client.from('waitlist').select('id', { count: 'exact', head: true });
+      wlCount.textContent = (wlRes.count || 0) + ' signups';
+    }
+  } catch(e) { console.warn('loadPrelaunchSettings:', e.message); }
+}
+
+function admUpdatePrelaunchToggleUI() {
+  var toggle = document.getElementById('adm-prelaunch-toggle');
+  var track  = document.getElementById('adm-prelaunch-track');
+  var thumb  = document.getElementById('adm-prelaunch-thumb');
+  var label  = document.getElementById('adm-prelaunch-label');
+  var on     = toggle && toggle.checked;
+  if (track) track.style.background = on ? '#f59e0b' : 'var(--border)';
+  if (thumb) thumb.style.transform  = on ? 'translateX(20px)' : 'translateX(0)';
+  if (label) label.textContent       = on ? 'ON'  : 'OFF';
+}
+
+function admTogglePrelaunch() {
+  var toggle = document.getElementById('adm-prelaunch-toggle');
+  if (toggle) toggle.checked = !toggle.checked;
+  admUpdatePrelaunchToggleUI();
+}
+
+async function admSavePrelaunch() {
+  var toggle  = document.getElementById('adm-prelaunch-toggle');
+  var msg     = document.getElementById('adm-prelaunch-msg');
+  var fileEl  = document.getElementById('adm-prelaunch-file');
+  var statusEl= document.getElementById('adm-prelaunch-status');
+  var imgStatusEl = document.getElementById('adm-prelaunch-img-status');
+  if (statusEl) statusEl.textContent = 'Saving…';
+  try {
+    var rows = [
+      { key: 'pre_launch_mode',    value: toggle && toggle.checked ? 'true' : 'false' },
+      { key: 'pre_launch_message', value: msg ? msg.value.trim() : '' },
+    ];
+    // Upload image if selected
+    if (fileEl && fileEl.files && fileEl.files[0]) {
+      var file = fileEl.files[0];
+      if (imgStatusEl) imgStatusEl.textContent = 'Uploading image…';
+      var fname = 'prelaunch_' + Date.now() + '.' + file.name.split('.').pop();
+      var upRes = await db_client.storage.from('site-assets').upload(fname, file, { upsert: true, contentType: file.type });
+      if (upRes.error) throw upRes.error;
+      var { data: urlData } = db_client.storage.from('site-assets').getPublicUrl(fname);
+      var url = urlData.publicUrl;
+      rows.push({ key: 'pre_launch_image', value: url });
+      var preview = document.getElementById('adm-prelaunch-preview');
+      if (preview) { preview.src = url; preview.style.display = 'block'; }
+      if (imgStatusEl) imgStatusEl.textContent = '✓ Image uploaded';
+    }
+    await db_client.from('site_settings').upsert(rows, { onConflict: 'key' });
+    if (statusEl) { statusEl.textContent = '✓ Saved'; statusEl.style.color = 'var(--green)'; }
+    setTimeout(function(){ if (statusEl) { statusEl.textContent = ''; statusEl.style.color = ''; } }, 3000);
+  } catch(e) {
+    if (statusEl) { statusEl.textContent = 'Error: ' + e.message; statusEl.style.color = '#dc2626'; }
+  }
+}
+
+async function prelaunchJoinWaitlist() {
+  var emailEl  = document.getElementById('prelaunch-email');
+  var statusEl = document.getElementById('prelaunch-join-status');
+  var email    = emailEl ? emailEl.value.trim() : '';
+  if (!email || !email.includes('@')) {
+    if (statusEl) statusEl.textContent = 'Please enter a valid email address.';
+    return;
+  }
+  if (statusEl) statusEl.textContent = 'Joining…';
+  try {
+    var res = await db_client.from('waitlist').insert({ email: email });
+    if (res.error && res.error.code !== '23505') throw res.error;
+    if (emailEl) emailEl.value = '';
+    if (statusEl) { statusEl.textContent = "🎉 You're on the list! We'll notify you at launch."; statusEl.style.color = '#86efac'; }
+    // Update counter
+    var cnt = document.getElementById('prelaunch-waitlist-count');
+    if (cnt) { var n = parseInt(cnt.textContent) || 0; cnt.textContent = n + 1; }
+  } catch(e) {
+    if (statusEl) { statusEl.textContent = 'Something went wrong. Please try again.'; statusEl.style.color = '#fca5a5'; }
+  }
+}
+
+async function checkPrelaunchMode() {
+  try {
+    var isAdmin   = currentUser && appState.adminMode;
+    var isPartner = currentUser && appState.partnerMode;
+    if (isAdmin || isPartner) return; // bypass for admin/partner
+    var res = await db_client.from('site_settings').select('key,value').in('key',['pre_launch_mode','pre_launch_message','pre_launch_image']);
+    var s = {};
+    (res.data||[]).forEach(function(r){ s[r.key] = r.value; });
+    if (s.pre_launch_mode !== 'true') return;
+    // Load stats
+    var [expRes, partRes, wlRes] = await Promise.all([
+      db_client.from('experiences').select('id',{count:'exact',head:true}).eq('is_active',true),
+      db_client.from('partners').select('id',{count:'exact',head:true}).eq('status','approved'),
+      db_client.from('waitlist').select('id',{count:'exact',head:true})
+    ]);
+    var expCnt = document.getElementById('prelaunch-exp-count');
+    var partCnt= document.getElementById('prelaunch-partner-count');
+    var wlCnt  = document.getElementById('prelaunch-waitlist-count');
+    if (expCnt)  expCnt.textContent  = expRes.count  || '0';
+    if (partCnt) partCnt.textContent = partRes.count || '0';
+    if (wlCnt)   wlCnt.textContent   = wlRes.count   || '0';
+    // Set message
+    var msgEl = document.getElementById('prelaunch-msg');
+    if (msgEl) msgEl.textContent = s.pre_launch_message || '';
+    // Set background image
+    if (s.pre_launch_image) {
+      var bg = document.getElementById('prelaunch-bg');
+      if (bg) bg.style.backgroundImage = 'url(' + s.pre_launch_image + ')';
+    }
+    // Show overlay
+    var overlay = document.getElementById('prelaunch-overlay');
+    if (overlay) overlay.style.display = 'block';
+  } catch(e) { console.warn('checkPrelaunchMode:', e.message); }
+}
+
 /* ── Admin Site Settings ── */
 async function admLoadSiteSettings() {
   try {
@@ -18655,6 +18823,45 @@ async function admRunSchemaDiag() {
 })();
 </script>
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+
+<!-- ═══════════════════════ PRE-LAUNCH OVERLAY ════════════════════════ -->
+<div id="prelaunch-overlay" style="display:none;position:fixed;inset:0;z-index:9000;overflow:hidden">
+  <div id="prelaunch-bg" style="position:absolute;inset:0;background:linear-gradient(135deg,#1a1a2e 0%,#3d2314 100%);background-size:cover;background-position:center">
+    <div style="position:absolute;inset:0;background:rgba(0,0,0,.45)"></div>
+  </div>
+  <div style="position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:32px 20px;text-align:center">
+    <div style="margin-bottom:24px">
+      <div style="font-family:'Cormorant Garamond',serif;font-size:2.2rem;font-weight:700;color:#fff;letter-spacing:.05em">WowBox</div>
+      <div style="font-size:.75rem;color:rgba(255,255,255,.65);letter-spacing:.2em;text-transform:uppercase;margin-top:2px">Unforgettable Experiences</div>
+    </div>
+    <div style="background:rgba(245,158,11,.2);border:1px solid rgba(245,158,11,.5);border-radius:99px;padding:6px 18px;font-size:.75rem;font-weight:700;color:#fcd34d;letter-spacing:.1em;text-transform:uppercase;margin-bottom:28px">Coming Soon</div>
+    <h1 id="prelaunch-headline" style="font-family:'Cormorant Garamond',serif;font-size:2.4rem;font-weight:700;color:#fff;max-width:560px;line-height:1.25;margin-bottom:16px">We're curating the best experiences in South Africa</h1>
+    <p id="prelaunch-msg" style="font-size:.9rem;color:rgba(255,255,255,.72);max-width:460px;line-height:1.7;margin-bottom:36px"></p>
+    <div style="display:flex;gap:32px;margin-bottom:40px;flex-wrap:wrap;justify-content:center">
+      <div style="text-align:center">
+        <div id="prelaunch-exp-count" style="font-family:'Cormorant Garamond',serif;font-size:2rem;font-weight:700;color:#fcd34d">—</div>
+        <div style="font-size:.7rem;color:rgba(255,255,255,.55);text-transform:uppercase;letter-spacing:.1em">Experiences ready</div>
+      </div>
+      <div style="text-align:center">
+        <div id="prelaunch-partner-count" style="font-family:'Cormorant Garamond',serif;font-size:2rem;font-weight:700;color:#fcd34d">—</div>
+        <div style="font-size:.7rem;color:rgba(255,255,255,.55);text-transform:uppercase;letter-spacing:.1em">Partner venues</div>
+      </div>
+      <div style="text-align:center">
+        <div id="prelaunch-waitlist-count" style="font-family:'Cormorant Garamond',serif;font-size:2rem;font-weight:700;color:#fcd34d">—</div>
+        <div style="font-size:.7rem;color:rgba(255,255,255,.55);text-transform:uppercase;letter-spacing:.1em">On the waitlist</div>
+      </div>
+    </div>
+    <div style="display:flex;gap:0;max-width:420px;width:100%;border-radius:10px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,.3)">
+      <input id="prelaunch-email" type="email" placeholder="Enter your email address" style="flex:1;padding:14px 18px;border:none;font-size:.9rem;outline:none;background:#fff;color:#1e293b">
+      <button onclick="prelaunchJoinWaitlist()" style="background:#f59e0b;color:#fff;border:none;padding:14px 22px;font-weight:700;font-size:.85rem;cursor:pointer;white-space:nowrap">Notify me</button>
+    </div>
+    <div id="prelaunch-join-status" style="font-size:.78rem;color:rgba(255,255,255,.7);margin-top:10px;min-height:20px"></div>
+    <div style="margin-top:48px;padding-top:32px;border-top:1px solid rgba(255,255,255,.15);width:100%;max-width:420px">
+      <p style="font-size:.78rem;color:rgba(255,255,255,.5);margin-bottom:10px">Are you an experience provider?</p>
+      <a href="/partners" onclick="document.getElementById('prelaunch-overlay').style.display='none';go('partner-landing');return false" style="color:#fcd34d;font-size:.82rem;font-weight:600;text-decoration:underline">Apply to be a WowBox partner</a>
+    </div>
+  </div>
+</div>
 
 </body>
 </html>
