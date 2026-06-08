@@ -18398,7 +18398,10 @@ async function checkPrelaunchMode() {
   try {
     var isAdmin   = currentUser && appState.adminMode;
     var isPartner = currentUser && appState.partnerMode;
-    if (isAdmin || isPartner) return; // bypass for admin/partner
+    if (isAdmin || isPartner) return;
+    // Bypass for partner application, admin and partner portal URLs
+    var path = window.location.pathname;
+    if (path.startsWith('/partners') || path.startsWith('/admin') || path.startsWith('/partner')) return;
     var res = await db_client.from('site_settings').select('key,value').in('key',['pre_launch_mode','pre_launch_message','pre_launch_image']);
     var s = {};
     (res.data||[]).forEach(function(r){ s[r.key] = r.value; });
@@ -18426,6 +18429,18 @@ async function checkPrelaunchMode() {
     // Show overlay
     var overlay = document.getElementById('prelaunch-overlay');
     if (overlay) overlay.style.display = 'block';
+
+    // Post-auth check — hide overlay if user turns out to be admin
+    db_client.auth.getUser().then(function(r) {
+      var user = r.data && r.data.user;
+      if (!user) return;
+      db_client.from('user_profiles').select('role').eq('id', user.id).maybeSingle().then(function(pr) {
+        var role = pr.data && pr.data.role;
+        if (role === 'admin' || role === 'partner') {
+          if (overlay) overlay.style.display = 'none';
+        }
+      });
+    });
   } catch(e) { console.warn('checkPrelaunchMode:', e.message); }
 }
 
@@ -18858,7 +18873,7 @@ async function admRunSchemaDiag() {
     <div id="prelaunch-join-status" style="font-size:.78rem;color:rgba(255,255,255,.7);margin-top:10px;min-height:20px"></div>
     <div style="margin-top:48px;padding-top:32px;border-top:1px solid rgba(255,255,255,.15);width:100%;max-width:420px">
       <p style="font-size:.78rem;color:rgba(255,255,255,.5);margin-bottom:10px">Are you an experience provider?</p>
-      <a href="/partners" onclick="document.getElementById('prelaunch-overlay').style.display='none';go('partner-landing');return false" style="color:#fcd34d;font-size:.82rem;font-weight:600;text-decoration:underline">Apply to be a WowBox partner</a>
+      <a href="/partners" style="color:#fcd34d;font-size:.82rem;font-weight:600;text-decoration:underline">Apply to be a WowBox partner →</a>
     </div>
   </div>
 </div>
