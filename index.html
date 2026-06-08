@@ -9253,9 +9253,9 @@ async function fetchProductExps(boxId) {
         phone:            e.phone               || '',
         rating:           e.rating              || 4.5,
         rv:               e.review_count        || 0,
-        img:              e.image_url           || 'https://images.unsplash.com/photo-1528360983277-13d401cdc186?w=800&auto=format&fit=crop',
-        img2:             (e.image_urls && e.image_urls[0]) || '',
-        img3:             (e.image_urls && e.image_urls[1]) || '',
+        img:              e.image_url || (Array.isArray(e.images) && e.images[0]) || (Array.isArray(e.image_urls) && e.image_urls[0]) || 'https://images.unsplash.com/photo-1528360983277-13d401cdc186?w=800&auto=format&fit=crop',
+        img2:             (e.image_urls && e.image_urls[0]) || (e.images && e.images[1]) || '',
+        img3:             (e.image_urls && e.image_urls[1]) || (e.images && e.images[2]) || '',
         partner:          e.partner_name        || '',
         partnerEmail:     e.partner_email       || '',
         tags:             e.tags                || [],
@@ -9333,9 +9333,9 @@ async function loadExpFromSupabase() {
         phone:            e.phone            || '',
         rating:           e.rating           || 4.5,
         rv:               e.review_count     || 0,
-        img:              e.image_url        || 'https://images.unsplash.com/photo-1528360983277-13d401cdc186?w=800&auto=format&fit=crop',
-        img2:             (e.image_urls && e.image_urls[0]) || '',
-        img3:             (e.image_urls && e.image_urls[1]) || '',
+        img:              e.image_url || (Array.isArray(e.images) && e.images[0]) || (Array.isArray(e.image_urls) && e.image_urls[0]) || 'https://images.unsplash.com/photo-1528360983277-13d401cdc186?w=800&auto=format&fit=crop',
+        img2:             (e.image_urls && e.image_urls[0]) || (e.images && e.images[1]) || '',
+        img3:             (e.image_urls && e.image_urls[1]) || (e.images && e.images[2]) || '',
         partner:          e.partner_name     || '',
         tags:             e.tags             || [],
         desc:             e.description      || '',
@@ -13854,7 +13854,7 @@ async function renderAdmExpTable() {
     // Load all experiences from Supabase — single source of truth
     var [expRes, linkRes] = await Promise.all([
       db_client.from('experiences')
-        .select('id,name,partner_name,location,reservation_type,image_url,is_active')
+        .select('id,name,partner_name,location,reservation_type,image_url,image_urls,images,is_active')
         .order('name', {ascending:true}),
       db_client.from('experience_database_links').select('experience_id,database_id')
     ]);
@@ -13886,8 +13886,12 @@ async function renderAdmExpTable() {
     tbody.innerHTML = filtered.map(function(e){
       var dbs = dbLinksMap[e.id] || [];
       var dbCell = dbs.length ? dbs.join(', ') : '<span style="color:var(--muted)">—</span>';
-      var img = e.image_url
-        ? '<img src="'+e.image_url+'" style="width:44px;height:36px;object-fit:cover;border-radius:var(--rs);flex-shrink:0" loading="lazy" onerror="this.style.display=\'none\'">'
+      var imgSrc = e.image_url
+        || (Array.isArray(e.image_urls) && e.image_urls[0])
+        || (Array.isArray(e.images)     && e.images[0])
+        || '';
+      var img = imgSrc
+        ? '<img src="'+imgSrc+'" style="width:44px;height:36px;object-fit:cover;border-radius:var(--rs);flex-shrink:0" loading="lazy" onerror="this.style.display=\'none\'">'
         : '<div style="width:44px;height:36px;border-radius:var(--rs);background:var(--b50);flex-shrink:0"></div>';
       return '<tr>'
         +'<td><div style="display:flex;align-items:center;gap:9px">'+img+'<strong>'+(e.name||'—')+'</strong></div></td>'
