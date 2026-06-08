@@ -3474,6 +3474,8 @@ tr:hover td{background:var(--b50)}
 
   /* ── Reviews ── */
   .rev-grid { grid-template-columns: 1fr; }
+  /* ── Reviews grid ── */
+  .exp-rev-grid { grid-template-columns: 1fr !important; }
   #page-reviews .sec > div { grid-template-columns: 1fr !important; gap: 16px !important; }
   .rv-score-big { padding: 14px; display: flex; align-items: flex-start; gap: 14px; }
   .rv-score-big .big-num { font-size: 2.6rem; flex-shrink: 0; }
@@ -4517,7 +4519,7 @@ tr:hover td{background:var(--b50)}
       </div>
 
       <div id="exp-tab-reviews" style="display:none">
-        <div style="display:grid;grid-template-columns:220px 1fr;gap:24px;margin-bottom:24px">
+        <div class="exp-rev-grid" style="display:grid;grid-template-columns:220px 1fr;gap:24px;margin-bottom:24px">
           <div class="rv-score-big">
             <div class="big-num" id="exp-rv-num">4.9</div>
             <div style="color:var(--amber);font-size:1.1rem;margin:4px 0">★★★★★</div>
