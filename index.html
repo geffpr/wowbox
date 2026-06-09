@@ -18449,19 +18449,16 @@ function prelaunchShowTerms() {
   var content = document.getElementById('prelaunch-terms-content');
   if (!modal) return;
   if (content && !content.innerHTML.trim()) {
-    // Try to get the terms content divs from the hidden page
     var termsPage = document.getElementById('page-terms');
     if (termsPage) {
-      var divs = termsPage.querySelectorAll('.sec > div > div');
-      if (divs.length) {
-        var html = '';
-        divs.forEach(function(d){ html += d.outerHTML; });
-        content.innerHTML = html;
+      var secChildren = termsPage.querySelectorAll('.sec > div');
+      if (secChildren.length >= 2) {
+        content.innerHTML = secChildren[1].innerHTML;
       } else {
-        // Fallback: copy all inner text content
-        var secDiv = termsPage.querySelector('.sec');
-        if (secDiv) content.innerHTML = secDiv.innerHTML;
+        content.innerHTML = termsPage.querySelector('.sec') ? termsPage.querySelector('.sec').innerHTML : '';
       }
+    } else {
+      content.innerHTML = '<p style="color:#64748b">Please visit <a href="/terms" style="color:#b45309">wowbox.co.za/terms</a> to read the full Terms &amp; Conditions.</p>';
     }
   }
   modal.style.display = 'flex';
