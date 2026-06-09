@@ -19110,12 +19110,11 @@ async function admRunSchemaDiag() {
 
     <!-- Category CSS -->
     <style>
-      .plx-cat-grid{display:flex;gap:6px;max-width:520px;width:100%;margin-bottom:32px;overflow-x:auto;padding-bottom:4px;scrollbar-width:none}
-      .plx-cat-grid::-webkit-scrollbar{display:none}
-      .plx-cat-item{position:relative;height:100px;min-width:110px;border-radius:8px;overflow:hidden;flex-shrink:0}
+      .plx-cat-grid{display:flex;gap:6px;max-width:700px;width:100%;margin-bottom:32px}
+      .plx-cat-item{position:relative;height:90px;flex:1;border-radius:8px;overflow:hidden;min-width:0}
       @media(max-width:768px){
-        .plx-cat-grid{display:grid;grid-template-columns:1fr 1fr;overflow-x:unset;max-width:360px}
-        .plx-cat-item{min-width:unset;height:90px;border-radius:0}
+        .plx-cat-grid{display:grid;grid-template-columns:1fr 1fr;max-width:360px}
+        .plx-cat-item{height:90px;border-radius:0}
       }
     </style>
     <div class="plx-cat-grid" id="plx-cat-grid">
