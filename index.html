@@ -7752,6 +7752,12 @@ tr:hover td{background:var(--b50)}
               <div id="adm-prelaunch-img-status" style="font-size:.72rem;color:var(--muted);margin-top:4px"></div>
               <img id="adm-prelaunch-preview" src="" alt="" style="margin-top:8px;width:100%;height:80px;object-fit:cover;border-radius:var(--rs);border:1.5px solid var(--border);display:none">
             </div>
+            <!-- Category images -->
+            <div style="grid-column:1/-1;margin-top:4px">
+              <label style="font-size:.72rem;color:var(--muted);display:block;margin-bottom:8px">Category images <span style="font-weight:400;font-size:.68rem">(upload your own — leave blank to use defaults)</span></label>
+              <div id="adm-cat-uploads" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px"></div>
+              <div id="adm-cat-status" style="font-size:.7rem;color:var(--muted);margin-top:4px"></div>
+            </div>
             <div style="grid-column:1/-1">
               <label style="font-size:.72rem;color:var(--muted);display:block;margin-bottom:5px">Logo image (transparent PNG recommended)</label>
               <div style="display:flex;gap:10px;align-items:flex-start;flex-wrap:wrap">
@@ -18359,6 +18365,26 @@ async function loadPrelaunchSettings() {
     if (lSize && s.pre_launch_logo_size) { lSize.value = s.pre_launch_logo_size; document.getElementById('adm-logo-size-val').textContent = s.pre_launch_logo_size + 'px'; }
     if (lX    && s.pre_launch_logo_x)    { lX.value    = s.pre_launch_logo_x;    document.getElementById('adm-logo-x-val').textContent    = s.pre_launch_logo_x + '%'; }
     if (lY    && s.pre_launch_logo_y)    { lY.value    = s.pre_launch_logo_y;    document.getElementById('adm-logo-y-val').textContent    = s.pre_launch_logo_y + '%'; }
+    // Category upload inputs
+    var catLabels = ['Dining','Wellness','Safari','Wine','Events','Adventure','Culture','Stays'];
+    var catEmojis = ['🍽️','🧖','🦁','🍷','🎉','🏄','🎭','🏨'];
+    var catWrap = document.getElementById('adm-cat-uploads');
+    if (catWrap && !catWrap.children.length) {
+      catLabels.forEach(function(lbl, i) {
+        var savedUrl = s['pre_launch_cat_' + i] || '';
+        var div = document.createElement('div');
+        div.style.cssText = 'background:var(--bg);border:1px solid var(--border);border-radius:var(--rs);padding:8px;font-size:.7rem';
+        div.innerHTML = '<div style="font-weight:600;margin-bottom:4px;color:var(--navy)">' + catEmojis[i] + ' ' + lbl + '</div>'
+          + (savedUrl ? '<img src="' + savedUrl + '" style="width:100%;height:44px;object-fit:cover;border-radius:4px;margin-bottom:4px">' : '')
+          + '<input type="file" id="adm-cat-file-' + i + '" accept="image/*" style="width:100%;font-size:.65rem;padding:2px">';
+        catWrap.appendChild(div);
+      });
+    }
+    // Refresh overlay category images
+    catLabels.forEach(function(lbl, i) {
+      var imgEl = document.getElementById('plx-cat-img-' + i);
+      if (imgEl && s['pre_launch_cat_' + i]) imgEl.src = s['pre_launch_cat_' + i];
+    });
     // Waitlist count
     if (wlCount) {
       var wlRes = await db_client.from('waitlist').select('id', { count: 'exact', head: true });
@@ -18436,6 +18462,24 @@ async function admSavePrelaunch() {
     if (lSize) rows.push({ key: 'pre_launch_logo_size', value: lSize.value });
     if (lX)    rows.push({ key: 'pre_launch_logo_x',    value: lX.value });
     if (lY)    rows.push({ key: 'pre_launch_logo_y',    value: lY.value });
+    // Upload category images
+    var catStatusEl2 = document.getElementById('adm-cat-status');
+    for (var ci = 0; ci < 8; ci++) {
+      var catFileEl = document.getElementById('adm-cat-file-' + ci);
+      if (catFileEl && catFileEl.files && catFileEl.files[0]) {
+        var cf = catFileEl.files[0];
+        if (catStatusEl2) catStatusEl2.textContent = 'Uploading image ' + (ci+1) + '/8…';
+        var cn = 'prelaunch_cat_' + ci + '_' + Date.now() + '.' + cf.name.split('.').pop();
+        var cr = await db_client.storage.from('site-assets').upload(cn, cf, { upsert: true, contentType: cf.type });
+        if (!cr.error) {
+          var catPubUrl = db_client.storage.from('site-assets').getPublicUrl(cn).data.publicUrl;
+          rows.push({ key: 'pre_launch_cat_' + ci, value: catPubUrl });
+          var catImgEl = document.getElementById('plx-cat-img-' + ci);
+          if (catImgEl) catImgEl.src = catPubUrl;
+        }
+      }
+    }
+    if (catStatusEl2) catStatusEl2.textContent = '';
     await db_client.from('site_settings').upsert(rows, { onConflict: 'key' });
     if (statusEl) { statusEl.textContent = '✓ Saved'; statusEl.style.color = 'var(--green)'; }
     setTimeout(function(){ if (statusEl) { statusEl.textContent = ''; statusEl.style.color = ''; } }, 3000);
@@ -18587,7 +18631,7 @@ async function checkPrelaunchMode() {
     // Bypass for admin and partner portal URLs only
     var path = window.location.pathname;
     if (path.startsWith('/admin') || path.startsWith('/partner')) return;
-    var res = await db_client.from('site_settings').select('key,value').in('key',['pre_launch_mode','pre_launch_message','pre_launch_image','pre_launch_logo','pre_launch_logo_size','pre_launch_logo_x','pre_launch_logo_y']);
+    var res = await db_client.from('site_settings').select('key,value').in('key',['pre_launch_mode','pre_launch_message','pre_launch_image','pre_launch_logo','pre_launch_logo_size','pre_launch_logo_x','pre_launch_logo_y','pre_launch_cat_0','pre_launch_cat_1','pre_launch_cat_2','pre_launch_cat_3','pre_launch_cat_4','pre_launch_cat_5','pre_launch_cat_6','pre_launch_cat_7']);
     var s = {};
     (res.data||[]).forEach(function(r){ s[r.key] = r.value; });
     if (s.pre_launch_mode !== 'true') return;
@@ -18610,6 +18654,13 @@ async function checkPrelaunchMode() {
     if (s.pre_launch_image) {
       var bg = document.getElementById('prelaunch-bg');
       if (bg) bg.style.backgroundImage = 'url(' + s.pre_launch_image + ')';
+    }
+    // Apply custom category images
+    for (var ci = 0; ci < 8; ci++) {
+      if (s['pre_launch_cat_' + ci]) {
+        var catEl = document.getElementById('plx-cat-img-' + ci);
+        if (catEl) catEl.src = s['pre_launch_cat_' + ci];
+      }
     }
     // Set logo
     var logoEl = document.getElementById('prelaunch-logo');
@@ -19057,56 +19108,25 @@ async function admRunSchemaDiag() {
     <h1 id="prelaunch-headline" style="font-family:'Cormorant Garamond',serif;font-size:2.4rem;font-weight:700;color:#fff;max-width:560px;line-height:1.25;margin-bottom:16px">We are curating the best experiences in South Africa</h1>
     <p id="prelaunch-msg" style="font-size:.9rem;color:rgba(255,255,255,.72);max-width:460px;line-height:1.7;margin-bottom:24px"></p>
 
-    <!-- Experience grid 2x4 -->
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;max-width:460px;width:100%;margin-bottom:32px;border-radius:12px;overflow:hidden">
-      <div style="position:relative;height:90px;overflow:hidden">
-        <img src="https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=400&auto=format&fit=crop" style="width:100%;height:100%;object-fit:cover" loading="lazy">
-        <div style="position:absolute;inset:0;background:rgba(0,0,0,.3);display:flex;align-items:flex-end;padding:7px">
-          <span style="font-size:.63rem;font-weight:700;color:#fff;text-transform:uppercase;letter-spacing:.07em">🍽️ Dining</span>
-        </div>
-      </div>
-      <div style="position:relative;height:90px;overflow:hidden">
-        <img src="https://images.unsplash.com/photo-1544161515-4ab6ce6db874?w=400&auto=format&fit=crop" style="width:100%;height:100%;object-fit:cover" loading="lazy">
-        <div style="position:absolute;inset:0;background:rgba(0,0,0,.3);display:flex;align-items:flex-end;padding:7px">
-          <span style="font-size:.63rem;font-weight:700;color:#fff;text-transform:uppercase;letter-spacing:.07em">🧖 Wellness</span>
-        </div>
-      </div>
-      <div style="position:relative;height:90px;overflow:hidden">
-        <img src="https://images.unsplash.com/photo-1516026672322-bc52d61a55d5?w=400&auto=format&fit=crop" style="width:100%;height:100%;object-fit:cover" loading="lazy">
-        <div style="position:absolute;inset:0;background:rgba(0,0,0,.3);display:flex;align-items:flex-end;padding:7px">
-          <span style="font-size:.63rem;font-weight:700;color:#fff;text-transform:uppercase;letter-spacing:.07em">🦁 Safari</span>
-        </div>
-      </div>
-      <div style="position:relative;height:90px;overflow:hidden">
-        <img src="https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=400&auto=format&fit=crop" style="width:100%;height:100%;object-fit:cover" loading="lazy">
-        <div style="position:absolute;inset:0;background:rgba(0,0,0,.3);display:flex;align-items:flex-end;padding:7px">
-          <span style="font-size:.63rem;font-weight:700;color:#fff;text-transform:uppercase;letter-spacing:.07em">🍷 Wine</span>
-        </div>
-      </div>
-      <div style="position:relative;height:90px;overflow:hidden">
-        <img src="https://images.unsplash.com/photo-1533130061792-64b345e4a833?w=400&auto=format&fit=crop" style="width:100%;height:100%;object-fit:cover" loading="lazy">
-        <div style="position:absolute;inset:0;background:rgba(0,0,0,.3);display:flex;align-items:flex-end;padding:7px">
-          <span style="font-size:.63rem;font-weight:700;color:#fff;text-transform:uppercase;letter-spacing:.07em">🎉 Events</span>
-        </div>
-      </div>
-      <div style="position:relative;height:90px;overflow:hidden">
-        <img src="https://images.unsplash.com/photo-1566438480900-0609be27a4be?w=400&auto=format&fit=crop" style="width:100%;height:100%;object-fit:cover" loading="lazy">
-        <div style="position:absolute;inset:0;background:rgba(0,0,0,.3);display:flex;align-items:flex-end;padding:7px">
-          <span style="font-size:.63rem;font-weight:700;color:#fff;text-transform:uppercase;letter-spacing:.07em">🏄 Adventure</span>
-        </div>
-      </div>
-      <div style="position:relative;height:90px;overflow:hidden">
-        <img src="https://images.unsplash.com/photo-1518998053901-5348d3961a04?w=400&auto=format&fit=crop" style="width:100%;height:100%;object-fit:cover" loading="lazy">
-        <div style="position:absolute;inset:0;background:rgba(0,0,0,.3);display:flex;align-items:flex-end;padding:7px">
-          <span style="font-size:.63rem;font-weight:700;color:#fff;text-transform:uppercase;letter-spacing:.07em">🎭 Culture</span>
-        </div>
-      </div>
-      <div style="position:relative;height:90px;overflow:hidden">
-        <img src="https://images.unsplash.com/photo-1571896349842-33c89424de2d?w=400&auto=format&fit=crop" style="width:100%;height:100%;object-fit:cover" loading="lazy">
-        <div style="position:absolute;inset:0;background:rgba(0,0,0,.3);display:flex;align-items:flex-end;padding:7px">
-          <span style="font-size:.63rem;font-weight:700;color:#fff;text-transform:uppercase;letter-spacing:.07em">🏨 Stays</span>
-        </div>
-      </div>
+    <!-- Category CSS -->
+    <style>
+      .plx-cat-grid{display:flex;gap:6px;max-width:520px;width:100%;margin-bottom:32px;overflow-x:auto;padding-bottom:4px;scrollbar-width:none}
+      .plx-cat-grid::-webkit-scrollbar{display:none}
+      .plx-cat-item{position:relative;height:100px;min-width:110px;border-radius:8px;overflow:hidden;flex-shrink:0}
+      @media(max-width:768px){
+        .plx-cat-grid{display:grid;grid-template-columns:1fr 1fr;overflow-x:unset;max-width:360px}
+        .plx-cat-item{min-width:unset;height:90px;border-radius:0}
+      }
+    </style>
+    <div class="plx-cat-grid" id="plx-cat-grid">
+      <div class="plx-cat-item"><img id="plx-cat-img-0" src="https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=400&auto=format&fit=crop" style="width:100%;height:100%;object-fit:cover" loading="lazy"><div style="position:absolute;inset:0;background:rgba(0,0,0,.3);display:flex;align-items:flex-end;padding:7px"><span style="font-size:.63rem;font-weight:700;color:#fff;text-transform:uppercase;letter-spacing:.07em">🍽️ Dining</span></div></div>
+      <div class="plx-cat-item"><img id="plx-cat-img-1" src="https://images.unsplash.com/photo-1544161515-4ab6ce6db874?w=400&auto=format&fit=crop" style="width:100%;height:100%;object-fit:cover" loading="lazy"><div style="position:absolute;inset:0;background:rgba(0,0,0,.3);display:flex;align-items:flex-end;padding:7px"><span style="font-size:.63rem;font-weight:700;color:#fff;text-transform:uppercase;letter-spacing:.07em">🧖 Wellness</span></div></div>
+      <div class="plx-cat-item"><img id="plx-cat-img-2" src="https://images.unsplash.com/photo-1516026672322-bc52d61a55d5?w=400&auto=format&fit=crop" style="width:100%;height:100%;object-fit:cover" loading="lazy"><div style="position:absolute;inset:0;background:rgba(0,0,0,.3);display:flex;align-items:flex-end;padding:7px"><span style="font-size:.63rem;font-weight:700;color:#fff;text-transform:uppercase;letter-spacing:.07em">🦁 Safari</span></div></div>
+      <div class="plx-cat-item"><img id="plx-cat-img-3" src="https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=400&auto=format&fit=crop" style="width:100%;height:100%;object-fit:cover" loading="lazy"><div style="position:absolute;inset:0;background:rgba(0,0,0,.3);display:flex;align-items:flex-end;padding:7px"><span style="font-size:.63rem;font-weight:700;color:#fff;text-transform:uppercase;letter-spacing:.07em">🍷 Wine</span></div></div>
+      <div class="plx-cat-item"><img id="plx-cat-img-4" src="https://images.unsplash.com/photo-1533130061792-64b345e4a833?w=400&auto=format&fit=crop" style="width:100%;height:100%;object-fit:cover" loading="lazy"><div style="position:absolute;inset:0;background:rgba(0,0,0,.3);display:flex;align-items:flex-end;padding:7px"><span style="font-size:.63rem;font-weight:700;color:#fff;text-transform:uppercase;letter-spacing:.07em">🎉 Events</span></div></div>
+      <div class="plx-cat-item"><img id="plx-cat-img-5" src="https://images.unsplash.com/photo-1566438480900-0609be27a4be?w=400&auto=format&fit=crop" style="width:100%;height:100%;object-fit:cover" loading="lazy"><div style="position:absolute;inset:0;background:rgba(0,0,0,.3);display:flex;align-items:flex-end;padding:7px"><span style="font-size:.63rem;font-weight:700;color:#fff;text-transform:uppercase;letter-spacing:.07em">🏄 Adventure</span></div></div>
+      <div class="plx-cat-item"><img id="plx-cat-img-6" src="https://images.unsplash.com/photo-1518998053901-5348d3961a04?w=400&auto=format&fit=crop" style="width:100%;height:100%;object-fit:cover" loading="lazy"><div style="position:absolute;inset:0;background:rgba(0,0,0,.3);display:flex;align-items:flex-end;padding:7px"><span style="font-size:.63rem;font-weight:700;color:#fff;text-transform:uppercase;letter-spacing:.07em">🎭 Culture</span></div></div>
+      <div class="plx-cat-item"><img id="plx-cat-img-7" src="https://images.unsplash.com/photo-1571896349842-33c89424de2d?w=400&auto=format&fit=crop" style="width:100%;height:100%;object-fit:cover" loading="lazy"><div style="position:absolute;inset:0;background:rgba(0,0,0,.3);display:flex;align-items:flex-end;padding:7px"><span style="font-size:.63rem;font-weight:700;color:#fff;text-transform:uppercase;letter-spacing:.07em">🏨 Stays</span></div></div>
     </div>
     <div style="display:flex;gap:32px;margin-bottom:40px;flex-wrap:wrap;justify-content:center">
       <div style="text-align:center">
