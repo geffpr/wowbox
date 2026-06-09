@@ -19120,9 +19120,22 @@ async function admRunSchemaDiag() {
         </div>
         <div style="margin-top:12px"><label style="font-size:.72rem;color:rgba(255,255,255,.6);display:block;margin-bottom:4px">Location / Address *</label><input class="fi" id="plx-city" type="text" placeholder="City or venue address"></div>
         <div style="margin-top:12px"><label style="font-size:.72rem;color:rgba(255,255,255,.6);display:block;margin-bottom:4px">Describe your experience(s) *</label><textarea class="fi" id="plx-exp-desc" rows="3" style="resize:vertical" placeholder="Tell us what guests will experience..."></textarea></div>
-        <label style="display:flex;align-items:flex-start;gap:10px;margin:14px 0;cursor:pointer;font-size:.78rem;color:rgba(255,255,255,.7)">
+        <div style="margin:14px 0;max-height:140px;overflow-y:scroll;border:1px solid rgba(255,255,255,.2);border-radius:8px;padding:12px;background:rgba(0,0,0,.2);font-size:.75rem;color:rgba(255,255,255,.7);line-height:1.7">
+          <strong style="color:#fcd34d;display:block;margin-bottom:6px">Partner Terms &amp; Conditions — Effective 27 April 2026</strong>
+          WowBox is a trading name of RC Tradeworx Holdings (Pty) Ltd, reg. 2025/174107/07.<br><br>
+          <strong>1. Eligibility.</strong> You must be at least 18 years old and legally authorised to represent your business.<br><br>
+          <strong>2. Partner Role.</strong> WowBox acts as an intermediary platform. You retain full responsibility for delivering your experience as described.<br><br>
+          <strong>3. Listings.</strong> All experience listings must be accurate, legal, and comply with South African law. WowBox reserves the right to remove listings at any time.<br><br>
+          <strong>4. Commission.</strong> WowBox charges a commission on each booking as per the agreed rate. Payouts are processed after experience validation by the customer.<br><br>
+          <strong>5. Bookings.</strong> You are required to honour all confirmed bookings. Cancellations must be communicated to WowBox with at least 48 hours notice.<br><br>
+          <strong>6. Quality Standards.</strong> Experiences must meet the standard described in your listing. WowBox may remove or suspend listings following customer complaints.<br><br>
+          <strong>7. Intellectual Property.</strong> By submitting images and content, you grant WowBox a non-exclusive licence to use them for marketing purposes.<br><br>
+          <strong>8. Termination.</strong> Either party may terminate the partnership with 30 days written notice. Outstanding payouts will be settled within 14 days.<br><br>
+          <strong>9. Governing Law.</strong> This agreement is governed by the laws of the Republic of South Africa.
+        </div>
+        <label style="display:flex;align-items:flex-start;gap:10px;margin:10px 0 14px;cursor:pointer;font-size:.78rem;color:rgba(255,255,255,.7)">
           <input type="checkbox" id="plx-terms" style="margin-top:2px;flex-shrink:0;width:15px;height:15px;cursor:pointer">
-          <span>I agree to the WowBox <a href="#" onclick="prelaunchShowTerms();return false" style="color:#fcd34d;text-decoration:underline">Partner Terms &amp; Conditions</a> *</span>
+          <span>I have read and agree to the WowBox Partner Terms &amp; Conditions *</span>
         </label>
         <div id="plx-error" style="font-size:.78rem;color:#fca5a5;margin-bottom:10px;display:none"></div>
         <div id="plx-success" style="font-size:.78rem;color:#86efac;margin-bottom:10px;display:none"></div>
