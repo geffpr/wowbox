@@ -18444,6 +18444,18 @@ async function admSavePrelaunch() {
   }
 }
 
+function prelaunchShowTerms() {
+  var modal   = document.getElementById('prelaunch-terms-modal');
+  var content = document.getElementById('prelaunch-terms-content');
+  if (!modal) return;
+  // Copy terms content from the hidden page-terms section
+  if (content && !content.innerHTML.trim()) {
+    var source = document.querySelector('#page-terms .sec > div:last-child');
+    if (source) content.innerHTML = source.innerHTML;
+  }
+  modal.style.display = 'block';
+}
+
 function prelaunchShowPartner() {
   var main    = document.getElementById('prelaunch-screen-main');
   var partner = document.getElementById('prelaunch-screen-partner');
@@ -19060,7 +19072,21 @@ async function admRunSchemaDiag() {
     </div>
   </div>
 
-  <!-- SCREEN 2: Partner Application -->
+  <!-- TERMS MODAL (within overlay) -->
+  <div id="prelaunch-terms-modal" style="display:none;position:fixed;inset:0;z-index:9100;overflow-y:auto;background:rgba(0,0,0,.7);padding:20px">
+    <div style="background:#fff;border-radius:16px;max-width:680px;margin:0 auto;padding:32px;position:relative">
+      <button onclick="document.getElementById('prelaunch-terms-modal').style.display='none'" style="position:absolute;top:16px;right:16px;background:var(--b50);border:none;border-radius:50%;width:32px;height:32px;cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center"><i class="fa fa-xmark"></i></button>
+      <span style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--b500)">Legal</span>
+      <h2 style="font-size:1.5rem;color:var(--navy);margin:6px 0 8px">Partner Terms &amp; Conditions</h2>
+      <p style="color:var(--muted);font-size:.8rem;margin-bottom:20px">Effective 27 April 2026 — WowBox is a trading name of <strong>RC Tradeworx Holdings (Pty) Ltd</strong>, reg. 2025/174107/07</p>
+      <div id="prelaunch-terms-content" style="font-size:.85rem;color:#374151;line-height:1.8;display:flex;flex-direction:column;gap:16px;max-height:60vh;overflow-y:auto;padding-right:8px">
+        <!-- Content loaded dynamically from page-terms -->
+      </div>
+      <div style="margin-top:20px;text-align:center">
+        <button onclick="document.getElementById('prelaunch-terms-modal').style.display='none'" style="background:var(--b600);color:#fff;border:none;border-radius:10px;padding:11px 28px;font-weight:700;cursor:pointer">Close</button>
+      </div>
+    </div>
+  </div>
   <div id="prelaunch-screen-partner" style="display:none;position:relative;z-index:1;min-height:100vh;padding:32px 20px;flex-direction:column;align-items:center">
     <div style="width:100%;max-width:520px">
       <button onclick="prelaunchShowMain()" style="background:none;border:none;color:rgba(255,255,255,.7);font-size:.82rem;cursor:pointer;margin-bottom:20px;display:flex;align-items:center;gap:6px"><i class="fa fa-chevron-left"></i> Back</button>
@@ -19087,7 +19113,7 @@ async function admRunSchemaDiag() {
         <div style="margin-top:12px"><label style="font-size:.72rem;color:rgba(255,255,255,.6);display:block;margin-bottom:4px">Describe your experience(s) *</label><textarea class="fi" id="plx-exp-desc" rows="3" style="resize:vertical" placeholder="Tell us what guests will experience..."></textarea></div>
         <label style="display:flex;align-items:flex-start;gap:10px;margin:14px 0;cursor:pointer;font-size:.78rem;color:rgba(255,255,255,.7)">
           <input type="checkbox" id="plx-terms" style="margin-top:2px;flex-shrink:0;width:15px;height:15px;cursor:pointer">
-          <span>I agree to the WowBox <a href="/terms" target="_blank" style="color:#fcd34d;text-decoration:underline">Partner Terms &amp; Conditions</a> *</span>
+          <span>I agree to the WowBox <a href="#" onclick="prelaunchShowTerms();return false" style="color:#fcd34d;text-decoration:underline">Partner Terms &amp; Conditions</a> *</span>
         </label>
         <div id="plx-error" style="font-size:.78rem;color:#fca5a5;margin-bottom:10px;display:none"></div>
         <div id="plx-success" style="font-size:.78rem;color:#86efac;margin-bottom:10px;display:none"></div>
