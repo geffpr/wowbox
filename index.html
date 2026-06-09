@@ -19098,23 +19098,23 @@ async function admRunSchemaDiag() {
   </div>
 
   <!-- SCREEN 1: Coming Soon -->
-  <div id="prelaunch-screen-main" style="position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:32px 20px;text-align:center">
-    <div style="margin-bottom:24px;position:relative">
-      <img id="prelaunch-logo" src="" alt="WowBox" style="height:120px;width:auto;object-fit:contain;display:none">
-      <div id="prelaunch-logo-text-wrap"><div id="prelaunch-logo-text" style="font-family:'Cormorant Garamond',serif;font-size:2.2rem;font-weight:700;color:#fff;letter-spacing:.05em">WowBox</div></div>
-      <div style="font-size:.75rem;color:rgba(255,255,255,.65);letter-spacing:.2em;text-transform:uppercase;margin-top:8px">Unforgettable Experiences</div>
+  <div id="prelaunch-screen-main" style="position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;max-height:100vh;overflow:hidden;padding:2vh 20px;text-align:center">
+    <div style="margin-bottom:1.5vh;position:relative">
+      <img id="prelaunch-logo" src="" alt="WowBox" style="height:8vh;max-height:70px;width:auto;object-fit:contain;display:none">
+      <div id="prelaunch-logo-text-wrap"><div id="prelaunch-logo-text" style="font-family:'Cormorant Garamond',serif;font-size:2rem;font-weight:700;color:#fff;letter-spacing:.05em">WowBox</div></div>
+      <div style="font-size:.7rem;color:rgba(255,255,255,.65);letter-spacing:.2em;text-transform:uppercase;margin-top:4px">Unforgettable Experiences</div>
     </div>
-    <div style="background:rgba(245,158,11,.2);border:1px solid rgba(245,158,11,.5);border-radius:99px;padding:6px 18px;font-size:.75rem;font-weight:700;color:#fcd34d;letter-spacing:.1em;text-transform:uppercase;margin-bottom:28px">Coming Soon</div>
-    <h1 id="prelaunch-headline" style="font-family:'Cormorant Garamond',serif;font-size:2.4rem;font-weight:700;color:#fff;max-width:560px;line-height:1.25;margin-bottom:16px">We are curating the best experiences in South Africa</h1>
-    <p id="prelaunch-msg" style="font-size:.9rem;color:rgba(255,255,255,.72);max-width:460px;line-height:1.7;margin-bottom:24px"></p>
+    <div style="background:rgba(245,158,11,.2);border:1px solid rgba(245,158,11,.5);border-radius:99px;padding:4px 14px;font-size:.7rem;font-weight:700;color:#fcd34d;letter-spacing:.1em;text-transform:uppercase;margin-bottom:1.5vh">Coming Soon</div>
+    <h1 id="prelaunch-headline" style="font-family:'Cormorant Garamond',serif;font-size:clamp(1.4rem,2.5vh,2.2rem);font-weight:700;color:#fff;max-width:560px;line-height:1.2;margin-bottom:1vh">We are curating the best experiences in South Africa</h1>
+    <p id="prelaunch-msg" style="font-size:.82rem;color:rgba(255,255,255,.72);max-width:460px;line-height:1.5;margin-bottom:1.5vh"></p>
 
     <!-- Category CSS -->
     <style>
-      .plx-cat-grid{display:flex;gap:6px;max-width:700px;width:100%;margin-bottom:32px}
-      .plx-cat-item{position:relative;height:90px;flex:1;border-radius:8px;overflow:hidden;min-width:0}
+      .plx-cat-grid{display:flex;gap:5px;max-width:min(700px,90vw);width:100%;margin-bottom:1.5vh}
+      .plx-cat-item{position:relative;height:10vh;max-height:90px;flex:1;border-radius:6px;overflow:hidden;min-width:0}
       @media(max-width:768px){
         .plx-cat-grid{display:grid;grid-template-columns:1fr 1fr;max-width:360px}
-        .plx-cat-item{height:90px;border-radius:0}
+        .plx-cat-item{height:90px;max-height:90px;border-radius:0}
       }
     </style>
     <div class="plx-cat-grid" id="plx-cat-grid">
@@ -19127,26 +19127,26 @@ async function admRunSchemaDiag() {
       <div class="plx-cat-item"><img id="plx-cat-img-6" src="https://images.unsplash.com/photo-1518998053901-5348d3961a04?w=400&auto=format&fit=crop" style="width:100%;height:100%;object-fit:cover" loading="lazy"><div style="position:absolute;inset:0;background:rgba(0,0,0,.3);display:flex;align-items:flex-end;padding:7px"><span style="font-size:.63rem;font-weight:700;color:#fff;text-transform:uppercase;letter-spacing:.07em">🎭 Culture</span></div></div>
       <div class="plx-cat-item"><img id="plx-cat-img-7" src="https://images.unsplash.com/photo-1571896349842-33c89424de2d?w=400&auto=format&fit=crop" style="width:100%;height:100%;object-fit:cover" loading="lazy"><div style="position:absolute;inset:0;background:rgba(0,0,0,.3);display:flex;align-items:flex-end;padding:7px"><span style="font-size:.63rem;font-weight:700;color:#fff;text-transform:uppercase;letter-spacing:.07em">🏨 Stays</span></div></div>
     </div>
-    <div style="display:flex;gap:32px;margin-bottom:40px;flex-wrap:wrap;justify-content:center">
+    <div style="display:flex;gap:24px;margin-bottom:1.5vh;flex-wrap:wrap;justify-content:center">
       <div style="text-align:center">
-        <div id="prelaunch-exp-count" style="font-family:'Cormorant Garamond',serif;font-size:2rem;font-weight:700;color:#fcd34d">--</div>
+        <div id="prelaunch-exp-count" style="font-family:'Cormorant Garamond',serif;font-size:1.6rem;font-weight:700;color:#fcd34d">--</div>
         <div style="font-size:.7rem;color:rgba(255,255,255,.55);text-transform:uppercase;letter-spacing:.1em">Experiences ready</div>
       </div>
       <div style="text-align:center">
-        <div id="prelaunch-partner-count" style="font-family:'Cormorant Garamond',serif;font-size:2rem;font-weight:700;color:#fcd34d">--</div>
+        <div id="prelaunch-partner-count" style="font-family:'Cormorant Garamond',serif;font-size:1.6rem;font-weight:700;color:#fcd34d">--</div>
         <div style="font-size:.7rem;color:rgba(255,255,255,.55);text-transform:uppercase;letter-spacing:.1em">Partner venues</div>
       </div>
       <div style="text-align:center">
-        <div id="prelaunch-waitlist-count" style="font-family:'Cormorant Garamond',serif;font-size:2rem;font-weight:700;color:#fcd34d">--</div>
+        <div id="prelaunch-waitlist-count" style="font-family:'Cormorant Garamond',serif;font-size:1.6rem;font-weight:700;color:#fcd34d">--</div>
         <div style="font-size:.7rem;color:rgba(255,255,255,.55);text-transform:uppercase;letter-spacing:.1em">On the waitlist</div>
       </div>
     </div>
     <div style="display:flex;gap:0;max-width:420px;width:100%;border-radius:10px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,.3)">
-      <input id="prelaunch-email" type="email" placeholder="Enter your email address" style="flex:1;padding:14px 18px;border:none;font-size:.9rem;outline:none;background:#fff;color:#1e293b">
-      <button onclick="prelaunchJoinWaitlist()" style="background:#f59e0b;color:#fff;border:none;padding:14px 22px;font-weight:700;font-size:.85rem;cursor:pointer;white-space:nowrap">Notify me</button>
+      <input id="prelaunch-email" type="email" placeholder="Enter your email address" style="flex:1;padding:11px 16px;border:none;font-size:.85rem;outline:none;background:#fff;color:#1e293b">
+      <button onclick="prelaunchJoinWaitlist()" style="background:#f59e0b;color:#fff;border:none;padding:11px 18px;font-weight:700;font-size:.82rem;cursor:pointer;white-space:nowrap">Notify me</button>
     </div>
     <div id="prelaunch-join-status" style="font-size:.78rem;color:rgba(255,255,255,.7);margin-top:10px;min-height:20px"></div>
-    <div style="margin-top:48px;padding-top:32px;border-top:1px solid rgba(255,255,255,.15);width:100%;max-width:420px">
+    <div style="margin-top:1.5vh;padding-top:1.5vh;border-top:1px solid rgba(255,255,255,.15);width:100%;max-width:420px">
       <p style="font-size:.78rem;color:rgba(255,255,255,.5);margin-bottom:10px">Are you an experience provider?</p>
       <button onclick="prelaunchShowPartner()" style="background:none;border:none;color:#fcd34d;font-size:.82rem;font-weight:600;text-decoration:underline;cursor:pointer">Apply to be a WowBox partner &rarr;</button>
     </div>
