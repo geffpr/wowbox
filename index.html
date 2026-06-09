@@ -18448,12 +18448,24 @@ function prelaunchShowTerms() {
   var modal   = document.getElementById('prelaunch-terms-modal');
   var content = document.getElementById('prelaunch-terms-content');
   if (!modal) return;
-  // Copy terms content from the hidden page-terms section
   if (content && !content.innerHTML.trim()) {
-    var source = document.querySelector('#page-terms .sec > div:last-child');
-    if (source) content.innerHTML = source.innerHTML;
+    // Try to get the terms content divs from the hidden page
+    var termsPage = document.getElementById('page-terms');
+    if (termsPage) {
+      var divs = termsPage.querySelectorAll('.sec > div > div');
+      if (divs.length) {
+        var html = '';
+        divs.forEach(function(d){ html += d.outerHTML; });
+        content.innerHTML = html;
+      } else {
+        // Fallback: copy all inner text content
+        var secDiv = termsPage.querySelector('.sec');
+        if (secDiv) content.innerHTML = secDiv.innerHTML;
+      }
+    }
   }
   modal.style.display = 'block';
+  if (content) content.scrollTop = 0;
 }
 
 function prelaunchShowPartner() {
@@ -19074,12 +19086,12 @@ async function admRunSchemaDiag() {
 
   <!-- TERMS MODAL (within overlay) -->
   <div id="prelaunch-terms-modal" style="display:none;position:fixed;inset:0;z-index:9100;overflow-y:auto;background:rgba(0,0,0,.7);padding:20px">
-    <div style="background:#fff;border-radius:16px;max-width:680px;margin:0 auto;padding:32px;position:relative">
+    <div style="background:#fff;border-radius:16px;max-width:680px;margin:0 auto;padding:32px;position:relative;max-height:90vh;display:flex;flex-direction:column">
       <button onclick="document.getElementById('prelaunch-terms-modal').style.display='none'" style="position:absolute;top:16px;right:16px;background:var(--b50);border:none;border-radius:50%;width:32px;height:32px;cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center"><i class="fa fa-xmark"></i></button>
       <span style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--b500)">Legal</span>
       <h2 style="font-size:1.5rem;color:var(--navy);margin:6px 0 8px">Partner Terms &amp; Conditions</h2>
       <p style="color:var(--muted);font-size:.8rem;margin-bottom:20px">Effective 27 April 2026 — WowBox is a trading name of <strong>RC Tradeworx Holdings (Pty) Ltd</strong>, reg. 2025/174107/07</p>
-      <div id="prelaunch-terms-content" style="font-size:.85rem;color:#374151;line-height:1.8;display:flex;flex-direction:column;gap:16px;max-height:60vh;overflow-y:auto;padding-right:8px">
+      <div id="prelaunch-terms-content" style="font-size:.85rem;color:#374151;line-height:1.8;display:flex;flex-direction:column;gap:16px;flex:1;overflow-y:auto;padding-right:8px;min-height:0">
         <!-- Content loaded dynamically from page-terms -->
       </div>
       <div style="margin-top:20px;text-align:center">
