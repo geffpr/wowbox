@@ -3028,6 +3028,10 @@ nav{position:sticky;top:0;z-index:300;background:rgba(255,255,255,.95);
   color:rgba(255,255,255,.6);cursor:pointer;transition:all .14s;margin-bottom:3px;
   display:flex;align-items:center;gap:9px;border:none;background:none;width:100%;text-align:left}
 .pp-nav:hover{background:rgba(255,255,255,.1);color:#fff}
+.pp-wiz-step{background:none;border:none;border-bottom:3px solid transparent;padding:10px 18px;font-size:.82rem;font-weight:600;color:var(--muted);cursor:pointer;white-space:nowrap;transition:color .15s,border-color .15s}
+.pp-wiz-step.on{color:var(--b700);border-bottom-color:var(--b600)}
+.pp-wiz-step:hover:not(.on){color:var(--navy)}
+.pp-wiz-panel{animation:fadeIn .15s ease}
 .pp-nav.on{background:var(--b600);color:#fff}
 .pp-main{padding:32px 36px;background:var(--bg);overflow-y:auto}
 .pp-sec{display:none}.pp-sec.on{display:block}
@@ -5159,6 +5163,32 @@ tr:hover td{background:var(--b50)}
   </div>
 </div>
 
+<!-- ═══════════════════════ PAGE: PARTNER STOREFRONT (public /p/slug) ═══════════════════════ -->
+<div id="page-partner-storefront" class="page">
+  <!-- Hero -->
+  <div id="ps-hero" style="min-height:220px;background:linear-gradient(135deg,#3d2314,#1a1a2e);display:flex;align-items:flex-end;padding:28px 40px;position:relative">
+    <div style="position:absolute;inset:0;background:rgba(0,0,0,.3)"></div>
+    <div style="position:relative;z-index:1;display:flex;align-items:center;gap:18px">
+      <img id="ps-logo" src="" style="display:none;height:64px;width:64px;object-fit:contain;border-radius:10px;background:rgba(255,255,255,.15);padding:6px">
+      <div>
+        <div id="ps-name" style="font-family:'Cormorant Garamond',serif;font-size:2rem;font-weight:700;color:#fff"></div>
+        <div id="ps-tagline" style="font-size:.88rem;color:rgba(255,255,255,.75);margin-top:4px"></div>
+      </div>
+    </div>
+  </div>
+  <!-- Body -->
+  <div style="max-width:1100px;margin:0 auto;padding:32px 40px">
+    <div id="ps-desc" style="font-size:.9rem;color:#374151;line-height:1.8;margin-bottom:28px"></div>
+    <div style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:16px">Experiences</div>
+    <div id="ps-exp-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:18px">
+      <div style="text-align:center;padding:40px;color:var(--muted);grid-column:1/-1">Loading experiences…</div>
+    </div>
+    <div style="margin-top:40px;text-align:center;padding-top:24px;border-top:1px solid var(--border)">
+      <div style="font-size:.75rem;color:var(--muted)">Powered by <a href="/" style="color:var(--b600);font-weight:700">WowBox</a></div>
+    </div>
+  </div>
+</div>
+
 <!-- ═══════════════════════ PAGE: PARTNER LANDING ═══════════════════════ -->
 <div id="page-partner-landing" class="page">
 
@@ -5560,6 +5590,7 @@ tr:hover td{background:var(--b50)}
       <button class="pp-nav" id="pp-nav-boost"     onclick="switchPP(this,'pp-boost')"><i class="fa fa-rocket"></i> Boost</button>
       <button class="pp-nav" id="pp-nav-reporting" onclick="switchPP(this,'pp-reporting')"><i class="fa fa-chart-bar"></i> Reporting</button>
 
+      <button class="pp-nav" onclick="switchPP(this,'pp-page');ppPageInit()" id="pp-nav-page"><i class="fa fa-globe"></i> My Page</button>
       <button class="pp-nav" onclick="switchPP(this,'pp-settings');ppLoadSettings()"><i class="fa fa-gear"></i> Settings</button>
 
       <div style="margin-top:auto;padding-top:24px;border-top:1px solid rgba(255,255,255,.1)">
@@ -6317,6 +6348,145 @@ tr:hover td{background:var(--b50)}
             </div>
             <div style="padding:14px;background:var(--b50);border-radius:var(--rs);font-size:.78rem;color:var(--muted)">
               <i class="fa fa-envelope" style="color:var(--b500)"></i> You can also email us directly at <a href="mailto:support@wowbox.co.za" style="color:var(--b600);font-weight:600">support@wowbox.co.za</a>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══ SECTION: MY PAGE (PARTNER STOREFRONT) ═══ -->
+      <div id="pp-page" class="pp-sec">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;flex-wrap:wrap;gap:12px">
+          <h2 style="font-size:1.7rem;color:var(--navy)">My Page</h2>
+          <div style="display:flex;gap:8px;align-items:center">
+            <span id="pp-page-status-badge" style="font-size:.72rem;font-weight:700;padding:3px 12px;border-radius:99px;background:#fde68a;color:#92400e">Draft</span>
+            <a id="pp-page-view-link" href="#" target="_blank" style="display:none;font-size:.8rem;color:var(--b600);font-weight:600"><i class="fa fa-arrow-up-right-from-square"></i> View live</a>
+          </div>
+        </div>
+        <p style="color:var(--muted);font-size:.82rem;margin-bottom:24px">Create your public WowBox page — share it, print the QR, and start receiving direct bookings.</p>
+
+        <!-- Breadcrumb wizard -->
+        <div id="pp-page-steps" style="display:flex;gap:0;margin-bottom:28px;border-bottom:2px solid var(--border);overflow-x:auto">
+          <button class="pp-wiz-step on" onclick="ppPageGoStep(1)" data-step="1">① Basics</button>
+          <button class="pp-wiz-step" onclick="ppPageGoStep(2)" data-step="2">② Appearance</button>
+          <button class="pp-wiz-step" onclick="ppPageGoStep(3)" data-step="3">③ Experiences</button>
+          <button class="pp-wiz-step" onclick="ppPageGoStep(4)" data-step="4">④ Preview</button>
+          <button class="pp-wiz-step" onclick="ppPageGoStep(5)" data-step="5">⑤ Publish</button>
+        </div>
+
+        <!-- Step 1: Basics -->
+        <div id="pp-page-step-1" class="pp-wiz-panel">
+          <div style="max-width:520px;display:flex;flex-direction:column;gap:14px">
+            <div class="fg"><label>Page name *</label><input class="fi" id="pp-pg-name" placeholder="e.g. The Vineyard Hotel Experiences"></div>
+            <div class="fg">
+              <label>Page URL *</label>
+              <div style="display:flex;align-items:center;gap:0;border:1.5px solid var(--border);border-radius:var(--rs);overflow:hidden;background:#fff">
+                <span style="padding:10px 12px;background:var(--bg);font-size:.8rem;color:var(--muted);border-right:1px solid var(--border);white-space:nowrap">wowbox.co.za/p/</span>
+                <input style="flex:1;border:none;padding:10px 12px;font-size:.85rem;outline:none" id="pp-pg-slug" placeholder="my-venue-name" oninput="ppPageSlugCheck()">
+              </div>
+              <div id="pp-pg-slug-status" style="font-size:.72rem;margin-top:4px"></div>
+            </div>
+            <div class="fg"><label>Tagline</label><input class="fi" id="pp-pg-tagline" placeholder="e.g. Unforgettable dining in the heart of Cape Town"></div>
+            <div class="fg"><label>Description</label><textarea class="fi" id="pp-pg-desc" rows="4" placeholder="Tell visitors about your experiences…" style="resize:vertical"></textarea></div>
+            <div style="display:flex;gap:10px;justify-content:flex-end">
+              <button class="btn bp bsm" onclick="ppPageSave();ppPageGoStep(2)">Save & Next →</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 2: Appearance -->
+        <div id="pp-page-step-2" class="pp-wiz-panel" style="display:none">
+          <div style="max-width:580px">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:18px">
+              <div>
+                <label style="font-size:.75rem;color:var(--muted);display:block;margin-bottom:6px">Logo (square PNG, transparent)</label>
+                <input type="file" id="pp-pg-logo-file" accept="image/*" class="fi" style="padding:6px">
+                <img id="pp-pg-logo-preview" src="" style="display:none;margin-top:8px;height:60px;object-fit:contain;border-radius:6px;background:var(--bg);padding:4px;border:1px solid var(--border)">
+                <div id="pp-pg-logo-status" style="font-size:.7rem;color:var(--muted);margin-top:3px"></div>
+              </div>
+              <div>
+                <label style="font-size:.75rem;color:var(--muted);display:block;margin-bottom:6px">Cover image (16:9 landscape)</label>
+                <input type="file" id="pp-pg-cover-file" accept="image/*" class="fi" style="padding:6px">
+                <img id="pp-pg-cover-preview" src="" style="display:none;margin-top:8px;width:100%;height:60px;object-fit:cover;border-radius:6px;border:1px solid var(--border)">
+                <div id="pp-pg-cover-status" style="font-size:.7rem;color:var(--muted);margin-top:3px"></div>
+              </div>
+            </div>
+            <div style="margin-bottom:18px">
+              <label style="font-size:.75rem;color:var(--muted);display:block;margin-bottom:6px">Accent colour</label>
+              <div style="display:flex;align-items:center;gap:12px">
+                <input type="color" id="pp-pg-color" value="#b45309" style="width:44px;height:36px;border:1.5px solid var(--border);border-radius:6px;cursor:pointer;padding:2px">
+                <span style="font-size:.8rem;color:var(--muted)">Used for buttons and highlights on your page</span>
+              </div>
+            </div>
+            <!-- Live mini-preview -->
+            <div style="border:1.5px solid var(--border);border-radius:var(--rx);overflow:hidden;margin-bottom:18px">
+              <div id="pp-pg-mini-preview" style="height:80px;background:linear-gradient(135deg,#3d2314,#1a1a2e);display:flex;align-items:center;padding:0 20px;gap:14px">
+                <img id="pp-pg-mini-logo" src="" style="display:none;height:36px;width:36px;object-fit:contain;border-radius:4px">
+                <div style="color:#fff;font-weight:700;font-size:.95rem" id="pp-pg-mini-name">Your Page Name</div>
+              </div>
+              <div style="padding:10px 16px;background:#fff;font-size:.75rem;color:var(--muted)">Preview of your page header</div>
+            </div>
+            <div style="display:flex;gap:10px;justify-content:space-between">
+              <button class="btn bg bsm" onclick="ppPageGoStep(1)">← Back</button>
+              <button class="btn bp bsm" onclick="ppPageSave();ppPageGoStep(3)">Save & Next →</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 3: Experiences -->
+        <div id="pp-page-step-3" class="pp-wiz-panel" style="display:none">
+          <p style="font-size:.82rem;color:var(--muted);margin-bottom:16px">Choose which experiences to display on your public page. Drag to reorder.</p>
+          <div id="pp-pg-exp-list" style="display:flex;flex-direction:column;gap:8px;max-width:560px;margin-bottom:18px">
+            <div style="text-align:center;padding:20px;color:var(--muted)">Loading experiences…</div>
+          </div>
+          <div style="display:flex;gap:10px;justify-content:space-between;max-width:560px">
+            <button class="btn bg bsm" onclick="ppPageGoStep(2)">← Back</button>
+            <button class="btn bp bsm" onclick="ppPageSave();ppPageGoStep(4)">Save & Preview →</button>
+          </div>
+        </div>
+
+        <!-- Step 4: Preview -->
+        <div id="pp-page-step-4" class="pp-wiz-panel" style="display:none">
+          <p style="font-size:.82rem;color:var(--muted);margin-bottom:14px">This is how your page will look to visitors.</p>
+          <div id="pp-pg-preview-wrap" style="border:1.5px solid var(--border);border-radius:var(--rx);overflow:hidden;margin-bottom:18px;min-height:300px"></div>
+          <div style="display:flex;gap:10px;justify-content:space-between">
+            <button class="btn bg bsm" onclick="ppPageGoStep(3)">← Back</button>
+            <button class="btn bp bsm" onclick="ppPageGoStep(5)">Looks good → Publish</button>
+          </div>
+        </div>
+
+        <!-- Step 5: Publish -->
+        <div id="pp-page-step-5" class="pp-wiz-panel" style="display:none">
+          <div style="max-width:520px">
+            <div class="atbl" style="padding:20px;margin-bottom:18px">
+              <div style="font-size:.9rem;font-weight:700;color:var(--navy);margin-bottom:14px">🚀 Ready to go live?</div>
+              <div style="font-size:.82rem;color:var(--muted);margin-bottom:16px">Your page will be publicly accessible at:</div>
+              <div style="background:var(--b50);border:1.5px solid var(--b200);border-radius:var(--rs);padding:10px 14px;font-family:monospace;font-size:.85rem;color:var(--navy);margin-bottom:16px" id="pp-pg-url-display">wowbox.co.za/p/your-slug</div>
+              <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px">
+                <button class="btn bp" onclick="ppPagePublish()" id="pp-pg-publish-btn"><i class="fa fa-globe"></i> Publish my page</button>
+                <button class="btn bg bsm" id="pp-pg-offline-btn" onclick="ppPageSetOffline()" style="display:none"><i class="fa fa-eye-slash"></i> Take offline</button>
+                <button class="btn bg bsm" id="pp-pg-republish-btn" onclick="ppPagePublish()" style="display:none"><i class="fa fa-rotate-right"></i> Re-publish</button>
+              </div>
+              <span id="pp-pg-publish-status" style="font-size:.78rem;color:var(--muted)"></span>
+            </div>
+            <!-- Share buttons (shown after publish) -->
+            <div id="pp-pg-share-wrap" style="display:none">
+              <div style="font-size:.82rem;font-weight:700;color:var(--navy);margin-bottom:12px">Share your page</div>
+              <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">
+                <button class="btn bg bsm" onclick="ppPageCopyLink()"><i class="fa fa-link"></i> Copy link</button>
+                <button class="btn bg bsm" onclick="ppPageShareWhatsApp()" style="background:#25D366;color:#fff;border-color:#25D366"><i class="fa-brands fa-whatsapp"></i> WhatsApp</button>
+                <button class="btn bg bsm" onclick="ppPageShareEmail()"><i class="fa fa-envelope"></i> Email</button>
+              </div>
+              <div style="display:flex;align-items:center;gap:16px;padding:14px;background:var(--bg);border-radius:var(--rs);border:1px solid var(--border)">
+                <div id="pp-pg-qr-wrap"></div>
+                <div>
+                  <div style="font-size:.8rem;font-weight:600;color:var(--navy);margin-bottom:4px">Your QR Code</div>
+                  <div style="font-size:.74rem;color:var(--muted);margin-bottom:8px">Print and display at your venue</div>
+                  <button class="btn bg bsm" onclick="ppPageDownloadQR()"><i class="fa fa-download"></i> Download QR</button>
+                </div>
+              </div>
+            </div>
+            <div style="margin-top:12px">
+              <button class="btn bg bsm" onclick="ppPageGoStep(4)">← Back to preview</button>
             </div>
           </div>
         </div>
@@ -8324,6 +8494,7 @@ const PAGE_HASH = {
   reviews:'/reviews',cart:'/cart',checkout:'/checkout',voucher:'/confirmation',
   login:'/login',dashboard:'/my-account',activation:'/activate',
   'partner-landing':'/partners',partner:'/partner',admin:'/admin',browse:'/browse',roulette:'/surprise',
+  'partner-storefront':'/p',
   giftvideo:'/gift-video',
   faq:'/faq',contact:'/contact',
   terms:'/terms',privacy:'/privacy',refund:'/refund-policy'
@@ -8567,6 +8738,16 @@ function go(page) {
 
 function goFromHash() {
   var path = window.location.pathname;
+
+  // ── /p/partner-slug (Partner storefront) ──
+  if (path.startsWith('/p/')) {
+    var partnerSlug = path.replace('/p/', '').replace(/\/+$/, '');
+    if (partnerSlug) {
+      go('partner-storefront');
+      loadPartnerStorefront(partnerSlug);
+      return;
+    }
+  }
 
   // ── /experience/kruger-game-drive ──
   if (path.startsWith('/experience/')) {
@@ -16307,7 +16488,7 @@ function confirmRouletteBooking() {
 /* ══════════════════════════════════════════════════════════════
    PARTNER PORTAL
 ══════════════════════════════════════════════════════════════ */
-const PP_SECTIONS = ['pp-overview','pp-bookings','pp-validate','pp-payouts','pp-experiences','pp-plan','pp-analytics','pp-calendar','pp-boost','pp-reporting','pp-reviews','pp-settings','pp-contact'];
+const PP_SECTIONS = ['pp-overview','pp-bookings','pp-validate','pp-payouts','pp-experiences','pp-page','pp-plan','pp-analytics','pp-calendar','pp-boost','pp-reporting','pp-reviews','pp-settings','pp-contact'];
 
 function switchPP(btn, sectionId) {
   PP_SECTIONS.forEach(id => {
@@ -16320,6 +16501,7 @@ function switchPP(btn, sectionId) {
   // Init Pro modules on first visit
   if (sectionId === 'pp-payouts')    ppLoadPayouts();
   if (sectionId === 'pp-bookings')   ppLoadBookings();
+  if (sectionId === 'pp-page')        ppPageInit();
   if (sectionId === 'pp-validate')   ppGeneratePartnerQR();
   if (sectionId === 'pp-reviews')    ppLoadReviews();
   if (sectionId === 'pp-settings')   ppLoadSettings();
@@ -16594,6 +16776,339 @@ async function ppSendContactMessage() {
   } catch(e) {
     if (statusEl) { statusEl.textContent = 'Error sending. Please email support@wowbox.co.za directly.'; statusEl.style.color = '#dc2626'; }
   }
+}
+
+// ── Public partner storefront /p/[slug] ──────────────────────────
+async function loadPartnerStorefront(slug) {
+  try {
+    var res = await db_client.from('partners').select('name,page_tagline,page_description,page_logo,page_cover,page_color,page_experiences,page_status').eq('page_slug', slug).maybeSingle();
+    var p = res.data;
+    if (!p || p.page_status !== 'published') {
+      document.getElementById('ps-exp-grid').innerHTML = '<div style="text-align:center;padding:60px;color:var(--muted);grid-column:1/-1"><i class="fa fa-circle-exclamation" style="font-size:2rem;margin-bottom:10px;display:block"></i>This page is not available.</div>';
+      return;
+    }
+    var color = p.page_color || '#b45309';
+    // Hero
+    var hero = document.getElementById('ps-hero');
+    if (hero) hero.style.background = (p.page_cover ? 'url('+p.page_cover+') center/cover' : 'linear-gradient(135deg,'+color+'cc,#1a1a2e)');
+    var logoEl = document.getElementById('ps-logo');
+    if (logoEl && p.page_logo) { logoEl.src = p.page_logo; logoEl.style.display = 'block'; }
+    var nameEl = document.getElementById('ps-name'); if (nameEl) nameEl.textContent = p.name || '';
+    var tagEl  = document.getElementById('ps-tagline'); if (tagEl) tagEl.textContent = p.page_tagline || '';
+    var descEl = document.getElementById('ps-desc'); if (descEl) descEl.textContent = p.page_description || '';
+    // Load experiences
+    var expIds = p.page_experiences || [];
+    var query = db_client.from('experiences').select('id,name,category,city,price,image_url,images,description').eq('is_active', true);
+    if (expIds.length) query = query.in('id', expIds);
+    var expRes = await query.order('name');
+    var exps = expRes.data || [];
+    if (expIds.length) exps.sort(function(a,b){ return expIds.indexOf(a.id) - expIds.indexOf(b.id); });
+    var grid = document.getElementById('ps-exp-grid');
+    if (!grid) return;
+    grid.innerHTML = exps.length ? exps.map(function(e){
+      var img = e.image_url || (Array.isArray(e.images) && e.images[0]) || '';
+      return '<div style="border:1px solid var(--border);border-radius:12px;overflow:hidden;background:#fff;box-shadow:0 2px 8px rgba(0,0,0,.06)">'
+        + (img ? '<img src="'+img+'" style="width:100%;height:160px;object-fit:cover">' : '<div style="height:160px;background:var(--b50)"></div>')
+        + '<div style="padding:14px">'
+        + '<div style="font-size:.9rem;font-weight:700;color:var(--navy);margin-bottom:4px">'+e.name+'</div>'
+        + (e.city ? '<div style="font-size:.76rem;color:var(--muted);margin-bottom:6px"><i class="fa fa-location-dot" style="color:'+color+'"></i> '+e.city+'</div>' : '')
+        + (e.description ? '<div style="font-size:.78rem;color:#6b7280;line-height:1.6;margin-bottom:10px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">'+e.description+'</div>' : '')
+        + '<div style="display:flex;align-items:center;justify-content:space-between;margin-top:8px">'
+        + (e.price ? '<div style="font-size:1.05rem;font-weight:700;color:var(--navy)">R'+Number(e.price).toLocaleString()+'</div>' : '<div></div>')
+        + '<button onclick="psBookExperience(\''+e.id+'\')" style="background:'+color+';color:#fff;border:none;border-radius:8px;padding:7px 16px;font-size:.78rem;font-weight:700;cursor:pointer">Book now</button>'
+        + '</div></div></div>';
+    }).join('') : '<div style="text-align:center;padding:40px;color:var(--muted);grid-column:1/-1">No experiences available yet.</div>';
+    // Update page title
+    document.title = (p.name || 'Partner') + ' — WowBox';
+    history.replaceState(null, '', '/p/' + slug);
+  } catch(e) { console.warn('loadPartnerStorefront:', e.message); }
+}
+
+function psBookExperience(expId) {
+  // Navigate to experience page for booking
+  loadExp(expId);
+  go('expdetail');
+}
+
+// ── Partner Page (Storefront) wizard ────────────────────────────
+var _ppPageData = {};
+
+async function ppPageInit() {
+  var email = appState.partnerEmail || (currentUser && currentUser.email) || '';
+  if (!email) return;
+  try {
+    var res = await db_client.from('partners').select('name,page_slug,page_status,page_tagline,page_description,page_logo,page_cover,page_color,page_experiences').eq('email', email).maybeSingle();
+    var d = res.data || {};
+    _ppPageData = d;
+    // Populate step 1
+    document.getElementById('pp-pg-name').value    = d.name || '';
+    document.getElementById('pp-pg-slug').value    = d.page_slug || ppPageAutoSlug(d.name || '');
+    document.getElementById('pp-pg-tagline').value = d.page_tagline || '';
+    document.getElementById('pp-pg-desc').value    = d.page_description || '';
+    // Populate step 2
+    if (d.page_color) document.getElementById('pp-pg-color').value = d.page_color;
+    if (d.page_logo)  { var lp = document.getElementById('pp-pg-logo-preview');  if (lp) { lp.src = d.page_logo;  lp.style.display = 'block'; } }
+    if (d.page_cover) { var cp = document.getElementById('pp-pg-cover-preview'); if (cp) { cp.src = d.page_cover; cp.style.display = 'block'; } }
+    ppPageUpdateMiniPreview();
+    // Update status badge
+    ppPageUpdateStatusBadge(d.page_status || 'draft');
+    // Load experiences for step 3
+    ppPageLoadExpList();
+  } catch(e) { console.warn('ppPageInit:', e.message); }
+}
+
+function ppPageAutoSlug(name) {
+  return name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').substring(0, 40);
+}
+
+async function ppPageSlugCheck() {
+  var slug = document.getElementById('pp-pg-slug').value.trim();
+  var statusEl = document.getElementById('pp-pg-slug-status');
+  if (!slug) { if (statusEl) statusEl.textContent = ''; return; }
+  if (!/^[a-z0-9-]+$/.test(slug)) {
+    if (statusEl) { statusEl.textContent = 'Only lowercase letters, numbers and hyphens'; statusEl.style.color = '#dc2626'; } return;
+  }
+  if (statusEl) statusEl.textContent = 'Checking…';
+  try {
+    var email = appState.partnerEmail || (currentUser && currentUser.email) || '';
+    var res = await db_client.from('partners').select('email').eq('page_slug', slug).neq('email', email).maybeSingle();
+    if (res.data) {
+      if (statusEl) { statusEl.textContent = '✗ This slug is already taken'; statusEl.style.color = '#dc2626'; }
+    } else {
+      if (statusEl) { statusEl.textContent = '✓ wowbox.co.za/p/' + slug; statusEl.style.color = '#16a34a'; }
+    }
+  } catch(e) {}
+}
+
+function ppPageGoStep(n) {
+  document.querySelectorAll('.pp-wiz-step').forEach(function(b){ b.classList.toggle('on', parseInt(b.dataset.step) === n); });
+  document.querySelectorAll('.pp-wiz-panel').forEach(function(p){ p.style.display = 'none'; });
+  var panel = document.getElementById('pp-page-step-' + n);
+  if (panel) panel.style.display = 'block';
+  if (n === 4) ppPageRenderPreview();
+  if (n === 5) ppPageSetupPublishStep();
+}
+
+function ppPageUpdateMiniPreview() {
+  var name  = document.getElementById('pp-pg-name')?.value || 'Your Page Name';
+  var color = document.getElementById('pp-pg-color')?.value || '#b45309';
+  var logo  = _ppPageData.page_logo || '';
+  var mini  = document.getElementById('pp-pg-mini-preview');
+  var mName = document.getElementById('pp-pg-mini-name');
+  var mLogo = document.getElementById('pp-pg-mini-logo');
+  if (mini)  mini.style.background = 'linear-gradient(135deg,' + color + 'cc,#1a1a2e)';
+  if (mName) mName.textContent = name;
+  if (mLogo) { if (logo) { mLogo.src = logo; mLogo.style.display = 'block'; } else mLogo.style.display = 'none'; }
+}
+
+async function ppPageLoadExpList() {
+  var email  = appState.partnerEmail || (currentUser && currentUser.email) || '';
+  var listEl = document.getElementById('pp-pg-exp-list');
+  if (!listEl) return;
+  try {
+    var res = await db_client.from('experiences').select('id,name,category,city,price,image_url,images').eq('partner_email', email).eq('is_active', true).order('name');
+    var exps = res.data || [];
+    var selected = _ppPageData.page_experiences || [];
+    listEl.innerHTML = exps.length ? exps.map(function(e){
+      var img = e.image_url || (Array.isArray(e.images) && e.images[0]) || '';
+      var isOn = selected.includes(e.id) || selected.length === 0;
+      return '<label style="display:flex;align-items:center;gap:12px;padding:10px 14px;border:1.5px solid var(--border);border-radius:var(--rs);cursor:pointer;background:'+(isOn?'var(--b50)':'#fff')+'">'
+        + '<input type="checkbox" value="'+e.id+'" '+(isOn?'checked':'')+' style="accent-color:var(--b600);width:16px;height:16px;cursor:pointer" onchange="this.closest(\'label\').style.background=this.checked?\'var(--b50)\':\'#fff\'">'
+        + (img ? '<img src="'+img+'" style="width:44px;height:36px;object-fit:cover;border-radius:4px;flex-shrink:0">' : '<div style="width:44px;height:36px;background:var(--b50);border-radius:4px;flex-shrink:0"></div>')
+        + '<div style="flex:1"><div style="font-weight:600;font-size:.85rem;color:var(--navy)">'+e.name+'</div>'
+        + '<div style="font-size:.74rem;color:var(--muted)">'+(e.category||'')+(e.city?' · '+e.city:'')+(e.price?' · R'+Number(e.price).toLocaleString():'')+' </div></div>'
+        + '</label>';
+    }).join('') : '<p style="color:var(--muted);font-style:italic">No active experiences yet. Add experiences in My Experiences first.</p>';
+  } catch(e) { listEl.innerHTML = '<p style="color:#dc2626">Error loading experiences.</p>'; }
+}
+
+function ppPageRenderPreview() {
+  var wrap  = document.getElementById('pp-pg-preview-wrap');
+  if (!wrap) return;
+  var name    = document.getElementById('pp-pg-name')?.value    || 'My Page';
+  var tagline = document.getElementById('pp-pg-tagline')?.value || '';
+  var desc    = document.getElementById('pp-pg-desc')?.value    || '';
+  var color   = document.getElementById('pp-pg-color')?.value   || '#b45309';
+  var logo    = _ppPageData.page_logo  || '';
+  var cover   = _ppPageData.page_cover || '';
+  var coverBg = cover ? 'url('+cover+') center/cover' : 'linear-gradient(135deg,'+color+'cc,#1a1a2e)';
+  // Get selected experiences from checkboxes
+  var selectedIds = Array.from(wrap.closest('.pp-sec')?.querySelectorAll('#pp-pg-exp-list input:checked') || []).map(function(cb){ return cb.value; });
+
+  wrap.innerHTML = '<div style="font-family:\'Cormorant Garamond\',Georgia,serif">'
+    + '<div style="height:180px;background:'+coverBg+';display:flex;align-items:flex-end;padding:20px 24px">'
+    + '<div style="display:flex;align-items:center;gap:14px">'
+    + (logo ? '<img src="'+logo+'" style="height:52px;width:52px;object-fit:contain;border-radius:8px;background:rgba(255,255,255,.15);padding:4px">' : '')
+    + '<div><div style="font-size:1.5rem;font-weight:700;color:#fff">'+name+'</div>'
+    + (tagline ? '<div style="font-size:.82rem;color:rgba(255,255,255,.8);margin-top:2px">'+tagline+'</div>' : '')
+    + '</div></div></div>'
+    + '<div style="padding:20px 24px;background:#fff">'
+    + (desc ? '<p style="font-size:.88rem;color:#374151;line-height:1.7;margin-bottom:18px">'+desc+'</p>' : '')
+    + '<div style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:12px">Experiences</div>'
+    + '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px">'
+    + (selectedIds.length ? selectedIds.map(function(id){
+        var exp = (window.expDB && window.expDB.find ? window.expDB.find(function(e){ return e.id===id; }) : null);
+        var img = exp ? (exp.img||exp.image_url||'') : '';
+        var nm  = exp ? exp.name : id;
+        var pr  = exp && exp.price ? 'R'+Number(exp.price).toLocaleString() : '';
+        return '<div style="border:1px solid var(--border);border-radius:8px;overflow:hidden">'
+          + (img ? '<img src="'+img+'" style="width:100%;height:100px;object-fit:cover">' : '<div style="height:100px;background:var(--b50)"></div>')
+          + '<div style="padding:10px"><div style="font-size:.82rem;font-weight:600;color:var(--navy);margin-bottom:2px">'+nm+'</div>'
+          + (pr ? '<div style="font-size:.78rem;font-weight:700;color:'+color+'">'+pr+'</div>' : '')
+          + '<button style="margin-top:8px;width:100%;background:'+color+';color:#fff;border:none;border-radius:6px;padding:6px;font-size:.74rem;font-weight:700;cursor:pointer">Book now</button>'
+          + '</div></div>';
+      }).join('')
+      : '<div style="grid-column:1/-1;padding:20px;text-align:center;color:var(--muted);font-size:.85rem">No experiences selected</div>')
+    + '</div></div></div>';
+}
+
+function ppPageSetupPublishStep() {
+  var slug = document.getElementById('pp-pg-slug')?.value?.trim() || '';
+  var urlEl = document.getElementById('pp-pg-url-display');
+  if (urlEl) urlEl.textContent = 'wowbox.co.za/p/' + (slug || '…');
+  var status = _ppPageData.page_status || 'draft';
+  var publishBtn   = document.getElementById('pp-pg-publish-btn');
+  var offlineBtn   = document.getElementById('pp-pg-offline-btn');
+  var republishBtn = document.getElementById('pp-pg-republish-btn');
+  var shareWrap    = document.getElementById('pp-pg-share-wrap');
+  var viewLink     = document.getElementById('pp-page-view-link');
+  if (status === 'published') {
+    if (publishBtn)   publishBtn.style.display   = 'none';
+    if (offlineBtn)   offlineBtn.style.display   = 'inline-flex';
+    if (republishBtn) republishBtn.style.display = 'inline-flex';
+    if (shareWrap)    shareWrap.style.display     = 'block';
+    if (viewLink)     { viewLink.href = '/p/' + slug; viewLink.style.display = 'inline'; }
+    ppPageGenerateQR(slug);
+  } else if (status === 'offline') {
+    if (publishBtn)   publishBtn.style.display   = 'none';
+    if (republishBtn) republishBtn.style.display = 'inline-flex';
+    if (offlineBtn)   offlineBtn.style.display   = 'none';
+    if (shareWrap)    shareWrap.style.display     = 'none';
+  } else {
+    if (publishBtn)   publishBtn.style.display   = 'inline-flex';
+    if (offlineBtn)   offlineBtn.style.display   = 'none';
+    if (republishBtn) republishBtn.style.display = 'none';
+    if (shareWrap)    shareWrap.style.display     = 'none';
+  }
+}
+
+async function ppPageSave() {
+  var email = appState.partnerEmail || (currentUser && currentUser.email) || '';
+  if (!email) return;
+  var slug     = document.getElementById('pp-pg-slug')?.value?.trim()    || '';
+  var name     = document.getElementById('pp-pg-name')?.value?.trim()    || '';
+  var tagline  = document.getElementById('pp-pg-tagline')?.value?.trim() || '';
+  var desc     = document.getElementById('pp-pg-desc')?.value?.trim()    || '';
+  var color    = document.getElementById('pp-pg-color')?.value           || '#b45309';
+  var selectedIds = Array.from(document.querySelectorAll('#pp-pg-exp-list input:checked')).map(function(cb){ return cb.value; });
+  try {
+    // Upload logo if new file selected
+    var logoFile = document.getElementById('pp-pg-logo-file')?.files?.[0];
+    if (logoFile) {
+      var ls = document.getElementById('pp-pg-logo-status');
+      if (ls) ls.textContent = 'Uploading…';
+      var ln = 'partner_logo_' + Date.now() + '.' + logoFile.name.split('.').pop();
+      var lr = await db_client.storage.from('site-assets').upload(ln, logoFile, { upsert: true, contentType: logoFile.type });
+      if (!lr.error) {
+        _ppPageData.page_logo = db_client.storage.from('site-assets').getPublicUrl(ln).data.publicUrl;
+        var lp = document.getElementById('pp-pg-logo-preview');
+        if (lp) { lp.src = _ppPageData.page_logo; lp.style.display = 'block'; }
+        if (ls) ls.textContent = '✓ Uploaded';
+      }
+    }
+    // Upload cover if new file selected
+    var coverFile = document.getElementById('pp-pg-cover-file')?.files?.[0];
+    if (coverFile) {
+      var cs = document.getElementById('pp-pg-cover-status');
+      if (cs) cs.textContent = 'Uploading…';
+      var cn = 'partner_cover_' + Date.now() + '.' + coverFile.name.split('.').pop();
+      var cr = await db_client.storage.from('site-assets').upload(cn, coverFile, { upsert: true, contentType: coverFile.type });
+      if (!cr.error) {
+        _ppPageData.page_cover = db_client.storage.from('site-assets').getPublicUrl(cn).data.publicUrl;
+        var cp = document.getElementById('pp-pg-cover-preview');
+        if (cp) { cp.src = _ppPageData.page_cover; cp.style.display = 'block'; }
+        if (cs) cs.textContent = '✓ Uploaded';
+      }
+    }
+    // Save to Supabase
+    var payload = { page_slug: slug, page_tagline: tagline, page_description: desc, page_color: color, page_experiences: selectedIds };
+    if (_ppPageData.page_logo)  payload.page_logo  = _ppPageData.page_logo;
+    if (_ppPageData.page_cover) payload.page_cover = _ppPageData.page_cover;
+    await db_client.from('partners').update(payload).eq('email', email);
+    _ppPageData = Object.assign(_ppPageData, payload);
+    ppPageUpdateMiniPreview();
+  } catch(e) { console.warn('ppPageSave:', e.message); }
+}
+
+async function ppPagePublish() {
+  await ppPageSave();
+  var email = appState.partnerEmail || (currentUser && currentUser.email) || '';
+  var slug  = document.getElementById('pp-pg-slug')?.value?.trim() || '';
+  var st    = document.getElementById('pp-pg-publish-status');
+  if (!slug) { if (st) { st.textContent = 'Please set a page URL first.'; st.style.color = '#dc2626'; } return; }
+  try {
+    await db_client.from('partners').update({ page_status: 'published' }).eq('email', email);
+    _ppPageData.page_status = 'published';
+    if (st) { st.textContent = '✓ Your page is live!'; st.style.color = '#16a34a'; }
+    ppPageUpdateStatusBadge('published');
+    ppPageSetupPublishStep();
+  } catch(e) { if (st) { st.textContent = 'Error: ' + e.message; st.style.color = '#dc2626'; } }
+}
+
+async function ppPageSetOffline() {
+  var email = appState.partnerEmail || (currentUser && currentUser.email) || '';
+  var st = document.getElementById('pp-pg-publish-status');
+  try {
+    await db_client.from('partners').update({ page_status: 'offline' }).eq('email', email);
+    _ppPageData.page_status = 'offline';
+    if (st) { st.textContent = '✓ Page taken offline.'; st.style.color = 'var(--muted)'; }
+    ppPageUpdateStatusBadge('offline');
+    ppPageSetupPublishStep();
+    var viewLink = document.getElementById('pp-page-view-link');
+    if (viewLink) viewLink.style.display = 'none';
+  } catch(e) { if (st) { st.textContent = 'Error: ' + e.message; st.style.color = '#dc2626'; } }
+}
+
+function ppPageUpdateStatusBadge(status) {
+  var badge = document.getElementById('pp-page-status-badge');
+  if (!badge) return;
+  var map = { draft: ['Draft','#fde68a','#92400e'], published: ['Live ✓','#bbf7d0','#166534'], offline: ['Offline','#fee2e2','#991b1b'] };
+  var s = map[status] || map.draft;
+  badge.textContent = s[0]; badge.style.background = s[1]; badge.style.color = s[2];
+}
+
+function ppPageCopyLink() {
+  var slug = document.getElementById('pp-pg-slug')?.value?.trim() || '';
+  navigator.clipboard.writeText('https://wowbox.co.za/p/' + slug);
+  admToast('Link copied to clipboard!');
+}
+function ppPageShareWhatsApp() {
+  var slug = document.getElementById('pp-pg-slug')?.value?.trim() || '';
+  window.open('https://wa.me/?text='+encodeURIComponent('Check out my WowBox experience page: https://wowbox.co.za/p/'+slug));
+}
+function ppPageShareEmail() {
+  var slug = document.getElementById('pp-pg-slug')?.value?.trim() || '';
+  window.location.href = 'mailto:?subject=My WowBox Page&body=Visit my experience page: https://wowbox.co.za/p/'+slug;
+}
+
+function ppPageGenerateQR(slug) {
+  var wrap = document.getElementById('pp-pg-qr-wrap');
+  if (!wrap || wrap.children.length) return;
+  var url  = 'https://wowbox.co.za/p/' + slug;
+  var load = function() {
+    if (window.QRCode) { wrap.innerHTML = ''; new window.QRCode(wrap, { text: url, width: 80, height: 80, colorDark: '#1e293b', colorLight: '#fff' }); }
+  };
+  if (!window.QRCode) {
+    var s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js';
+    s.onload = load; document.head.appendChild(s);
+  } else load();
+}
+
+function ppPageDownloadQR() {
+  var canvas = document.querySelector('#pp-pg-qr-wrap canvas');
+  if (!canvas) return;
+  var a = document.createElement('a'); a.href = canvas.toDataURL('image/png'); a.download = 'wowbox-page-qr.png'; a.click();
 }
 
 async function ppCheckOnboarding() {
