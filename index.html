@@ -17055,11 +17055,12 @@ function toggleAddForm() {
 }
 
 function ppPreviewTab(btn, tabId) {
-  var modal = btn.closest('#pp-exp-preview-modal') || document.getElementById('pp-exp-preview-modal');
+  // Update tab buttons
   btn.closest('.tabs').querySelectorAll('.tab').forEach(function(t){ t.classList.remove('on'); });
   btn.classList.add('on');
+  // Show/hide panels
   ['pv-overview','pv-programme','pv-amenities','pv-reviews'].forEach(function(id){
-    var el = modal ? modal.querySelector('#' + id) : document.getElementById(id);
+    var el = document.getElementById(id);
     if (el) el.style.display = id === tabId ? 'block' : 'none';
   });
 }
@@ -17119,31 +17120,28 @@ function ppPreviewExperience() {
   var sideImg1 = img1 || placeholder;
   var sideImg2 = img2 || placeholder;
 
-  var html = '<div style="max-width:1100px;margin:0 auto;padding:0 20px 40px">'
+  var html = '<div style="max-width:1240px;margin:0 auto;padding:0 40px 40px">'
     // Breadcrumb
-    + '<div style="font-size:.73rem;color:var(--muted);display:flex;align-items:center;gap:5px;margin-bottom:20px;padding-top:20px">'
+    + '<div style="font-size:.73rem;color:var(--muted);display:flex;align-items:center;gap:5px;margin-bottom:0;padding-top:20px">'
     + '<span style="color:var(--b500)"><i class="fa fa-arrow-left"></i> Back to box</span>'
     + '<i class="fa fa-chevron-right" style="font-size:.55rem"></i>'
     + '<span>Box</span><i class="fa fa-chevron-right" style="font-size:.55rem"></i>'
     + '<span>' + name + '</span></div>'
-    // Layout
     + '<div class="exp-detail-layout">'
-    // LEFT
+    // ── LEFT COLUMN ──
     + '<div>'
-    // Gallery
     + '<div class="exp-gallery">'
     + '<div class="eg-main"><img src="' + mainImg + '" alt="" style="width:100%;height:100%;object-fit:cover"></div>'
     + '<div class="eg-side"><img src="' + sideImg1 + '" alt="" style="width:100%;height:100%;object-fit:cover"></div>'
     + '<div class="eg-side"><img src="' + sideImg2 + '" alt="" style="width:100%;height:100%;object-fit:cover"></div>'
     + '</div>'
-    // Tabs
-    + '<div class="tabs" style="margin-bottom:0">'
+    + '<div class="tabs" style="margin-bottom:0;margin-top:20px">'
     + '<button class="tab on" onclick="ppPreviewTab(this,\'pv-overview\')">Overview</button>'
     + '<button class="tab" onclick="ppPreviewTab(this,\'pv-programme\')">Programme</button>'
     + '<button class="tab" onclick="ppPreviewTab(this,\'pv-amenities\')">Amenities</button>'
     + '<button class="tab" onclick="ppPreviewTab(this,\'pv-reviews\')">Reviews (0)</button>'
     + '</div>'
-    // Overview tab
+    // Overview panel
     + '<div id="pv-overview" style="margin-top:24px">'
     + '<h1 style="font-size:2rem;color:var(--navy);margin-bottom:10px">' + name + '</h1>'
     + '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px">'
@@ -17166,19 +17164,20 @@ function ppPreviewExperience() {
     + (cat ? '<span style="background:var(--b50);border:1px solid var(--b100);border-radius:99px;padding:4px 12px;font-size:.75rem;color:var(--navy)">' + cat + '</span>' : '')
     + '</div>'
     + '</div>'
-    // Programme tab
+    // Programme panel
     + '<div id="pv-programme" style="display:none;margin-top:24px">'
     + (progHtml ? progHtml : '<p style="color:var(--muted);font-style:italic;font-size:.85rem">No programme steps added yet.</p>')
     + '</div>'
-    // Amenities tab
+    // Amenities panel
     + '<div id="pv-amenities" style="display:none;margin-top:24px">'
     + (amenHtml ? amenHtml : '<p style="color:var(--muted);font-style:italic;font-size:.85rem">No amenities selected yet.</p>')
     + '</div>'
-    // Reviews tab
+    // Reviews panel
     + '<div id="pv-reviews" style="display:none;margin-top:24px">'
     + '<p style="color:var(--muted);font-size:.85rem;text-align:center;padding:30px">No reviews yet — reviews will appear here once guests start booking.</p>'
-    + ''  // tabs end
-    // RIGHT panel
+    + '</div>'
+    + '</div>'  // ── END LEFT COLUMN ──
+    // ── RIGHT COLUMN ──
     + '<div><div style="position:sticky;top:80px">'
     + '<div class="exp-box-link">'
     + '<h5><i class="fa fa-gift"></i> This experience is part of a box</h5>'
@@ -17190,15 +17189,15 @@ function ppPreviewExperience() {
     + '</div></div></div>'
     + '<button class="btn bp block" style="margin-top:14px"><i class="fa fa-cart-shopping"></i> Buy this box</button>'
     + '<button class="btn bg block" style="margin-top:8px"><i class="fa fa-key"></i> I already have a box — Activate it</button>'
-    + '</div></div>'
-    + '</div>'
-    + '<div style="margin-top:20px;background:#fef3c7;border:1px solid #fcd34d;border-radius:var(--rs);padding:10px 14px;font-size:.75rem;color:#92400e"><i class="fa fa-info-circle"></i> Preview only — not visible to customers until approved by WowBox admin.</div>'
+    + '</div></div>'  // ── END RIGHT COLUMN ──
+    + '</div>'  // ── END exp-detail-layout ──
+    + '<div style="margin:20px 0;background:#fef3c7;border:1px solid #fcd34d;border-radius:var(--rs);padding:10px 14px;font-size:.75rem;color:#92400e"><i class="fa fa-info-circle"></i> Preview only — not visible to customers until approved by WowBox admin.</div>'
     + '</div>';
 
   var m = document.createElement('div');
   m.id = 'pp-exp-preview-modal';
   m.style.cssText = 'position:fixed;inset:0;z-index:8000;background:rgba(0,0,0,.6);overflow-y:auto';
-  m.innerHTML = '<div style="background:#fff;min-height:100vh">'
+  m.innerHTML = '<div style="background:var(--cream,#fdf8f4);min-height:100vh">'
     + '<div style="display:flex;justify-content:space-between;align-items:center;padding:14px 24px;border-bottom:1px solid var(--border);background:#fff;position:sticky;top:0;z-index:10">'
     + '<div style="font-size:.78rem;font-weight:700;color:var(--b500);text-transform:uppercase;letter-spacing:.08em">👁 Experience Preview</div>'
     + '<button onclick="document.getElementById(\'pp-exp-preview-modal\').remove()" style="background:var(--b50);border:none;border-radius:6px;padding:6px 14px;cursor:pointer;font-size:.82rem;font-weight:600">✕ Close preview</button>'
