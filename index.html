@@ -17064,6 +17064,11 @@ function ppPageGoStep(n) {
   if (n === 3) ppPageLoadExpList();
   if (n === 4) ppPageRenderPreview();
   if (n === 5) ppPageSetupPublishStep();
+  // Always persist current layout when navigating steps
+  if (n >= 2) {
+    var uid = currentUser && currentUser.id;
+    if (uid) db_client.from('user_profiles').update({ page_layout: ppPageGetLayout() }).eq('id', uid).then(function(){});
+  }
 }
 
 function ppPageUpdateMiniPreview() {
@@ -17101,7 +17106,7 @@ async function ppPageLoadExpList() {
         + (img ? '<img src="'+img+'" style="width:44px;height:36px;object-fit:cover;border-radius:4px;flex-shrink:0">' : '<div style="width:44px;height:36px;background:var(--b200);border-radius:4px;flex-shrink:0"></div>')
         + '<div style="flex:1;min-width:0"><div style="font-weight:600;font-size:.85rem;color:var(--navy);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+e.name+'</div>'
         + '<div style="font-size:.74rem;color:var(--muted)">'+(e.category||'')+(e.city?' · '+e.city:'')+(e.price?' · R'+Number(e.price).toLocaleString():'')+'</div></div>'
-        + '<button onclick="ppPageToggleFeatured(this)" title="Feature this experience" style="background:none;border:none;font-size:1.1rem;cursor:pointer;padding:4px;flex-shrink:0;color:'+(isFeatured?'#f59e0b':'#d1d5db')+'" data-featured="'+(isFeatured?'1':'0')+'">⭐</button>'
+        + '<button onclick="ppPageToggleFeatured(this)" title="Feature this experience (shown larger in Magazine/Featured layouts)" style="background:none;border:none;font-size:1.1rem;cursor:pointer;padding:2px 6px;flex-shrink:0" data-featured="'+(isFeatured?'1':'0')+'">'+(isFeatured?'⭐':'☆')+'</button>'
         + '</div>';
     }).join('') : '<p style="color:var(--muted);font-style:italic;padding:20px 0">No active experiences yet. Add experiences in My Experiences first.</p>';
     ppPageInitSortable(listEl);
@@ -17115,8 +17120,12 @@ function ppPageExpRowToggle(cb) {
 
 function ppPageToggleFeatured(btn) {
   var isFeatured = btn.dataset.featured === '1';
-  document.querySelectorAll('#pp-pg-exp-list [data-featured]').forEach(function(b){ b.dataset.featured='0'; b.style.color='#d1d5db'; });
-  if (!isFeatured) { btn.dataset.featured='1'; btn.style.color='#f59e0b'; }
+  // Clear all
+  document.querySelectorAll('#pp-pg-exp-list [data-featured]').forEach(function(b){
+    b.dataset.featured = '0'; b.textContent = '☆';
+  });
+  // Set this one if it wasn't already featured
+  if (!isFeatured) { btn.dataset.featured = '1'; btn.textContent = '⭐'; }
 }
 
 function ppPageInitSortable(el) {
