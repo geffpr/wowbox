@@ -6000,8 +6000,9 @@ tr:hover td{background:var(--b50)}
           <div style="background:#fef3c7;border:1px solid #fcd34d;border-radius:var(--rs);padding:10px 14px;font-size:.75rem;color:#92400e;margin-bottom:16px">
             <i class="fa fa-triangle-exclamation"></i> New experiences are submitted for WowBox admin review before going live. This usually takes 1–2 business days.
           </div>
-          <div style="display:flex;gap:10px">
+          <div style="display:flex;gap:10px;flex-wrap:wrap">
             <button class="btn bp bsm" onclick="submitNewExp()"><i class="fa fa-paper-plane"></i> Submit for review</button>
+            <button class="btn bg bsm" onclick="ppPreviewExperience()"><i class="fa fa-eye"></i> Preview</button>
             <button class="btn bg bsm" onclick="toggleAddForm()">Cancel</button>
           </div>
         </div>
@@ -17051,6 +17052,84 @@ function toggleAddForm() {
     var aw = document.getElementById('pp-new-amenities-wrap');
     if (aw && !aw.innerHTML.trim()) aw.innerHTML = buildAmenitiesCheckboxes('pp-new', []);
   }
+}
+
+function ppPreviewExperience() {
+  // Read all form fields
+  var name     = document.getElementById('pp-new-name')?.value?.trim()       || 'Unnamed Experience';
+  var type     = document.getElementById('pp-new-type')?.value               || 'activity';
+  var desc     = document.getElementById('pp-new-desc')?.value?.trim()       || '';
+  var price    = document.getElementById('pp-new-price')?.value              || '';
+  var city     = document.getElementById('pp-new-city')?.value?.trim()       || '';
+  var province = document.getElementById('pp-new-province')?.value           || '';
+  var capacity = document.getElementById('pp-new-capacity')?.value           || '2';
+  var phone    = document.getElementById('pp-new-phone')?.value?.trim()      || '';
+  var nights   = document.getElementById('pp-new-nights')?.value             || '0';
+  var cat      = document.getElementById('pp-new-category')?.value           || '';
+  var bkType   = document.getElementById('pp-new-booking-type')?.value       || '';
+  var weekend  = document.getElementById('pp-new-weekend-type')?.value       || '';
+  var img0     = document.getElementById('pp-new-img-0')?.value              || '';
+  var img1     = document.getElementById('pp-new-img-1')?.value              || '';
+  var img2     = document.getElementById('pp-new-img-2')?.value              || '';
+  var imgs     = [img0, img1, img2].filter(Boolean);
+
+  // Type labels
+  var typeMap = { accommodation:'🏨 Accommodation', dining:'🍽️ Dining', wellness:'🧖 Wellness',
+    activity:'🏄 Activity', culture:'🎭 Culture', nature:'🦁 Nature', event:'🎉 Event', rental:'🚗 Rental' };
+  var durLabel = nights === '0' ? '🌞 Day trip' : nights + ' night' + (parseInt(nights)>1?'s':'');
+
+  var existing = document.getElementById('pp-exp-preview-modal');
+  if (existing) existing.remove();
+
+  var imgHtml = imgs.length
+    ? '<div style="display:flex;gap:6px;margin-bottom:16px;border-radius:var(--rx);overflow:hidden;max-height:220px">'
+      + (imgs[0] ? '<img src="'+imgs[0]+'" style="flex:2;object-fit:cover;min-width:0">' : '')
+      + (imgs.length > 1 ? '<div style="flex:1;display:flex;flex-direction:column;gap:6px">'
+        + imgs.slice(1).map(function(u){ return '<img src="'+u+'" style="flex:1;object-fit:cover;width:100%">'; }).join('')
+        + '</div>' : '')
+      + '</div>'
+    : '<div style="height:160px;background:var(--b50);border-radius:var(--rx);display:flex;align-items:center;justify-content:center;color:var(--muted);margin-bottom:16px;font-size:.85rem">No images uploaded yet</div>';
+
+  function infoChip(icon, label) {
+    if (!label) return '';
+    return '<span style="display:inline-flex;align-items:center;gap:5px;background:var(--b50);border:1px solid var(--b100);border-radius:99px;padding:4px 10px;font-size:.75rem;color:var(--navy);margin:3px">' + icon + ' ' + label + '</span>';
+  }
+
+  var m = document.createElement('div');
+  m.id = 'pp-exp-preview-modal';
+  m.style.cssText = 'position:fixed;inset:0;z-index:8000;background:rgba(0,0,0,.55);display:flex;align-items:flex-start;justify-content:center;padding:40px 20px;overflow-y:auto';
+  m.innerHTML = '<div style="background:#fff;width:100%;max-width:620px;border-radius:16px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.2)">'
+    // Header
+    + '<div style="display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:1px solid var(--border);background:var(--bg)">'
+    + '<div style="font-size:.78rem;font-weight:700;color:var(--b500);text-transform:uppercase;letter-spacing:.08em">👁 Experience Preview</div>'
+    + '<button onclick="document.getElementById(\'pp-exp-preview-modal\').remove()" style="background:var(--b50);border:none;border-radius:50%;width:32px;height:32px;cursor:pointer;font-size:1rem"><i class="fa fa-xmark"></i></button>'
+    + '</div>'
+    // Body
+    + '<div style="padding:20px">'
+    + imgHtml
+    + '<div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:10px">'
+    + '<h2 style="flex:1;font-family:\'Cormorant Garamond\',serif;font-size:1.6rem;color:var(--navy);line-height:1.2">' + name + '</h2>'
+    + (price ? '<div style="font-size:1.3rem;font-weight:700;color:var(--navy);white-space:nowrap">R' + Number(price).toLocaleString() + '</div>' : '')
+    + '</div>'
+    // Chips
+    + '<div style="margin-bottom:14px;display:flex;flex-wrap:wrap;gap:0">'
+    + infoChip('', typeMap[type]||type)
+    + infoChip('📍', [city, province].filter(Boolean).join(', '))
+    + infoChip('👥', capacity + ' guests max')
+    + infoChip('⏱', durLabel)
+    + infoChip('💻', bkType)
+    + infoChip('🏷️', cat)
+    + infoChip('💑', weekend)
+    + '</div>'
+    // Description
+    + (desc ? '<p style="font-size:.88rem;color:#374151;line-height:1.8;margin-bottom:16px">' + desc.replace(/\n/g,'<br>') + '</p>' : '<p style="font-size:.85rem;color:var(--muted);font-style:italic">No description added yet.</p>')
+    // Phone
+    + (phone ? '<div style="font-size:.78rem;color:var(--muted);margin-bottom:14px"><i class="fa fa-phone" style="color:var(--b400)"></i> ' + phone + '</div>' : '')
+    + '<div style="background:#fef3c7;border:1px solid #fcd34d;border-radius:var(--rs);padding:10px 14px;font-size:.75rem;color:#92400e"><i class="fa fa-info-circle"></i> This is a preview only — not visible to customers until approved by WowBox admin.</div>'
+    + '</div>'
+    + '</div>';
+  m.addEventListener('click', function(e){ if (e.target === m) m.remove(); });
+  document.body.appendChild(m);
 }
 
 async function submitNewExp() {
