@@ -6711,6 +6711,8 @@ tr:hover td{background:var(--b50)}
                 </div>
               </div>
               <div class="fg"><label>Capacity</label><input class="fi" id="aef-cap" type="number" placeholder="2"></div>
+              <div class="fg"><label>City</label><input class="fi" id="aef-city" type="text" placeholder="e.g. Cape Town"></div>
+              <div class="fg"><label>Value (R)</label><div style="position:relative"><span style="position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:.85rem">R</span><input class="fi" id="aef-price" type="number" min="0" step="1" placeholder="e.g. 850" style="padding-left:26px"></div></div>
               <div class="fg-row">
                 <div class="fg"><label>Province</label>
                   <select class="fi" id="aef-province">
@@ -14089,6 +14091,8 @@ async function admShowExpFormById(expId) {
     var el;
     el = document.getElementById('aef-rt');           if (el) el.value   = '';
     el = document.getElementById('aef-province');     if (el) el.value   = '';
+    el = document.getElementById('aef-city');          if (el) el.value   = '';
+    el = document.getElementById('aef-price');         if (el) el.value   = '';
     el = document.getElementById('aef-booking-type'); if (el) el.value   = 'on_site';
     el = document.getElementById('aef-nights');       if (el) el.value   = '0';
     el = document.getElementById('aef-category');     if (el) el.value   = '';
@@ -14142,6 +14146,8 @@ async function admShowExpFormById(expId) {
     var el;
     el = document.getElementById('aef-rt');           if (el) el.value   = e.reservation_type       || '';
     el = document.getElementById('aef-province');     if (el) el.value   = e.province               || '';
+    el = document.getElementById('aef-city');          if (el) el.value   = e.city                   || '';
+    el = document.getElementById('aef-price');         if (el) el.value   = e.price                  || '';
     el = document.getElementById('aef-booking-type'); if (el) el.value   = e.booking_type           || 'on_site';
     el = document.getElementById('aef-nights');       if (el) el.value   = e.duration_nights        || 0;
     el = document.getElementById('aef-category');     if (el) el.value   = e.category               || '';
@@ -14832,6 +14838,8 @@ async function admSaveExp() {
   const address = document.getElementById('aef-address')?.value?.trim() || '';
   const phone   = document.getElementById('aef-phone')?.value?.trim() || '';
   const cap     = parseInt(document.getElementById('aef-cap')?.value) || null;
+  const city    = document.getElementById('aef-city')?.value?.trim() || null;
+  const price   = parseInt(document.getElementById('aef-price')?.value) || null;
   const desc    = document.getElementById('aef-desc')?.value?.trim() || '';
   const province     = document.getElementById('aef-province')?.value || null;
   const bookingType  = document.getElementById('aef-booking-type')?.value || 'on_site';
@@ -14868,6 +14876,8 @@ async function admSaveExp() {
     images:             imgs,
     ...(mainImg ? { image_url: mainImg } : {}),
     province,
+    ...(city  ? { city }  : {}),
+    ...(price ? { price } : {}),
     booking_type:       bookingType,
     duration_nights:    nights,
     category,
