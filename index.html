@@ -16841,7 +16841,10 @@ async function ppPageInit() {
   var email = appState.partnerEmail || (currentUser && currentUser.email) || '';
   if (!email) return;
   try {
-    var res = await db_client.from('user_profiles').select('full_name,partner_name,page_slug,page_status,page_tagline,page_description,page_logo,page_cover,page_color,page_experiences').eq('email', email).maybeSingle();
+    var uid = currentUser && currentUser.id;
+    var res = uid 
+      ? await db_client.from('user_profiles').select('full_name,partner_name,page_slug,page_status,page_tagline,page_description,page_logo,page_cover,page_color,page_experiences').eq('id', uid).maybeSingle()
+      : await db_client.from('user_profiles').select('full_name,partner_name,page_slug,page_status,page_tagline,page_description,page_logo,page_cover,page_color,page_experiences').eq('email', email).maybeSingle();
     var d = res.data || {};
     _ppPageData = d;
     // Populate step 1
@@ -17038,10 +17041,12 @@ async function ppPageSave() {
     var payload = { page_slug: slug, page_tagline: tagline, page_description: desc, page_color: color, page_experiences: selectedIds };
     if (_ppPageData.page_logo)  payload.page_logo  = _ppPageData.page_logo;
     if (_ppPageData.page_cover) payload.page_cover = _ppPageData.page_cover;
-    await db_client.from('user_profiles').update(payload).eq('email', email);
+    var uid = currentUser && currentUser.id;
+    if (!uid) return;
+    await db_client.from('user_profiles').update(payload).eq('id', uid);
     _ppPageData = Object.assign(_ppPageData, payload);
     ppPageUpdateMiniPreview();
-  } catch(e) { console.warn('ppPageSave:', e.message); }
+  } catch(e) { console.warn('ppPageSave error:', e.message); admToast('Save error: ' + e.message); }
 }
 
 async function ppPagePublish() {
@@ -17051,7 +17056,9 @@ async function ppPagePublish() {
   var st    = document.getElementById('pp-pg-publish-status');
   if (!slug) { if (st) { st.textContent = 'Please set a page URL first.'; st.style.color = '#dc2626'; } return; }
   try {
-    await db_client.from('user_profiles').update({ page_status: 'published' }).eq('email', email);
+    var uid = currentUser && currentUser.id;
+    if (!uid) return;
+    await db_client.from('user_profiles').update({ page_status: 'published' }).eq('id', uid);
     _ppPageData.page_status = 'published';
     if (st) { st.textContent = '✓ Your page is live!'; st.style.color = '#16a34a'; }
     ppPageUpdateStatusBadge('published');
@@ -17063,7 +17070,9 @@ async function ppPageSetOffline() {
   var email = appState.partnerEmail || (currentUser && currentUser.email) || '';
   var st = document.getElementById('pp-pg-publish-status');
   try {
-    await db_client.from('user_profiles').update({ page_status: 'offline' }).eq('email', email);
+    var uid = currentUser && currentUser.id;
+    if (!uid) return;
+    await db_client.from('user_profiles').update({ page_status: 'offline' }).eq('id', uid);
     _ppPageData.page_status = 'offline';
     if (st) { st.textContent = '✓ Page taken offline.'; st.style.color = 'var(--muted)'; }
     ppPageUpdateStatusBadge('offline');
