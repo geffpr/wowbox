@@ -4261,7 +4261,7 @@ tr:hover td{background:var(--b50)}
             <option>North West</option><option>Free State</option><option>Northern Cape</option>
           </select>
           <select class="efi" id="exp-loc-f" onchange="renderExpList()" style="min-width:140px">
-            <option value="">All regions</option>
+            <option value="">All cities</option>
           </select>
           <select class="efi" id="exp-group-f" onchange="renderExpList()" style="min-width:130px">
             <option value="">👥 All sizes</option>
@@ -7891,7 +7891,7 @@ tr:hover td{background:var(--b50)}
         <input class="fi" type="text" id="browse-search" placeholder="🔍  Search experiences…" oninput="renderBrowse()" style="padding:10px 13px">
       </div>
 
-      <h4>Type d'expérience</h4>
+      <h4>Experience type</h4>
       <div class="filter-group">
         <label class="fcheck"><input type="checkbox" value="accommodation" onchange="renderBrowse()" class="brtf"> 🏨 Accommodation</label>
         <label class="fcheck"><input type="checkbox" value="dining" onchange="renderBrowse()" class="brtf"> 🍽️ Dining</label>
@@ -7903,11 +7903,11 @@ tr:hover td{background:var(--b50)}
         <label class="fcheck"><input type="checkbox" value="rental" onchange="renderBrowse()" class="brtf"> 🚗 Rental</label>
       </div>
 
-      <h4>Nombre de personnes</h4>
+      <h4>Group size</h4>
       <div class="filter-group">
         <label class="fcheck"><input type="checkbox" value="solo" onchange="renderBrowse()" class="brgf"> 👤 Solo (1)</label>
-        <label class="fcheck"><input type="checkbox" value="duo" onchange="renderBrowse()" class="brgf"> 👫 Duo (jusqu'à 2)</label>
-        <label class="fcheck"><input type="checkbox" value="group" onchange="renderBrowse()" class="brgf"> 👥 Groupe (3+)</label>
+        <label class="fcheck"><input type="checkbox" value="duo" onchange="renderBrowse()" class="brgf"> 👫 Duo (up to 2)</label>
+        <label class="fcheck"><input type="checkbox" value="group" onchange="renderBrowse()" class="brgf"> 👥 Group (3+)</label>
       </div>
 
       <h4>Province</h4>
@@ -7923,48 +7923,48 @@ tr:hover td{background:var(--b50)}
         <label class="fcheck"><input type="checkbox" value="Northern Cape" onchange="renderBrowse()" class="brpf"> Northern Cape</label>
       </div>
 
-      <h4>Région / Ville</h4>
+      <h4>City</h4>
       <div class="filter-group" id="browse-loc-filter-group">
         <!-- populated dynamically -->
       </div>
 
-      <h4>Style de séjour</h4>
+      <h4>Weekend style</h4>
       <div class="filter-group">
-        <label class="fcheck"><input type="checkbox" value="romantic" onchange="renderBrowse()" class="brwf"> 💑 Romantique</label>
-        <label class="fcheck"><input type="checkbox" value="family" onchange="renderBrowse()" class="brwf"> 👨‍👩‍👧 Famille</label>
-        <label class="fcheck"><input type="checkbox" value="adventure" onchange="renderBrowse()" class="brwf"> 🏔️ Aventure</label>
-        <label class="fcheck"><input type="checkbox" value="relaxation" onchange="renderBrowse()" class="brwf"> 🧘 Détente</label>
-        <label class="fcheck"><input type="checkbox" value="gastronomic" onchange="renderBrowse()" class="brwf"> 🍷 Gastronomique</label>
-        <label class="fcheck"><input type="checkbox" value="cultural" onchange="renderBrowse()" class="brwf"> 🎨 Culturel</label>
+        <label class="fcheck"><input type="checkbox" value="romantic" onchange="renderBrowse()" class="brwf"> 💑 Romantic</label>
+        <label class="fcheck"><input type="checkbox" value="family" onchange="renderBrowse()" class="brwf"> 👨‍👩‍👧 Family</label>
+        <label class="fcheck"><input type="checkbox" value="adventure" onchange="renderBrowse()" class="brwf"> 🏔️ Adventure</label>
+        <label class="fcheck"><input type="checkbox" value="relaxation" onchange="renderBrowse()" class="brwf"> 🧘 Relaxation</label>
+        <label class="fcheck"><input type="checkbox" value="gastronomic" onchange="renderBrowse()" class="brwf"> 🍷 Gastronomic</label>
+        <label class="fcheck"><input type="checkbox" value="cultural" onchange="renderBrowse()" class="brwf"> 🎨 Cultural</label>
       </div>
 
-      <h4>Durée</h4>
+      <h4>Duration</h4>
       <div class="filter-group">
-        <label class="fcheck"><input type="checkbox" value="0" onchange="renderBrowse()" class="brnf"> 🌞 Journée</label>
+        <label class="fcheck"><input type="checkbox" value="0" onchange="renderBrowse()" class="brnf"> 🌞 Day trip</label>
         <label class="fcheck"><input type="checkbox" value="1" onchange="renderBrowse()" class="brnf"> 🌙 1 nuit</label>
         <label class="fcheck"><input type="checkbox" value="2" onchange="renderBrowse()" class="brnf"> 🌙 2 nuits</label>
         <label class="fcheck"><input type="checkbox" value="3" onchange="renderBrowse()" class="brnf"> 🌙 3 nuits +</label>
       </div>
 
-      <h4>Réservation</h4>
+      <h4>Booking type</h4>
       <div class="filter-group">
-        <label class="fcheck"><input type="checkbox" value="online" onchange="renderBrowse()" class="brbf"> 💻 En ligne</label>
-        <label class="fcheck"><input type="checkbox" value="phone" onchange="renderBrowse()" class="brbf"> 📞 Par téléphone</label>
-        <label class="fcheck"><input type="checkbox" value="on_site" onchange="renderBrowse()" class="brbf"> 🚶 Sur place</label>
+        <label class="fcheck"><input type="checkbox" value="online" onchange="renderBrowse()" class="brbf"> 💻 Online</label>
+        <label class="fcheck"><input type="checkbox" value="phone" onchange="renderBrowse()" class="brbf"> 📞 By phone</label>
+        <label class="fcheck"><input type="checkbox" value="on_site" onchange="renderBrowse()" class="brbf"> 🚶 On site</label>
       </div>
 
-      <h4>Spécial</h4>
+      <h4>Special</h4>
       <div class="filter-group">
-        <label class="fcheck"><input type="checkbox" id="browse-accessible-f" onchange="renderBrowse()"> ♿ Accessible PMR</label>
-        <label class="fcheck"><input type="checkbox" id="browse-insolite-f" onchange="renderBrowse()"> 🌟 Hébergement insolite</label>
+        <label class="fcheck"><input type="checkbox" id="browse-accessible-f" onchange="renderBrowse()"> ♿ Wheelchair accessible</label>
+        <label class="fcheck"><input type="checkbox" id="browse-insolite-f" onchange="renderBrowse()"> 🌟 Unique accommodation</label>
       </div>
 
-      <h4>Services inclus</h4>
+      <h4>Included services</h4>
       <div class="filter-group">
-        <label class="fcheck"><input type="checkbox" value="Breakfast" onchange="renderBrowse()" class="brsf"> Petit-déjeuner inclus</label>
+        <label class="fcheck"><input type="checkbox" value="Breakfast" onchange="renderBrowse()" class="brsf"> Breakfast included</label>
         <label class="fcheck"><input type="checkbox" value="Pool" onchange="renderBrowse()" class="brsf"> Piscine / Spa</label>
-        <label class="fcheck"><input type="checkbox" value="Champagne" onchange="renderBrowse()" class="brsf"> Champagne inclus</label>
-        <label class="fcheck"><input type="checkbox" value="Kids OK" onchange="renderBrowse()" class="brsf"> Enfants bienvenus</label>
+        <label class="fcheck"><input type="checkbox" value="Champagne" onchange="renderBrowse()" class="brsf"> Champagne included</label>
+        <label class="fcheck"><input type="checkbox" value="Kids OK" onchange="renderBrowse()" class="brsf"> Children welcome</label>
       </div>
 
       <div class="divider"></div>
@@ -8691,7 +8691,7 @@ function getBrowseFiltered() {
     const boxMatch      = !bid || e.box === bid;
     const searchMatch   = !search              || e.name.toLowerCase().includes(search) || (e.loc||'').toLowerCase().includes(search) || (e.partner||'').toLowerCase().includes(search);
     const typeMatch     = typeChecks.length===0    || typeChecks.some(t => e.reservation_type===t||e.type===t||e.category===t);
-    const locMatch      = locChecks.length===0     || locChecks.some(l => (e.loc||'').includes(l));
+    const locMatch      = locChecks.length===0     || locChecks.some(l => (e.city||'').toLowerCase().includes(l.toLowerCase()));
     const srvMatch      = srvChecks.length===0     || srvChecks.some(s => (e.tags||[]).includes(s));
     const groupMatch    = groupChecks.length===0   || groupChecks.some(g => (g==='solo'&&cap===1)||(g==='duo'&&cap===2)||(g==='group'&&cap>=3));
     const provinceMatch = provinceChecks.length===0|| provinceChecks.includes(e.province||'');
@@ -9264,7 +9264,7 @@ function getFilteredExps() {
     const searchMatch    = !search      || e.name.toLowerCase().includes(search) || (e.loc||'').toLowerCase().includes(search) || (e.partner||'').toLowerCase().includes(search);
     const typeMatch      = !typeF       || e.type===typeF || e.reservation_type===typeF || e.category===typeF;
     const provinceMatch  = !provinceF   || (e.province||'')===provinceF;
-    const locMatch       = !locF        || (e.loc||'').includes(locF);
+    const locMatch       = !locF        || (e.city||'').toLowerCase().includes(locF.toLowerCase());
     const groupMatch     = !groupF      || (groupF==='solo'&&cap===1)||(groupF==='duo'&&cap===2)||(groupF==='group'&&cap>=3);
     const nightsMatch    = !nightsF     || (nightsF==='0'&&(e.duration_nights||0)===0)||(nightsF==='1'&&e.duration_nights===1)||(nightsF==='2'&&e.duration_nights===2)||(nightsF==='3'&&(e.duration_nights||0)>=3);
     const weekendMatch   = !weekendF    || e.weekend_type===weekendF;
@@ -13468,8 +13468,8 @@ function buildExpLocFilter() {
   if (!sel) return;
   var current = sel.value;
   // Collect unique loc values from expDB
-  var locs = [...new Set(expDB.map(function(e){ return (e.loc||'').trim(); }).filter(Boolean))].sort();
-  sel.innerHTML = '<option value="">All regions</option>'
+  var locs = [...new Set(expDB.map(function(e){ return (e.city||'').trim(); }).filter(Boolean))].sort();
+  sel.innerHTML = '<option value="">All cities</option>'
     + locs.map(function(l){ return '<option value="'+l+'"'+(l===current?' selected':'')+'>'+l+'</option>'; }).join('');
 }
 
@@ -13481,7 +13481,7 @@ function buildBrowseLocFilter() {
   var checked = [...document.querySelectorAll('.brlf:checked')].map(function(c){ return c.value; });
   var bid = appState.browseBoxId;
   // Get locs from experiences in this box
-  var locs = [...new Set(expDB.filter(function(e){ return !bid || e.box === bid || true; }).map(function(e){ return (e.loc||'').trim(); }).filter(Boolean))].sort();
+  var locs = [...new Set(expDB.filter(function(e){ return !bid || e.box === bid || true; }).map(function(e){ return (e.city||'').trim(); }).filter(Boolean))].sort();
   container.innerHTML = locs.map(function(l){
     return '<label class="fcheck"><input type="checkbox" value="'+l+'" onchange="renderBrowse()" class="brlf"'+(checked.includes(l)?' checked':'')+'>  '+l+'</label>';
   }).join('');
