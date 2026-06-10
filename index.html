@@ -3028,6 +3028,8 @@ nav{position:sticky;top:0;z-index:300;background:rgba(255,255,255,.95);
   color:rgba(255,255,255,.6);cursor:pointer;transition:all .14s;margin-bottom:3px;
   display:flex;align-items:center;gap:9px;border:none;background:none;width:100%;text-align:left}
 .pp-nav:hover{background:rgba(255,255,255,.1);color:#fff}
+.pp-layout-opt:hover{border-color:var(--b400)!important;color:var(--navy)!important}
+input[type=radio]:checked+.pp-layout-opt{border-color:var(--b600)!important;color:var(--b700)!important;background:var(--b50)}
 .pp-wiz-step{background:none;border:none;border-bottom:3px solid transparent;padding:10px 18px;font-size:.82rem;font-weight:600;color:var(--muted);cursor:pointer;white-space:nowrap;transition:color .15s,border-color .15s}
 .pp-wiz-step.on{color:var(--b700);border-bottom-color:var(--b600)}
 .pp-wiz-step:hover:not(.on){color:var(--navy)}
@@ -6411,6 +6413,53 @@ tr:hover td{background:var(--b50)}
               </div>
             </div>
             <div style="margin-bottom:18px">
+              <label style="font-size:.75rem;color:var(--muted);display:block;margin-bottom:6px">Layout</label>
+              <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px" id="pp-pg-layout-picker">
+                <label style="cursor:pointer;text-align:center">
+                  <input type="radio" name="pp-pg-layout" value="grid" checked style="display:none" onchange="ppPageUpdateMiniPreview()">
+                  <div class="pp-layout-opt" style="border:2px solid var(--b600);border-radius:8px;padding:8px 4px;font-size:.7rem;color:var(--b700);font-weight:600">
+                    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:2px;margin-bottom:4px">
+                      <div style="height:18px;background:var(--b200);border-radius:2px"></div>
+                      <div style="height:18px;background:var(--b200);border-radius:2px"></div>
+                      <div style="height:18px;background:var(--b200);border-radius:2px"></div>
+                    </div>Grid
+                  </div>
+                </label>
+                <label style="cursor:pointer;text-align:center">
+                  <input type="radio" name="pp-pg-layout" value="magazine" style="display:none" onchange="ppPageUpdateMiniPreview()">
+                  <div class="pp-layout-opt" style="border:2px solid var(--border);border-radius:8px;padding:8px 4px;font-size:.7rem;color:var(--muted);font-weight:600">
+                    <div style="display:grid;grid-template-columns:2fr 1fr;gap:2px;margin-bottom:4px">
+                      <div style="height:28px;background:var(--b200);border-radius:2px;grid-row:span 2"></div>
+                      <div style="height:12px;background:var(--b200);border-radius:2px"></div>
+                      <div style="height:12px;background:var(--b200);border-radius:2px"></div>
+                    </div>Magazine
+                  </div>
+                </label>
+                <label style="cursor:pointer;text-align:center">
+                  <input type="radio" name="pp-pg-layout" value="featured" style="display:none" onchange="ppPageUpdateMiniPreview()">
+                  <div class="pp-layout-opt" style="border:2px solid var(--border);border-radius:8px;padding:8px 4px;font-size:.7rem;color:var(--muted);font-weight:600">
+                    <div style="margin-bottom:4px">
+                      <div style="height:22px;background:var(--b200);border-radius:2px;margin-bottom:2px"></div>
+                      <div style="display:grid;grid-template-columns:1fr 1fr;gap:2px">
+                        <div style="height:12px;background:var(--b200);border-radius:2px"></div>
+                        <div style="height:12px;background:var(--b200);border-radius:2px"></div>
+                      </div>
+                    </div>Featured
+                  </div>
+                </label>
+                <label style="cursor:pointer;text-align:center">
+                  <input type="radio" name="pp-pg-layout" value="list" style="display:none" onchange="ppPageUpdateMiniPreview()">
+                  <div class="pp-layout-opt" style="border:2px solid var(--border);border-radius:8px;padding:8px 4px;font-size:.7rem;color:var(--muted);font-weight:600">
+                    <div style="margin-bottom:4px">
+                      <div style="height:8px;background:var(--b200);border-radius:2px;margin-bottom:2px"></div>
+                      <div style="height:8px;background:var(--b200);border-radius:2px;margin-bottom:2px"></div>
+                      <div style="height:8px;background:var(--b200);border-radius:2px"></div>
+                    </div>List
+                  </div>
+                </label>
+              </div>
+            </div>
+            <div style="margin-bottom:18px">
               <label style="font-size:.75rem;color:var(--muted);display:block;margin-bottom:6px">Accent colour</label>
               <div style="display:flex;align-items:center;gap:12px">
                 <input type="color" id="pp-pg-color" value="#b45309" style="width:44px;height:36px;border:1.5px solid var(--border);border-radius:6px;cursor:pointer;padding:2px" oninput="ppPageUpdateMiniPreview()">
@@ -6434,10 +6483,11 @@ tr:hover td{background:var(--b50)}
 
         <!-- Step 3: Experiences -->
         <div id="pp-page-step-3" class="pp-wiz-panel" style="display:none">
-          <p style="font-size:.82rem;color:var(--muted);margin-bottom:16px">Choose which experiences to display on your public page. Drag to reorder.</p>
-          <div id="pp-pg-exp-list" style="display:flex;flex-direction:column;gap:8px;max-width:560px;margin-bottom:18px">
-            <div style="text-align:center;padding:20px;color:var(--muted)">Loading experiences…</div>
-          </div>
+        <p style="font-size:.82rem;color:var(--muted);margin-bottom:6px">Choose which experiences to display. Drag to reorder. ⭐ to feature one prominently.</p>
+        <p style="font-size:.74rem;color:var(--b500);margin-bottom:16px">The first checked experience will be featured if you choose Magazine or Featured layout.</p>
+        <div id="pp-pg-exp-list" style="display:flex;flex-direction:column;gap:8px;max-width:560px;margin-bottom:18px">
+          <div style="text-align:center;padding:20px;color:var(--muted)">Loading experiences…</div>
+        </div>
           <div style="display:flex;gap:10px;justify-content:space-between;max-width:560px">
             <button class="btn bg bsm" onclick="ppPageGoStep(2)">← Back</button>
             <button class="btn bp bsm" onclick="ppPageSave();ppPageGoStep(4)">Save & Preview →</button>
@@ -16785,7 +16835,7 @@ async function ppSendContactMessage() {
 // ── Public partner storefront /p/[slug] ──────────────────────────
 async function loadPartnerStorefront(slug) {
   try {
-    var res = await db_client.from('user_profiles').select('partner_name,full_name,page_tagline,page_description,page_logo,page_cover,page_color,page_experiences,page_status').eq('page_slug', slug).maybeSingle();
+    var res = await db_client.from('user_profiles').select('partner_name,full_name,page_tagline,page_description,page_logo,page_cover,page_color,page_experiences,page_status,page_layout').eq('page_slug', slug).maybeSingle();
     var p = res.data;
     if (!p || p.page_status !== 'published') {
       document.getElementById('ps-exp-grid').innerHTML = '<div style="text-align:center;padding:60px;color:var(--muted);grid-column:1/-1"><i class="fa fa-circle-exclamation" style="font-size:2rem;margin-bottom:10px;display:block"></i>This page is not available.</div>';
@@ -16809,7 +16859,16 @@ async function loadPartnerStorefront(slug) {
     if (expIds.length) exps.sort(function(a,b){ return expIds.indexOf(a.id) - expIds.indexOf(b.id); });
     var grid = document.getElementById('ps-exp-grid');
     if (!grid) return;
-    grid.innerHTML = exps.length ? exps.map(function(e){
+    var pageLayout = p.page_layout || 'grid';
+    var featuredId = null;
+    var savedExp = p.page_experiences || [];
+    var featEntry = savedExp.find ? savedExp.find(function(x){ return x&&typeof x==='object'&&x.featured; }) : null;
+    if (featEntry) featuredId = featEntry.id;
+    // Apply grid layout class
+    if (pageLayout === 'list') { grid.style.display='flex'; grid.style.flexDirection='column'; grid.style.gap='12px'; }
+    else if (pageLayout === 'magazine' || pageLayout === 'featured') { grid.style.display='block'; }
+    else { grid.style.display='grid'; grid.style.gridTemplateColumns='repeat(auto-fill,minmax(240px,1fr))'; grid.style.gap='18px'; }
+    grid.innerHTML = exps.length ? exps.map(function(e, idx){
       var img = e.image_url || (Array.isArray(e.images) && e.images[0]) || '';
       return '<div style="border:1px solid var(--border);border-radius:12px;overflow:hidden;background:#fff;box-shadow:0 2px 8px rgba(0,0,0,.06)">'
         + (img ? '<img src="'+img+'" style="width:100%;height:160px;object-fit:cover">' : '<div style="height:160px;background:var(--b50)"></div>')
@@ -16854,6 +16913,13 @@ async function ppPageInit() {
     document.getElementById('pp-pg-desc').value    = d.page_description || '';
     // Populate step 2
     if (d.page_color) document.getElementById('pp-pg-color').value = d.page_color;
+    if (d.page_layout) {
+      var layoutRadio = document.querySelector('input[name=\'pp-pg-layout\'][value=\''+d.page_layout+'\'\]');
+      if (layoutRadio) {
+        layoutRadio.checked = true;
+        layoutRadio.closest('label').querySelector('.pp-layout-opt').style.borderColor = 'var(--b600)';
+      }
+    }
     if (d.page_logo)  { var lp = document.getElementById('pp-pg-logo-preview');  if (lp) { lp.src = d.page_logo;  lp.style.display = 'block'; } }
     if (d.page_cover) { var cp = document.getElementById('pp-pg-cover-preview'); if (cp) { cp.src = d.page_cover; cp.style.display = 'block'; } }
     ppPageUpdateMiniPreview();
@@ -16915,19 +16981,50 @@ async function ppPageLoadExpList() {
   try {
     var res = await db_client.from('experiences').select('id,name,category,city,price,image_url,images').eq('partner_email', email).eq('is_active', true).order('name');
     var exps = res.data || [];
-    var selected = _ppPageData.page_experiences || [];
+    var savedOrder = _ppPageData.page_experiences || [];
+    if (savedOrder.length) {
+      var idList = savedOrder.map(function(x){ return typeof x==='string'?x:(x&&x.id?x.id:x); });
+      exps.sort(function(a,b){ var ai=idList.indexOf(a.id),bi=idList.indexOf(b.id); return (ai===-1?999:ai)-(bi===-1?999:bi); });
+    }
     listEl.innerHTML = exps.length ? exps.map(function(e){
       var img = e.image_url || (Array.isArray(e.images) && e.images[0]) || '';
-      var isOn = selected.includes(e.id) || selected.length === 0;
-      return '<label style="display:flex;align-items:center;gap:12px;padding:10px 14px;border:1.5px solid var(--border);border-radius:var(--rs);cursor:pointer;background:'+(isOn?'var(--b50)':'#fff')+'">'
-        + '<input type="checkbox" value="'+e.id+'" '+(isOn?'checked':'')+' style="accent-color:var(--b600);width:16px;height:16px;cursor:pointer" onchange="this.closest(\'label\').style.background=this.checked?\'var(--b50)\':\'#fff\'">'
-        + (img ? '<img src="'+img+'" style="width:44px;height:36px;object-fit:cover;border-radius:4px;flex-shrink:0">' : '<div style="width:44px;height:36px;background:var(--b50);border-radius:4px;flex-shrink:0"></div>')
-        + '<div style="flex:1"><div style="font-weight:600;font-size:.85rem;color:var(--navy)">'+e.name+'</div>'
-        + '<div style="font-size:.74rem;color:var(--muted)">'+(e.category||'')+(e.city?' · '+e.city:'')+(e.price?' · R'+Number(e.price).toLocaleString():'')+' </div></div>'
-        + '</label>';
-    }).join('') : '<p style="color:var(--muted);font-style:italic">No active experiences yet. Add experiences in My Experiences first.</p>';
+      var savedEntry = savedOrder.find ? savedOrder.find(function(x){ return (typeof x==='string'?x:(x&&x.id?x.id:x))===e.id; }) : null;
+      var isFeatured = savedEntry && typeof savedEntry==='object' && savedEntry.featured;
+      var isOn = !savedOrder.length || savedOrder.some(function(x){ return (typeof x==='string'?x:(x&&x.id?x.id:x))===e.id; });
+      return '<div class="pp-exp-row" data-id="'+e.id+'" draggable="true" style="display:flex;align-items:center;gap:10px;padding:10px 14px;border:1.5px solid var(--border);border-radius:var(--rs);background:'+(isOn?'var(--b50)':'#fff')+'">'
+        + '<i class="fa fa-grip-lines" style="color:var(--muted);cursor:grab;font-size:.85rem;flex-shrink:0"></i>'
+        + '<input type="checkbox" value="'+e.id+'" '+(isOn?'checked':'')+' style="accent-color:var(--b600);width:16px;height:16px;cursor:pointer;flex-shrink:0" onchange="ppPageExpRowToggle(this)">'
+        + (img ? '<img src="'+img+'" style="width:44px;height:36px;object-fit:cover;border-radius:4px;flex-shrink:0">' : '<div style="width:44px;height:36px;background:var(--b200);border-radius:4px;flex-shrink:0"></div>')
+        + '<div style="flex:1;min-width:0"><div style="font-weight:600;font-size:.85rem;color:var(--navy);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+e.name+'</div>'
+        + '<div style="font-size:.74rem;color:var(--muted)">'+(e.category||'')+(e.city?' · '+e.city:'')+(e.price?' · R'+Number(e.price).toLocaleString():'')+'</div></div>'
+        + '<button onclick="ppPageToggleFeatured(this)" title="Feature this experience" style="background:none;border:none;font-size:1.1rem;cursor:pointer;padding:4px;flex-shrink:0;color:'+(isFeatured?'#f59e0b':'#d1d5db')+'" data-featured="'+(isFeatured?'1':'0')+'">⭐</button>'
+        + '</div>';
+    }).join('') : '<p style="color:var(--muted);font-style:italic;padding:20px 0">No active experiences yet. Add experiences in My Experiences first.</p>';
+    ppPageInitSortable(listEl);
   } catch(e) { listEl.innerHTML = '<p style="color:#dc2626">Error loading experiences.</p>'; }
 }
+
+function ppPageExpRowToggle(cb) {
+  var row = cb.closest('.pp-exp-row');
+  if (row) row.style.background = cb.checked ? 'var(--b50)' : '#fff';
+}
+
+function ppPageToggleFeatured(btn) {
+  var isFeatured = btn.dataset.featured === '1';
+  document.querySelectorAll('#pp-pg-exp-list [data-featured]').forEach(function(b){ b.dataset.featured='0'; b.style.color='#d1d5db'; });
+  if (!isFeatured) { btn.dataset.featured='1'; btn.style.color='#f59e0b'; }
+}
+
+function ppPageInitSortable(el) {
+  if (!el) return;
+  var dragging = null;
+  el.querySelectorAll('.pp-exp-row').forEach(function(row){
+    row.addEventListener('dragstart', function(e){ dragging=row; row.style.opacity='.4'; e.dataTransfer.effectAllowed='move'; });
+    row.addEventListener('dragend',   function(){ row.style.opacity='1'; dragging=null; });
+    row.addEventListener('dragover',  function(e){ e.preventDefault(); if(dragging&&dragging!==row){ var r=row.getBoundingClientRect(); el.insertBefore(dragging, e.clientY<r.top+r.height/2 ? row : row.nextSibling); } });
+  });
+}
+
 
 function ppPageRenderPreview() {
   var wrap  = document.getElementById('pp-pg-preview-wrap');
@@ -16936,38 +17033,117 @@ function ppPageRenderPreview() {
   var tagline = document.getElementById('pp-pg-tagline')?.value || '';
   var desc    = document.getElementById('pp-pg-desc')?.value    || '';
   var color   = document.getElementById('pp-pg-color')?.value   || '#b45309';
+  var layout  = (document.querySelector('input[name="pp-pg-layout"]:checked') || {value:'grid'}).value;
   var logo    = _ppPageData.page_logo  || '';
   var cover   = _ppPageData.page_cover || '';
   var coverBg = cover ? 'url('+cover+') center/cover' : 'linear-gradient(135deg,'+color+'cc,#1a1a2e)';
-  // Get selected experiences from checkboxes
-  var selectedIds = Array.from(wrap.closest('.pp-sec')?.querySelectorAll('#pp-pg-exp-list input:checked') || []).map(function(cb){ return cb.value; });
 
-  wrap.innerHTML = '<div style="font-family:\'Cormorant Garamond\',Georgia,serif">'
-    + '<div style="height:180px;background:'+coverBg+';display:flex;align-items:flex-end;padding:20px 24px">'
+  // Get ordered experiences from rows
+  var expRows = Array.from(document.querySelectorAll('#pp-pg-exp-list .pp-exp-row'));
+  var orderedIds = expRows.filter(function(r){ var cb=r.querySelector('input[type=checkbox]'); return cb&&cb.checked; }).map(function(r){ return r.dataset.id; });
+  var featuredId = null;
+  var starBtns = document.querySelectorAll('#pp-pg-exp-list [data-featured="1"]');
+  if (starBtns.length) featuredId = starBtns[0].closest('.pp-exp-row')?.dataset.id;
+
+  function expCard(id, big) {
+    var e = window.expDB && Array.isArray(window.expDB) ? window.expDB.find(function(x){ return x.id===id; }) : null;
+    var img  = e ? (e.img||e.image_url||'') : '';
+    var nm   = e ? e.name : id;
+    var pr   = e && e.price ? 'R'+Number(e.price).toLocaleString() : '';
+    var h    = big ? '220px' : '140px';
+    return '<div style="border:1px solid var(--border);border-radius:10px;overflow:hidden;background:#fff">'
+      + (img ? '<img src="'+img+'" style="width:100%;height:'+h+';object-fit:cover">' : '<div style="height:'+h+';background:var(--b100);display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:.75rem">'+nm+'</div>')
+      + '<div style="padding:12px">'
+      + '<div style="font-size:.88rem;font-weight:700;color:var(--navy);margin-bottom:2px">'+nm+'</div>'
+      + (pr ? '<div style="font-size:.82rem;font-weight:700;color:'+color+';margin-bottom:8px">'+pr+'</div>' : '<div style="margin-bottom:8px"></div>')
+      + '<button style="width:100%;background:'+color+';color:#fff;border:none;border-radius:7px;padding:7px;font-size:.76rem;font-weight:700;cursor:pointer">Book now</button>'
+      + '</div></div>';
+  }
+
+  function buildGrid() {
+    if (!orderedIds.length) return '<p style="color:var(--muted);font-style:italic;padding:20px 0">No experiences selected.</p>';
+    if (layout === 'magazine' && orderedIds.length >= 2) {
+      var featured = featuredId || orderedIds[0];
+      var rest = orderedIds.filter(function(id){ return id!==featured; });
+      return '<div style="display:grid;grid-template-columns:1.6fr 1fr;gap:14px;margin-bottom:14px">'+expCard(featured,true)+'<div style="display:flex;flex-direction:column;gap:10px">'+rest.slice(0,2).map(function(id){ return expCard(id,false); }).join('')+'</div></div>'
+        + (rest.length>2 ? '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px">'+rest.slice(2).map(function(id){ return expCard(id,false); }).join('')+'</div>' : '');
+    }
+    if (layout === 'featured' && orderedIds.length >= 1) {
+      var feat = featuredId || orderedIds[0];
+      var rest2 = orderedIds.filter(function(id){ return id!==feat; });
+      return '<div style="margin-bottom:14px">'+expCard(feat,true)+'</div>'
+        + (rest2.length ? '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px">'+rest2.map(function(id){ return expCard(id,false); }).join('')+'</div>' : '');
+    }
+    if (layout === 'list') {
+      return orderedIds.map(function(id){
+        var e = window.expDB && Array.isArray(window.expDB) ? window.expDB.find(function(x){ return x.id===id; }) : null;
+        var img = e ? (e.img||e.image_url||'') : '';
+        var nm  = e ? e.name : id;
+        var pr  = e && e.price ? 'R'+Number(e.price).toLocaleString() : '';
+        return '<div style="display:flex;gap:14px;padding:14px;border:1px solid var(--border);border-radius:10px;background:#fff;margin-bottom:10px;align-items:center">'
+          + (img ? '<img src="'+img+'" style="width:90px;height:70px;object-fit:cover;border-radius:8px;flex-shrink:0">' : '<div style="width:90px;height:70px;background:var(--b100);border-radius:8px;flex-shrink:0"></div>')
+          + '<div style="flex:1"><div style="font-weight:700;color:var(--navy);margin-bottom:4px">'+nm+'</div>'+(pr?'<div style="font-size:.85rem;font-weight:700;color:'+color+'">'+pr+'</div>':'')+'</div>'
+          + '<button style="background:'+color+';color:#fff;border:none;border-radius:7px;padding:8px 18px;font-size:.78rem;font-weight:700;cursor:pointer;white-space:nowrap">Book now</button>'
+          + '</div>';
+      }).join('');
+    }
+    // Default: grid
+    return '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px">'+orderedIds.map(function(id){ return expCard(id,false); }).join('')+'</div>';
+  }
+
+  var pageHTML = '<div style="font-family:DM+Sans,sans-serif">'
+    + '<div style="height:200px;background:'+coverBg+';display:flex;align-items:flex-end;padding:24px 28px;position:relative">'
     + '<div style="display:flex;align-items:center;gap:14px">'
-    + (logo ? '<img src="'+logo+'" style="height:52px;width:52px;object-fit:contain;border-radius:8px;background:rgba(255,255,255,.15);padding:4px">' : '')
-    + '<div><div style="font-size:1.5rem;font-weight:700;color:#fff">'+name+'</div>'
+    + (logo ? '<img src="'+logo+'" style="height:52px;width:52px;object-fit:contain;border-radius:8px;background:rgba(255,255,255,.15);padding:5px">' : '')
+    + '<div><div style="font-family:Cormorant+Garamond,serif;font-size:1.8rem;font-weight:700;color:#fff">'+name+'</div>'
     + (tagline ? '<div style="font-size:.82rem;color:rgba(255,255,255,.8);margin-top:2px">'+tagline+'</div>' : '')
     + '</div></div></div>'
-    + '<div style="padding:20px 24px;background:#fff">'
-    + (desc ? '<p style="font-size:.88rem;color:#374151;line-height:1.7;margin-bottom:18px">'+desc+'</p>' : '')
-    + '<div style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:12px">Experiences</div>'
-    + '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px">'
-    + (selectedIds.length ? selectedIds.map(function(id){
-        var exp = (window.expDB && window.expDB.find ? window.expDB.find(function(e){ return e.id===id; }) : null);
-        var img = exp ? (exp.img||exp.image_url||'') : '';
-        var nm  = exp ? exp.name : id;
-        var pr  = exp && exp.price ? 'R'+Number(exp.price).toLocaleString() : '';
-        return '<div style="border:1px solid var(--border);border-radius:8px;overflow:hidden">'
-          + (img ? '<img src="'+img+'" style="width:100%;height:100px;object-fit:cover">' : '<div style="height:100px;background:var(--b50)"></div>')
-          + '<div style="padding:10px"><div style="font-size:.82rem;font-weight:600;color:var(--navy);margin-bottom:2px">'+nm+'</div>'
-          + (pr ? '<div style="font-size:.78rem;font-weight:700;color:'+color+'">'+pr+'</div>' : '')
-          + '<button style="margin-top:8px;width:100%;background:'+color+';color:#fff;border:none;border-radius:6px;padding:6px;font-size:.74rem;font-weight:700;cursor:pointer">Book now</button>'
-          + '</div></div>';
-      }).join('')
-      : '<div style="grid-column:1/-1;padding:20px;text-align:center;color:var(--muted);font-size:.85rem">No experiences selected</div>')
+    + '<div style="padding:24px 28px;background:#fdf8f4">'
+    + (desc ? '<p style="font-size:.88rem;color:#374151;line-height:1.75;margin-bottom:22px">'+desc+'</p>' : '')
+    + '<div style="font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:var(--muted);margin-bottom:14px">Experiences</div>'
+    + buildGrid()
+    + '<div style="margin-top:28px;padding-top:16px;border-top:1px solid var(--border);text-align:center;font-size:.74rem;color:var(--muted)">Powered by <strong style="color:'+color+'">WowBox</strong></div>'
+    + '</div></div>';
+
+  // Build preview with toggle + social card
+  wrap.innerHTML = ''
+    + '<div style="display:flex;gap:10px;align-items:center;margin-bottom:12px;flex-wrap:wrap">'
+    + '<button onclick="ppPagePreviewMode(\"desktop\")" id="pv-btn-desktop" style="background:var(--b600);color:#fff;border:none;border-radius:6px;padding:5px 14px;font-size:.78rem;font-weight:600;cursor:pointer"><i class="fa fa-desktop"></i> Desktop</button>'
+    + '<button onclick="ppPagePreviewMode(\"mobile\")"  id="pv-btn-mobile"  style="background:var(--b50);border:1px solid var(--border);border-radius:6px;padding:5px 14px;font-size:.78rem;font-weight:600;cursor:pointer;color:var(--navy)"><i class="fa fa-mobile-screen"></i> Mobile</button>'
+    + '</div>'
+    // Desktop/mobile frame
+    + '<div id="pv-frame-wrap" style="border:1.5px solid var(--border);border-radius:12px;overflow:hidden;transition:max-width .3s">'
+    + '<div id="pv-frame" style="overflow-y:auto;max-height:500px">'+pageHTML+'</div>'
+    + '</div>'
+    // Social share card
+    + '<div style="margin-top:16px;border:1.5px solid var(--border);border-radius:10px;overflow:hidden;max-width:520px">'
+    + '<div style="background:#f9fafb;padding:8px 12px;font-size:.7rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em">📱 Social share preview</div>'
+    + '<div style="display:flex;gap:0">'
+    + (cover ? '<img src="'+cover+'" style="width:110px;height:80px;object-fit:cover;flex-shrink:0">' : '<div style="width:110px;height:80px;background:'+color+';opacity:.3;flex-shrink:0"></div>')
+    + '<div style="padding:10px 14px;flex:1">'
+    + '<div style="font-size:.78rem;font-weight:700;color:var(--navy);margin-bottom:3px">'+name+' — WowBox</div>'
+    + (tagline ? '<div style="font-size:.72rem;color:var(--muted);margin-bottom:3px">'+tagline+'</div>' : '')
+    + '<div style="font-size:.68rem;color:var(--b500)">wowbox.co.za/wow/'+(_ppPageData.page_slug||'…')+'</div>'
     + '</div></div></div>';
 }
+
+function ppPagePreviewMode(mode) {
+  var frame = document.getElementById('pv-frame-wrap');
+  var btnD  = document.getElementById('pv-btn-desktop');
+  var btnM  = document.getElementById('pv-btn-mobile');
+  if (!frame) return;
+  if (mode === 'mobile') {
+    frame.style.maxWidth = '390px'; frame.style.margin = '0 auto';
+    if (btnD) { btnD.style.background='var(--b50)'; btnD.style.color='var(--navy)'; btnD.style.border='1px solid var(--border)'; }
+    if (btnM) { btnM.style.background='var(--b600)'; btnM.style.color='#fff'; btnM.style.border='none'; }
+  } else {
+    frame.style.maxWidth = '100%'; frame.style.margin = '0';
+    if (btnD) { btnD.style.background='var(--b600)'; btnD.style.color='#fff'; btnD.style.border='none'; }
+    if (btnM) { btnM.style.background='var(--b50)'; btnM.style.color='var(--navy)'; btnM.style.border='1px solid var(--border)'; }
+  }
+}
+
+
 
 function ppPageSetupPublishStep() {
   var slug = document.getElementById('pp-pg-slug')?.value?.trim() || '';
