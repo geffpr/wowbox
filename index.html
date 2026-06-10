@@ -4254,12 +4254,7 @@ tr:hover td{background:var(--b50)}
             <option value="event">🎉 Event</option>
             <option value="rental">🚗 Rental</option>
           </select>
-          <select class="efi" id="exp-province-f" onchange="renderExpList()" style="min-width:140px">
-            <option value="">All provinces</option>
-            <option>Gauteng</option><option>Western Cape</option><option>KwaZulu-Natal</option>
-            <option>Eastern Cape</option><option>Limpopo</option><option>Mpumalanga</option>
-            <option>North West</option><option>Free State</option><option>Northern Cape</option>
-          </select>
+          <select class="efi" id="exp-province-f" onchange="renderExpList()" style="min-width:140px"><option value="">All provinces</option></select>
           <select class="efi" id="exp-loc-f" onchange="renderExpList()" style="min-width:140px">
             <option value="">All cities</option>
           </select>
@@ -7941,9 +7936,9 @@ tr:hover td{background:var(--b50)}
       <h4>Duration</h4>
       <div class="filter-group">
         <label class="fcheck"><input type="checkbox" value="0" onchange="renderBrowse()" class="brnf"> 🌞 Day trip</label>
-        <label class="fcheck"><input type="checkbox" value="1" onchange="renderBrowse()" class="brnf"> 🌙 1 nuit</label>
-        <label class="fcheck"><input type="checkbox" value="2" onchange="renderBrowse()" class="brnf"> 🌙 2 nuits</label>
-        <label class="fcheck"><input type="checkbox" value="3" onchange="renderBrowse()" class="brnf"> 🌙 3 nuits +</label>
+        <label class="fcheck"><input type="checkbox" value="1" onchange="renderBrowse()" class="brnf"> 🌙 1 night</label>
+        <label class="fcheck"><input type="checkbox" value="2" onchange="renderBrowse()" class="brnf"> 🌙 2 nights</label>
+        <label class="fcheck"><input type="checkbox" value="3" onchange="renderBrowse()" class="brnf"> 🌙 3+ nights</label>
       </div>
 
       <h4>Booking type</h4>
@@ -7962,7 +7957,7 @@ tr:hover td{background:var(--b50)}
       <h4>Included services</h4>
       <div class="filter-group">
         <label class="fcheck"><input type="checkbox" value="Breakfast" onchange="renderBrowse()" class="brsf"> Breakfast included</label>
-        <label class="fcheck"><input type="checkbox" value="Pool" onchange="renderBrowse()" class="brsf"> Piscine / Spa</label>
+        <label class="fcheck"><input type="checkbox" value="Pool" onchange="renderBrowse()" class="brsf"> Pool / Spa</label>
         <label class="fcheck"><input type="checkbox" value="Champagne" onchange="renderBrowse()" class="brsf"> Champagne included</label>
         <label class="fcheck"><input type="checkbox" value="Kids OK" onchange="renderBrowse()" class="brsf"> Children welcome</label>
       </div>
@@ -8715,6 +8710,8 @@ function renderBrowse() {
   if (!b) return;
 
   buildBrowseLocFilter();
+  buildBrowseProvinceFilter();
+  buildAllBrowseFilters();
 
   // Header
   document.getElementById('browse-box-img').src = b.img;
@@ -9465,7 +9462,11 @@ async function loadExpFromSupabase() {
 
     // Rebuild location filters now that expDB has new entries
     buildExpLocFilter();
+  buildExpProvinceFilter();
+  buildAllExpFilters();
+    buildExpProvinceFilter();
     buildBrowseLocFilter();
+    buildBrowseProvinceFilter();
   } catch(err) {
     console.warn('loadExpFromSupabase:', err.message);
   }
@@ -13463,12 +13464,126 @@ function initAllPlacesAC() {
 }
 
 /* ── Dynamic region filter — exp list (before purchase) ── */
+// ── Dynamic filter builders — scoped to current box ────────────────
+var TYPE_MAP = {
+  accommodation: '🏨 Accommodation', dining: '🍽️ Dining', wellness: '🧖 Wellness',
+  activity: '🏄 Activity', culture: '🎭 Culture', nature: '🦁 Nature',
+  event: '🎉 Event', rental: '🚗 Rental'
+};
+var WEEKEND_MAP = {
+  romantic: '💑 Romantic', family: '👨‍👩‍👧 Family', adventure: '🏔️ Adventure',
+  relaxation: '🧘 Relaxation', gastronomic: '🍷 Gastronomic', cultural: '🎨 Cultural'
+};
+var BOOKING_MAP = { online: '💻 Online', phone: '📞 By phone', on_site: '🚶 On site' };
+
+function _boxExps() {
+  var bid = appState.currentBoxId || appState.browseBoxId;
+  return bid ? expDB.filter(function(e){ return e.box === bid; }) : expDB;
+}
+
+// Box page — make select dynamic
+function _dynSelect(selId, allLabel, valuesArr) {
+  var sel = document.getElementById(selId);
+  if (!sel) return;
+  var cur = sel.value;
+  sel.innerHTML = '<option value="">' + allLabel + '</option>'
+    + valuesArr.map(function(v){ return '<option value="'+v[0]+'"'+(v[0]===cur?' selected':'')+'>'+v[1]+'</option>'; }).join('');
+}
+
+// Browse page — show/hide checkbox labels
+function _dynCheckboxGroup(cls, valuesSet) {
+  document.querySelectorAll('.' + cls).forEach(function(cb){
+    var li = cb.closest('label');
+    if (li) li.style.display = valuesSet.size === 0 || valuesSet.has(cb.value) ? '' : 'none';
+  });
+}
+
+function buildAllExpFilters() {
+  var exps = _boxExps();
+  // Experience type
+  var types = [...new Set(exps.map(function(e){ return e.type||e.reservation_type||''; }).filter(Boolean))];
+  _dynSelect('exp-type-f', 'All types', types.map(function(t){ return [t, TYPE_MAP[t]||t]; }));
+  // Group size
+  var caps = new Set(exps.map(function(e){ var c=e.capacity||2; return c<=1?'solo':c<=2?'duo':'group'; }));
+  var grpOpts=[['solo','👤 Solo (1)'],['duo','👫 Duo (up to 2)'],['group','👥 Group (3+)']].filter(function(o){ return caps.has(o[0]); });
+  _dynSelect('exp-group-f', '👥 All sizes', grpOpts);
+  // Duration
+  var nights = new Set(exps.map(function(e){ var n=e.duration_nights||0; return n>=3?'3':String(n); }));
+  var durOpts=[['0','🌞 Day trip'],['1','🌙 1 night'],['2','🌙 2 nights'],['3','🌙 3+ nights']].filter(function(o){ return nights.has(o[0]); });
+  _dynSelect('exp-nights-f', 'Any duration', durOpts);
+  // Weekend style
+  var styles = new Set(exps.map(function(e){ return e.weekend_type||''; }).filter(Boolean));
+  var wkOpts=Object.entries(WEEKEND_MAP).filter(function(o){ return styles.has(o[0]); }).map(function(o){ return [o[0],o[1]]; });
+  _dynSelect('exp-weekend-f', 'Any style', wkOpts);
+  // PMR / Insolite checkboxes
+  var hasPMR = exps.some(function(e){ return e.accessible; });
+  var hasIns = exps.some(function(e){ return e.insolite; });
+  var pmrEl = document.getElementById('exp-accessible-f');
+  var insEl = document.getElementById('exp-insolite-f');
+  if (pmrEl && pmrEl.closest('label')) pmrEl.closest('label').style.display = hasPMR ? '' : 'none';
+  if (insEl && insEl.closest('label')) insEl.closest('label').style.display = hasIns ? '' : 'none';
+}
+
+function buildAllBrowseFilters() {
+  var exps = _boxExps();
+  // Experience type
+  var types = new Set(exps.map(function(e){ return e.type||e.reservation_type||''; }).filter(Boolean));
+  _dynCheckboxGroup('brtf', types);
+  // Group size
+  var caps = new Set(exps.map(function(e){ var c=e.capacity||2; return c<=1?'solo':c<=2?'duo':'group'; }));
+  _dynCheckboxGroup('brgf', caps);
+  // Weekend style
+  var styles = new Set(exps.map(function(e){ return e.weekend_type||''; }).filter(Boolean));
+  _dynCheckboxGroup('brwf', styles);
+  // Duration
+  var nights = new Set(exps.map(function(e){ var n=e.duration_nights||0; return n>=3?'3':String(n); }));
+  _dynCheckboxGroup('brnf', nights);
+  // Booking type
+  var bookings = new Set(exps.map(function(e){ return e.booking_type||''; }).filter(Boolean));
+  _dynCheckboxGroup('brbf', bookings);
+  // Services (amenities)
+  var allAmenities = new Set();
+  exps.forEach(function(e){ if(Array.isArray(e.amenities)) e.amenities.forEach(function(a){ allAmenities.add(a); }); });
+  _dynCheckboxGroup('brsf', allAmenities);
+  // PMR / Insolite
+  var hasPMR = exps.some(function(e){ return e.accessible; });
+  var hasIns = exps.some(function(e){ return e.insolite; });
+  var pmrEl = document.getElementById('browse-accessible-f');
+  var insEl = document.getElementById('browse-insolite-f');
+  if (pmrEl && pmrEl.closest('label')) pmrEl.closest('label').style.display = hasPMR ? '' : 'none';
+  if (insEl && insEl.closest('label')) insEl.closest('label').style.display = hasIns ? '' : 'none';
+}
+
+function buildExpProvinceFilter() {
+  var sel = document.getElementById('exp-province-f');
+  if (!sel) return;
+  var current = sel.value;
+  var bid = appState.currentBoxId || appState.browseBoxId;
+  var boxExps = bid ? expDB.filter(function(e){ return e.box === bid; }) : expDB;
+  var provs = [...new Set(boxExps.map(function(e){ return (e.province||'').trim(); }).filter(Boolean))].sort();
+  sel.innerHTML = '<option value="">All provinces</option>'
+    + provs.map(function(p){ return '<option value="'+p+'"'+(p===current?' selected':'')+'>'+p+'</option>'; }).join('');
+}
+
+function buildBrowseProvinceFilter() {
+  // For browse page: hide province checkboxes that have no experiences in current box
+  var bid = appState.browseBoxId;
+  if (!bid) return; // if no box, show all
+  var boxProvs = new Set(expDB.filter(function(e){ return e.box === bid; }).map(function(e){ return (e.province||'').trim(); }).filter(Boolean));
+  document.querySelectorAll('.brpf').forEach(function(cb){
+    var li = cb.closest('label');
+    if (li) li.style.display = boxProvs.has(cb.value) || boxProvs.size === 0 ? '' : 'none';
+  });
+}
+
 function buildExpLocFilter() {
   var sel = document.getElementById('exp-loc-f');
   if (!sel) return;
   var current = sel.value;
-  // Collect unique loc values from expDB
-  var locs = [...new Set(expDB.map(function(e){ return (e.city||'').trim(); }).filter(Boolean))].sort();
+  var bid = appState.currentBoxId || appState.browseBoxId;
+  // Scope to current box experiences only
+  var boxExps = bid ? expDB.filter(function(e){ return e.box === bid; }) : expDB;
+  var locs = [...new Set(boxExps.map(function(e){ return (e.city||'').trim(); }).filter(Boolean))].sort();
   sel.innerHTML = '<option value="">All cities</option>'
     + locs.map(function(l){ return '<option value="'+l+'"'+(l===current?' selected':'')+'>'+l+'</option>'; }).join('');
 }
@@ -13481,7 +13596,7 @@ function buildBrowseLocFilter() {
   var checked = [...document.querySelectorAll('.brlf:checked')].map(function(c){ return c.value; });
   var bid = appState.browseBoxId;
   // Get locs from experiences in this box
-  var locs = [...new Set(expDB.filter(function(e){ return !bid || e.box === bid || true; }).map(function(e){ return (e.city||'').trim(); }).filter(Boolean))].sort();
+  var locs = [...new Set(expDB.filter(function(e){ return !bid || e.box === bid; }).map(function(e){ return (e.city||'').trim(); }).filter(Boolean))].sort();
   container.innerHTML = locs.map(function(l){
     return '<label class="fcheck"><input type="checkbox" value="'+l+'" onchange="renderBrowse()" class="brlf"'+(checked.includes(l)?' checked':'')+'>  '+l+'</label>';
   }).join('');
