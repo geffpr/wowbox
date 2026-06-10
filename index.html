@@ -6364,7 +6364,32 @@ tr:hover td{background:var(--b50)}
             <a id="pp-page-view-link" href="#" target="_blank" style="display:none;font-size:.8rem;color:var(--b600);font-weight:600"><i class="fa fa-arrow-up-right-from-square"></i> View live</a>
           </div>
         </div>
-        <p style="color:var(--muted);font-size:.82rem;margin-bottom:24px">Create your public WowBox page — share it, print the QR, and start receiving direct bookings.</p>
+        <p style="color:var(--muted);font-size:.82rem;margin-bottom:20px">Create your public WowBox page — share it, print the QR, and start receiving direct bookings.</p>
+
+        <!-- ── SUMMARY CARD (shown when page exists, hidden in edit mode) ── -->
+        <div id="pp-page-summary" style="display:none;margin-bottom:24px">
+          <div class="atbl" style="padding:18px 20px">
+            <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+              <div style="flex:1;min-width:200px">
+                <div id="pp-summary-url" style="font-size:.9rem;font-weight:700;color:var(--navy);margin-bottom:4px"></div>
+                <div style="display:flex;align-items:center;gap:8px">
+                  <span id="pp-summary-status" style="font-size:.74rem;font-weight:700"></span>
+                </div>
+              </div>
+              <div style="display:flex;gap:8px;flex-wrap:wrap">
+                <a id="pp-summary-view" href="#" target="_blank" class="btn bg bsm" style="font-size:.78rem;display:none"><i class="fa fa-arrow-up-right-from-square"></i> View live</a>
+                <button onclick="ppPageShareModal()" class="btn bg bsm" style="font-size:.78rem"><i class="fa fa-share-nodes"></i> Share</button>
+                <button onclick="ppPageEnterEdit()" class="btn bp bsm" style="font-size:.78rem"><i class="fa fa-pen"></i> Edit page</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── WIZARD (hidden by default when page exists) ── -->
+        <div id="pp-page-wizard" style="display:none">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
+            <button onclick="ppPageExitEdit()" style="background:none;border:none;cursor:pointer;color:var(--b600);font-size:.82rem;font-weight:600;display:flex;align-items:center;gap:5px" id="pp-wiz-back-btn" style="display:none"><i class="fa fa-arrow-left"></i> Back to my page</button>
+          </div>
 
         <!-- Breadcrumb wizard -->
         <div id="pp-page-steps" style="display:flex;gap:0;margin-bottom:28px;border-bottom:2px solid var(--border);overflow-x:auto">
@@ -6540,6 +6565,7 @@ tr:hover td{background:var(--b50)}
             </div>
           </div>
         </div>
+        </div> <!-- end pp-page-wizard -->
       </div>
 
       <!-- ═══ PRO: BOOST ═══ -->
@@ -16896,6 +16922,52 @@ function psBookExperience(expId) {
 // ── Partner Page (Storefront) wizard ────────────────────────────
 var _ppPageData = {};
 
+function ppPageEnterEdit() {
+  document.getElementById('pp-page-summary').style.display = 'none';
+  document.getElementById('pp-page-wizard').style.display  = 'block';
+  document.getElementById('pp-wiz-back-btn').style.display = 'flex';
+  ppPageGoStep(1);
+}
+
+function ppPageExitEdit() {
+  document.getElementById('pp-page-wizard').style.display  = 'none';
+  document.getElementById('pp-page-summary').style.display = 'block';
+}
+
+function ppPageShareModal() {
+  var slug = _ppPageData.page_slug || '';
+  var url  = 'https://wowbox.co.za/wow/' + slug;
+  var existing = document.getElementById('pp-share-modal');
+  if (existing) existing.remove();
+  var m = document.createElement('div');
+  m.id = 'pp-share-modal';
+  m.style.cssText = 'position:fixed;inset:0;z-index:8000;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;padding:20px';
+  m.innerHTML = '<div style="background:#fff;border-radius:14px;padding:24px;max-width:400px;width:100%">'
+    + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">'
+    + '<h4 style="color:var(--navy)">Share your page</h4>'
+    + '<button onclick="document.getElementById(\'pp-share-modal\').remove()" style="background:none;border:none;font-size:1.1rem;cursor:pointer">✕</button></div>'
+    + '<div style="background:var(--b50);border:1px solid var(--b200);border-radius:var(--rs);padding:10px 14px;font-size:.82rem;color:var(--navy);margin-bottom:14px;font-weight:600">'+url+'</div>'
+    + '<div style="display:flex;flex-direction:column;gap:8px">'
+    + '<button onclick="navigator.clipboard.writeText(\''+url+'\');admToast(\'Link copied!\');document.getElementById(\'pp-share-modal\').remove()" class="btn bg block"><i class="fa fa-link"></i> Copy link</button>'
+    + '<button onclick="window.open(\'https://wa.me/?text=\'+encodeURIComponent(\'Visit my WowBox page: '+url+'\'))" class="btn block" style="background:#25D366;color:#fff;border:none"><i class="fa-brands fa-whatsapp"></i> Share on WhatsApp</button>'
+    + '<button onclick="window.location.href=\'mailto:?subject=My WowBox Page&body=Visit my experience page: '+url+'\'" class="btn bg block"><i class="fa fa-envelope"></i> Share by email</button>'
+    + '</div>'
+    + '<div id="pp-share-qr" style="display:flex;align-items:center;gap:14px;margin-top:14px;padding:12px;border:1px solid var(--border);border-radius:var(--rs)"></div>'
+    + '</div>';
+  m.addEventListener('click', function(e){ if(e.target===m) m.remove(); });
+  document.body.appendChild(m);
+  // Generate QR
+  var qrWrap = document.getElementById('pp-share-qr');
+  var loadQR = function(){
+    if (window.QRCode) {
+      var qd = document.createElement('div'); qrWrap.innerHTML = ''; qrWrap.appendChild(qd);
+      new window.QRCode(qd, {text:url,width:80,height:80,colorDark:'#1e293b',colorLight:'#fff'});
+      qrWrap.innerHTML += '<div><div style="font-size:.78rem;font-weight:600;color:var(--navy);margin-bottom:4px">QR Code</div><div style="font-size:.72rem;color:var(--muted);margin-bottom:6px">Print and display at your venue</div><button onclick="var c=document.querySelector(\'#pp-share-qr canvas\');if(c){var a=document.createElement(\'a\');a.href=c.toDataURL();a.download=\'wowbox-qr.png\';a.click()}" class="btn bg bsm" style="font-size:.7rem"><i class="fa fa-download"></i> Save QR</button></div>';
+    }
+  };
+  if (!window.QRCode) { var s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js';s.onload=loadQR;document.head.appendChild(s); } else loadQR();
+}
+
 async function ppPageInit() {
   var email = appState.partnerEmail || (currentUser && currentUser.email) || '';
   if (!email) return;
@@ -16927,25 +16999,26 @@ async function ppPageInit() {
     ppPageUpdateStatusBadge(d.page_status || 'draft');
     // Load experiences for step 3
     ppPageLoadExpList();
-    // Show summary banner if page already saved
+    // Show summary or wizard based on whether page exists
+    var summaryEl = document.getElementById('pp-page-summary');
+    var wizardEl  = document.getElementById('pp-page-wizard');
     if (d.page_slug) {
-      var banner = document.getElementById('pp-page-saved-banner');
       var statusColor = d.page_status==='published'?'#16a34a':d.page_status==='offline'?'#dc2626':'#b45309';
       var statusLabel = d.page_status==='published'?'🟢 Live':d.page_status==='offline'?'🔴 Offline':'🟡 Draft';
-      if (!banner) {
-        banner = document.createElement('div');
-        banner.id = 'pp-page-saved-banner';
-        var sec = document.getElementById('pp-page');
-        var steps = document.getElementById('pp-page-steps');
-        if (sec && steps) sec.insertBefore(banner, steps);
-      }
-      banner.style.cssText = 'background:var(--b50);border:1.5px solid var(--b200);border-radius:var(--rs);padding:10px 16px;margin-bottom:14px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;font-size:.82rem';
-      banner.innerHTML = '<i class="fa fa-globe" style="color:var(--b500)"></i>'
-        + '<strong style="color:var(--navy)">wowbox.co.za/wow/'+d.page_slug+'</strong>'
-        + '<span style="font-weight:700;color:'+statusColor+'">'+statusLabel+'</span>'
-        + '<div style="margin-left:auto;display:flex;gap:8px">'
-        + (d.page_status==='published'?'<a href="/wow/'+d.page_slug+'" target="_blank" class="btn bg bsm" style="font-size:.72rem"><i class="fa fa-arrow-up-right-from-square"></i> View live</a>':'')
-        + '</div>';
+      var urlEl    = document.getElementById('pp-summary-url');
+      var statEl   = document.getElementById('pp-summary-status');
+      var viewLnk  = document.getElementById('pp-summary-view');
+      var viewHdr  = document.getElementById('pp-page-view-link');
+      if (urlEl)   urlEl.textContent  = 'wowbox.co.za/wow/' + d.page_slug;
+      if (statEl)  { statEl.textContent = statusLabel; statEl.style.color = statusColor; }
+      if (viewLnk) { viewLnk.href = '/wow/'+d.page_slug; viewLnk.style.display = d.page_status==='published'?'inline-flex':'none'; }
+      if (viewHdr) { viewHdr.href = '/wow/'+d.page_slug; viewHdr.style.display = d.page_status==='published'?'inline':'none'; }
+      if (summaryEl) summaryEl.style.display = 'block';
+      if (wizardEl)  wizardEl.style.display  = 'none';
+    } else {
+      if (summaryEl) summaryEl.style.display = 'none';
+      if (wizardEl)  wizardEl.style.display  = 'block';
+      ppPageGoStep(1);
     }
   } catch(e) { console.warn('ppPageInit:', e.message); }
 }
@@ -17260,6 +17333,8 @@ async function ppPagePublish() {
     if (st) { st.textContent = '✓ Your page is live!'; st.style.color = '#16a34a'; }
     ppPageUpdateStatusBadge('published');
     ppPageSetupPublishStep();
+    // Switch to summary mode
+    setTimeout(function(){ ppPageInit(); }, 500);
   } catch(e) { if (st) { st.textContent = 'Error: ' + e.message; st.style.color = '#dc2626'; } }
 }
 
