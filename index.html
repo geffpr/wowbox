@@ -17054,6 +17054,17 @@ function toggleAddForm() {
   }
 }
 
+function ppPreviewTab(btn, tabId) {
+  // Update tab buttons
+  btn.closest('.tabs').querySelectorAll('.tab').forEach(function(t){ t.classList.remove('on'); });
+  btn.classList.add('on');
+  // Show/hide panels
+  ['pv-overview','pv-programme','pv-amenities','pv-reviews'].forEach(function(id){
+    var el = document.getElementById(id);
+    if (el) el.style.display = id === tabId ? 'block' : 'none';
+  });
+}
+
 function ppPreviewExperience() {
   var name     = document.getElementById('pp-new-name')?.value?.trim()  || 'Unnamed Experience';
   var type     = document.getElementById('pp-new-type')?.value          || 'activity';
@@ -17072,12 +17083,33 @@ function ppPreviewExperience() {
   var img2     = document.getElementById('pp-new-img-2')?.value         || '';
   var partnerName = appState.partnerName || (currentUser && currentUser.email) || 'Partner';
 
+  // Collect programme steps
+  var progItems = collectProgramme('pp-new');
+  var progHtml = progItems.length ? progItems.map(function(s,i){
+    return '<div style="display:flex;gap:14px;align-items:flex-start;margin-bottom:18px">'
+      + '<div style="min-width:28px;height:28px;border-radius:50%;background:var(--b600);color:#fff;display:flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:700;flex-shrink:0;margin-top:2px">'+(i+1)+'</div>'
+      + '<div><div style="font-weight:700;color:var(--navy);margin-bottom:4px">' + (s.title||'') + '</div>'
+      + (s.text ? '<p style="font-size:.85rem;color:#374151;line-height:1.7;margin:0">' + s.text + '</p>' : '')
+      + '</div></div>';
+  }).join('') : '';
+
+  // Collect amenities
+  var amenItems = collectAmenities('pp-new');
+  var amenHtml = amenItems.length ? '<div style="display:flex;flex-wrap:wrap;gap:10px">' + amenItems.map(function(a){
+    var def = (window.WB_AMENITIES||[]).find(function(x){ return x.id===a; });
+    return '<span style="display:flex;align-items:center;gap:6px;padding:7px 14px;background:var(--b50);border:1px solid var(--b100);border-radius:99px;font-size:.82rem;color:var(--navy)">'
+      + (def ? '<i class="fa ' + def.icon + '" style="color:var(--b500)"></i> ' + def.label : a) + '</span>';
+  }).join('') + '</div>' : '';
+
   var typeMap = { accommodation:'🏨 Accommodation', dining:'🍽️ Dining', wellness:'🧖 Wellness',
     activity:'🏄 Activity', culture:'🎭 Culture', nature:'🦁 Nature', event:'🎉 Event', rental:'🚗 Rental' };
   var rtBadgeMap = { accommodation:'rt-accommodation', dining:'rt-dining', wellness:'rt-wellness',
     activity:'rt-activity', culture:'rt-culture', nature:'rt-activity', event:'rt-activity', rental:'rt-accommodation' };
   var locStr = [city, province].filter(Boolean).join(', ');
   var durLabel = nights === 0 ? '🌞 Day trip' : nights + ' night' + (nights>1?'s':'');
+
+  var progData = (typeof collectProgramme === 'function') ? collectProgramme('pp-new') : [];
+  var amenData = (typeof collectAmenities === 'function') ? collectAmenities('pp-new') : [];
 
   var existing = document.getElementById('pp-exp-preview-modal');
   if (existing) existing.remove();
@@ -17106,14 +17138,14 @@ function ppPreviewExperience() {
     + '<div class="eg-side"><img src="' + sideImg2 + '" alt="" style="width:100%;height:100%;object-fit:cover"></div>'
     + '</div>'
     // Tabs
-    + '<div class="tabs" style="margin-bottom:24px">'
-    + '<button class="tab on">Overview</button>'
-    + '<button class="tab">Programme</button>'
-    + '<button class="tab">Amenities</button>'
-    + '<button class="tab">Reviews (0)</button>'
+    + '<div class="tabs" style="margin-bottom:0">'
+    + '<button class="tab on" onclick="ppPreviewTab(this,\'pv-overview\')">Overview</button>'
+    + '<button class="tab" onclick="ppPreviewTab(this,\'pv-programme\')">Programme</button>'
+    + '<button class="tab" onclick="ppPreviewTab(this,\'pv-amenities\')">Amenities</button>'
+    + '<button class="tab" onclick="ppPreviewTab(this,\'pv-reviews\')">Reviews (0)</button>'
     + '</div>'
     // Overview tab
-    + '<div>'
+    + '<div id="pv-overview" style="margin-top:24px">'
     + '<h1 style="font-size:2rem;color:var(--navy);margin-bottom:10px">' + name + '</h1>'
     + '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px">'
     + '<span style="color:var(--amber);font-size:1rem">★★★★★</span>'
@@ -17135,7 +17167,24 @@ function ppPreviewExperience() {
     + (cat ? '<span style="background:var(--b50);border:1px solid var(--b100);border-radius:99px;padding:4px 12px;font-size:.75rem;color:var(--navy)">' + cat + '</span>' : '')
     + '</div>'
     + '</div>'
+    // Programme tab
+    + '<div id="pv-programme" style="display:none;margin-top:24px">'
+    + (progHtml ? progHtml : '<p style="color:var(--muted);font-style:italic;font-size:.85rem">No programme steps added yet.</p>')
     + '</div>'
+    // Amenities tab
+    + '<div id="pv-amenities" style="display:none;margin-top:24px">'
+    + (amenHtml ? amenHtml : '<p style="color:var(--muted);font-style:italic;font-size:.85rem">No amenities selected yet.</p>')
+    + '</div>'
+    // Reviews tab
+    + '<div id="pv-reviews" style="display:none;margin-top:24px">'
+    + '<p style="color:var(--muted);font-size:.85rem;text-align:center;padding:30px">No reviews yet — reviews will appear here once guests start booking.</p>'
+    + '</div>'  // chips
+    + '</div>'  // pv-overview
+    // Programme tab
+    + '<div id="pv-programme" style="display:none">' + (progData.length ? progData.map(function(s,i){ return '<div style="display:flex;gap:12px;align-items:flex-start;margin-bottom:16px"><div style="min-width:26px;height:26px;border-radius:50%;background:var(--b600);color:#fff;display:flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:700;flex-shrink:0">'+(i+1)+'</div><div><div style="font-weight:700;color:var(--navy);margin-bottom:4px">'+s.title+'</div><p style="font-size:.84rem;color:var(--slate);line-height:1.7">'+s.text+'</p></div></div>'; }).join('') : '<p style="color:var(--muted);font-style:italic">No programme steps added yet.</p>') + '</div>'
+    + '<div id="pv-amenities" style="display:none">' + (amenData.length ? '<div style="display:flex;flex-wrap:wrap;gap:8px">' + amenData.map(function(a){ var f=(typeof WB_AMENITIES!=='undefined')?WB_AMENITIES.find(function(x){return x.id===a;}):null; return '<div style="padding:7px 14px;border:1px solid var(--border);border-radius:var(--rs);font-size:.82rem;background:var(--b50)">'+(f?'<i class="fa '+f.icon+'" style="color:var(--b500)"></i> '+f.label:a)+'</div>'; }).join('') + '</div>' : '<p style="color:var(--muted);font-style:italic">No amenities selected yet.</p>') + '</div>'
+    + '<div id="pv-reviews" style="display:none"><p style="color:var(--muted);font-style:italic">No reviews yet.</p></div>'
+    + ''  // end tabs content
     // RIGHT panel
     + '<div><div style="position:sticky;top:80px">'
     + '<div class="exp-box-link">'
