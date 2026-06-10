@@ -6440,9 +6440,8 @@ tr:hover td{background:var(--b50)}
             <div style="margin-bottom:18px">
               <label style="font-size:.75rem;color:var(--muted);display:block;margin-bottom:6px">Layout</label>
               <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px" id="pp-pg-layout-picker">
-                <label style="cursor:pointer;text-align:center">
-                  <input type="radio" name="pp-pg-layout" value="grid" checked style="display:none" onchange="ppPageUpdateMiniPreview()">
-                  <div class="pp-layout-opt" style="border:2px solid var(--b600);border-radius:8px;padding:8px 4px;font-size:.7rem;color:var(--b700);font-weight:600">
+                <div onclick="ppPageSetLayout(this,'grid')" data-layout="grid" style="cursor:pointer;text-align:center">
+                  <div class="pp-layout-opt" id="pp-lo-grid" style="border:2px solid var(--b600);background:var(--b50);border-radius:8px;padding:8px 4px;font-size:.7rem;color:var(--b700);font-weight:600">
                     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:2px;margin-bottom:4px">
                       <div style="height:18px;background:var(--b200);border-radius:2px"></div>
                       <div style="height:18px;background:var(--b200);border-radius:2px"></div>
@@ -6450,9 +6449,8 @@ tr:hover td{background:var(--b50)}
                     </div>Grid
                   </div>
                 </label>
-                <label style="cursor:pointer;text-align:center">
-                  <input type="radio" name="pp-pg-layout" value="magazine" style="display:none" onchange="ppPageUpdateMiniPreview()">
-                  <div class="pp-layout-opt" style="border:2px solid var(--border);border-radius:8px;padding:8px 4px;font-size:.7rem;color:var(--muted);font-weight:600">
+                <div onclick="ppPageSetLayout(this,'magazine')" data-layout="magazine" style="cursor:pointer;text-align:center">
+                  <div class="pp-layout-opt" id="pp-lo-magazine" style="border:2px solid var(--border);border-radius:8px;padding:8px 4px;font-size:.7rem;color:var(--muted);font-weight:600">
                     <div style="display:grid;grid-template-columns:2fr 1fr;gap:2px;margin-bottom:4px">
                       <div style="height:28px;background:var(--b200);border-radius:2px;grid-row:span 2"></div>
                       <div style="height:12px;background:var(--b200);border-radius:2px"></div>
@@ -6460,9 +6458,8 @@ tr:hover td{background:var(--b50)}
                     </div>Magazine
                   </div>
                 </label>
-                <label style="cursor:pointer;text-align:center">
-                  <input type="radio" name="pp-pg-layout" value="featured" style="display:none" onchange="ppPageUpdateMiniPreview()">
-                  <div class="pp-layout-opt" style="border:2px solid var(--border);border-radius:8px;padding:8px 4px;font-size:.7rem;color:var(--muted);font-weight:600">
+                <div onclick="ppPageSetLayout(this,'featured')" data-layout="featured" style="cursor:pointer;text-align:center">
+                  <div class="pp-layout-opt" id="pp-lo-featured" style="border:2px solid var(--border);border-radius:8px;padding:8px 4px;font-size:.7rem;color:var(--muted);font-weight:600">
                     <div style="margin-bottom:4px">
                       <div style="height:22px;background:var(--b200);border-radius:2px;margin-bottom:2px"></div>
                       <div style="display:grid;grid-template-columns:1fr 1fr;gap:2px">
@@ -6472,9 +6469,8 @@ tr:hover td{background:var(--b50)}
                     </div>Featured
                   </div>
                 </label>
-                <label style="cursor:pointer;text-align:center">
-                  <input type="radio" name="pp-pg-layout" value="list" style="display:none" onchange="ppPageUpdateMiniPreview()">
-                  <div class="pp-layout-opt" style="border:2px solid var(--border);border-radius:8px;padding:8px 4px;font-size:.7rem;color:var(--muted);font-weight:600">
+                <div onclick="ppPageSetLayout(this,'list')" data-layout="list" style="cursor:pointer;text-align:center">
+                  <div class="pp-layout-opt" id="pp-lo-list" style="border:2px solid var(--border);border-radius:8px;padding:8px 4px;font-size:.7rem;color:var(--muted);font-weight:600">
                     <div style="margin-bottom:4px">
                       <div style="height:8px;background:var(--b200);border-radius:2px;margin-bottom:2px"></div>
                       <div style="height:8px;background:var(--b200);border-radius:2px;margin-bottom:2px"></div>
@@ -16922,6 +16918,26 @@ function psBookExperience(expId) {
 // ── Partner Page (Storefront) wizard ────────────────────────────
 var _ppPageData = {};
 
+// ── Layout selector ───────────────────────────────────────────────
+var _ppSelectedLayout = 'grid';
+
+function ppPageSetLayout(el, layout) {
+  _ppSelectedLayout = layout;
+  // Update visual state
+  ['grid','magazine','featured','list'].forEach(function(l){
+    var opt = document.getElementById('pp-lo-' + l);
+    if (!opt) return;
+    opt.style.borderColor = l === layout ? 'var(--b600)' : 'var(--border)';
+    opt.style.background  = l === layout ? 'var(--b50)'  : '';
+    opt.style.color       = l === layout ? 'var(--b700)' : 'var(--muted)';
+  });
+  ppPageUpdateMiniPreview();
+}
+
+function ppPageGetLayout() {
+  return _ppSelectedLayout || 'grid';
+}
+
 function ppPageEnterEdit() {
   document.getElementById('pp-page-summary').style.display = 'none';
   document.getElementById('pp-page-wizard').style.display  = 'block';
@@ -16985,13 +17001,7 @@ async function ppPageInit() {
     document.getElementById('pp-pg-desc').value    = d.page_description || '';
     // Populate step 2
     if (d.page_color) document.getElementById('pp-pg-color').value = d.page_color;
-    if (d.page_layout) {
-      var layoutRadio = document.querySelector('input[name=\'pp-pg-layout\'][value=\''+d.page_layout+'\'\]');
-      if (layoutRadio) {
-        layoutRadio.checked = true;
-        layoutRadio.closest('label').querySelector('.pp-layout-opt').style.borderColor = 'var(--b600)';
-      }
-    }
+    if (d.page_layout) { ppPageSetLayout(null, d.page_layout); }
     if (d.page_logo)  { var lp = document.getElementById('pp-pg-logo-preview');  if (lp) { lp.src = d.page_logo;  lp.style.display = 'block'; } }
     if (d.page_cover) { var cp = document.getElementById('pp-pg-cover-preview'); if (cp) { cp.src = d.page_cover; cp.style.display = 'block'; } }
     ppPageUpdateMiniPreview();
@@ -17083,7 +17093,7 @@ async function ppPageLoadExpList() {
     listEl.innerHTML = exps.length ? exps.map(function(e){
       var img = e.image_url || (Array.isArray(e.images) && e.images[0]) || '';
       var savedEntry = savedOrder.find ? savedOrder.find(function(x){ return (typeof x==='string'?x:(x&&x.id?x.id:x))===e.id; }) : null;
-      var isFeatured = savedEntry && typeof savedEntry==='object' && savedEntry.featured;
+      var isFeatured = !!(savedEntry && typeof savedEntry==='object' && savedEntry.featured);
       var isOn = !savedOrder.length || savedOrder.some(function(x){ return (typeof x==='string'?x:(x&&x.id?x.id:x))===e.id; });
       return '<div class="pp-exp-row" data-id="'+e.id+'" draggable="true" style="display:flex;align-items:center;gap:10px;padding:10px 14px;border:1.5px solid var(--border);border-radius:var(--rs);background:'+(isOn?'var(--b50)':'#fff')+'">'
         + '<i class="fa fa-grip-lines" style="color:var(--muted);cursor:grab;font-size:.85rem;flex-shrink:0"></i>'
@@ -17127,7 +17137,7 @@ function ppPageRenderPreview() {
   var tagline = document.getElementById('pp-pg-tagline')?.value || '';
   var desc    = document.getElementById('pp-pg-desc')?.value    || '';
   var color   = document.getElementById('pp-pg-color')?.value   || '#b45309';
-  var layout  = (document.querySelector('input[name="pp-pg-layout"]:checked') || {value:'grid'}).value;
+  var layout  = ppPageGetLayout();
   var logo    = _ppPageData.page_logo  || '';
   var cover   = _ppPageData.page_cover || '';
   var coverBg = cover ? 'url('+cover+') center/cover' : 'linear-gradient(135deg,'+color+'cc,#1a1a2e)';
@@ -17202,8 +17212,8 @@ function ppPageRenderPreview() {
   // Build preview with toggle + social card
   wrap.innerHTML = ''
     + '<div style="display:flex;gap:10px;align-items:center;margin-bottom:12px;flex-wrap:wrap">'
-    + '<button onclick="ppPagePreviewMode(\"desktop\")" id="pv-btn-desktop" style="background:var(--b600);color:#fff;border:none;border-radius:6px;padding:5px 14px;font-size:.78rem;font-weight:600;cursor:pointer"><i class="fa fa-desktop"></i> Desktop</button>'
-    + '<button onclick="ppPagePreviewMode(\"mobile\")"  id="pv-btn-mobile"  style="background:var(--b50);border:1px solid var(--border);border-radius:6px;padding:5px 14px;font-size:.78rem;font-weight:600;cursor:pointer;color:var(--navy)"><i class="fa fa-mobile-screen"></i> Mobile</button>'
+    + '<button onclick="ppPagePreviewMode(this.dataset.m)" data-m="desktop" id="pv-btn-desktop" style="background:var(--b600);color:#fff;border:none;border-radius:6px;padding:5px 14px;font-size:.78rem;font-weight:600;cursor:pointer"><i class="fa fa-desktop"></i> Desktop</button>'
+    + '<button onclick="ppPagePreviewMode(this.dataset.m)" data-m="mobile"  id="pv-btn-mobile"  style="background:var(--b50);border:1px solid var(--border);border-radius:6px;padding:5px 14px;font-size:.78rem;font-weight:600;cursor:pointer;color:var(--navy)"><i class="fa fa-mobile-screen"></i> Mobile</button>'
     + '</div>'
     // Desktop/mobile frame
     + '<div id="pv-frame-wrap" style="border:1.5px solid var(--border);border-radius:12px;overflow:hidden;transition:max-width .3s">'
