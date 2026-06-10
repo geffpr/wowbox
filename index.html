@@ -5549,6 +5549,7 @@ tr:hover td{background:var(--b50)}
       </div>
 
       <button class="pp-nav on" onclick="switchPP(this,'pp-overview')"><i class="fa fa-gauge"></i> Overview</button>
+      <button class="pp-nav" onclick="switchPP(this,'pp-bookings');ppLoadBookings()" id="pp-nav-bookings"><i class="fa fa-calendar-check"></i> My Bookings <span id="pp-bookings-badge" style="display:none;margin-left:auto;background:#ef4444;color:#fff;border-radius:99px;padding:1px 6px;font-size:.6rem;font-weight:700"></span></button>
       <button class="pp-nav" onclick="switchPP(this,'pp-validate')"><i class="fa fa-qrcode"></i> Validate Voucher</button>
       <button class="pp-nav" onclick="switchPP(this,'pp-payouts');ppLoadPayouts()"><i class="fa fa-money-bill-transfer"></i> My Payouts</button>
       <button class="pp-nav" onclick="switchPP(this,'pp-experiences')"><i class="fa fa-compass"></i> My Experiences</button>
@@ -5562,6 +5563,7 @@ tr:hover td{background:var(--b50)}
       <button class="pp-nav" onclick="switchPP(this,'pp-settings');ppLoadSettings()"><i class="fa fa-gear"></i> Settings</button>
 
       <div style="margin-top:auto;padding-top:24px;border-top:1px solid rgba(255,255,255,.1)">
+        <button class="pp-nav" onclick="switchPP(this,'pp-contact')"><i class="fa fa-envelope"></i> Contact Support</button>
         <button class="pp-nav" onclick="go('home')"><i class="fa fa-right-from-bracket"></i> Exit Portal</button>
       </div>
     </div>
@@ -5579,9 +5581,13 @@ tr:hover td{background:var(--b50)}
               <div style="font-size:.95rem;font-weight:700;color:#92400e;margin-bottom:2px">🚀 Getting started</div>
               <div id="pp-ob-progress-txt" style="font-size:.75rem;color:#b45309">Complete these steps to start receiving bookings</div>
             </div>
-            <div style="text-align:right">
+            <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
+              <div style="display:flex;align-items:center;gap:8px">
+                <button onclick="ppDismissOnboarding('remind')" title="Remind me in a week" style="background:none;border:1px solid #f59e0b;border-radius:6px;padding:3px 8px;font-size:.68rem;color:#b45309;cursor:pointer;white-space:nowrap">⏰ Remind in a week</button>
+                <button onclick="ppDismissOnboarding('dismiss')" title="Close permanently" style="background:none;border:none;font-size:1rem;color:#b45309;cursor:pointer;line-height:1">✕</button>
+              </div>
               <div id="pp-ob-count" style="font-size:1.1rem;font-weight:700;color:#92400e">0/4</div>
-              <div style="height:6px;width:100px;background:#fde68a;border-radius:99px;margin-top:4px;overflow:hidden">
+              <div style="height:6px;width:100px;background:#fde68a;border-radius:99px;overflow:hidden">
                 <div id="pp-ob-bar" style="height:100%;background:#f59e0b;border-radius:99px;width:0%;transition:width .4s"></div>
               </div>
             </div>
@@ -5693,9 +5699,17 @@ tr:hover td{background:var(--b50)}
         <h2 style="font-size:1.75rem;color:var(--navy);margin-bottom:5px">Validate Voucher</h2>
         <p style="color:var(--muted);font-size:.82rem;margin-bottom:24px">Scan a customer's QR code or enter their booking reference manually.</p>
 
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;max-width:760px">
+        <!-- Partner QR Code for customers to scan -->
+        <div class="atbl" style="padding:16px 20px;margin-bottom:20px;display:flex;align-items:center;gap:20px;flex-wrap:wrap;max-width:500px">
+          <div>
+            <div style="font-size:.85rem;font-weight:700;color:var(--navy);margin-bottom:4px"><i class="fa fa-qrcode" style="color:var(--b500)"></i> Your Partner QR Code</div>
+            <div style="font-size:.74rem;color:var(--muted);max-width:260px">Customers can scan this to access your experiences directly. Print it or display it at your venue.</div>
+          </div>
+          <div id="pp-partner-qr" style="flex-shrink:0"></div>
+          <button class="btn bg bsm" onclick="ppDownloadPartnerQR()" style="align-self:center"><i class="fa fa-download"></i> Save QR</button>
+        </div>
 
-          <!-- SCAN panel -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;max-width:760px">
           <div class="pp-card" style="margin-bottom:0">
             <h3 style="margin-bottom:4px"><i class="fa fa-camera" style="color:var(--b500)"></i> Scan QR Code</h3>
             <p style="font-size:.75rem;color:var(--muted);margin-bottom:14px">Use your camera to scan the customer's QR code instantly.</p>
@@ -6257,6 +6271,52 @@ tr:hover td{background:var(--b50)}
               <button class="btn bg bsm block" onclick="calClearAll()"><i class="fa fa-rotate-left"></i> Reset all dates</button>
             </div>
             <div class="pp-card" style="margin-bottom:0"><h3 style="font-size:.9rem;color:var(--navy);margin-bottom:9px"><i class="fa fa-circle-info" style="color:var(--b500)"></i> Selected date</h3><div id="cal-day-detail" style="font-size:.8rem;color:var(--muted)">Click a date to manage it.</div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══ SECTION: MY BOOKINGS ═══ -->
+      <div id="pp-bookings" class="pp-sec">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:12px">
+          <h2 style="font-size:1.7rem;color:var(--navy)">My Bookings</h2>
+        </div>
+        <div style="display:flex;gap:8px;margin-bottom:18px;flex-wrap:wrap">
+          <button class="btn bp bsm" id="pp-bk-tab-upcoming" onclick="ppFilterBookings('upcoming')" style="background:var(--b600);color:#fff">Upcoming</button>
+          <button class="btn bg bsm" id="pp-bk-tab-past" onclick="ppFilterBookings('past')">Past</button>
+          <button class="btn bg bsm" id="pp-bk-tab-all" onclick="ppFilterBookings('all')">All</button>
+        </div>
+        <div id="pp-bookings-list" style="display:flex;flex-direction:column;gap:12px">
+          <div style="text-align:center;padding:40px;color:var(--muted)"><i class="fa fa-calendar-check" style="font-size:2rem;margin-bottom:10px;display:block"></i> Loading bookings…</div>
+        </div>
+      </div>
+
+      <!-- ═══ SECTION: CONTACT SUPPORT ═══ -->
+      <div id="pp-contact" class="pp-sec">
+        <div style="max-width:580px">
+          <h2 style="font-size:1.7rem;color:var(--navy);margin-bottom:6px">Contact Support</h2>
+          <p style="color:var(--muted);font-size:.85rem;margin-bottom:24px">Have a question or issue? Send us a message and we'll get back to you within 24 hours.</p>
+          <div class="atbl" style="padding:24px;display:flex;flex-direction:column;gap:14px">
+            <div class="fg"><label>Subject *</label>
+              <select class="fi" id="pp-contact-subject">
+                <option value="">Select a topic…</option>
+                <option>Booking issue</option>
+                <option>Payout question</option>
+                <option>Technical problem</option>
+                <option>Experience listing</option>
+                <option>Account issue</option>
+                <option>Other</option>
+              </select>
+            </div>
+            <div class="fg"><label>Message *</label>
+              <textarea class="fi" id="pp-contact-msg" rows="5" placeholder="Describe your issue or question in detail…" style="resize:vertical"></textarea>
+            </div>
+            <div style="display:flex;gap:10px;align-items:center">
+              <button class="btn bp" onclick="ppSendContactMessage()"><i class="fa fa-paper-plane"></i> Send message</button>
+              <span id="pp-contact-status" style="font-size:.78rem;color:var(--muted)"></span>
+            </div>
+            <div style="padding:14px;background:var(--b50);border-radius:var(--rs);font-size:.78rem;color:var(--muted)">
+              <i class="fa fa-envelope" style="color:var(--b500)"></i> You can also email us directly at <a href="mailto:support@wowbox.co.za" style="color:var(--b600);font-weight:600">support@wowbox.co.za</a>
+            </div>
           </div>
         </div>
       </div>
@@ -16246,7 +16306,7 @@ function confirmRouletteBooking() {
 /* ══════════════════════════════════════════════════════════════
    PARTNER PORTAL
 ══════════════════════════════════════════════════════════════ */
-const PP_SECTIONS = ['pp-overview','pp-validate','pp-payouts','pp-experiences','pp-plan','pp-analytics','pp-calendar','pp-boost','pp-reporting','pp-reviews','pp-settings'];
+const PP_SECTIONS = ['pp-overview','pp-bookings','pp-validate','pp-payouts','pp-experiences','pp-plan','pp-analytics','pp-calendar','pp-boost','pp-reporting','pp-reviews','pp-settings','pp-contact'];
 
 function switchPP(btn, sectionId) {
   PP_SECTIONS.forEach(id => {
@@ -16258,6 +16318,8 @@ function switchPP(btn, sectionId) {
   if (sectionId) history.replaceState(null, '', '/partner#' + sectionId);
   // Init Pro modules on first visit
   if (sectionId === 'pp-payouts')    ppLoadPayouts();
+  if (sectionId === 'pp-bookings')   ppLoadBookings();
+  if (sectionId === 'pp-validate')   ppGeneratePartnerQR();
   if (sectionId === 'pp-reviews')    ppLoadReviews();
   if (sectionId === 'pp-settings')   ppLoadSettings();
   if (sectionId === 'pp-analytics')  renderAnalytics('7d');
@@ -16312,9 +16374,146 @@ function initPartnerPage() {
 // ─────────────────────────────────────────────────────────────
 // PARTNER: Onboarding checklist
 // ─────────────────────────────────────────────────────────────
+// ── Partner QR Code ───────────────────────────────────────────────
+function ppGeneratePartnerQR() {
+  var wrap = document.getElementById('pp-partner-qr');
+  if (!wrap || wrap.children.length) return;
+  var email = appState.partnerEmail || (currentUser && currentUser.email) || '';
+  var url = 'https://wowbox.co.za/redeem?partner=' + encodeURIComponent(email);
+  var loadQR = function() {
+    if (window.QRCode) {
+      wrap.innerHTML = '';
+      new window.QRCode(wrap, { text: url, width: 90, height: 90, colorDark: '#1e293b', colorLight: '#fff' });
+    }
+  };
+  if (!window.QRCode) {
+    var s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js';
+    s.onload = loadQR;
+    document.head.appendChild(s);
+  } else { loadQR(); }
+}
+
+function ppDownloadPartnerQR() {
+  var canvas = document.querySelector('#pp-partner-qr canvas');
+  if (!canvas) return;
+  var a = document.createElement('a');
+  a.href = canvas.toDataURL('image/png');
+  a.download = 'wowbox-partner-qr.png';
+  a.click();
+}
+
+// ── Partner: dismiss onboarding ──────────────────────────────────
+function ppDismissOnboarding(mode) {
+  var el = document.getElementById('pp-onboarding-wrap');
+  if (!el) el = document.querySelector('.pp-onboarding');
+  if (el) el.style.display = 'none';
+  if (mode === 'remind') {
+    var remind = new Date(); remind.setDate(remind.getDate() + 7);
+    localStorage.setItem('wowbox_pp_ob_remind', remind.toISOString());
+    localStorage.removeItem('wowbox_pp_ob_dismissed');
+  } else {
+    localStorage.setItem('wowbox_pp_ob_dismissed', '1');
+    localStorage.removeItem('wowbox_pp_ob_remind');
+  }
+}
+
+function ppCheckOnboardingVisibility() {
+  var dismissed = localStorage.getItem('wowbox_pp_ob_dismissed');
+  if (dismissed) return false;
+  var remind = localStorage.getItem('wowbox_pp_ob_remind');
+  if (remind && new Date(remind) > new Date()) return false;
+  return true;
+}
+
+// ── Partner: My Bookings ─────────────────────────────────────────
+var _ppBookingsAll = [];
+
+async function ppLoadBookings() {
+  var email = appState.partnerEmail || (currentUser && currentUser.email) || '';
+  if (!email) return;
+  var listEl = document.getElementById('pp-bookings-list');
+  if (!listEl) return;
+  try {
+    var res = await db_client.from('bookings')
+      .select('id,booking_reference,experience_name,box_name,customer_name,guest_name,status,booking_date,booking_time,validated_at,created_at,payout_amount')
+      .eq('partner_email', email)
+      .order('created_at', { ascending: false });
+    _ppBookingsAll = res.data || [];
+    ppFilterBookings('upcoming');
+    // Show badge for upcoming unvalidated bookings
+    var upcoming = _ppBookingsAll.filter(function(b){ return !b.validated_at && b.status !== 'used' && b.status !== 'cancelled'; });
+    var badge = document.getElementById('pp-bookings-badge');
+    if (badge) { badge.style.display = upcoming.length ? 'inline' : 'none'; badge.textContent = upcoming.length || ''; }
+  } catch(e) {
+    if (listEl) listEl.innerHTML = '<p style="color:var(--muted);text-align:center;padding:30px">Error loading bookings.</p>';
+  }
+}
+
+function ppFilterBookings(mode) {
+  ['upcoming','past','all'].forEach(function(m){
+    var btn = document.getElementById('pp-bk-tab-' + m);
+    if (btn) { btn.className = m === mode ? 'btn bp bsm' : 'btn bg bsm'; btn.style.background = m === mode ? '' : ''; }
+  });
+  var now = new Date();
+  var filtered = _ppBookingsAll.filter(function(b){
+    var dt = b.booking_date ? new Date(b.booking_date) : null;
+    if (mode === 'upcoming') return !b.validated_at && b.status !== 'used' && b.status !== 'cancelled';
+    if (mode === 'past')     return b.validated_at || b.status === 'used';
+    return true;
+  });
+  var listEl = document.getElementById('pp-bookings-list');
+  if (!listEl) return;
+  if (!filtered.length) { listEl.innerHTML = '<p style="color:var(--muted);text-align:center;padding:40px">No bookings found.</p>'; return; }
+  listEl.innerHTML = filtered.map(function(b){
+    var statusColor = b.validated_at ? '#16a34a' : b.status === 'cancelled' ? '#dc2626' : '#b45309';
+    var statusLabel = b.validated_at ? '✓ Validated' : b.status === 'cancelled' ? 'Cancelled' : 'Pending';
+    var guestName = b.guest_name || b.customer_name || '—';
+    return '<div class="atbl" style="padding:14px 18px;display:flex;flex-wrap:wrap;align-items:center;gap:12px">'
+      + '<div style="flex:1;min-width:180px">'
+      + '<div style="font-weight:700;color:var(--navy);margin-bottom:2px">' + (b.experience_name||'—') + '</div>'
+      + '<div style="font-size:.78rem;color:var(--muted)">' + (b.box_name||'—') + ' · Guest: ' + guestName + '</div>'
+      + (b.booking_date ? '<div style="font-size:.75rem;color:var(--muted);margin-top:3px">📅 ' + b.booking_date + (b.booking_time ? ' · ' + b.booking_time : '') + '</div>' : '')
+      + '</div>'
+      + '<div style="text-align:right">'
+      + '<span style="font-size:.72rem;font-weight:700;color:' + statusColor + ';background:' + statusColor + '18;padding:3px 10px;border-radius:99px">' + statusLabel + '</span>'
+      + (b.booking_reference ? '<div style="font-size:.7rem;color:var(--muted);margin-top:4px;font-family:monospace">' + b.booking_reference + '</div>' : '')
+      + '</div>'
+      + '</div>';
+  }).join('');
+}
+
+// ── Partner: Contact support ──────────────────────────────────────
+async function ppSendContactMessage() {
+  var subject = document.getElementById('pp-contact-subject')?.value;
+  var msg     = document.getElementById('pp-contact-msg')?.value?.trim();
+  var statusEl= document.getElementById('pp-contact-status');
+  if (!subject || !msg) { if (statusEl) { statusEl.textContent = 'Please fill in all fields.'; statusEl.style.color = '#dc2626'; } return; }
+  if (statusEl) { statusEl.textContent = 'Sending…'; statusEl.style.color = 'var(--muted)'; }
+  var email = appState.partnerEmail || (currentUser && currentUser.email) || '';
+  try {
+    var res = await fetch('/api/send-email', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'support_message', subject: subject, message: msg, from: email })
+    });
+    if (statusEl) { statusEl.textContent = '✓ Message sent! We\'ll reply within 24h.'; statusEl.style.color = 'var(--green)'; }
+    document.getElementById('pp-contact-msg').value = '';
+    document.getElementById('pp-contact-subject').value = '';
+  } catch(e) {
+    if (statusEl) { statusEl.textContent = 'Error sending. Please email support@wowbox.co.za directly.'; statusEl.style.color = '#dc2626'; }
+  }
+}
+
 async function ppCheckOnboarding() {
   var email = appState.partnerEmail || (currentUser && currentUser.email) || '';
   if (!email) return;
+
+  // Hide onboarding if dismissed or remind date not reached
+  if (!ppCheckOnboardingVisibility()) {
+    var ob = document.querySelector('.pp-onboarding');
+    if (ob) ob.style.display = 'none';
+  }
 
   // Show welcome modal once per device
   var welcomeKey = 'wowbox_partner_welcomed_' + email;
