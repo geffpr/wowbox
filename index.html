@@ -18668,9 +18668,8 @@ async function checkPrelaunchMode() {
       if (s.pre_launch_logo) {
         logoEl.src = s.pre_launch_logo;
         logoEl.style.display = 'block';
-        logoEl.style.height  = (s.pre_launch_logo_size || '100') + 'px';
-        logoEl.style.left    = (s.pre_launch_logo_x    || '50')  + '%';
-        logoEl.style.top     = (s.pre_launch_logo_y    || '15')  + '%';
+        logoEl.style.height  = (s.pre_launch_logo_size || '120') + 'px';
+        logoEl.style.width   = 'auto';
       } else {
         logoEl.style.display = 'none';
       }
@@ -19100,7 +19099,7 @@ async function admRunSchemaDiag() {
   <!-- SCREEN 1: Coming Soon -->
   <div id="prelaunch-screen-main" style="position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;max-height:100vh;overflow:hidden;padding:2vh 20px;text-align:center">
     <div style="margin-bottom:1.5vh;position:relative">
-      <img id="prelaunch-logo" src="" alt="WowBox" style="height:8vh;max-height:70px;width:auto;object-fit:contain;display:none">
+      <img id="prelaunch-logo" src="" alt="WowBox" style="height:120px;width:auto;object-fit:contain;display:none;margin:0 auto">
       <div id="prelaunch-logo-text-wrap"><div id="prelaunch-logo-text" style="font-family:'Cormorant Garamond',serif;font-size:2rem;font-weight:700;color:#fff;letter-spacing:.05em">WowBox</div></div>
       <div style="font-size:.7rem;color:rgba(255,255,255,.65);letter-spacing:.2em;text-transform:uppercase;margin-top:4px">Unforgettable Experiences</div>
     </div>
