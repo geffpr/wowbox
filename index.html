@@ -4539,14 +4539,7 @@ tr:hover td{background:var(--b50)}
         <div class="exp-box-link" id="exp-box-link">
           <h5><i class="fa fa-gift"></i> This experience is part of a box</h5>
           <p style="font-size:.75rem;color:var(--slate);margin-bottom:14px">To book this experience, you need to purchase the corresponding WowBox.</p>
-          <div class="box-preview">
-            <img id="exp-box-img" src="" alt="">
-            <div class="box-preview-info">
-              <h4 id="exp-box-name"></h4>
-              <div class="bp-meta"><span style="color:var(--amber)">★★★★★</span> <span id="exp-box-rating"></span> · <span id="exp-box-exp-count" style="color:var(--b600);font-weight:600"></span> experiences</div>
-              <div class="bp-price" id="exp-box-price"></div>
-            </div>
-          </div>
+          <div id="exp-box-cards" style="display:flex;gap:10px;overflow-x:auto;padding-bottom:4px;scrollbar-width:none"></div>
         </div>
 
         <!-- ── BUY PANEL (PRE-PURCHASE ONLY) ── -->
@@ -10096,16 +10089,49 @@ function loadExp(expId) {
   // Reviews: load real data from Supabase
   loadExpReviews(appState.currentExpId);
 
-  // Box link panel — always visible
-  if (b) {
-    document.getElementById('exp-box-img').src = b.img;
-    document.getElementById('exp-box-name').textContent = b.name;
-    document.getElementById('exp-box-rating').textContent = b.rating;
-    document.getElementById('exp-box-exp-count').textContent = b.cnt;
-    document.getElementById('exp-box-price').textContent = 'R' + b.price.toLocaleString();
-    document.getElementById('exp-buy-price').textContent = 'R' + b.price.toLocaleString();
-    document.getElementById('exp-info-count').textContent = b.cnt;
-  }
+  // Box link panel — find ALL boxes containing this experience
+  (async function() {
+    var expId = appState.currentExpId;
+    var cards = document.getElementById('exp-box-cards');
+    if (!cards) return;
+
+    // Collect box IDs: direct box_id + boxes linked via databases
+    var boxIds = new Set();
+    if (e.box) boxIds.add(e.box);
+
+    try {
+      // Find databases this experience belongs to
+      var dbLinks = await db_client.from('experience_database_links').select('database_id').eq('experience_id', expId);
+      var dbIds = (dbLinks.data || []).map(function(r){ return r.database_id; });
+      if (dbIds.length) {
+        // Find boxes that use these databases
+        var boxLinks = await db_client.from('box_database_links').select('box_id').in('database_id', dbIds);
+        (boxLinks.data || []).forEach(function(r){ if (r.box_id) boxIds.add(r.box_id); });
+      }
+    } catch(err) { console.warn('exp box links:', err.message); }
+
+    // Render a card per box
+    var boxArr = Array.from(boxIds).filter(function(id){ return boxDB[id]; });
+    if (!boxArr.length && b) boxArr = [e.box];
+
+    cards.innerHTML = boxArr.map(function(bid) {
+      var bx = boxDB[bid];
+      if (!bx) return '';
+      return '<div onclick="loadProduct(\''+bid+'\');go(\'product\')" style="flex-shrink:0;width:200px;border:1.5px solid var(--border);border-radius:var(--r);overflow:hidden;cursor:pointer;transition:box-shadow .15s" onmouseover="this.style.boxShadow=\'0 4px 12px rgba(0,0,0,.1)\'" onmouseout="this.style.boxShadow=\'\'">'
+        + '<img src="'+(bx.img||'')+'" style="width:100%;height:90px;object-fit:cover" loading="lazy">'
+        + '<div style="padding:10px">'
+        + '<div style="font-size:.8rem;font-weight:700;color:var(--navy);margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+bx.name+'</div>'
+        + '<div style="font-size:.72rem;color:var(--muted);margin-bottom:6px"><span style="color:var(--amber)">★</span> '+(bx.rating||'4.5')+' · '+(bx.cnt||'?')+' experiences</div>'
+        + '<div style="font-size:.9rem;font-weight:700;color:var(--navy)">R'+(bx.price||0).toLocaleString()+'</div>'
+        + '</div></div>';
+    }).join('');
+
+    // Keep legacy IDs populated for buy panel
+    if (b) {
+      document.getElementById('exp-buy-price').textContent  = 'R' + b.price.toLocaleString();
+      document.getElementById('exp-info-count').textContent = b.cnt;
+    }
+  })();
 
   // ── RIGHT PANEL: strict context separation ──────────────────────
   if (isBookingMode) {
