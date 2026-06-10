@@ -16927,6 +16927,26 @@ async function ppPageInit() {
     ppPageUpdateStatusBadge(d.page_status || 'draft');
     // Load experiences for step 3
     ppPageLoadExpList();
+    // Show summary banner if page already saved
+    if (d.page_slug) {
+      var banner = document.getElementById('pp-page-saved-banner');
+      var statusColor = d.page_status==='published'?'#16a34a':d.page_status==='offline'?'#dc2626':'#b45309';
+      var statusLabel = d.page_status==='published'?'🟢 Live':d.page_status==='offline'?'🔴 Offline':'🟡 Draft';
+      if (!banner) {
+        banner = document.createElement('div');
+        banner.id = 'pp-page-saved-banner';
+        var sec = document.getElementById('pp-page');
+        var steps = document.getElementById('pp-page-steps');
+        if (sec && steps) sec.insertBefore(banner, steps);
+      }
+      banner.style.cssText = 'background:var(--b50);border:1.5px solid var(--b200);border-radius:var(--rs);padding:10px 16px;margin-bottom:14px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;font-size:.82rem';
+      banner.innerHTML = '<i class="fa fa-globe" style="color:var(--b500)"></i>'
+        + '<strong style="color:var(--navy)">wowbox.co.za/wow/'+d.page_slug+'</strong>'
+        + '<span style="font-weight:700;color:'+statusColor+'">'+statusLabel+'</span>'
+        + '<div style="margin-left:auto;display:flex;gap:8px">'
+        + (d.page_status==='published'?'<a href="/wow/'+d.page_slug+'" target="_blank" class="btn bg bsm" style="font-size:.72rem"><i class="fa fa-arrow-up-right-from-square"></i> View live</a>':'')
+        + '</div>';
+    }
   } catch(e) { console.warn('ppPageInit:', e.message); }
 }
 
@@ -16958,6 +16978,7 @@ function ppPageGoStep(n) {
   document.querySelectorAll('.pp-wiz-panel').forEach(function(p){ p.style.display = 'none'; });
   var panel = document.getElementById('pp-page-step-' + n);
   if (panel) panel.style.display = 'block';
+  if (n === 3) ppPageLoadExpList();
   if (n === 4) ppPageRenderPreview();
   if (n === 5) ppPageSetupPublishStep();
 }
