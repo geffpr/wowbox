@@ -17055,9 +17055,116 @@ function toggleAddForm() {
 }
 
 function ppPreviewExperience() {
-  // Read all form fields
-  var name     = document.getElementById('pp-new-name')?.value?.trim()       || 'Unnamed Experience';
-  var type     = document.getElementById('pp-new-type')?.value               || 'activity';
+  var name     = document.getElementById('pp-new-name')?.value?.trim()  || 'Unnamed Experience';
+  var type     = document.getElementById('pp-new-type')?.value          || 'activity';
+  var desc     = document.getElementById('pp-new-desc')?.value?.trim()  || '';
+  var price    = document.getElementById('pp-new-price')?.value         || '';
+  var city     = document.getElementById('pp-new-city')?.value?.trim()  || '';
+  var province = document.getElementById('pp-new-province')?.value      || '';
+  var capacity = document.getElementById('pp-new-capacity')?.value      || '2';
+  var phone    = document.getElementById('pp-new-phone')?.value?.trim() || '';
+  var nights   = parseInt(document.getElementById('pp-new-nights')?.value || '0');
+  var cat      = document.getElementById('pp-new-category')?.value      || '';
+  var bkType   = document.getElementById('pp-new-booking-type')?.value  || '';
+  var weekend  = document.getElementById('pp-new-weekend-type')?.value  || '';
+  var img0     = document.getElementById('pp-new-img-0')?.value         || '';
+  var img1     = document.getElementById('pp-new-img-1')?.value         || '';
+  var img2     = document.getElementById('pp-new-img-2')?.value         || '';
+  var partnerName = appState.partnerName || (currentUser && currentUser.email) || 'Partner';
+
+  var typeMap = { accommodation:'🏨 Accommodation', dining:'🍽️ Dining', wellness:'🧖 Wellness',
+    activity:'🏄 Activity', culture:'🎭 Culture', nature:'🦁 Nature', event:'🎉 Event', rental:'🚗 Rental' };
+  var rtBadgeMap = { accommodation:'rt-accommodation', dining:'rt-dining', wellness:'rt-wellness',
+    activity:'rt-activity', culture:'rt-culture', nature:'rt-activity', event:'rt-activity', rental:'rt-accommodation' };
+  var locStr = [city, province].filter(Boolean).join(', ');
+  var durLabel = nights === 0 ? '🌞 Day trip' : nights + ' night' + (nights>1?'s':'');
+
+  var existing = document.getElementById('pp-exp-preview-modal');
+  if (existing) existing.remove();
+
+  // Gallery
+  var placeholder = 'https://images.unsplash.com/photo-1528360983277-13d401cdc186?w=800&auto=format&fit=crop';
+  var mainImg  = img0 || placeholder;
+  var sideImg1 = img1 || placeholder;
+  var sideImg2 = img2 || placeholder;
+
+  var html = '<div style="max-width:1100px;margin:0 auto;padding:0 20px 40px">'
+    // Breadcrumb
+    + '<div style="font-size:.73rem;color:var(--muted);display:flex;align-items:center;gap:5px;margin-bottom:20px;padding-top:20px">'
+    + '<span style="color:var(--b500)"><i class="fa fa-arrow-left"></i> Back to box</span>'
+    + '<i class="fa fa-chevron-right" style="font-size:.55rem"></i>'
+    + '<span>Box</span><i class="fa fa-chevron-right" style="font-size:.55rem"></i>'
+    + '<span>' + name + '</span></div>'
+    // Layout
+    + '<div class="exp-detail-layout">'
+    // LEFT
+    + '<div>'
+    // Gallery
+    + '<div class="exp-gallery">'
+    + '<div class="eg-main"><img src="' + mainImg + '" alt="" style="width:100%;height:100%;object-fit:cover"></div>'
+    + '<div class="eg-side"><img src="' + sideImg1 + '" alt="" style="width:100%;height:100%;object-fit:cover"></div>'
+    + '<div class="eg-side"><img src="' + sideImg2 + '" alt="" style="width:100%;height:100%;object-fit:cover"></div>'
+    + '</div>'
+    // Tabs
+    + '<div class="tabs" style="margin-bottom:24px">'
+    + '<button class="tab on">Overview</button>'
+    + '<button class="tab">Programme</button>'
+    + '<button class="tab">Amenities</button>'
+    + '<button class="tab">Reviews (0)</button>'
+    + '</div>'
+    // Overview tab
+    + '<div>'
+    + '<h1 style="font-size:2rem;color:var(--navy);margin-bottom:10px">' + name + '</h1>'
+    + '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px">'
+    + '<span style="color:var(--amber);font-size:1rem">★★★★★</span>'
+    + '<span style="font-size:.8rem;color:var(--muted)">No reviews yet</span>'
+    + '<span class="rtype-badge ' + (rtBadgeMap[type]||'rt-activity') + '">' + (typeMap[type]||type) + '</span>'
+    + '</div>'
+    + '<div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:20px;font-size:.83rem;color:var(--muted)">'
+    + (locStr ? '<span><i class="fa fa-location-dot" style="color:var(--b400)"></i> ' + locStr + '</span>' : '')
+    + '<span><i class="fa fa-user" style="color:var(--b400)"></i> ' + partnerName + '</span>'
+    + '<span><i class="fa fa-users" style="color:var(--b400)"></i> ' + capacity + ' guests</span>'
+    + '</div>'
+    + (desc ? '<p style="font-size:.88rem;color:#374151;line-height:1.8;margin-bottom:20px">' + desc.replace(/\n/g,'<br>') + '</p>'
+            : '<p style="color:var(--muted);font-style:italic;font-size:.85rem">No description added yet.</p>')
+    + (phone ? '<div style="font-size:.78rem;color:var(--muted);margin-bottom:14px"><i class="fa fa-phone" style="color:var(--b400)"></i> ' + phone + '</div>' : '')
+    + '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:10px">'
+    + (durLabel ? '<span style="background:var(--b50);border:1px solid var(--b100);border-radius:99px;padding:4px 12px;font-size:.75rem;color:var(--navy)">' + durLabel + '</span>' : '')
+    + (bkType ? '<span style="background:var(--b50);border:1px solid var(--b100);border-radius:99px;padding:4px 12px;font-size:.75rem;color:var(--navy)">💻 ' + bkType + '</span>' : '')
+    + (weekend ? '<span style="background:var(--b50);border:1px solid var(--b100);border-radius:99px;padding:4px 12px;font-size:.75rem;color:var(--navy)">' + weekend + '</span>' : '')
+    + (cat ? '<span style="background:var(--b50);border:1px solid var(--b100);border-radius:99px;padding:4px 12px;font-size:.75rem;color:var(--navy)">' + cat + '</span>' : '')
+    + '</div>'
+    + '</div>'
+    + '</div>'
+    // RIGHT panel
+    + '<div><div style="position:sticky;top:80px">'
+    + '<div class="exp-box-link">'
+    + '<h5><i class="fa fa-gift"></i> This experience is part of a box</h5>'
+    + '<p style="font-size:.75rem;color:var(--slate);margin-bottom:14px">To book this experience, you need to purchase the corresponding WowBox.</p>'
+    + '<div style="background:var(--bg);border:1.5px solid var(--border);border-radius:var(--r);overflow:hidden">'
+    + '<div style="height:80px;background:var(--b50);display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:.78rem">Box image</div>'
+    + '<div style="padding:12px"><div style="font-weight:700;color:var(--navy);margin-bottom:4px">Your WowBox</div>'
+    + (price ? '<div style="font-size:1.2rem;font-weight:700;color:var(--navy)">R' + Number(price).toLocaleString() + '</div>' : '')
+    + '</div></div></div>'
+    + '<button class="btn bp block" style="margin-top:14px"><i class="fa fa-cart-shopping"></i> Buy this box</button>'
+    + '<button class="btn bg block" style="margin-top:8px"><i class="fa fa-key"></i> I already have a box — Activate it</button>'
+    + '</div></div>'
+    + '</div>'
+    + '<div style="margin-top:20px;background:#fef3c7;border:1px solid #fcd34d;border-radius:var(--rs);padding:10px 14px;font-size:.75rem;color:#92400e"><i class="fa fa-info-circle"></i> Preview only — not visible to customers until approved by WowBox admin.</div>'
+    + '</div>';
+
+  var m = document.createElement('div');
+  m.id = 'pp-exp-preview-modal';
+  m.style.cssText = 'position:fixed;inset:0;z-index:8000;background:rgba(0,0,0,.6);overflow-y:auto';
+  m.innerHTML = '<div style="background:#fff;min-height:100vh">'
+    + '<div style="display:flex;justify-content:space-between;align-items:center;padding:14px 24px;border-bottom:1px solid var(--border);background:#fff;position:sticky;top:0;z-index:10">'
+    + '<div style="font-size:.78rem;font-weight:700;color:var(--b500);text-transform:uppercase;letter-spacing:.08em">👁 Experience Preview</div>'
+    + '<button onclick="document.getElementById(\'pp-exp-preview-modal\').remove()" style="background:var(--b50);border:none;border-radius:6px;padding:6px 14px;cursor:pointer;font-size:.82rem;font-weight:600">✕ Close preview</button>'
+    + '</div>'
+    + html
+    + '</div>';
+  document.body.appendChild(m);
+}
   var desc     = document.getElementById('pp-new-desc')?.value?.trim()       || '';
   var price    = document.getElementById('pp-new-price')?.value              || '';
   var city     = document.getElementById('pp-new-city')?.value?.trim()       || '';
@@ -17089,48 +17196,6 @@ function ppPreviewExperience() {
         + '</div>' : '')
       + '</div>'
     : '<div style="height:160px;background:var(--b50);border-radius:var(--rx);display:flex;align-items:center;justify-content:center;color:var(--muted);margin-bottom:16px;font-size:.85rem">No images uploaded yet</div>';
-
-  function infoChip(icon, label) {
-    if (!label) return '';
-    return '<span style="display:inline-flex;align-items:center;gap:5px;background:var(--b50);border:1px solid var(--b100);border-radius:99px;padding:4px 10px;font-size:.75rem;color:var(--navy);margin:3px">' + icon + ' ' + label + '</span>';
-  }
-
-  var m = document.createElement('div');
-  m.id = 'pp-exp-preview-modal';
-  m.style.cssText = 'position:fixed;inset:0;z-index:8000;background:rgba(0,0,0,.55);display:flex;align-items:flex-start;justify-content:center;padding:40px 20px;overflow-y:auto';
-  m.innerHTML = '<div style="background:#fff;width:100%;max-width:620px;border-radius:16px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.2)">'
-    // Header
-    + '<div style="display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:1px solid var(--border);background:var(--bg)">'
-    + '<div style="font-size:.78rem;font-weight:700;color:var(--b500);text-transform:uppercase;letter-spacing:.08em">👁 Experience Preview</div>'
-    + '<button onclick="document.getElementById(\'pp-exp-preview-modal\').remove()" style="background:var(--b50);border:none;border-radius:50%;width:32px;height:32px;cursor:pointer;font-size:1rem"><i class="fa fa-xmark"></i></button>'
-    + '</div>'
-    // Body
-    + '<div style="padding:20px">'
-    + imgHtml
-    + '<div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:10px">'
-    + '<h2 style="flex:1;font-family:\'Cormorant Garamond\',serif;font-size:1.6rem;color:var(--navy);line-height:1.2">' + name + '</h2>'
-    + (price ? '<div style="font-size:1.3rem;font-weight:700;color:var(--navy);white-space:nowrap">R' + Number(price).toLocaleString() + '</div>' : '')
-    + '</div>'
-    // Chips
-    + '<div style="margin-bottom:14px;display:flex;flex-wrap:wrap;gap:0">'
-    + infoChip('', typeMap[type]||type)
-    + infoChip('📍', [city, province].filter(Boolean).join(', '))
-    + infoChip('👥', capacity + ' guests max')
-    + infoChip('⏱', durLabel)
-    + infoChip('💻', bkType)
-    + infoChip('🏷️', cat)
-    + infoChip('💑', weekend)
-    + '</div>'
-    // Description
-    + (desc ? '<p style="font-size:.88rem;color:#374151;line-height:1.8;margin-bottom:16px">' + desc.replace(/\n/g,'<br>') + '</p>' : '<p style="font-size:.85rem;color:var(--muted);font-style:italic">No description added yet.</p>')
-    // Phone
-    + (phone ? '<div style="font-size:.78rem;color:var(--muted);margin-bottom:14px"><i class="fa fa-phone" style="color:var(--b400)"></i> ' + phone + '</div>' : '')
-    + '<div style="background:#fef3c7;border:1px solid #fcd34d;border-radius:var(--rs);padding:10px 14px;font-size:.75rem;color:#92400e"><i class="fa fa-info-circle"></i> This is a preview only — not visible to customers until approved by WowBox admin.</div>'
-    + '</div>'
-    + '</div>';
-  m.addEventListener('click', function(e){ if (e.target === m) m.remove(); });
-  document.body.appendChild(m);
-}
 
 async function submitNewExp() {
   const form = document.getElementById('pp-add-form');
