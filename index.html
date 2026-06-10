@@ -6622,12 +6622,35 @@ tr:hover td{background:var(--b50)}
         </div>
         <div class="atbl" id="adm-exp-list-wrap">
           <div class="atbl-hdr"><h3>All experiences</h3>
-            <input type="text" class="fi" id="adm-exp-search" style="width:200px;padding:7px 11px;font-size:.76rem" placeholder="🔍 Search..." oninput="renderAdmExpTable()">
+            <input type="text" class="fi" id="adm-exp-search" style="width:180px;padding:7px 11px;font-size:.76rem" placeholder="🔍 Search..." oninput="renderAdmExpTable()">
           </div>
+          <!-- Filters -->
+          <div style="display:flex;gap:8px;flex-wrap:wrap;padding:10px 16px;border-bottom:1px solid var(--border);background:var(--bg)">
+            <select id="adm-exp-filter-status"   class="fi" style="font-size:.74rem;padding:5px 8px;width:auto" onchange="renderAdmExpTable()"><option value="">All status</option><option value="active">Active</option><option value="draft">Draft</option></select>
+            <select id="adm-exp-filter-partner"  class="fi" style="font-size:.74rem;padding:5px 8px;width:auto" onchange="renderAdmExpTable()"><option value="">All partners</option></select>
+            <select id="adm-exp-filter-province" class="fi" style="font-size:.74rem;padding:5px 8px;width:auto" onchange="renderAdmExpTable()"><option value="">All provinces</option></select>
+            <select id="adm-exp-filter-city"     class="fi" style="font-size:.74rem;padding:5px 8px;width:auto" onchange="renderAdmExpTable()"><option value="">All cities</option></select>
+            <select id="adm-exp-filter-category" class="fi" style="font-size:.74rem;padding:5px 8px;width:auto" onchange="renderAdmExpTable()"><option value="">All categories</option></select>
+            <button class="btn bg bsm" onclick="admExpClearFilters()" style="font-size:.72rem">✕ Clear</button>
+          </div>
+          <div style="overflow-x:auto">
           <table>
-            <thead><tr><th>Name</th><th>Res. type</th><th>Database</th><th>Partner</th><th>Location</th><th>Status</th><th>Actions</th></tr></thead>
+            <thead id="adm-exp-thead"><tr>
+              <th style="width:36px"></th>
+              <th style="cursor:pointer;white-space:nowrap" onclick="admExpSort('name')">Name <span id="adm-exp-sort-name"></span></th>
+              <th style="cursor:pointer;white-space:nowrap" onclick="admExpSort('partner_name')">Partner <span id="adm-exp-sort-partner_name"></span></th>
+              <th style="cursor:pointer;white-space:nowrap" onclick="admExpSort('price')">Value <span id="adm-exp-sort-price"></span></th>
+              <th style="cursor:pointer;white-space:nowrap" onclick="admExpSort('category')">Category <span id="adm-exp-sort-category"></span></th>
+              <th style="cursor:pointer;white-space:nowrap" onclick="admExpSort('province')">Province <span id="adm-exp-sort-province"></span></th>
+              <th style="cursor:pointer;white-space:nowrap" onclick="admExpSort('city')">City <span id="adm-exp-sort-city"></span></th>
+              <th>Database</th>
+              <th style="cursor:pointer;white-space:nowrap" onclick="admExpSort('reservation_type')">Res. type <span id="adm-exp-sort-reservation_type"></span></th>
+              <th style="cursor:pointer;white-space:nowrap" onclick="admExpSort('is_active')">Status <span id="adm-exp-sort-is_active"></span></th>
+              <th>Actions</th>
+            </tr></thead>
             <tbody id="adm-exp-tbody"></tbody>
           </table>
+          </div>
         </div>
 
         <!-- Experience edit/create form panel -->
@@ -13902,10 +13925,40 @@ function admPreviewExpImg(idx, url) {
   else img.style.display = 'none';
 }
 
+// ── Admin experience table sort & filter helpers ──────────────────
+window._admExpSortField = null;
+window._admExpSortAsc   = true;
+
+function admExpSort(field) {
+  if (window._admExpSortField === field) {
+    window._admExpSortAsc = !window._admExpSortAsc;
+  } else {
+    window._admExpSortField = field;
+    window._admExpSortAsc   = true;
+  }
+  // Update sort indicators
+  ['name','partner_name','price','category','province','city','reservation_type','is_active'].forEach(function(f) {
+    var el = document.getElementById('adm-exp-sort-' + f);
+    if (el) el.textContent = f === field ? (window._admExpSortAsc ? ' ↑' : ' ↓') : '';
+  });
+  renderAdmExpTable();
+}
+
+function admExpClearFilters() {
+  ['adm-exp-search','adm-exp-filter-status','adm-exp-filter-partner',
+   'adm-exp-filter-province','adm-exp-filter-city','adm-exp-filter-category'].forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  window._admExpSortField = null;
+  window._admExpSortAsc   = true;
+  renderAdmExpTable();
+}
+
 async function renderAdmExpTable() {
   const tbody = document.getElementById('adm-exp-tbody');
   if (!tbody) return;
-  tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:18px;color:var(--muted)"><i class="fa fa-circle-notch fa-spin"></i> Loading…</td></tr>';
+  tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;padding:18px;color:var(--muted)"><i class="fa fa-circle-notch fa-spin"></i> Loading…</td></tr>';
 
   const q = (document.getElementById('adm-exp-search')?.value || '').toLowerCase();
   const rtBadge = {accommodation:'rt-accommodation',dining:'rt-dining',wellness:'rt-wellness',activity:'rt-activity',rental:'rt-rental',event:'rt-event'};
@@ -13919,7 +13972,7 @@ async function renderAdmExpTable() {
     // Load all experiences from Supabase — single source of truth
     var [expRes, linkRes] = await Promise.all([
       db_client.from('experiences')
-        .select('id,name,partner_name,location,reservation_type,image_url,image_urls,images,is_active')
+        .select('id,name,partner_name,location,reservation_type,image_url,image_urls,images,is_active,price,city,province,category,booking_type')
         .order('name', {ascending:true}),
       db_client.from('experience_database_links').select('experience_id,database_id')
     ]);
@@ -13935,16 +13988,54 @@ async function renderAdmExpTable() {
       if (!dbLinksMap[l.experience_id].includes(label)) dbLinksMap[l.experience_id].push(label);
     });
 
-    // Filter by search
+    // Populate filter dropdowns (deduplicated)
+    var fPartner  = document.getElementById('adm-exp-filter-partner');
+    var fProvince = document.getElementById('adm-exp-filter-province');
+    var fCity     = document.getElementById('adm-exp-filter-city');
+    var fCat      = document.getElementById('adm-exp-filter-category');
+    function repopulate(sel, vals) {
+      var cur = sel.value;
+      while (sel.options.length > 1) sel.remove(1);
+      vals.forEach(function(v){ var o = document.createElement('option'); o.value = v; o.textContent = v; sel.appendChild(o); });
+      if (vals.includes(cur)) sel.value = cur;
+    }
+    repopulate(fPartner,  [...new Set(rows.map(function(e){ return e.partner_name||''; }).filter(Boolean))].sort());
+    repopulate(fProvince, [...new Set(rows.map(function(e){ return e.province||''; }).filter(Boolean))].sort());
+    repopulate(fCity,     [...new Set(rows.map(function(e){ return e.city||''; }).filter(Boolean))].sort());
+    repopulate(fCat,      [...new Set(rows.map(function(e){ return e.category||''; }).filter(Boolean))].sort());
+
+    // Read active filters
+    var fStatus   = (document.getElementById('adm-exp-filter-status')?.value   || '').toLowerCase();
+    var fPartnerV = (document.getElementById('adm-exp-filter-partner')?.value  || '').toLowerCase();
+    var fProvV    = (document.getElementById('adm-exp-filter-province')?.value || '').toLowerCase();
+    var fCityV    = (document.getElementById('adm-exp-filter-city')?.value     || '').toLowerCase();
+    var fCatV     = (document.getElementById('adm-exp-filter-category')?.value || '').toLowerCase();
+
+    // Sort
+    if (window._admExpSortField) {
+      var sf = window._admExpSortField, sa = window._admExpSortAsc;
+      rows.sort(function(a,b){
+        var av = a[sf] ?? '', bv = b[sf] ?? '';
+        if (typeof av === 'boolean') av = av ? 1 : 0;
+        if (typeof bv === 'boolean') bv = bv ? 1 : 0;
+        if (typeof av === 'number' && typeof bv === 'number') return sa ? av-bv : bv-av;
+        return sa ? String(av).localeCompare(String(bv)) : String(bv).localeCompare(String(av));
+      });
+    }
+
+    // Filter by search + dropdowns
     var filtered = rows.filter(function(e){
-      return !q
-        || (e.name||'').toLowerCase().includes(q)
-        || (e.partner_name||'').toLowerCase().includes(q)
-        || (e.location||'').toLowerCase().includes(q);
+      var matchQ = !q || (e.name||'').toLowerCase().includes(q) || (e.partner_name||'').toLowerCase().includes(q) || (e.city||'').toLowerCase().includes(q) || (e.province||'').toLowerCase().includes(q) || (e.category||'').toLowerCase().includes(q);
+      var matchStatus   = !fStatus   || (fStatus==='active' ? e.is_active : !e.is_active);
+      var matchPartner  = !fPartnerV || (e.partner_name||'').toLowerCase() === fPartnerV;
+      var matchProv     = !fProvV    || (e.province||'').toLowerCase() === fProvV;
+      var matchCity     = !fCityV    || (e.city||'').toLowerCase() === fCityV;
+      var matchCat      = !fCatV     || (e.category||'').toLowerCase() === fCatV;
+      return matchQ && matchStatus && matchPartner && matchProv && matchCity && matchCat;
     });
 
     if (!filtered.length) {
-      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--muted)">No experiences found.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;padding:24px;color:var(--muted)">No experiences found.</td></tr>';
       return;
     }
 
@@ -13958,12 +14049,17 @@ async function renderAdmExpTable() {
       var img = imgSrc
         ? '<img src="'+imgSrc+'" style="width:44px;height:36px;object-fit:cover;border-radius:var(--rs);flex-shrink:0" loading="lazy" onerror="this.style.display=\'none\'">'
         : '<div style="width:44px;height:36px;border-radius:var(--rs);background:var(--b50);flex-shrink:0"></div>';
+      var priceCell = e.price ? '<strong style="color:var(--navy)">R '+Number(e.price).toLocaleString()+'</strong>' : '<span style="color:var(--muted)">—</span>';
       return '<tr>'
-        +'<td><div style="display:flex;align-items:center;gap:9px">'+img+'<strong>'+(e.name||'—')+'</strong></div></td>'
-        +'<td><span class="rtype-badge '+(rtBadge[e.reservation_type]||'rt-activity')+'">'+(rtIcon[e.reservation_type]||'🏄')+' '+(e.reservation_type||'—')+'</span></td>'
-        +'<td style="font-size:.75rem">'+dbCell+'</td>'
+        +'<td>'+img+'</td>'
+        +'<td style="white-space:nowrap"><strong>'+(e.name||'—')+'</strong></td>'
         +'<td style="font-size:.8rem">'+(e.partner_name||'—')+'</td>'
-        +'<td style="font-size:.8rem;color:var(--muted)">'+(e.location||'—')+'</td>'
+        +'<td style="font-size:.8rem;white-space:nowrap">'+priceCell+'</td>'
+        +'<td style="font-size:.75rem">'+(e.category||'<span style="color:var(--muted)">—</span>')+'</td>'
+        +'<td style="font-size:.75rem">'+(e.province||'<span style="color:var(--muted)">—</span>')+'</td>'
+        +'<td style="font-size:.75rem">'+(e.city||'<span style="color:var(--muted)">—</span>')+'</td>'
+        +'<td style="font-size:.74rem;color:var(--muted)">'+dbCell+'</td>'
+        +'<td><span class="rtype-badge '+(rtBadge[e.reservation_type]||'rt-activity')+'">'+(rtIcon[e.reservation_type]||'🏄')+' '+(e.reservation_type||'—')+'</span></td>'
         +'<td><span class="sbadge '+(e.is_active?'sb-a':'sb-p')+'">'+(e.is_active?'Active':'Draft')+'</span></td>'
         +"<td><button class='btn bg bsm' onclick='admShowExpFormById(this.dataset.id)' data-id='"+e.id+"'><i class='fa fa-pen'></i> Edit</button></td>"
         +'</tr>';
@@ -13971,7 +14067,7 @@ async function renderAdmExpTable() {
 
   } catch(err) {
     console.error('[renderAdmExpTable]', err);
-    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--muted)">Error loading experiences.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;padding:24px;color:var(--muted)">Error loading experiences.</td></tr>';
   }
 }
 
