@@ -16785,7 +16785,7 @@ async function ppSendContactMessage() {
 // ── Public partner storefront /p/[slug] ──────────────────────────
 async function loadPartnerStorefront(slug) {
   try {
-    var res = await db_client.from('partners').select('name,page_tagline,page_description,page_logo,page_cover,page_color,page_experiences,page_status').eq('page_slug', slug).maybeSingle();
+    var res = await db_client.from('user_profiles').select('partner_name,full_name,page_tagline,page_description,page_logo,page_cover,page_color,page_experiences,page_status').eq('page_slug', slug).maybeSingle();
     var p = res.data;
     if (!p || p.page_status !== 'published') {
       document.getElementById('ps-exp-grid').innerHTML = '<div style="text-align:center;padding:60px;color:var(--muted);grid-column:1/-1"><i class="fa fa-circle-exclamation" style="font-size:2rem;margin-bottom:10px;display:block"></i>This page is not available.</div>';
@@ -16797,7 +16797,7 @@ async function loadPartnerStorefront(slug) {
     if (hero) hero.style.background = (p.page_cover ? 'url('+p.page_cover+') center/cover' : 'linear-gradient(135deg,'+color+'cc,#1a1a2e)');
     var logoEl = document.getElementById('ps-logo');
     if (logoEl && p.page_logo) { logoEl.src = p.page_logo; logoEl.style.display = 'block'; }
-    var nameEl = document.getElementById('ps-name'); if (nameEl) nameEl.textContent = p.name || '';
+    var nameEl = document.getElementById('ps-name'); if (nameEl) nameEl.textContent = p.partner_name || p.full_name || '';
     var tagEl  = document.getElementById('ps-tagline'); if (tagEl) tagEl.textContent = p.page_tagline || '';
     var descEl = document.getElementById('ps-desc'); if (descEl) descEl.textContent = p.page_description || '';
     // Load experiences
@@ -16841,11 +16841,11 @@ async function ppPageInit() {
   var email = appState.partnerEmail || (currentUser && currentUser.email) || '';
   if (!email) return;
   try {
-    var res = await db_client.from('partners').select('name,page_slug,page_status,page_tagline,page_description,page_logo,page_cover,page_color,page_experiences').eq('email', email).maybeSingle();
+    var res = await db_client.from('user_profiles').select('full_name,partner_name,page_slug,page_status,page_tagline,page_description,page_logo,page_cover,page_color,page_experiences').eq('email', email).maybeSingle();
     var d = res.data || {};
     _ppPageData = d;
     // Populate step 1
-    document.getElementById('pp-pg-name').value    = d.name || '';
+    document.getElementById('pp-pg-name').value    = d.partner_name || d.full_name || '';
     document.getElementById('pp-pg-slug').value    = d.page_slug || ppPageAutoSlug(d.name || '');
     document.getElementById('pp-pg-tagline').value = d.page_tagline || '';
     document.getElementById('pp-pg-desc').value    = d.page_description || '';
@@ -16875,7 +16875,7 @@ async function ppPageSlugCheck() {
   if (statusEl) statusEl.textContent = 'Checking…';
   try {
     var email = appState.partnerEmail || (currentUser && currentUser.email) || '';
-    var res = await db_client.from('partners').select('email').eq('page_slug', slug).neq('email', email).maybeSingle();
+    var res = await db_client.from('user_profiles').select('email').eq('page_slug', slug).neq('email', email).maybeSingle();
     if (res.data) {
       if (statusEl) { statusEl.textContent = '✗ This slug is already taken'; statusEl.style.color = '#dc2626'; }
     } else {
@@ -17038,7 +17038,7 @@ async function ppPageSave() {
     var payload = { page_slug: slug, page_tagline: tagline, page_description: desc, page_color: color, page_experiences: selectedIds };
     if (_ppPageData.page_logo)  payload.page_logo  = _ppPageData.page_logo;
     if (_ppPageData.page_cover) payload.page_cover = _ppPageData.page_cover;
-    await db_client.from('partners').update(payload).eq('email', email);
+    await db_client.from('user_profiles').update(payload).eq('email', email);
     _ppPageData = Object.assign(_ppPageData, payload);
     ppPageUpdateMiniPreview();
   } catch(e) { console.warn('ppPageSave:', e.message); }
@@ -17051,7 +17051,7 @@ async function ppPagePublish() {
   var st    = document.getElementById('pp-pg-publish-status');
   if (!slug) { if (st) { st.textContent = 'Please set a page URL first.'; st.style.color = '#dc2626'; } return; }
   try {
-    await db_client.from('partners').update({ page_status: 'published' }).eq('email', email);
+    await db_client.from('user_profiles').update({ page_status: 'published' }).eq('email', email);
     _ppPageData.page_status = 'published';
     if (st) { st.textContent = '✓ Your page is live!'; st.style.color = '#16a34a'; }
     ppPageUpdateStatusBadge('published');
@@ -17063,7 +17063,7 @@ async function ppPageSetOffline() {
   var email = appState.partnerEmail || (currentUser && currentUser.email) || '';
   var st = document.getElementById('pp-pg-publish-status');
   try {
-    await db_client.from('partners').update({ page_status: 'offline' }).eq('email', email);
+    await db_client.from('user_profiles').update({ page_status: 'offline' }).eq('email', email);
     _ppPageData.page_status = 'offline';
     if (st) { st.textContent = '✓ Page taken offline.'; st.style.color = 'var(--muted)'; }
     ppPageUpdateStatusBadge('offline');
