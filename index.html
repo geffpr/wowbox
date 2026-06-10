@@ -16374,6 +16374,94 @@ function initPartnerPage() {
 // ─────────────────────────────────────────────────────────────
 // PARTNER: Onboarding checklist
 // ─────────────────────────────────────────────────────────────
+// ── Booking detail modal ──────────────────────────────────────────
+function ppShowBookingDetail(idx) {
+  var b = (window._ppBookingsFiltered || [])[idx];
+  if (!b) return;
+
+  var existing = document.getElementById('pp-bk-detail-modal');
+  if (existing) existing.remove();
+
+  function row(label, val) {
+    if (!val || val === '—') return '';
+    return '<tr><td style="padding:7px 12px;font-size:.75rem;color:var(--muted);white-space:nowrap;font-weight:600;width:140px">' + label + '</td>'
+      + '<td style="padding:7px 12px;font-size:.82rem;color:var(--navy)">' + val + '</td></tr>';
+  }
+  function section(title, rows) {
+    var r = rows.filter(Boolean).join('');
+    if (!r) return '';
+    return '<div style="margin-bottom:18px">'
+      + '<div style="font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--b500);margin-bottom:6px">' + title + '</div>'
+      + '<table style="width:100%;border-collapse:collapse;background:var(--bg);border-radius:var(--rs);overflow:hidden">' + r + '</table></div>';
+  }
+
+  // booking_details JSONB — show all key/value pairs
+  var bdRows = '';
+  if (b.booking_details && typeof b.booking_details === 'object') {
+    Object.entries(b.booking_details).forEach(function(kv){
+      var key = kv[0].replace(/_/g,' ').replace(/\b\w/g, function(c){ return c.toUpperCase(); });
+      bdRows += row(key, String(kv[1]));
+    });
+  }
+
+  var nights = '';
+  if (b.checkin_date && b.checkout_date) {
+    var diff = Math.round((new Date(b.checkout_date) - new Date(b.checkin_date)) / 86400000);
+    nights = diff + ' night' + (diff>1?'s':'');
+  }
+
+  var html = section('👤 Guest', [
+    row('Guest name',     b.guest_name    || b.customer_name || '—'),
+    row('Guest 2',        b.guest_2_name),
+    row('Email',          b.guest_email   || b.customer_email),
+    row('Phone',          b.guest_phone),
+    row('Guest count',    b.guest_count || b.guests),
+    row('Buyer',          b.customer_name !== b.guest_name && b.customer_name ? b.customer_name + ' (' + (b.customer_email||'') + ')' : ''),
+  ])
+  + section('📋 Booking', [
+    row('Reference',      b.booking_reference),
+    row('Experience',     b.experience_name),
+    row('Box',            b.box_name),
+    row('Type',           b.reservation_type),
+    row('Date',           b.booking_date),
+    row('Time',           b.booking_time),
+    row('Check-in',       b.checkin_date),
+    row('Check-out',      b.checkout_date),
+    row('Duration',       nights),
+    row('Session',        b.session_type),
+    row('Special requests', b.special_requests),
+  ])
+  + (bdRows ? '<div style="margin-bottom:18px"><div style="font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--b500);margin-bottom:6px">📦 Booking options</div><table style="width:100%;border-collapse:collapse;background:var(--bg);border-radius:var(--rs);overflow:hidden">' + bdRows + '</table></div>' : '')
+  + section('💰 Financial', [
+    row('Box price (customer paid)', b.box_price ? 'R' + Number(b.box_price).toLocaleString() : ''),
+    row('Your payout',               b.payout_amount ? 'R' + Number(b.payout_amount).toLocaleString() : ''),
+    row('Payout status',             b.payout_status),
+    row('Payout date',               b.payout_date),
+  ])
+  + section('🔖 Status', [
+    row('Status',       b.status),
+    row('Created',      b.created_at ? new Date(b.created_at).toLocaleString('en-ZA') : ''),
+    row('Confirmed',    b.confirmed_at ? new Date(b.confirmed_at).toLocaleString('en-ZA') : ''),
+    row('Validated',    b.validated_at ? new Date(b.validated_at).toLocaleString('en-ZA') : ''),
+    row('Cancelled',    b.cancelled_at ? new Date(b.cancelled_at).toLocaleString('en-ZA') : ''),
+    row('Voucher code', b.voucher_code),
+  ]);
+
+  var m = document.createElement('div');
+  m.id = 'pp-bk-detail-modal';
+  m.style.cssText = 'position:fixed;inset:0;z-index:8000;background:rgba(0,0,0,.5);display:flex;align-items:flex-start;justify-content:flex-end;padding:0';
+  m.innerHTML = '<div style="background:#fff;width:min(520px,100vw);height:100vh;overflow-y:auto;padding:24px 20px;box-shadow:-4px 0 24px rgba(0,0,0,.15)">'
+    + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">'
+    + '<h3 style="color:var(--navy);font-size:1.1rem">Booking details</h3>'
+    + '<button onclick="document.getElementById(\'pp-bk-detail-modal\').remove()" style="background:var(--b50);border:none;border-radius:50%;width:32px;height:32px;cursor:pointer;font-size:1rem"><i class="fa fa-xmark"></i></button>'
+    + '</div>'
+    + html
+    + (!b.validated_at && b.status !== 'cancelled' ? '<button class="btn bp block" style="margin-top:16px" onclick="ppValidateBooking(\''+b.id+'\',\''+b.booking_reference+'\',this)"><i class="fa fa-check-circle"></i> Validate this booking</button>' : '')
+    + '</div>';
+  m.addEventListener('click', function(e){ if (e.target === m) m.remove(); });
+  document.body.appendChild(m);
+}
+
 // ── Partner QR Code ───────────────────────────────────────────────
 function ppGeneratePartnerQR() {
   var wrap = document.getElementById('pp-partner-qr');
@@ -16436,7 +16524,7 @@ async function ppLoadBookings() {
   if (!listEl) return;
   try {
     var res = await db_client.from('bookings')
-      .select('id,booking_reference,experience_name,box_name,customer_name,guest_name,status,booking_date,booking_time,validated_at,created_at,payout_amount')
+      .select('id,booking_reference,voucher_code,experience_name,experience_id,box_name,box_price,customer_name,customer_email,guest_name,guest_2_name,guest_email,guest_phone,guest_count,guests,reservation_type,booking_date,booking_time,checkin_date,checkout_date,session_type,special_requests,status,confirmed_at,validated_at,cancelled_at,created_at,payout_amount,payout_status,payout_date,booking_details')
       .eq('partner_email', email)
       .order('created_at', { ascending: false });
     _ppBookingsAll = res.data || [];
@@ -16465,19 +16553,21 @@ function ppFilterBookings(mode) {
   var listEl = document.getElementById('pp-bookings-list');
   if (!listEl) return;
   if (!filtered.length) { listEl.innerHTML = '<p style="color:var(--muted);text-align:center;padding:40px">No bookings found.</p>'; return; }
-  listEl.innerHTML = filtered.map(function(b){
+  window._ppBookingsFiltered = filtered;
+  listEl.innerHTML = filtered.map(function(b, idx){
     var statusColor = b.validated_at ? '#16a34a' : b.status === 'cancelled' ? '#dc2626' : '#b45309';
-    var statusLabel = b.validated_at ? '✓ Validated' : b.status === 'cancelled' ? 'Cancelled' : 'Pending';
-    var guestName = b.guest_name || b.customer_name || '—';
-    return '<div class="atbl" style="padding:14px 18px;display:flex;flex-wrap:wrap;align-items:center;gap:12px">'
-      + '<div style="flex:1;min-width:180px">'
-      + '<div style="font-weight:700;color:var(--navy);margin-bottom:2px">' + (b.experience_name||'—') + '</div>'
-      + '<div style="font-size:.78rem;color:var(--muted)">' + (b.box_name||'—') + ' · Guest: ' + guestName + '</div>'
-      + (b.booking_date ? '<div style="font-size:.75rem;color:var(--muted);margin-top:3px">📅 ' + b.booking_date + (b.booking_time ? ' · ' + b.booking_time : '') + '</div>' : '')
+    var statusLabel = b.validated_at ? '\u2713 Validated' : b.status === 'cancelled' ? 'Cancelled' : 'Pending';
+    var guestName = b.guest_name || b.customer_name || '\u2014';
+    return '<div class="atbl" style="padding:12px 18px;display:flex;flex-wrap:wrap;align-items:center;gap:12px">'
+      + '<div style="flex:1;min-width:180px;cursor:pointer" onclick="ppShowBookingDetail('+idx+')">' 
+      + '<div style="font-weight:700;color:var(--navy);margin-bottom:2px">' + (b.experience_name||'\u2014') + '</div>'
+      + '<div style="font-size:.78rem;color:var(--muted)">' + (b.box_name||'\u2014') + ' \u00b7 Guest: ' + guestName + '</div>'
+      + (b.booking_date ? '<div style="font-size:.75rem;color:var(--muted);margin-top:3px">\uD83D\uDCC5 ' + b.booking_date + (b.booking_time ? ' \u00b7 ' + b.booking_time : '') + '</div>' : '')
       + '</div>'
-      + '<div style="text-align:right">'
+      + '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:5px">'
       + '<span style="font-size:.72rem;font-weight:700;color:' + statusColor + ';background:' + statusColor + '18;padding:3px 10px;border-radius:99px">' + statusLabel + '</span>'
-      + (b.booking_reference ? '<div style="font-size:.7rem;color:var(--muted);margin-top:4px;font-family:monospace">' + b.booking_reference + '</div>' : '')
+      + (b.booking_reference ? '<span style="font-size:.7rem;color:var(--muted);font-family:monospace">' + b.booking_reference + '</span>' : '')
+      + '<button onclick="ppShowBookingDetail('+idx+')" style="background:var(--b50);border:1px solid var(--border);border-radius:6px;padding:3px 10px;font-size:.7rem;color:var(--b700);cursor:pointer">View details \u2192</button>'
       + '</div>'
       + '</div>';
   }).join('');
