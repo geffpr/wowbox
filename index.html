@@ -17055,12 +17055,11 @@ function toggleAddForm() {
 }
 
 function ppPreviewTab(btn, tabId) {
-  // Update tab buttons
+  var modal = btn.closest('#pp-exp-preview-modal') || document.getElementById('pp-exp-preview-modal');
   btn.closest('.tabs').querySelectorAll('.tab').forEach(function(t){ t.classList.remove('on'); });
   btn.classList.add('on');
-  // Show/hide panels
   ['pv-overview','pv-programme','pv-amenities','pv-reviews'].forEach(function(id){
-    var el = document.getElementById(id);
+    var el = modal ? modal.querySelector('#' + id) : document.getElementById(id);
     if (el) el.style.display = id === tabId ? 'block' : 'none';
   });
 }
@@ -17178,13 +17177,7 @@ function ppPreviewExperience() {
     // Reviews tab
     + '<div id="pv-reviews" style="display:none;margin-top:24px">'
     + '<p style="color:var(--muted);font-size:.85rem;text-align:center;padding:30px">No reviews yet — reviews will appear here once guests start booking.</p>'
-    + '</div>'  // chips
-    + '</div>'  // pv-overview
-    // Programme tab
-    + '<div id="pv-programme" style="display:none">' + (progData.length ? progData.map(function(s,i){ return '<div style="display:flex;gap:12px;align-items:flex-start;margin-bottom:16px"><div style="min-width:26px;height:26px;border-radius:50%;background:var(--b600);color:#fff;display:flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:700;flex-shrink:0">'+(i+1)+'</div><div><div style="font-weight:700;color:var(--navy);margin-bottom:4px">'+s.title+'</div><p style="font-size:.84rem;color:var(--slate);line-height:1.7">'+s.text+'</p></div></div>'; }).join('') : '<p style="color:var(--muted);font-style:italic">No programme steps added yet.</p>') + '</div>'
-    + '<div id="pv-amenities" style="display:none">' + (amenData.length ? '<div style="display:flex;flex-wrap:wrap;gap:8px">' + amenData.map(function(a){ var f=(typeof WB_AMENITIES!=='undefined')?WB_AMENITIES.find(function(x){return x.id===a;}):null; return '<div style="padding:7px 14px;border:1px solid var(--border);border-radius:var(--rs);font-size:.82rem;background:var(--b50)">'+(f?'<i class="fa '+f.icon+'" style="color:var(--b500)"></i> '+f.label:a)+'</div>'; }).join('') + '</div>' : '<p style="color:var(--muted);font-style:italic">No amenities selected yet.</p>') + '</div>'
-    + '<div id="pv-reviews" style="display:none"><p style="color:var(--muted);font-style:italic">No reviews yet.</p></div>'
-    + ''  // end tabs content
+    + ''  // tabs end
     // RIGHT panel
     + '<div><div style="position:sticky;top:80px">'
     + '<div class="exp-box-link">'
