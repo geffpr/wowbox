@@ -6380,7 +6380,7 @@ tr:hover td{background:var(--b50)}
             <div class="fg">
               <label>Page URL *</label>
               <div style="display:flex;align-items:center;gap:0;border:1.5px solid var(--border);border-radius:var(--rs);overflow:hidden;background:#fff">
-                <span style="padding:10px 12px;background:var(--bg);font-size:.8rem;color:var(--muted);border-right:1px solid var(--border);white-space:nowrap">wowbox.co.za/p/</span>
+                <span style="padding:10px 12px;background:var(--bg);font-size:.8rem;color:var(--muted);border-right:1px solid var(--border);white-space:nowrap">wowbox.co.za/wow/</span>
                 <input style="flex:1;border:none;padding:10px 12px;font-size:.85rem;outline:none" id="pp-pg-slug" placeholder="my-venue-name" oninput="ppPageSlugCheck()">
               </div>
               <div id="pp-pg-slug-status" style="font-size:.72rem;margin-top:4px"></div>
@@ -6413,7 +6413,7 @@ tr:hover td{background:var(--b50)}
             <div style="margin-bottom:18px">
               <label style="font-size:.75rem;color:var(--muted);display:block;margin-bottom:6px">Accent colour</label>
               <div style="display:flex;align-items:center;gap:12px">
-                <input type="color" id="pp-pg-color" value="#b45309" style="width:44px;height:36px;border:1.5px solid var(--border);border-radius:6px;cursor:pointer;padding:2px">
+                <input type="color" id="pp-pg-color" value="#b45309" style="width:44px;height:36px;border:1.5px solid var(--border);border-radius:6px;cursor:pointer;padding:2px" oninput="ppPageUpdateMiniPreview()">
                 <span style="font-size:.8rem;color:var(--muted)">Used for buttons and highlights on your page</span>
               </div>
             </div>
@@ -6460,7 +6460,7 @@ tr:hover td{background:var(--b50)}
             <div class="atbl" style="padding:20px;margin-bottom:18px">
               <div style="font-size:.9rem;font-weight:700;color:var(--navy);margin-bottom:14px">🚀 Ready to go live?</div>
               <div style="font-size:.82rem;color:var(--muted);margin-bottom:16px">Your page will be publicly accessible at:</div>
-              <div style="background:var(--b50);border:1.5px solid var(--b200);border-radius:var(--rs);padding:10px 14px;font-family:monospace;font-size:.85rem;color:var(--navy);margin-bottom:16px" id="pp-pg-url-display">wowbox.co.za/p/your-slug</div>
+              <div style="background:var(--b50);border:1.5px solid var(--b200);border-radius:var(--rs);padding:10px 14px;font-family:monospace;font-size:.85rem;color:var(--navy);margin-bottom:16px" id="pp-pg-url-display">wowbox.co.za/wow/your-slug</div>
               <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px">
                 <button class="btn bp" onclick="ppPagePublish()" id="pp-pg-publish-btn"><i class="fa fa-globe"></i> Publish my page</button>
                 <button class="btn bg bsm" id="pp-pg-offline-btn" onclick="ppPageSetOffline()" style="display:none"><i class="fa fa-eye-slash"></i> Take offline</button>
@@ -8494,7 +8494,7 @@ const PAGE_HASH = {
   reviews:'/reviews',cart:'/cart',checkout:'/checkout',voucher:'/confirmation',
   login:'/login',dashboard:'/my-account',activation:'/activate',
   'partner-landing':'/partners',partner:'/partner',admin:'/admin',browse:'/browse',roulette:'/surprise',
-  'partner-storefront':'/p',
+  'partner-storefront':'/wow',
   giftvideo:'/gift-video',
   faq:'/faq',contact:'/contact',
   terms:'/terms',privacy:'/privacy',refund:'/refund-policy'
@@ -8740,10 +8740,14 @@ function goFromHash() {
   var path = window.location.pathname;
 
   // ── /p/partner-slug (Partner storefront) ──
-  if (path.startsWith('/p/')) {
-    var partnerSlug = path.replace('/p/', '').replace(/\/+$/, '');
+  // ── /wow/partner-slug (Partner storefront) ──
+  if (path.startsWith('/wow/')) {
+    var partnerSlug = path.replace('/wow/', '').replace(/\/+$/, '');
     if (partnerSlug) {
-      go('partner-storefront');
+      // Show page directly without go() overwriting URL to /wow
+      document.querySelectorAll('.page').forEach(function(pg){ pg.style.display='none'; });
+      var psEl = document.getElementById('page-partner-storefront');
+      if (psEl) psEl.style.display = 'block';
       loadPartnerStorefront(partnerSlug);
       return;
     }
@@ -16820,7 +16824,7 @@ async function loadPartnerStorefront(slug) {
     }).join('') : '<div style="text-align:center;padding:40px;color:var(--muted);grid-column:1/-1">No experiences available yet.</div>';
     // Update page title
     document.title = (p.name || 'Partner') + ' — WowBox';
-    history.replaceState(null, '', '/p/' + slug);
+    history.replaceState(null, '', '/wow/' + slug);
   } catch(e) { console.warn('loadPartnerStorefront:', e.message); }
 }
 
@@ -16875,7 +16879,7 @@ async function ppPageSlugCheck() {
     if (res.data) {
       if (statusEl) { statusEl.textContent = '✗ This slug is already taken'; statusEl.style.color = '#dc2626'; }
     } else {
-      if (statusEl) { statusEl.textContent = '✓ wowbox.co.za/p/' + slug; statusEl.style.color = '#16a34a'; }
+      if (statusEl) { statusEl.textContent = '✓ wowbox.co.za/wow/' + slug; statusEl.style.color = '#16a34a'; }
     }
   } catch(e) {}
 }
@@ -16965,7 +16969,7 @@ function ppPageRenderPreview() {
 function ppPageSetupPublishStep() {
   var slug = document.getElementById('pp-pg-slug')?.value?.trim() || '';
   var urlEl = document.getElementById('pp-pg-url-display');
-  if (urlEl) urlEl.textContent = 'wowbox.co.za/p/' + (slug || '…');
+  if (urlEl) { urlEl.textContent = 'wowbox.co.za/wow/' + (slug || '…'); }
   var status = _ppPageData.page_status || 'draft';
   var publishBtn   = document.getElementById('pp-pg-publish-btn');
   var offlineBtn   = document.getElementById('pp-pg-offline-btn');
@@ -16977,7 +16981,7 @@ function ppPageSetupPublishStep() {
     if (offlineBtn)   offlineBtn.style.display   = 'inline-flex';
     if (republishBtn) republishBtn.style.display = 'inline-flex';
     if (shareWrap)    shareWrap.style.display     = 'block';
-    if (viewLink)     { viewLink.href = '/p/' + slug; viewLink.style.display = 'inline'; }
+    if (viewLink)     { viewLink.href = '/wow/' + slug; viewLink.style.display = 'inline'; }
     ppPageGenerateQR(slug);
   } else if (status === 'offline') {
     if (publishBtn)   publishBtn.style.display   = 'none';
@@ -17079,22 +17083,22 @@ function ppPageUpdateStatusBadge(status) {
 
 function ppPageCopyLink() {
   var slug = document.getElementById('pp-pg-slug')?.value?.trim() || '';
-  navigator.clipboard.writeText('https://wowbox.co.za/p/' + slug);
+  navigator.clipboard.writeText('https://wowbox.co.za/wow/' + slug);
   admToast('Link copied to clipboard!');
 }
 function ppPageShareWhatsApp() {
   var slug = document.getElementById('pp-pg-slug')?.value?.trim() || '';
-  window.open('https://wa.me/?text='+encodeURIComponent('Check out my WowBox experience page: https://wowbox.co.za/p/'+slug));
+  window.open('https://wa.me/?text='+encodeURIComponent('Check out my WowBox experience page: https://wowbox.co.za/wow/'+slug));
 }
 function ppPageShareEmail() {
   var slug = document.getElementById('pp-pg-slug')?.value?.trim() || '';
-  window.location.href = 'mailto:?subject=My WowBox Page&body=Visit my experience page: https://wowbox.co.za/p/'+slug;
+  window.location.href = 'mailto:?subject=My WowBox Page&body=Visit my experience page: https://wowbox.co.za/wow/'+slug;
 }
 
 function ppPageGenerateQR(slug) {
   var wrap = document.getElementById('pp-pg-qr-wrap');
   if (!wrap || wrap.children.length) return;
-  var url  = 'https://wowbox.co.za/p/' + slug;
+  var url  = 'https://wowbox.co.za/wow/' + slug;
   var load = function() {
     if (window.QRCode) { wrap.innerHTML = ''; new window.QRCode(wrap, { text: url, width: 80, height: 80, colorDark: '#1e293b', colorLight: '#fff' }); }
   };
