@@ -17067,11 +17067,9 @@ function ppPageToggleBlock(card) {
     if (isActive && !existing) {
       var sett = _ppBlockSettings[blockId] || {};
       var div = document.createElement('div');
-      div.className = 'pp-block-colors';
-      div.style.cssText = 'margin-top:12px;padding-top:10px;border-top:1px solid var(--border);display:flex;gap:12px;align-items:center';
-      div.innerHTML = '<div style="display:flex;align-items:center;gap:6px;font-size:.72rem;color:var(--muted)"><span>Background</span><input type="color" value="'+(sett.bg||'#1e1e1e')+'" onchange="ppPageBlockColorChange(this,this.dataset.prop)" data-prop="bg" data-bid="'+blockId+'" onclick="event.stopPropagation()" style="width:28px;height:22px;border:1px solid var(--border);border-radius:4px;cursor:pointer;padding:1px"></div>'
-        + '<div style="display:flex;align-items:center;gap:6px;font-size:.72rem;color:var(--muted)"><span>Text</span><input type="color" value="'+(sett.text||'#ffffff')+'" onchange="ppPageBlockColorChange(this,this.dataset.prop)" data-prop="text" data-bid="'+blockId+'" onclick="event.stopPropagation()" style="width:28px;height:22px;border:1px solid var(--border);border-radius:4px;cursor:pointer;padding:1px"></div>';
-      card.appendChild(div);
+      div.innerHTML = ppBlockSettingsHTML(def, sett);
+      var inner = div.firstElementChild;
+      if (inner) card.appendChild(inner);
     } else if (!isActive && existing) {
       existing.remove();
     }
