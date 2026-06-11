@@ -17125,6 +17125,70 @@ function psBuildForms(color) {
   };
 }
 
+// ── Booking widget state ─────────────────────────────────────────
+var _psActiveBlocks = {};  // block_id → true/false
+
+var _psFields = {
+  hotel_booking: [
+    { id:'ps-f-checkin',   label:'Check-in',  type:'date',   flex:1 },
+    { id:'ps-f-checkout',  label:'Check-out', type:'date',   flex:1 },
+    { id:'ps-f-guests',    label:'Guests',    type:'select', flex:'0 0 130px', opts:['1 adult','2 adults','3 adults','4 adults','5+ adults'], def:1 }
+  ],
+  restaurant_booking: [
+    { id:'ps-f-dine-date', label:'Date',   type:'date',   flex:1 },
+    { id:'ps-f-dine-time', label:'Time',   type:'select', flex:'0 0 120px', opts:['12:00','12:30','13:00','18:00','18:30','19:00','19:30','20:00','20:30'], def:6 },
+    { id:'ps-f-dine-pax',  label:'Guests', type:'select', flex:'0 0 100px', opts:['1','2','3','4','5','6+'], def:1 }
+  ],
+  spa_booking: [
+    { id:'ps-f-spa-treat', label:'Treatment', type:'select', flex:1.2, opts:['Massage (60 min)','Massage (90 min)','Facial','Body wrap','Couples treatment'] },
+    { id:'ps-f-spa-date',  label:'Date',      type:'date',   flex:1 },
+    { id:'ps-f-spa-time',  label:'Time',      type:'select', flex:'0 0 110px', opts:['09:00','10:00','11:00','14:00','15:00','16:00'] }
+  ],
+  activity_booking: [
+    { id:'ps-f-act-date', label:'Date',         type:'date',   flex:1 },
+    { id:'ps-f-act-pax',  label:'Participants', type:'select', flex:'0 0 130px', opts:['1','2','3','4','5','6+'], def:1 }
+  ]
+};
+
+// Combo-aware field merging: dedupe by id
+function psGetComboFields(activeBlocks) {
+  var seen = {};
+  var fields = [];
+  activeBlocks.forEach(function(b){
+    (_psFields[b]||[]).forEach(function(f){
+      if (!seen[f.id]) { seen[f.id]=true; fields.push(f); }
+    });
+  });
+  return fields;
+}
+
+function psGetComboLabel(activeBlocks) {
+  var LABELS = { hotel_booking:'Stay', restaurant_booking:'Dine', spa_booking:'Relax', activity_booking:'Activities' };
+  return activeBlocks.map(function(b){ return LABELS[b]||b; }).join(' + ');
+}
+
+function psBuildBar(color, activeBlocks) {
+  var fi = 'background:transparent;border:none;outline:none;padding:10px 14px;font-size:.88rem;color:#1a1a2e;width:100%;font-family:inherit;box-sizing:border-box';
+  var fields = psGetComboFields(activeBlocks);
+  var label  = psGetComboLabel(activeBlocks);
+  var bar = fields.map(function(f, idx){
+    var border = idx < fields.length-1 ? 'border-right:1px solid #e5e7eb' : '';
+    var inner = '';
+    if (f.type === 'date') {
+      inner = '<input type="date" id="'+f.id+'" style="'+fi+';padding-top:2px;padding-bottom:10px">';
+    } else {
+      var opts = (f.opts||[]).map(function(o, i){ return '<option'+(i===(f.def||0)?' selected':'')+'>'+o+'</option>'; }).join('');
+      inner = '<select id="'+f.id+'" style="'+fi+';padding-top:2px;padding-bottom:10px;appearance:none;cursor:pointer">'+opts+'</select>';
+    }
+    return '<div style="flex:'+f.flex+';min-width:0;'+border+'"><div style="font-size:.58rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#9ca3af;padding:10px 14px 2px">'+f.label+'</div>'+inner+'</div>';
+  }).join('');
+
+  return '<div style="display:flex;align-items:center;background:#fff;border-radius:12px;box-shadow:0 4px 24px rgba(0,0,0,.2);overflow:hidden;max-width:960px" id="ps-smart-bar">'
+    + bar
+    + '<div style="padding:10px;flex-shrink:0"><button onclick="psBookingComingSoon()" style="background:'+color+';color:#fff;border:none;border-radius:8px;padding:12px 24px;font-weight:700;font-size:.88rem;cursor:pointer;white-space:nowrap">Search →</button></div>'
+    + '</div>';
+}
+
 function psRenderBlocks(blocks, p, color) {
   if (!blocks || !blocks.length) return;
   var bookingBlocks = blocks.filter(function(b){ return _psBookingBlocks.includes(b); });
@@ -17133,36 +17197,26 @@ function psRenderBlocks(blocks, p, color) {
   // ── BOOKING WIDGET ───────────────────────────────────────────────
   var bookingEl = document.getElementById('ps-booking-widget');
   if (bookingEl && bookingBlocks.length) {
-    var BTABS = { hotel_booking:'🏨 Stay', restaurant_booking:'🍽️ Dine', spa_booking:'🧖 Relax', activity_booking:'🏄 Activities' };
-    var forms = psBuildForms(color);
-    var firstBlock = bookingBlocks[0];
+    var BTABS  = { hotel_booking:'🏨 Stay', restaurant_booking:'🍽️ Dine', spa_booking:'🧖 Relax', activity_booking:'🏄 Activities' };
+    // Init active state: first block only
+    _psActiveBlocks = {};
+    _psActiveBlocks[bookingBlocks[0]] = true;
 
-    // Tab bar
-    var tabsHtml = '<div style="display:flex;gap:4px;margin-bottom:20px;flex-wrap:wrap">'
+    var tabsHtml = '<div style="display:flex;gap:6px;margin-bottom:20px;flex-wrap:wrap" id="ps-tab-row">'
       + bookingBlocks.map(function(b){
-          var isFirst = b === firstBlock;
-          return '<button onclick="psSetBookingTab(this,\'ps-bform-'+b+'\')" class="ps-btab" style="background:'+(isFirst?'#fff':'rgba(255,255,255,.15)')+';color:'+(isFirst?color:'#fff')+';border:none;border-radius:99px;padding:9px 20px;font-size:.82rem;font-weight:700;cursor:pointer;transition:all .15s;white-space:nowrap">'+BTABS[b]+'</button>';
+          var active = b === bookingBlocks[0];
+          return '<button onclick="psToggleBookingTab(this,\''+b+'\')" id="ps-tab-'+b+'" style="background:'+(active?'#fff':'rgba(255,255,255,.15)')+';color:'+(active?color:'#fff')+';border:none;border-radius:99px;padding:9px 22px;font-size:.83rem;font-weight:700;cursor:pointer;transition:all .2s;white-space:nowrap;letter-spacing:.01em">'+BTABS[b]+'</button>';
         }).join('')
       + '</div>';
 
-    // Forms (only first visible)
-    var formsHtml = bookingBlocks.map(function(b){
-      return '<div id="ps-bform-'+b+'" style="display:'+(b===firstBlock?'block':'none')+'">' + (forms[b]||'') + '</div>';
-    }).join('');
-
-    bookingEl.innerHTML = '<div style="background:'+color+';padding:28px 40px">'
+    bookingEl.innerHTML = '<div style="background:'+color+';padding:28px 40px" id="ps-widget-inner">'
       + '<div style="max-width:1100px;margin:0 auto">'
       + tabsHtml
-      + formsHtml
+      + '<div id="ps-bar-wrap">' + psBuildBar(color, [bookingBlocks[0]]) + '</div>'
       + '</div></div>';
 
-    // Force-hide non-active forms after DOM inject
-    setTimeout(function(){
-      bookingBlocks.forEach(function(b){
-        var el = document.getElementById('ps-bform-'+b);
-        if (el) el.style.display = b===firstBlock ? 'block' : 'none';
-      });
-    }, 0);
+    // Store color for tab toggle
+    bookingEl.dataset.color = color;
   }
 
   // ── NON-BOOKING BLOCKS ───────────────────────────────────────────
@@ -17170,14 +17224,12 @@ function psRenderBlocks(blocks, p, color) {
   if (!belowEl || !otherBlocks.length) return;
   var belowHtml = '';
 
-  // Reviews — dark editorial
   if (otherBlocks.includes('reviews')) {
-    var darkColor = color.replace('#','');
     belowHtml += '<div style="background:#1e1e1e;padding:64px 40px">'
       +'<div style="max-width:1100px;margin:0 auto">'
       +'<div style="font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.18em;color:'+color+';margin-bottom:10px;text-align:center">What our guests say</div>'
       +'<h2 style="font-family:\'Cormorant Garamond\',serif;font-size:2.4rem;font-style:italic;font-weight:400;color:#fff;text-align:center;margin-bottom:44px">Unforgettable moments</h2>'
-      +'<div id="ps-reviews-list" style="display:flex;gap:20px;overflow-x:auto;padding-bottom:12px;scrollbar-width:none">'
+      +'<div style="display:flex;gap:20px;overflow-x:auto;padding-bottom:12px;scrollbar-width:none">'
       +'<div style="flex-shrink:0;border:1px solid rgba(255,255,255,.1);border-radius:14px;padding:28px;min-width:280px;max-width:320px">'
       +'<div style="font-size:2.4rem;color:'+color+';line-height:1;margin-bottom:14px">❝</div>'
       +'<p style="font-size:.92rem;line-height:1.75;color:rgba(255,255,255,.8);font-style:italic;margin-bottom:18px">Guest reviews will appear here once customers start booking.</p>'
@@ -17185,15 +17237,13 @@ function psRenderBlocks(blocks, p, color) {
       +'</div></div></div></div>';
   }
 
-  // Gift Vouchers — editorial two-column
   if (otherBlocks.includes('gift_vouchers')) {
     belowHtml += '<div style="background:#fdf8f4;padding:72px 40px">'
       +'<div style="max-width:1100px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr;gap:60px;align-items:center">'
-      +'<div>'
-      +'<div style="font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.18em;color:'+color+';margin-bottom:14px">Gift Experiences</div>'
+      +'<div><div style="font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.18em;color:'+color+';margin-bottom:14px">Gift Experiences</div>'
       +'<h2 style="font-family:\'Cormorant Garamond\',serif;font-size:3rem;font-weight:400;color:#1a1a2e;line-height:1.15;margin-bottom:18px">The gift of an<br><em>unforgettable moment</em></h2>'
-      +'<p style="font-size:.95rem;color:#6b7280;line-height:1.85;margin-bottom:32px">Give someone special the freedom to choose their perfect experience. Our digital gift cards are delivered instantly by email.</p>'
-      +'<button onclick="psBookingComingSoon()" style="background:'+color+';color:#fff;border:none;border-radius:8px;padding:14px 36px;font-weight:700;font-size:.92rem;cursor:pointer;letter-spacing:.03em">Buy a gift voucher →</button>'
+      +'<p style="font-size:.95rem;color:#6b7280;line-height:1.85;margin-bottom:32px">Give someone special the freedom to choose their perfect experience. Digital gift cards delivered instantly by email.</p>'
+      +'<button onclick="psBookingComingSoon()" style="background:'+color+';color:#fff;border:none;border-radius:8px;padding:14px 36px;font-weight:700;font-size:.92rem;cursor:pointer">Buy a gift voucher →</button>'
       +'</div>'
       +'<div style="background:'+color+';border-radius:20px;padding:40px 32px;text-align:center;box-shadow:0 12px 40px rgba(0,0,0,.15);position:relative;overflow:hidden">'
       +'<div style="position:absolute;top:-20px;right:-20px;width:120px;height:120px;border-radius:50%;background:rgba(255,255,255,.07)"></div>'
@@ -17204,7 +17254,6 @@ function psRenderBlocks(blocks, p, color) {
       +'</div></div></div>';
   }
 
-  // Map & Contact — minimal elegant
   if (otherBlocks.includes('map_contact')) {
     belowHtml += '<div style="background:#fff;padding:64px 40px;border-top:1px solid #f3f4f6">'
       +'<div style="max-width:1100px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr;gap:60px;align-items:start">'
@@ -17214,9 +17263,7 @@ function psRenderBlocks(blocks, p, color) {
       +'</div>'
       +'<div style="background:#f9fafb;border-radius:14px;padding:32px">'
       +'<div style="font-family:\'Cormorant Garamond\',serif;font-size:1.3rem;color:#1a1a2e;margin-bottom:18px">'+(p.partner_name||p.full_name||'')+'</div>'
-      +'<div style="display:flex;flex-direction:column;gap:12px;font-size:.85rem;color:#374151">'
-      +'<div><i class="fa fa-globe" style="color:'+color+';width:18px;margin-right:6px"></i><a href="/" style="color:'+color+';font-weight:600">wowbox.co.za/wow/'+(p.page_slug||'')+'</a></div>'
-      +'</div>'
+      +'<div style="font-size:.85rem;color:#374151"><i class="fa fa-globe" style="color:'+color+';width:18px;margin-right:6px"></i><a href="/" style="color:'+color+';font-weight:600">wowbox.co.za/wow/'+(p.page_slug||'')+'</a></div>'
       +'<div style="margin-top:20px"><button onclick="psBookingComingSoon()" style="background:'+color+';color:#fff;border:none;border-radius:8px;padding:11px 24px;font-weight:700;font-size:.84rem;cursor:pointer">Book now →</button></div>'
       +'</div></div></div>';
   }
@@ -17224,57 +17271,28 @@ function psRenderBlocks(blocks, p, color) {
   belowEl.innerHTML = belowHtml;
 }
 
-function psSetBookingTab(btn, targetId) {
-  var widget = document.getElementById('ps-booking-widget');
-  if (!widget) return;
-  // Update tabs
-  widget.querySelectorAll('.ps-btab').forEach(function(b){
-    b.style.background = 'rgba(255,255,255,.15)';
-    b.style.color = '#fff';
+function psToggleBookingTab(btn, blockId) {
+  var color = document.getElementById('ps-booking-widget')?.dataset.color || '#b45309';
+  // Toggle active state
+  _psActiveBlocks[blockId] = !_psActiveBlocks[blockId];
+  // Ensure at least one is always active
+  var activeList = Object.keys(_psActiveBlocks).filter(function(k){ return _psActiveBlocks[k]; });
+  if (!activeList.length) { _psActiveBlocks[blockId] = true; activeList = [blockId]; }
+  // Update tab styles
+  document.querySelectorAll('[id^="ps-tab-"]').forEach(function(b){
+    var bid = b.id.replace('ps-tab-','');
+    var isOn = !!_psActiveBlocks[bid];
+    b.style.background = isOn ? '#fff' : 'rgba(255,255,255,.15)';
+    b.style.color = isOn ? color : '#fff';
+    b.style.boxShadow = isOn ? '0 2px 8px rgba(0,0,0,.15)' : 'none';
   });
-  btn.style.background = '#fff';
-  // Get color from parent background
-  var parent = btn.closest('[style*="background:"]');
-  if (parent) {
-    var bg = parent.style.background || '';
-    var hex = bg.match(/#[0-9a-f]{6}/i);
-    btn.style.color = hex ? hex[0] : '#b45309';
-  }
-  // Switch forms
-  widget.querySelectorAll('[id^="ps-bform-"]').forEach(function(f){ f.style.display = 'none'; });
-  var target = document.getElementById(targetId);
-  if (target) target.style.display = 'block';
+  // Rebuild bar
+  var barWrap = document.getElementById('ps-bar-wrap');
+  if (barWrap) barWrap.innerHTML = psBuildBar(color, activeList);
 }
 
 
 
-function psSetBookingTab(btn, targetId) {
-  var widget = btn.closest('[style*="background:"]');
-  if (!widget) return;
-  widget.querySelectorAll('.ps-btab').forEach(function(b){
-    b.style.background = 'none'; b.style.borderBottomColor = 'transparent'; b.dataset.active = '0';
-  });
-  widget.querySelectorAll('[id^="ps-bform-"]').forEach(function(f){ f.style.display = 'none'; });
-  btn.style.background = 'rgba(255,255,255,.2)'; btn.style.borderBottomColor = '#fff'; btn.dataset.active = '1';
-  var target = document.getElementById(targetId);
-  if (target) target.style.display = 'block';
-}
-
-
-
-function psBookingComingSoon() { admToast('Booking flow coming in next phase!'); }
-
-function psHotelForm(color) {
-  return '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">'
-    + '<div><label style="font-size:.74rem;color:var(--muted);display:block;margin-bottom:4px">Check-in</label><input type="date" class="fi" id="ps-hotel-checkin" style="font-size:.85rem"></div>'
-    + '<div><label style="font-size:.74rem;color:var(--muted);display:block;margin-bottom:4px">Check-out</label><input type="date" class="fi" id="ps-hotel-checkout" style="font-size:.85rem"></div>'
-    + '</div>'
-    + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">'
-    + '<div><label style="font-size:.74rem;color:var(--muted);display:block;margin-bottom:4px">Guests</label><select class="fi" id="ps-hotel-guests"><option>1</option><option>2</option><option>3</option><option>4</option><option>5+</option></select></div>'
-    + '<div><label style="font-size:.74rem;color:var(--muted);display:block;margin-bottom:4px">Room type</label><select class="fi" id="ps-hotel-room"><option>Standard</option><option>Deluxe</option><option>Suite</option></select></div>'
-    + '</div>'
-    + '<button onclick="psBookingComingSoon()" style="background:'+color+';color:#fff;border:none;border-radius:8px;padding:10px 24px;font-weight:700;cursor:pointer">Check availability →</button>';
-}
 
 function psRestaurantForm(color) {
   return '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:16px">'
