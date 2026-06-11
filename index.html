@@ -3039,7 +3039,7 @@ input[type=radio]:checked+.pp-layout-opt{border-color:var(--b600)!important;colo
 .pp-wiz-step:hover:not(.on){color:var(--navy)}
 .pp-wiz-panel{animation:fadeIn .15s ease}
 .pp-nav.on{background:var(--b600);color:#fff}
-.pp-main{padding:32px 36px;background:var(--bg);overflow-y:auto}.pp-main.builder-active{padding:0;overflow:hidden}
+.pp-main{padding:32px 36px;background:var(--bg);overflow-y:auto}.pp-main.builder-active{padding:32px 0 0 36px;overflow:hidden}
 .pp-sec{display:none}.pp-sec.on{display:block}
 .pp-onboarding{background:linear-gradient(135deg,#fffbeb,#fef9f0);border:1.5px solid #f59e0b;border-radius:var(--rx);padding:20px 24px;margin-bottom:24px}
 .pp-onboarding-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
@@ -6428,11 +6428,11 @@ tr:hover td{background:var(--b50)}
         </div>
 
         <!-- Step 2: BUILDER (split-screen WYSIWYG) -->
-        <div id="pp-page-step-2" class="pp-wiz-panel" style="display:none;margin:-32px -36px -32px -36px">
-          <div style="display:flex;gap:0;min-height:calc(100vh - 280px);width:100%">
+        <div id="pp-page-step-2" class="pp-wiz-panel" style="display:none">
+          <div style="display:flex;gap:0;min-height:calc(100vh - 280px);width:calc(100% + 36px)">
 
             <!-- LEFT PANEL -->
-            <div id="pp-builder-left" style="width:300px;flex-shrink:0;border-right:1.5px solid var(--border);overflow-y:auto;padding:0;padding-left:20px">
+            <div id="pp-builder-left" style="width:300px;flex-shrink:0;border-right:1.5px solid var(--border);overflow-y:auto;padding:0">
 
               <!-- Appearance section -->
               <details open style="border-bottom:1px solid var(--border)">
