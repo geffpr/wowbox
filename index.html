@@ -3039,7 +3039,7 @@ input[type=radio]:checked+.pp-layout-opt{border-color:var(--b600)!important;colo
 .pp-wiz-step:hover:not(.on){color:var(--navy)}
 .pp-wiz-panel{animation:fadeIn .15s ease}
 .pp-nav.on{background:var(--b600);color:#fff}
-.pp-main{padding:32px 36px;background:var(--bg);overflow-y:auto}.pp-main.builder-active{padding:0;overflow:hidden}
+.pp-main{padding:32px 36px;background:var(--bg);overflow-y:auto}.pp-main.builder-active{padding:0;overflow:hidden;height:calc(100vh - 68px);display:flex;flex-direction:column}
 .pp-sec{display:none}.pp-sec.on{display:block}
 .pp-onboarding{background:linear-gradient(135deg,#fffbeb,#fef9f0);border:1.5px solid #f59e0b;border-radius:var(--rx);padding:20px 24px;margin-bottom:24px}
 .pp-onboarding-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
@@ -6428,8 +6428,8 @@ tr:hover td{background:var(--b50)}
         </div>
 
         <!-- Step 2: BUILDER (split-screen WYSIWYG) -->
-        <div id="pp-page-step-2" class="pp-wiz-panel" style="display:none;margin:-32px -36px">
-          <div style="display:flex;gap:0;min-height:calc(100vh - 280px);margin:0 -20px">
+        <div id="pp-page-step-2" class="pp-wiz-panel" style="display:none;margin:-32px -36px;flex:1;min-height:0">
+          <div style="display:flex;gap:0;height:100%;margin:0 -20px">
 
             <!-- LEFT PANEL -->
             <div id="pp-builder-left" style="width:300px;flex-shrink:0;border-right:1.5px solid var(--border);overflow-y:auto;padding:0">
@@ -17272,8 +17272,9 @@ function psBuildBar(color, activeBlocks) {
 
 function psRenderBlocks(blocks, p, color) {
   if (!blocks || !blocks.length) return;
-  var bookingBlocks = blocks.filter(function(b){ return _psBookingBlocks.includes(b); });
-  var otherBlocks   = blocks.filter(function(b){ return !_psBookingBlocks.includes(b); });
+  // blocks can be either strings or objects {id,...} — normalize
+  var bookingBlocks = blocks.filter(function(b){ return _psBookingBlocks.includes(b.id||b); }).map(function(b){ return b.id||b; });
+  var otherBlocks   = blocks.filter(function(b){ return !_psBookingBlocks.includes(b.id||b); }).map(function(b){ return b.id||b; });
 
   // ── BOOKING WIDGET ───────────────────────────────────────────────
   var bookingEl = document.getElementById('ps-booking-widget');
@@ -17691,12 +17692,19 @@ function ppPageGoStep(n) {
   var panel = document.getElementById('pp-page-step-' + n);
   if (panel) panel.style.display = n === 2 ? 'flex' : 'block';
   var ppMain = document.querySelector('.pp-main');
+  var ppWiz  = document.getElementById('pp-page-wizard');
+  var ppSec  = document.getElementById('pp-page');
   if (n === 2) {
     if (ppMain) ppMain.classList.add('builder-active');
+    if (ppSec)  { ppSec.style.height='100%'; ppSec.style.display='flex'; ppSec.style.flexDirection='column'; ppSec.style.overflow='hidden'; }
+    if (ppWiz)  { ppWiz.style.flex='1'; ppWiz.style.minHeight='0'; ppWiz.style.display='flex'; ppWiz.style.flexDirection='column'; ppWiz.style.overflow='hidden'; }
     ppBuilderInit();
     ppBuilderStartAutosave();
   } else {
     if (ppMain) ppMain.classList.remove('builder-active');
+    if (ppSec)  { ppSec.style.height=''; ppSec.style.display=''; ppSec.style.flexDirection=''; ppSec.style.overflow=''; }
+    if (ppWiz)  { ppWiz.style.flex=''; ppWiz.style.minHeight=''; ppWiz.style.display='none'; ppWiz.style.flexDirection=''; ppWiz.style.overflow=''; }
+    if (panel && n !== 2) panel.style.display = 'block';
   }
   if (n === 3) { ppPageSetupPublishStep(); ppBuilderUpdatePublishPreview(); }
 }
