@@ -6428,7 +6428,7 @@ tr:hover td{background:var(--b50)}
         </div>
 
         <!-- Step 2: BUILDER (split-screen WYSIWYG) -->
-        <div id="pp-page-step-2" class="pp-wiz-panel" style="display:none">
+        <div id="pp-page-step-2" class="pp-wiz-panel" style="display:none;margin:0 -20px">
           <div style="display:flex;gap:0;min-height:calc(100vh - 280px);margin:0 -20px">
 
             <!-- LEFT PANEL -->
@@ -16999,7 +16999,8 @@ var BLOCK_LABELS = {
 };
 
 // ── Blocks step with drag+drop + per-block colors ────────────────
-var _ppBlockSettings = {}; // block_id → {bg, text}
+var _ppBlockSettings = {}; // block_id → {bg, text, title, subtitle, ...}
+var _ppBuilderExpData = {}; // id → {name, img, price, city, description}
 
 var BLOCK_DEFS = [
   { id:'hotel_booking',      icon:'fa-bed',           label:'Hotel Booking',      desc:'Check-in/out dates, room type, number of guests',    booking:true },
@@ -17009,7 +17010,9 @@ var BLOCK_DEFS = [
   { id:'photo_gallery',      icon:'fa-images',        label:'Photo Gallery',      desc:'Showcase your venue with a photo grid',              booking:false },
   { id:'map_contact',        icon:'fa-location-dot',  label:'Map & Contact',      desc:'Address, phone, email, opening hours',               booking:false },
   { id:'reviews',            icon:'fa-star',          label:'Reviews',            desc:'Display guest reviews from your experiences',        booking:false },
-  { id:'gift_vouchers',      icon:'fa-gift',          label:'Gift Vouchers',      desc:'Sell digital gift cards for your venue',             booking:false }
+  { id:'gift_vouchers',      icon:'fa-gift',          label:'Gift Vouchers',      desc:'Sell digital gift cards for your venue',             booking:false },
+  { id:'social_media',        icon:'fa-share-nodes',    label:'Social Media',       desc:'Instagram, TikTok, Facebook, Twitter, LinkedIn',     booking:false },
+  { id:'custom_html',         icon:'fa-code',           label:'Custom HTML',        desc:'Embed maps, videos or any custom code',              booking:false }
 ];
 
 function ppPageLoadBlocks() {
@@ -17018,7 +17021,7 @@ function ppPageLoadBlocks() {
   var savedObjs = saved.map(function(b){ return typeof b === 'string' ? {id:b} : b; });
   var savedIds  = savedObjs.map(function(b){ return b.id; });
   _ppBlockSettings = {};
-  savedObjs.forEach(function(b){ if(b.id) _ppBlockSettings[b.id] = {bg:b.bg||'', text:b.text||''}; });
+  savedObjs.forEach(function(b){ if(b.id) { _ppBlockSettings[b.id] = {}; Object.keys(b).forEach(function(k){ if(k!=='id') _ppBlockSettings[b.id][k]=b[k]; }); } });
 
   var grid = document.getElementById('pp-blocks-grid');
   if (!grid) return;
@@ -17041,10 +17044,7 @@ function ppPageLoadBlocks() {
       + '</div>'
       + '</div>'
       // Color settings (only for non-booking blocks, shown when active)
-      + (!def.booking && isActive ? '<div class="pp-block-colors" style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border);display:flex;gap:12px;align-items:center">'
-          + '<div style="display:flex;align-items:center;gap:6px;font-size:.72rem;color:var(--muted)"><span>Background</span><input type="color" value="'+(sett.bg||'#1e1e1e')+'" onchange="ppPageBlockColorChange(this,this.dataset.prop)" data-prop="bg" data-bid="'+def.id+'"  onclick="event.stopPropagation()" style="width:28px;height:22px;border:1px solid var(--border);border-radius:4px;cursor:pointer;padding:1px"></div>'
-          + '<div style="display:flex;align-items:center;gap:6px;font-size:.72rem;color:var(--muted)"><span>Text</span><input type="color" value="'+(sett.text||'#ffffff')+'" onchange="ppPageBlockColorChange(this,this.dataset.prop)" data-prop="text" data-bid="'+def.id+'"  onclick="event.stopPropagation()" style="width:28px;height:22px;border:1px solid var(--border);border-radius:4px;cursor:pointer;padding:1px"></div>'
-          + '</div>' : '')
+      + (!def.booking && isActive ? ppBlockSettingsHTML(def, sett) : '')
       + '</div>';
   }).join('');
 
@@ -17077,6 +17077,43 @@ function ppPageToggleBlock(card) {
     }
   }
   ppPageUpdateBlocksLabel();
+}
+
+function ppBlockSettingsHTML(def, sett) {
+  var bid = def.id;
+  var fi  = 'style="border:1.5px solid var(--border);border-radius:var(--rs);padding:6px 8px;font-size:.75rem;width:100%;outline:none;font-family:inherit"';
+  var html = '<div class="pp-block-colors" style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border);display:flex;flex-direction:column;gap:8px" onclick="event.stopPropagation()">';
+
+  if (def.id === 'social_media') {
+    ['instagram','tiktok','facebook','twitter','linkedin'].forEach(function(k){
+      var ico = {instagram:'fa-instagram',tiktok:'fa-tiktok',facebook:'fa-facebook',twitter:'fa-x-twitter',linkedin:'fa-linkedin'}[k];
+      html += '<div style="display:flex;align-items:center;gap:6px">'
+        + '<i class="fa-brands '+ico+'" style="width:16px;text-align:center;font-size:.85rem;color:var(--muted)"></i>'
+        + '<input '+fi+' placeholder="'+k.charAt(0).toUpperCase()+k.slice(1)+' URL" value="'+(sett['url_'+k]||'')+'" oninput="ppPageSetBlockSetting(\''+bid+'\',\'url_'+k+'\',this.value);ppBuilderUpdate()">'
+        + '</div>';
+    });
+    html += '<div><input '+fi+' placeholder="Section title (e.g. Follow Us)" value="'+(sett.title||'')+'" oninput="ppPageSetBlockSetting(\''+bid+'\',\'title\',this.value);ppBuilderUpdate()"></div>';
+  } else if (def.id === 'custom_html') {
+    html += '<div style="font-size:.7rem;color:#dc2626;background:#fef2f2;padding:6px 8px;border-radius:4px;margin-bottom:4px">⚠ Advanced only — paste trusted HTML/embeds</div>';
+    html += '<textarea '+fi+' rows="4" placeholder="Paste your HTML here..." oninput="ppPageSetBlockSetting(\''+bid+'\',\'html\',this.value);ppBuilderUpdate()" style="resize:vertical;font-family:monospace;font-size:.73rem">'+(sett.html||'')+'</textarea>';
+  } else {
+    // Title + subtitle + colors
+    html += '<input '+fi+' placeholder="Section title" value="'+(sett.title||'')+'" oninput="ppPageSetBlockSetting(\''+bid+'\',\'title\',this.value);ppBuilderUpdate()">';
+    if (['reviews','gift_vouchers','map_contact'].includes(def.id)) {
+      html += '<input '+fi+' placeholder="Subtitle / tagline" value="'+(sett.subtitle||'')+'" oninput="ppPageSetBlockSetting(\''+bid+'\',\'subtitle\',this.value);ppBuilderUpdate()">';
+    }
+    html += '<div style="display:flex;gap:10px">'
+      + '<div style="display:flex;align-items:center;gap:5px;font-size:.7rem;color:var(--muted)">Background <input type="color" value="'+(sett.bg||'#1e1e1e')+'" onchange="ppPageBlockColorChange(this,this.dataset.prop);ppBuilderUpdate()" data-prop="bg" data-bid="'+bid+'" style="width:26px;height:20px;border:1px solid var(--border);border-radius:3px;padding:1px;cursor:pointer"></div>'
+      + '<div style="display:flex;align-items:center;gap:5px;font-size:.7rem;color:var(--muted)">Text <input type="color" value="'+(sett.text||'#ffffff')+'" onchange="ppPageBlockColorChange(this,this.dataset.prop);ppBuilderUpdate()" data-prop="text" data-bid="'+bid+'" style="width:26px;height:20px;border:1px solid var(--border);border-radius:3px;padding:1px;cursor:pointer"></div>'
+      + '</div>';
+  }
+  html += '</div>';
+  return html;
+}
+
+function ppPageSetBlockSetting(blockId, key, value) {
+  if (!_ppBlockSettings[blockId]) _ppBlockSettings[blockId] = {};
+  _ppBlockSettings[blockId][key] = value;
 }
 
 function ppPageBlockColorChange(input, prop) {
@@ -17115,8 +17152,7 @@ async function ppPageSaveBlocks() {
     var id = c.dataset.block;
     var sett = _ppBlockSettings[id] || {};
     var obj = {id: id};
-    if (sett.bg)   obj.bg   = sett.bg;
-    if (sett.text) obj.text = sett.text;
+    Object.keys(sett).forEach(function(k){ if(sett[k]) obj[k] = sett[k]; });
     return obj;
   });
   _ppPageData.page_blocks = blocks;
@@ -17302,6 +17338,30 @@ function psRenderBlocks(blocks, p, color) {
       +'<div style="font-size:.85rem;color:rgba(255,255,255,.8);margin-bottom:20px">Valid for all experiences</div>'
       +'<div style="border-top:1px solid rgba(255,255,255,.2);padding-top:16px;font-size:.8rem;color:rgba(255,255,255,.6)">Powered by WowBox</div>'
       +'</div></div></div>';
+  }
+
+  if (otherBlocks.includes('social_media')) {
+    var socBlock = (p.page_blocks||[]).find(function(b){ return (b.id||b)==='social_media'; }) || {};
+    var socBg    = socBlock.bg    || '#fff';
+    var socTitle = socBlock.title || 'Follow Us';
+    var SOCIA2 = {instagram:'fa-instagram',tiktok:'fa-tiktok',facebook:'fa-facebook',twitter:'fa-x-twitter',linkedin:'fa-linkedin'};
+    var SCOLOR2 = {instagram:'#E1306C',tiktok:'#000000',facebook:'#1877F2',twitter:'#000000',linkedin:'#0A66C2'};
+    var socLinks2 = ['instagram','tiktok','facebook','twitter','linkedin'].filter(function(k){ return socBlock['url_'+k]; });
+    if (socLinks2.length) {
+      belowHtml += '<div style="background:'+socBg+';padding:48px 40px;text-align:center">'
+        +'<div style="font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.18em;color:'+color+';margin-bottom:20px">'+socTitle+'</div>'
+        +'<div style="display:flex;justify-content:center;gap:16px">'
+        +socLinks2.map(function(k){ var u=socBlock['url_'+k]||'#'; return '<a href="'+u+'" target="_blank" style="width:52px;height:52px;border-radius:50%;background:'+SCOLOR2[k]+';display:inline-flex;align-items:center;justify-content:center;color:#fff;text-decoration:none;box-shadow:0 4px 12px rgba(0,0,0,.15)"><i class="fa-brands '+SOCIA2[k]+'" style="font-size:1.3rem"></i></a>'; }).join('')
+        +'</div></div>';
+    }
+  }
+
+  if (otherBlocks.includes('custom_html')) {
+    var htmlBlock = (p.page_blocks||[]).find(function(b){ return (b.id||b)==='custom_html'; }) || {};
+    if (htmlBlock.html) {
+      belowHtml += '<div style="background:'+(htmlBlock.bg||'#fff')+';padding:32px 40px">'
+        +'<div style="max-width:1100px;margin:0 auto">'+htmlBlock.html+'</div></div>';
+    }
   }
 
   if (otherBlocks.includes('map_contact')) {
@@ -17637,9 +17697,25 @@ function ppPageGoStep(n) {
 // ── Builder (WYSIWYG split-screen) ───────────────────────────────
 var _ppBuilderDebounce = null;
 
-function ppBuilderInit() {
+async function ppBuilderInit() {
   ppPageLoadBlocks();
   ppPageLoadExpList();
+  // Load real experience data for preview
+  var email = appState.partnerEmail || (currentUser && currentUser.email) || '';
+  if (email) {
+    try {
+      var res = await db_client.from('experiences').select('id,name,image_url,images,price,city,description').eq('partner_email', email).eq('is_active', true);
+      (res.data || []).forEach(function(e){
+        _ppBuilderExpData[e.id] = {
+          name:  e.name,
+          img:   e.image_url || (Array.isArray(e.images) && e.images[0]) || '',
+          price: e.price,
+          city:  e.city,
+          desc:  e.description
+        };
+      });
+    } catch(err) {}
+  }
   ppBuilderUpdate();
 }
 
@@ -17671,7 +17747,7 @@ function ppBuilderGetPreviewHTML() {
   if (starBtn) featId = starBtn.closest('.pp-exp-row')?.dataset.id;
 
   function expCard(id, imgH, fullW) {
-    var e = window.expDB && Array.isArray(window.expDB) ? window.expDB.find(function(x){ return x.id===id; }) : null;
+    var e = _ppBuilderExpData[id] || (window.expDB && Array.isArray(window.expDB) ? window.expDB.find(function(x){ return x.id===id; }) : null);
     var img = e ? (e.img||e.image_url||'') : '';
     var nm  = e ? e.name : id;
     var pr  = e && e.price ? 'R'+Number(e.price).toLocaleString() : '';
@@ -17700,7 +17776,7 @@ function ppBuilderGetPreviewHTML() {
       + (rest2.length ? '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px">'+rest2.map(function(id){ return expCard(id,'110px',false); }).join('')+'</div>' : '');
   } else if (layout === 'list') {
     gridHtml = selIds.map(function(id){
-      var e = window.expDB && Array.isArray(window.expDB) ? window.expDB.find(function(x){ return x.id===id; }) : null;
+      var e = _ppBuilderExpData[id] || (window.expDB && Array.isArray(window.expDB) ? window.expDB.find(function(x){ return x.id===id; }) : null);
       var img = e ? (e.img||e.image_url||'') : '';
       var nm  = e ? e.name : id;
       var pr  = e && e.price ? 'R'+Number(e.price).toLocaleString() : '';
@@ -17732,12 +17808,30 @@ function ppBuilderGetPreviewHTML() {
   var blocksHtml = '';
   otherActives.forEach(function(b){
     var def  = (typeof BLOCK_DEFS !== 'undefined') ? BLOCK_DEFS.find(function(d){ return d.id===b.id; }) : null;
+    var sett  = _ppBlockSettings[b.id] || {};
     var bg   = b.bg   || (b.id==='reviews'?'#1e1e1e':b.id==='gift_vouchers'?'#fdf8f4':'#f9fafb');
     var text = b.text || (b.id==='reviews'?'#ffffff':'#1a1a2e');
-    blocksHtml += '<div style="background:'+bg+';padding:24px 20px;text-align:center">'
-      + '<div style="font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.14em;color:'+color+';margin-bottom:6px">'+(def?def.label:b.id)+'</div>'
-      + '<div style="font-family:\'Cormorant Garamond\',serif;font-size:1.3rem;font-style:italic;color:'+text+';opacity:.75">'+(def?def.desc:'')+'</div>'
-      + '</div>';
+    if (b.id === 'social_media') {
+      var socLinks = ['instagram','tiktok','facebook','twitter','linkedin'].filter(function(k){ return sett['url_'+k]; });
+      var SOCIA = {instagram:'fa-instagram',tiktok:'fa-tiktok',facebook:'fa-facebook',twitter:'fa-x-twitter',linkedin:'fa-linkedin'};
+      var SCOLOR = {instagram:'#E1306C',tiktok:'#000',facebook:'#1877F2',twitter:'#000',linkedin:'#0A66C2'};
+      blocksHtml += '<div style="background:'+bg+';padding:28px 20px;text-align:center">'
+        + '<div style="font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.14em;color:'+color+';margin-bottom:14px">'+(sett.title||'Follow Us')+'</div>'
+        + '<div style="display:flex;justify-content:center;gap:16px">'
+        + (socLinks.length ? socLinks.map(function(k){ return '<a href="'+sett['url_'+k]+'" target="_blank" style="width:44px;height:44px;border-radius:50%;background:'+SCOLOR[k]+';display:flex;align-items:center;justify-content:center;color:#fff;text-decoration:none"><i class="fa-brands '+SOCIA[k]+'" style="font-size:1.1rem"></i></a>'; }).join('')
+          : '<span style="color:#9ca3af;font-size:.8rem;font-style:italic">Add your social links in the builder</span>')
+        + '</div></div>';
+    } else if (b.id === 'custom_html') {
+      var rawHtml = sett.html || '';
+      blocksHtml += '<div style="background:'+bg+';padding:20px">'
+        + (rawHtml ? rawHtml : '<div style="text-align:center;color:#9ca3af;padding:20px;font-size:.8rem;font-style:italic">Custom HTML block — paste your embed code in the builder</div>')
+        + '</div>';
+    } else {
+      blocksHtml += '<div style="background:'+bg+';padding:24px 20px;text-align:center">'
+        + '<div style="font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.14em;color:'+color+';margin-bottom:6px">'+(sett.title||def&&def.label||b.id)+'</div>'
+        + '<div style="font-family:\'Cormorant Garamond\',serif;font-size:1.3rem;font-style:italic;color:'+text+';opacity:.75">'+(sett.subtitle||def&&def.desc||'')+'</div>'
+        + '</div>';
+    }
   });
 
   return '<div style="font-family:\'DM Sans\',sans-serif;min-height:300px">'
