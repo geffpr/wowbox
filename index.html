@@ -17087,110 +17087,166 @@ async function ppPageSaveBlocks() {
 // ── Public page: render blocks (premium luxury style) ─────────────
 var _psBookingBlocks = ['hotel_booking','restaurant_booking','spa_booking','activity_booking'];
 
+// ── Public page: render blocks (premium luxury style) ─────────────
+var _psBookingBlocks = ['hotel_booking','restaurant_booking','spa_booking','activity_booking'];
+
+var _psBookingForms = null;
+
+function psBuildForms(color) {
+  var fi = 'background:#fff;border:none;outline:none;padding:10px 14px;font-size:.88rem;color:#1a1a2e;min-width:0;width:100%;font-family:inherit';
+  return {
+    hotel_booking:
+      '<div style="display:flex;align-items:center;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,.18);max-width:900px">'
+      +'<div style="flex:1;padding:0 4px;border-right:1px solid #e5e7eb"><div style="font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#9ca3af;padding:10px 14px 2px">Check-in</div><input type="date" style="'+fi+';padding-top:2px;padding-bottom:10px"></div>'
+      +'<div style="flex:1;padding:0 4px;border-right:1px solid #e5e7eb"><div style="font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#9ca3af;padding:10px 14px 2px">Check-out</div><input type="date" style="'+fi+';padding-top:2px;padding-bottom:10px"></div>'
+      +'<div style="flex:0 0 130px;padding:0 4px;border-right:1px solid #e5e7eb"><div style="font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#9ca3af;padding:10px 14px 2px">Guests</div><select style="'+fi+';padding-top:2px;padding-bottom:10px;appearance:none;cursor:pointer"><option>1 adult</option><option selected>2 adults</option><option>3 adults</option><option>4 adults</option><option>5+ adults</option></select></div>'
+      +'<div style="padding:10px"><button onclick="psBookingComingSoon()" style="background:'+color+';color:#fff;border:none;border-radius:8px;padding:12px 28px;font-weight:700;font-size:.9rem;cursor:pointer;white-space:nowrap">Search →</button></div>'
+      +'</div>',
+    restaurant_booking:
+      '<div style="display:flex;align-items:center;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,.18);max-width:700px">'
+      +'<div style="flex:1;padding:0 4px;border-right:1px solid #e5e7eb"><div style="font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#9ca3af;padding:10px 14px 2px">Date</div><input type="date" style="'+fi+';padding-top:2px;padding-bottom:10px"></div>'
+      +'<div style="flex:0 0 130px;padding:0 4px;border-right:1px solid #e5e7eb"><div style="font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#9ca3af;padding:10px 14px 2px">Time</div><select style="'+fi+';padding-top:2px;padding-bottom:10px;appearance:none;cursor:pointer"><option>12:00</option><option>12:30</option><option>13:00</option><option>18:00</option><option>18:30</option><option>19:00</option><option selected>19:30</option><option>20:00</option><option>20:30</option></select></div>'
+      +'<div style="flex:0 0 120px;padding:0 4px;border-right:1px solid #e5e7eb"><div style="font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#9ca3af;padding:10px 14px 2px">Guests</div><select style="'+fi+';padding-top:2px;padding-bottom:10px;appearance:none;cursor:pointer"><option>1</option><option selected>2</option><option>3</option><option>4</option><option>5</option><option>6+</option></select></div>'
+      +'<div style="padding:10px"><button onclick="psBookingComingSoon()" style="background:'+color+';color:#fff;border:none;border-radius:8px;padding:12px 28px;font-weight:700;font-size:.9rem;cursor:pointer;white-space:nowrap">Reserve →</button></div>'
+      +'</div>',
+    spa_booking:
+      '<div style="display:flex;align-items:center;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,.18);max-width:820px">'
+      +'<div style="flex:1.5;padding:0 4px;border-right:1px solid #e5e7eb"><div style="font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#9ca3af;padding:10px 14px 2px">Treatment</div><select style="'+fi+';padding-top:2px;padding-bottom:10px;appearance:none;cursor:pointer"><option>Massage (60 min)</option><option>Massage (90 min)</option><option>Facial</option><option>Body wrap</option><option>Couples treatment</option></select></div>'
+      +'<div style="flex:1;padding:0 4px;border-right:1px solid #e5e7eb"><div style="font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#9ca3af;padding:10px 14px 2px">Date</div><input type="date" style="'+fi+';padding-top:2px;padding-bottom:10px"></div>'
+      +'<div style="flex:0 0 120px;padding:0 4px;border-right:1px solid #e5e7eb"><div style="font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#9ca3af;padding:10px 14px 2px">Time</div><select style="'+fi+';padding-top:2px;padding-bottom:10px;appearance:none;cursor:pointer"><option>09:00</option><option>10:00</option><option>11:00</option><option>14:00</option><option>15:00</option><option>16:00</option></select></div>'
+      +'<div style="padding:10px"><button onclick="psBookingComingSoon()" style="background:'+color+';color:#fff;border:none;border-radius:8px;padding:12px 28px;font-weight:700;font-size:.9rem;cursor:pointer;white-space:nowrap">Book →</button></div>'
+      +'</div>',
+    activity_booking:
+      '<div style="display:flex;align-items:center;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,.18);max-width:600px">'
+      +'<div style="flex:1;padding:0 4px;border-right:1px solid #e5e7eb"><div style="font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#9ca3af;padding:10px 14px 2px">Date</div><input type="date" style="'+fi+';padding-top:2px;padding-bottom:10px"></div>'
+      +'<div style="flex:0 0 130px;padding:0 4px;border-right:1px solid #e5e7eb"><div style="font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#9ca3af;padding:10px 14px 2px">Participants</div><select style="'+fi+';padding-top:2px;padding-bottom:10px;appearance:none;cursor:pointer"><option>1</option><option selected>2</option><option>3</option><option>4</option><option>5</option><option>6+</option></select></div>'
+      +'<div style="padding:10px"><button onclick="psBookingComingSoon()" style="background:'+color+';color:#fff;border:none;border-radius:8px;padding:12px 28px;font-weight:700;font-size:.9rem;cursor:pointer;white-space:nowrap">Book →</button></div>'
+      +'</div>'
+  };
+}
+
 function psRenderBlocks(blocks, p, color) {
   if (!blocks || !blocks.length) return;
-
   var bookingBlocks = blocks.filter(function(b){ return _psBookingBlocks.includes(b); });
   var otherBlocks   = blocks.filter(function(b){ return !_psBookingBlocks.includes(b); });
 
-  // ── BOOKING WIDGET (above experiences) ─────────────────────────
+  // ── BOOKING WIDGET ───────────────────────────────────────────────
   var bookingEl = document.getElementById('ps-booking-widget');
   if (bookingEl && bookingBlocks.length) {
-    var BTABS = { hotel_booking:'🏨 Stay', restaurant_booking:'🍽️ Dine', spa_booking:'🧖 Relax', activity_booking:'🏄 Activity' };
-    var forms = {
-      hotel_booking:
-        '<div style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end">'
-        + '<div><div style="font-size:.68rem;text-transform:uppercase;letter-spacing:.1em;color:rgba(255,255,255,.7);margin-bottom:5px">Check-in</div><input type="date" style="background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);border-radius:8px;padding:9px 12px;color:#fff;font-size:.85rem;min-width:140px"></div>'
-        + '<div><div style="font-size:.68rem;text-transform:uppercase;letter-spacing:.1em;color:rgba(255,255,255,.7);margin-bottom:5px">Check-out</div><input type="date" style="background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);border-radius:8px;padding:9px 12px;color:#fff;font-size:.85rem;min-width:140px"></div>'
-        + '<div><div style="font-size:.68rem;text-transform:uppercase;letter-spacing:.1em;color:rgba(255,255,255,.7);margin-bottom:5px">Guests</div><select style="background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);border-radius:8px;padding:9px 12px;color:#fff;font-size:.85rem;min-width:90px"><option>1</option><option>2</option><option>3</option><option>4</option><option>5+</option></select></div>'
-        + '<div><div style="font-size:.68rem;text-transform:uppercase;letter-spacing:.1em;color:rgba(255,255,255,.7);margin-bottom:5px">Room</div><select style="background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);border-radius:8px;padding:9px 12px;color:#fff;font-size:.85rem;min-width:120px"><option>Standard</option><option>Deluxe</option><option>Suite</option></select></div>'
-        + '<button onclick="psBookingComingSoon()" style="background:#fff;color:'+color+';border:none;border-radius:8px;padding:10px 28px;font-weight:700;font-size:.88rem;cursor:pointer;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,.15)">Search →</button>'
-        + '</div>',
-      restaurant_booking:
-        '<div style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end">'
-        + '<div><div style="font-size:.68rem;text-transform:uppercase;letter-spacing:.1em;color:rgba(255,255,255,.7);margin-bottom:5px">Date</div><input type="date" style="background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);border-radius:8px;padding:9px 12px;color:#fff;font-size:.85rem;min-width:140px"></div>'
-        + '<div><div style="font-size:.68rem;text-transform:uppercase;letter-spacing:.1em;color:rgba(255,255,255,.7);margin-bottom:5px">Time</div><select style="background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);border-radius:8px;padding:9px 12px;color:#fff;font-size:.85rem"><option>12:00</option><option>12:30</option><option>13:00</option><option>18:00</option><option>18:30</option><option>19:00</option><option>19:30</option><option>20:00</option><option>20:30</option></select></div>'
-        + '<div><div style="font-size:.68rem;text-transform:uppercase;letter-spacing:.1em;color:rgba(255,255,255,.7);margin-bottom:5px">Guests</div><select style="background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);border-radius:8px;padding:9px 12px;color:#fff;font-size:.85rem;min-width:90px"><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option><option>6</option><option>8+</option></select></div>'
-        + '<button onclick="psBookingComingSoon()" style="background:#fff;color:'+color+';border:none;border-radius:8px;padding:10px 28px;font-weight:700;font-size:.88rem;cursor:pointer;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,.15)">Reserve →</button>'
-        + '</div>',
-      spa_booking:
-        '<div style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end">'
-        + '<div><div style="font-size:.68rem;text-transform:uppercase;letter-spacing:.1em;color:rgba(255,255,255,.7);margin-bottom:5px">Treatment</div><select style="background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);border-radius:8px;padding:9px 12px;color:#fff;font-size:.85rem;min-width:180px"><option>Massage (60 min)</option><option>Massage (90 min)</option><option>Facial</option><option>Body wrap</option><option>Couples treatment</option></select></div>'
-        + '<div><div style="font-size:.68rem;text-transform:uppercase;letter-spacing:.1em;color:rgba(255,255,255,.7);margin-bottom:5px">Date</div><input type="date" style="background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);border-radius:8px;padding:9px 12px;color:#fff;font-size:.85rem;min-width:140px"></div>'
-        + '<div><div style="font-size:.68rem;text-transform:uppercase;letter-spacing:.1em;color:rgba(255,255,255,.7);margin-bottom:5px">Time</div><select style="background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);border-radius:8px;padding:9px 12px;color:#fff;font-size:.85rem"><option>09:00</option><option>10:00</option><option>11:00</option><option>14:00</option><option>15:00</option><option>16:00</option></select></div>'
-        + '<button onclick="psBookingComingSoon()" style="background:#fff;color:'+color+';border:none;border-radius:8px;padding:10px 28px;font-weight:700;font-size:.88rem;cursor:pointer;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,.15)">Book →</button>'
-        + '</div>',
-      activity_booking:
-        '<div style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end">'
-        + '<div><div style="font-size:.68rem;text-transform:uppercase;letter-spacing:.1em;color:rgba(255,255,255,.7);margin-bottom:5px">Date</div><input type="date" style="background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);border-radius:8px;padding:9px 12px;color:#fff;font-size:.85rem;min-width:140px"></div>'
-        + '<div><div style="font-size:.68rem;text-transform:uppercase;letter-spacing:.1em;color:rgba(255,255,255,.7);margin-bottom:5px">Participants</div><select style="background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);border-radius:8px;padding:9px 12px;color:#fff;font-size:.85rem"><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option><option>6+</option></select></div>'
-        + '<button onclick="psBookingComingSoon()" style="background:#fff;color:'+color+';border:none;border-radius:8px;padding:10px 28px;font-weight:700;font-size:.88rem;cursor:pointer;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,.15)">Book →</button>'
-        + '</div>'
-    };
+    var BTABS = { hotel_booking:'🏨 Stay', restaurant_booking:'🍽️ Dine', spa_booking:'🧖 Relax', activity_booking:'🏄 Activities' };
+    var forms = psBuildForms(color);
     var firstBlock = bookingBlocks[0];
-    var tabsHtml = bookingBlocks.map(function(b){
-      return '<button onclick="psSetBookingTab(this,\'ps-bform-'+b+'\')" class="ps-btab" data-active="'+(b===firstBlock?'1':'0')+'" style="background:'+(b===firstBlock?'rgba(255,255,255,.2)':'none')+';border:none;border-bottom:2px solid '+(b===firstBlock?'#fff':'transparent')+';color:#fff;padding:12px 20px;font-size:.82rem;font-weight:600;cursor:pointer;white-space:nowrap;transition:all .15s">'+BTABS[b]+'</button>';
-    }).join('');
+
+    // Tab bar
+    var tabsHtml = '<div style="display:flex;gap:4px;margin-bottom:20px;flex-wrap:wrap">'
+      + bookingBlocks.map(function(b){
+          var isFirst = b === firstBlock;
+          return '<button onclick="psSetBookingTab(this,\'ps-bform-'+b+'\')" class="ps-btab" style="background:'+(isFirst?'#fff':'rgba(255,255,255,.15)')+';color:'+(isFirst?color:'#fff')+';border:none;border-radius:99px;padding:9px 20px;font-size:.82rem;font-weight:700;cursor:pointer;transition:all .15s;white-space:nowrap">'+BTABS[b]+'</button>';
+        }).join('')
+      + '</div>';
+
+    // Forms (only first visible)
     var formsHtml = bookingBlocks.map(function(b){
-      return '<div id="ps-bform-'+b+'" style="display:'+(b===firstBlock?'block':'none')+';padding:20px 0 4px">'+forms[b]+'</div>';
+      return '<div id="ps-bform-'+b+'" style="display:'+(b===firstBlock?'block':'none')+'">' + (forms[b]||'') + '</div>';
     }).join('');
-    bookingEl.innerHTML = '<div style="background:'+color+';padding:0 40px">'
+
+    bookingEl.innerHTML = '<div style="background:'+color+';padding:28px 40px">'
       + '<div style="max-width:1100px;margin:0 auto">'
-      + '<div style="display:flex;gap:0;overflow-x:auto;border-bottom:1px solid rgba(255,255,255,.2)">'+tabsHtml+'</div>'
+      + tabsHtml
       + formsHtml
       + '</div></div>';
+
+    // Force-hide non-active forms after DOM inject
+    setTimeout(function(){
+      bookingBlocks.forEach(function(b){
+        var el = document.getElementById('ps-bform-'+b);
+        if (el) el.style.display = b===firstBlock ? 'block' : 'none';
+      });
+    }, 0);
   }
 
-  // ── OTHER BLOCKS (below experiences) premium styling ──────────
+  // ── NON-BOOKING BLOCKS ───────────────────────────────────────────
   var belowEl = document.getElementById('ps-blocks-below');
   if (!belowEl || !otherBlocks.length) return;
   var belowHtml = '';
 
-  // Reviews — dark editorial section
+  // Reviews — dark editorial
   if (otherBlocks.includes('reviews')) {
-    belowHtml += '<div style="background:#1a1a2e;padding:64px 40px">'
-      + '<div style="max-width:1100px;margin:0 auto">'
-      + '<div style="font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.16em;color:rgba(255,255,255,.4);margin-bottom:8px;text-align:center">What our guests say</div>'
-      + '<h2 style="font-family:\'Cormorant Garamond\',serif;font-size:2.2rem;color:#fff;text-align:center;margin-bottom:40px;font-weight:400;font-style:italic">Unforgettable moments</h2>'
-      + '<div id="ps-reviews-list" style="display:flex;gap:20px;overflow-x:auto;padding-bottom:12px;scrollbar-width:none">'
-      + '<div style="flex-shrink:0;background:rgba(255,255,255,.07);border-radius:12px;padding:24px;min-width:280px;color:#fff"><div style="font-size:2rem;color:'+color+';margin-bottom:12px;line-height:1">❝</div><p style="font-size:.88rem;line-height:1.7;color:rgba(255,255,255,.85);font-style:italic;margin-bottom:14px">Your guests\' reviews will appear here.</p><div style="font-size:.75rem;color:rgba(255,255,255,.4)">⭐⭐⭐⭐⭐</div></div>'
-      + '</div></div></div>';
+    var darkColor = color.replace('#','');
+    belowHtml += '<div style="background:#1e1e1e;padding:64px 40px">'
+      +'<div style="max-width:1100px;margin:0 auto">'
+      +'<div style="font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.18em;color:'+color+';margin-bottom:10px;text-align:center">What our guests say</div>'
+      +'<h2 style="font-family:\'Cormorant Garamond\',serif;font-size:2.4rem;font-style:italic;font-weight:400;color:#fff;text-align:center;margin-bottom:44px">Unforgettable moments</h2>'
+      +'<div id="ps-reviews-list" style="display:flex;gap:20px;overflow-x:auto;padding-bottom:12px;scrollbar-width:none">'
+      +'<div style="flex-shrink:0;border:1px solid rgba(255,255,255,.1);border-radius:14px;padding:28px;min-width:280px;max-width:320px">'
+      +'<div style="font-size:2.4rem;color:'+color+';line-height:1;margin-bottom:14px">❝</div>'
+      +'<p style="font-size:.92rem;line-height:1.75;color:rgba(255,255,255,.8);font-style:italic;margin-bottom:18px">Guest reviews will appear here once customers start booking.</p>'
+      +'<div style="font-size:.75rem;color:'+color+'">★★★★★</div>'
+      +'</div></div></div></div>';
   }
 
-  // Gift Vouchers — warm editorial section
+  // Gift Vouchers — editorial two-column
   if (otherBlocks.includes('gift_vouchers')) {
-    belowHtml += '<div style="background:var(--cream,#fdf8f4);padding:64px 40px">'
-      + '<div style="max-width:1100px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr;gap:48px;align-items:center">'
-      + '<div><div style="font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.16em;color:'+color+';margin-bottom:12px">Gift Experiences</div>'
-      + '<h2 style="font-family:\'Cormorant Garamond\',serif;font-size:2.6rem;font-weight:400;color:#1a1a2e;line-height:1.2;margin-bottom:16px">The gift of an<br><em>unforgettable moment</em></h2>'
-      + '<p style="font-size:.9rem;color:#6b7280;line-height:1.8;margin-bottom:28px">Give someone special the freedom to choose their perfect experience. Our digital gift cards are delivered instantly.</p>'
-      + '<button onclick="psBookingComingSoon()" style="background:'+color+';color:#fff;border:none;border-radius:8px;padding:13px 32px;font-weight:700;font-size:.9rem;cursor:pointer">Buy a gift voucher →</button>'
-      + '</div>'
-      + '<div style="background:'+color+';border-radius:16px;padding:32px;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,.12)">'
-      + '<div style="font-size:3rem;margin-bottom:12px">🎁</div>'
-      + '<div style="font-family:\'Cormorant Garamond\',serif;font-size:1.6rem;color:#fff;margin-bottom:6px">Gift Voucher</div>'
-      + '<div style="font-size:.82rem;color:rgba(255,255,255,.75)">Valid for all experiences</div>'
-      + '</div>'
-      + '</div></div>';
+    belowHtml += '<div style="background:#fdf8f4;padding:72px 40px">'
+      +'<div style="max-width:1100px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr;gap:60px;align-items:center">'
+      +'<div>'
+      +'<div style="font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.18em;color:'+color+';margin-bottom:14px">Gift Experiences</div>'
+      +'<h2 style="font-family:\'Cormorant Garamond\',serif;font-size:3rem;font-weight:400;color:#1a1a2e;line-height:1.15;margin-bottom:18px">The gift of an<br><em>unforgettable moment</em></h2>'
+      +'<p style="font-size:.95rem;color:#6b7280;line-height:1.85;margin-bottom:32px">Give someone special the freedom to choose their perfect experience. Our digital gift cards are delivered instantly by email.</p>'
+      +'<button onclick="psBookingComingSoon()" style="background:'+color+';color:#fff;border:none;border-radius:8px;padding:14px 36px;font-weight:700;font-size:.92rem;cursor:pointer;letter-spacing:.03em">Buy a gift voucher →</button>'
+      +'</div>'
+      +'<div style="background:'+color+';border-radius:20px;padding:40px 32px;text-align:center;box-shadow:0 12px 40px rgba(0,0,0,.15);position:relative;overflow:hidden">'
+      +'<div style="position:absolute;top:-20px;right:-20px;width:120px;height:120px;border-radius:50%;background:rgba(255,255,255,.07)"></div>'
+      +'<div style="font-size:3.5rem;margin-bottom:16px">🎁</div>'
+      +'<div style="font-family:\'Cormorant Garamond\',serif;font-size:1.9rem;color:#fff;margin-bottom:8px;font-weight:600">Gift Voucher</div>'
+      +'<div style="font-size:.85rem;color:rgba(255,255,255,.8);margin-bottom:20px">Valid for all experiences</div>'
+      +'<div style="border-top:1px solid rgba(255,255,255,.2);padding-top:16px;font-size:.8rem;color:rgba(255,255,255,.6)">Powered by WowBox</div>'
+      +'</div></div></div>';
   }
 
-  // Map & Contact — clean two-column
+  // Map & Contact — minimal elegant
   if (otherBlocks.includes('map_contact')) {
-    belowHtml += '<div style="background:#fff;padding:64px 40px;border-top:1px solid var(--border)">'
-      + '<div style="max-width:1100px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr;gap:48px;align-items:center">'
-      + '<div><div style="font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.16em;color:'+color+';margin-bottom:12px">Visit Us</div>'
-      + '<h2 style="font-family:\'Cormorant Garamond\',serif;font-size:2.2rem;font-weight:400;color:#1a1a2e;margin-bottom:20px">Find us</h2>'
-      + (p.page_description ? '<p style="font-size:.9rem;color:#6b7280;line-height:1.8">'+p.page_description+'</p>' : '')
-      + '</div>'
-      + '<div style="background:var(--cream,#fdf8f4);border-radius:12px;padding:28px">'
-      + '<div style="font-size:.82rem;color:#374151;display:flex;flex-direction:column;gap:12px">'
-      + '<div><i class="fa fa-globe" style="color:'+color+';width:18px"></i> <a href="/wow/'+(p.page_slug||'')+'" style="color:'+color+';font-weight:600">wowbox.co.za/wow/'+(p.page_slug||'')+'</a></div>'
-      + '</div></div>'
-      + '</div></div>';
+    belowHtml += '<div style="background:#fff;padding:64px 40px;border-top:1px solid #f3f4f6">'
+      +'<div style="max-width:1100px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr;gap:60px;align-items:start">'
+      +'<div><div style="font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.18em;color:'+color+';margin-bottom:14px">Visit Us</div>'
+      +'<h2 style="font-family:\'Cormorant Garamond\',serif;font-size:2.6rem;font-weight:400;color:#1a1a2e;margin-bottom:20px;line-height:1.2">Come &amp; experience<br>something remarkable</h2>'
+      +(p.page_description ? '<p style="font-size:.9rem;color:#6b7280;line-height:1.8;max-width:400px">'+p.page_description+'</p>' : '')
+      +'</div>'
+      +'<div style="background:#f9fafb;border-radius:14px;padding:32px">'
+      +'<div style="font-family:\'Cormorant Garamond\',serif;font-size:1.3rem;color:#1a1a2e;margin-bottom:18px">'+(p.partner_name||p.full_name||'')+'</div>'
+      +'<div style="display:flex;flex-direction:column;gap:12px;font-size:.85rem;color:#374151">'
+      +'<div><i class="fa fa-globe" style="color:'+color+';width:18px;margin-right:6px"></i><a href="/" style="color:'+color+';font-weight:600">wowbox.co.za/wow/'+(p.page_slug||'')+'</a></div>'
+      +'</div>'
+      +'<div style="margin-top:20px"><button onclick="psBookingComingSoon()" style="background:'+color+';color:#fff;border:none;border-radius:8px;padding:11px 24px;font-weight:700;font-size:.84rem;cursor:pointer">Book now →</button></div>'
+      +'</div></div></div>';
   }
 
   belowEl.innerHTML = belowHtml;
 }
+
+function psSetBookingTab(btn, targetId) {
+  var widget = document.getElementById('ps-booking-widget');
+  if (!widget) return;
+  // Update tabs
+  widget.querySelectorAll('.ps-btab').forEach(function(b){
+    b.style.background = 'rgba(255,255,255,.15)';
+    b.style.color = '#fff';
+  });
+  btn.style.background = '#fff';
+  // Get color from parent background
+  var parent = btn.closest('[style*="background:"]');
+  if (parent) {
+    var bg = parent.style.background || '';
+    var hex = bg.match(/#[0-9a-f]{6}/i);
+    btn.style.color = hex ? hex[0] : '#b45309';
+  }
+  // Switch forms
+  widget.querySelectorAll('[id^="ps-bform-"]').forEach(function(f){ f.style.display = 'none'; });
+  var target = document.getElementById(targetId);
+  if (target) target.style.display = 'block';
+}
+
+
 
 function psSetBookingTab(btn, targetId) {
   var widget = btn.closest('[style*="background:"]');
