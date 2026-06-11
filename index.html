@@ -3039,7 +3039,7 @@ input[type=radio]:checked+.pp-layout-opt{border-color:var(--b600)!important;colo
 .pp-wiz-step:hover:not(.on){color:var(--navy)}
 .pp-wiz-panel{animation:fadeIn .15s ease}
 .pp-nav.on{background:var(--b600);color:#fff}
-.pp-main{padding:32px 36px;background:var(--bg);overflow-y:auto}
+.pp-main{padding:32px 36px;background:var(--bg);overflow-y:auto}.pp-main.builder-active{padding:0;overflow:hidden}
 .pp-sec{display:none}.pp-sec.on{display:block}
 .pp-onboarding{background:linear-gradient(135deg,#fffbeb,#fef9f0);border:1.5px solid #f59e0b;border-radius:var(--rx);padding:20px 24px;margin-bottom:24px}
 .pp-onboarding-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
@@ -6428,7 +6428,7 @@ tr:hover td{background:var(--b50)}
         </div>
 
         <!-- Step 2: BUILDER (split-screen WYSIWYG) -->
-        <div id="pp-page-step-2" class="pp-wiz-panel" style="display:none;margin:0 -20px">
+        <div id="pp-page-step-2" class="pp-wiz-panel" style="display:none;margin:-32px -36px">
           <div style="display:flex;gap:0;min-height:calc(100vh - 280px);margin:0 -20px">
 
             <!-- LEFT PANEL -->
@@ -6510,10 +6510,10 @@ tr:hover td{background:var(--b50)}
                 <div id="pp-pg-slug-status" style="font-size:.68rem;margin-top:3px"></div>
               </div>
 
-              <!-- Save button -->
-              <div style="padding:14px 16px">
-                <button class="btn bp block" onclick="ppPageSave();ppBuilderUpdate()"><i class="fa fa-floppy-disk"></i> Save changes</button>
-                <button class="btn bg block bsm" style="margin-top:8px" onclick="ppPageSave();ppPageGoStep(3)">Continue to Publish →</button>
+              <!-- Actions -->
+              <div style="padding:14px 16px;border-top:1px solid var(--border)">
+                <div id="pp-builder-save-status" style="font-size:.7rem;color:var(--muted);text-align:center;margin-bottom:6px;min-height:14px"></div>
+                <button class="btn bp block" onclick="ppBuilderSaveAndPublish()" style="font-size:.85rem"><i class="fa fa-rocket"></i> Save & Publish →</button>
               </div>
 
             </div><!-- end left panel -->
@@ -17690,12 +17690,43 @@ function ppPageGoStep(n) {
   document.querySelectorAll('.pp-wiz-panel').forEach(function(p){ p.style.display = 'none'; });
   var panel = document.getElementById('pp-page-step-' + n);
   if (panel) panel.style.display = n === 2 ? 'flex' : 'block';
-  if (n === 2) { ppBuilderInit(); }
+  var ppMain = document.querySelector('.pp-main');
+  if (n === 2) {
+    if (ppMain) ppMain.classList.add('builder-active');
+    ppBuilderInit();
+    ppBuilderStartAutosave();
+  } else {
+    if (ppMain) ppMain.classList.remove('builder-active');
+  }
   if (n === 3) { ppPageSetupPublishStep(); ppBuilderUpdatePublishPreview(); }
 }
 
 // ── Builder (WYSIWYG split-screen) ───────────────────────────────
 var _ppBuilderDebounce = null;
+
+async function ppBuilderSaveAndPublish() {
+  var statusEl = document.getElementById('pp-builder-save-status');
+  if (statusEl) { statusEl.textContent = 'Saving…'; statusEl.style.color = 'var(--muted)'; }
+  await ppPageSave();
+  await ppPageSaveBlocks();
+  if (statusEl) { statusEl.textContent = '✓ Saved'; statusEl.style.color = '#16a34a'; }
+  setTimeout(function(){ if (statusEl) statusEl.textContent = ''; }, 2000);
+  ppPageGoStep(3);
+}
+
+// Autosave every 30s while builder is open
+var _ppAutosaveTimer = null;
+function ppBuilderStartAutosave() {
+  clearInterval(_ppAutosaveTimer);
+  _ppAutosaveTimer = setInterval(async function(){
+    if (document.getElementById('pp-page-step-2')?.style.display !== 'none') {
+      await ppPageSave();
+      await ppPageSaveBlocks();
+      var st = document.getElementById('pp-builder-save-status');
+      if (st) { st.textContent = '✓ Autosaved'; st.style.color = 'var(--muted)'; setTimeout(function(){ st.textContent=''; }, 2000); }
+    }
+  }, 30000);
+}
 
 async function ppBuilderInit() {
   ppPageLoadBlocks();
