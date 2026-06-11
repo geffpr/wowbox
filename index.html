@@ -6441,9 +6441,9 @@ tr:hover td{background:var(--b50)}
                   <i class="fa fa-chevron-down" style="font-size:.65rem;color:var(--muted)"></i>
                 </summary>
                 <div style="padding:14px 16px;display:flex;flex-direction:column;gap:12px">
-                  <div class="fg"><label style="font-size:.72rem">Page name</label><input class="fi" id="pp-pg-name" style="font-size:.82rem" oninput="ppBuilderUpdate()" placeholder="Your venue name"></div>
-                  <div class="fg"><label style="font-size:.72rem">Tagline</label><input class="fi" id="pp-pg-tagline" style="font-size:.82rem" oninput="ppBuilderUpdate()" placeholder="Short description"></div>
-                  <div class="fg"><label style="font-size:.72rem">Description</label><textarea class="fi" id="pp-pg-desc" rows="3" style="font-size:.82rem;resize:vertical" oninput="ppBuilderUpdate()"></textarea></div>
+                  <div class="fg"><label style="font-size:.72rem">Page name</label><input class="fi" id="pp-b-name" style="font-size:.82rem" oninput="ppBuilderSyncToStep1('name',this.value);ppBuilderUpdate()" placeholder="Your venue name"></div>
+                  <div class="fg"><label style="font-size:.72rem">Tagline</label><input class="fi" id="pp-b-tagline" style="font-size:.82rem" oninput="ppBuilderSyncToStep1('tagline',this.value);ppBuilderUpdate()" placeholder="Short description"></div>
+                  <div class="fg"><label style="font-size:.72rem">Description</label><textarea class="fi" id="pp-b-desc" rows="3" style="font-size:.82rem;resize:vertical" oninput="ppBuilderSyncToStep1('desc',this.value);ppBuilderUpdate()"></textarea></div>
                   <div>
                     <label style="font-size:.72rem;color:var(--muted);display:block;margin-bottom:4px">Logo</label>
                     <input type="file" id="pp-pg-logo-file" accept="image/*" style="font-size:.75rem;width:100%" onchange="ppBuilderUploadLogo(this)">
@@ -6505,7 +6505,7 @@ tr:hover td{background:var(--b50)}
                 <label style="font-size:.72rem;color:var(--muted);display:block;margin-bottom:4px">Page URL</label>
                 <div style="display:flex;align-items:center;gap:0;border:1.5px solid var(--border);border-radius:var(--rs);overflow:hidden;background:#fff">
                   <span style="padding:8px 10px;background:var(--bg);font-size:.7rem;color:var(--muted);border-right:1px solid var(--border);white-space:nowrap">/wow/</span>
-                  <input style="flex:1;border:none;padding:8px 10px;font-size:.8rem;outline:none" id="pp-pg-slug" placeholder="my-venue" oninput="ppPageSlugCheck()">
+                  <input style="flex:1;border:none;padding:8px 10px;font-size:.8rem;outline:none" id="pp-b-slug" placeholder="my-venue" oninput="ppBuilderSyncToStep1('slug',this.value);ppPageSlugCheck()">
                 </div>
                 <div id="pp-pg-slug-status" style="font-size:.68rem;margin-top:3px"></div>
               </div>
@@ -17730,7 +17730,25 @@ function ppBuilderStartAutosave() {
   }, 30000);
 }
 
+// Sync step-2 builder fields back to step-1 (source of truth for ppPageSave)
+function ppBuilderSyncToStep1(field, value) {
+  var map = { name:'pp-pg-name', tagline:'pp-pg-tagline', desc:'pp-pg-desc', slug:'pp-pg-slug' };
+  var el = document.getElementById(map[field]);
+  if (el) el.value = value;
+}
+
 async function ppBuilderInit() {
+  // Pre-fill step-2 Appearance fields from step-1 values
+  var s1 = {
+    name:    document.getElementById('pp-pg-name')?.value    || '',
+    tagline: document.getElementById('pp-pg-tagline')?.value || '',
+    desc:    document.getElementById('pp-pg-desc')?.value    || '',
+    slug:    document.getElementById('pp-pg-slug')?.value    || ''
+  };
+  var b2name    = document.getElementById('pp-b-name');    if (b2name)    b2name.value    = s1.name;
+  var b2tagline = document.getElementById('pp-b-tagline'); if (b2tagline) b2tagline.value = s1.tagline;
+  var b2desc    = document.getElementById('pp-b-desc');    if (b2desc)    b2desc.value    = s1.desc;
+  var b2slug    = document.getElementById('pp-b-slug');    if (b2slug)    b2slug.value    = s1.slug;
   ppPageLoadBlocks();
   ppPageLoadExpList();
   // Load real experience data for preview
