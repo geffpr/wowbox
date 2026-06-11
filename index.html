@@ -6428,8 +6428,8 @@ tr:hover td{background:var(--b50)}
         </div>
 
         <!-- Step 2: BUILDER (split-screen WYSIWYG) -->
-        <div id="pp-page-step-2" class="pp-wiz-panel" style="display:none;margin:-32px -36px -32px 0">
-          <div style="display:flex;gap:0;min-height:calc(100vh - 280px);margin:0 -20px">
+        <div id="pp-page-step-2" class="pp-wiz-panel" style="display:none">
+          <div style="display:flex;gap:0;min-height:calc(100vh - 280px)">
 
             <!-- LEFT PANEL -->
             <div id="pp-builder-left" style="width:300px;flex-shrink:0;border-right:1.5px solid var(--border);overflow-y:auto;padding:0">
@@ -17272,8 +17272,10 @@ function psBuildBar(color, activeBlocks) {
 
 function psRenderBlocks(blocks, p, color) {
   if (!blocks || !blocks.length) return;
-  var bookingBlocks = blocks.filter(function(b){ return _psBookingBlocks.includes(b); });
-  var otherBlocks   = blocks.filter(function(b){ return !_psBookingBlocks.includes(b); });
+  // Normalize: accept both plain strings and {id, bg, text, ...} objects
+  blocks = blocks.map(function(b){ return typeof b === 'string' ? {id:b} : b; });
+  var bookingBlocks = blocks.filter(function(b){ return _psBookingBlocks.includes(b.id); });
+  var otherBlocks   = blocks.filter(function(b){ return !_psBookingBlocks.includes(b.id); });
 
   // ── BOOKING WIDGET ───────────────────────────────────────────────
   var bookingEl = document.getElementById('ps-booking-widget');
@@ -17281,19 +17283,19 @@ function psRenderBlocks(blocks, p, color) {
     var BTABS  = { hotel_booking:'<i class="fa fa-bed"></i> Stay', restaurant_booking:'<i class="fa fa-utensils"></i> Dine', spa_booking:'<i class="fa fa-spa"></i> Relax', activity_booking:'<i class="fa fa-person-hiking"></i> Activities' };
     // Init active state: first block only
     _psActiveBlocks = {};
-    _psActiveBlocks[bookingBlocks[0]] = true;
+    _psActiveBlocks[bookingBlocks[0].id] = true;
 
     var tabsHtml = '<div style="display:flex;gap:6px;margin-bottom:20px;flex-wrap:wrap" id="ps-tab-row">'
       + bookingBlocks.map(function(b){
-          var active = b === bookingBlocks[0];
-          return '<button onclick="psToggleBookingTab(this,\''+b+'\')" id="ps-tab-'+b+'" style="background:'+(active?'#fff':'rgba(255,255,255,.15)')+';color:'+(active?color:'#fff')+';border:none;border-radius:99px;padding:9px 22px;font-size:.83rem;font-weight:700;cursor:pointer;transition:all .2s;white-space:nowrap;letter-spacing:.01em">'+BTABS[b]+'</button>';
+          var active = b.id === bookingBlocks[0].id;
+          return '<button onclick="psToggleBookingTab(this,\''+b.id+'\')" id="ps-tab-'+b.id+'" style="background:'+(active?'#fff':'rgba(255,255,255,.15)')+';color:'+(active?color:'#fff')+';border:none;border-radius:99px;padding:9px 22px;font-size:.83rem;font-weight:700;cursor:pointer;transition:all .2s;white-space:nowrap;letter-spacing:.01em">'+BTABS[b.id]+'</button>';
         }).join('')
       + '</div>';
 
     bookingEl.innerHTML = '<div style="background:'+color+';padding:28px 40px" id="ps-widget-inner">'
       + '<div style="max-width:1100px;margin:0 auto">'
       + tabsHtml
-      + '<div id="ps-bar-wrap">' + psBuildBar(color, [bookingBlocks[0]]) + '</div>'
+      + '<div id="ps-bar-wrap">' + psBuildBar(color, [bookingBlocks[0].id]) + '</div>'
       + '</div></div>';
 
     // Store color for tab toggle
@@ -17305,8 +17307,8 @@ function psRenderBlocks(blocks, p, color) {
   if (!belowEl || !otherBlocks.length) return;
   var belowHtml = '';
 
-  if (otherBlocks.includes('reviews')) {
-    var revBlock = (p.page_blocks||[]).find(function(b){ return (b.id||b)==='reviews'; });
+  if (otherBlocks.some(function(b){ return b.id==='reviews'; })) {
+    var revBlock = otherBlocks.find(function(b){ return b.id==='reviews'; }) || {};
     var revBg   = (revBlock&&revBlock.bg)   || '#1e1e1e';
     var revText = (revBlock&&revBlock.text) || '#ffffff';
     belowHtml += '<div style="background:'+revBg+';padding:64px 40px">'
@@ -17321,8 +17323,8 @@ function psRenderBlocks(blocks, p, color) {
       +'</div></div></div></div>';
   }
 
-  if (otherBlocks.includes('gift_vouchers')) {
-    var gvBlock = (p.page_blocks||[]).find(function(b){ return (b.id||b)==='gift_vouchers'; });
+  if (otherBlocks.some(function(b){ return b.id==='gift_vouchers'; })) {
+    var gvBlock = otherBlocks.find(function(b){ return b.id==='gift_vouchers'; }) || {};
     var gvBg    = (gvBlock&&gvBlock.bg) || '#fdf8f4';
     belowHtml += '<div style="background:'+gvBg+';padding:72px 40px">'
       +'<div style="max-width:1100px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr;gap:60px;align-items:center">'
@@ -17340,8 +17342,8 @@ function psRenderBlocks(blocks, p, color) {
       +'</div></div></div>';
   }
 
-  if (otherBlocks.includes('social_media')) {
-    var socBlock = (p.page_blocks||[]).find(function(b){ return (b.id||b)==='social_media'; }) || {};
+  if (otherBlocks.some(function(b){ return b.id==='social_media'; })) {
+    var socBlock = otherBlocks.find(function(b){ return b.id==='social_media'; }) || {};
     var socBg    = socBlock.bg    || '#fff';
     var socTitle = socBlock.title || 'Follow Us';
     var SOCIA2 = {instagram:'fa-instagram',tiktok:'fa-tiktok',facebook:'fa-facebook',twitter:'fa-x-twitter',linkedin:'fa-linkedin'};
@@ -17356,15 +17358,15 @@ function psRenderBlocks(blocks, p, color) {
     }
   }
 
-  if (otherBlocks.includes('custom_html')) {
-    var htmlBlock = (p.page_blocks||[]).find(function(b){ return (b.id||b)==='custom_html'; }) || {};
+  if (otherBlocks.some(function(b){ return b.id==='custom_html'; })) {
+    var htmlBlock = otherBlocks.find(function(b){ return b.id==='custom_html'; }) || {};
     if (htmlBlock.html) {
       belowHtml += '<div style="background:'+(htmlBlock.bg||'#fff')+';padding:32px 40px">'
         +'<div style="max-width:1100px;margin:0 auto">'+htmlBlock.html+'</div></div>';
     }
   }
 
-  if (otherBlocks.includes('map_contact')) {
+  if (otherBlocks.some(function(b){ return b.id==='map_contact'; })) {
     belowHtml += '<div style="background:#fff;padding:64px 40px;border-top:1px solid #f3f4f6">'
       +'<div style="max-width:1100px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr;gap:60px;align-items:start">'
       +'<div><div style="font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.18em;color:'+color+';margin-bottom:14px">Visit Us</div>'
@@ -18181,7 +18183,12 @@ async function ppPageSave() {
   var tagline  = document.getElementById('pp-pg-tagline')?.value?.trim() || '';
   var desc     = document.getElementById('pp-pg-desc')?.value?.trim()    || '';
   var color    = document.getElementById('pp-pg-color')?.value           || '#b45309';
-  var selectedIds = Array.from(document.querySelectorAll('#pp-pg-exp-list input:checked')).map(function(cb){ return cb.value; });
+  var selectedIds = Array.from(document.querySelectorAll('#pp-pg-exp-list input:checked')).map(function(cb){
+    var row = cb.closest('.pp-exp-row');
+    var starBtn = row && row.querySelector('[data-featured]');
+    var isFeatured = starBtn && starBtn.dataset.featured === '1';
+    return isFeatured ? {id: cb.value, featured: true} : {id: cb.value};
+  });
   try {
     // Upload logo if new file selected
     var logoFile = _ppPageData._pendingLogoFile || document.getElementById('pp-pg-logo-file')?.files?.[0];
@@ -18212,7 +18219,7 @@ async function ppPageSave() {
       }
     }
     // Save to Supabase
-    var payload = { page_slug: slug, page_tagline: tagline, page_description: desc, page_color: color, page_experiences: selectedIds };
+    var payload = { page_slug: slug, page_tagline: tagline, page_description: desc, page_color: color, page_experiences: selectedIds, page_layout: ppPageGetLayout() };
     if (_ppPageData.page_logo)  payload.page_logo  = _ppPageData.page_logo;
     if (_ppPageData.page_cover) payload.page_cover = _ppPageData.page_cover;
     var uid = currentUser && currentUser.id;
