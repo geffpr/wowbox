@@ -17272,7 +17272,7 @@ function psBuildBar(color, activeBlocks) {
 
 function psRenderBlocks(blocks, p, color) {
   if (!blocks || !blocks.length) return;
-  // blocks can be either strings or objects {id,...} — normalize
+  // blocks can be objects {id,...} or strings — normalize both arrays to string IDs
   var bookingBlocks = blocks.filter(function(b){ return _psBookingBlocks.includes(b.id||b); }).map(function(b){ return b.id||b; });
   var otherBlocks   = blocks.filter(function(b){ return !_psBookingBlocks.includes(b.id||b); }).map(function(b){ return b.id||b; });
 
@@ -17697,14 +17697,13 @@ function ppPageGoStep(n) {
   if (n === 2) {
     if (ppMain) ppMain.classList.add('builder-active');
     if (ppSec)  { ppSec.style.height='100%'; ppSec.style.display='flex'; ppSec.style.flexDirection='column'; ppSec.style.overflow='hidden'; }
-    if (ppWiz)  { ppWiz.style.flex='1'; ppWiz.style.minHeight='0'; ppWiz.style.display='flex'; ppWiz.style.flexDirection='column'; ppWiz.style.overflow='hidden'; }
+    if (ppWiz)  { ppWiz.style.flex='1'; ppWiz.style.minHeight='0'; ppWiz.style.flexDirection='column'; ppWiz.style.overflow='hidden'; }
     ppBuilderInit();
     ppBuilderStartAutosave();
   } else {
     if (ppMain) ppMain.classList.remove('builder-active');
     if (ppSec)  { ppSec.style.height=''; ppSec.style.display=''; ppSec.style.flexDirection=''; ppSec.style.overflow=''; }
-    if (ppWiz)  { ppWiz.style.flex=''; ppWiz.style.minHeight=''; ppWiz.style.display='none'; ppWiz.style.flexDirection=''; ppWiz.style.overflow=''; }
-    if (panel && n !== 2) panel.style.display = 'block';
+    if (ppWiz)  { ppWiz.style.flex=''; ppWiz.style.minHeight=''; ppWiz.style.flexDirection=''; ppWiz.style.overflow=''; }
   }
   if (n === 3) { ppPageSetupPublishStep(); ppBuilderUpdatePublishPreview(); }
 }
