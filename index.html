@@ -6630,6 +6630,7 @@ tr:hover td{background:var(--b50)}
             <div class="fg"><label>Full name</label><input class="fi" id="pp-set-fullname" placeholder="Your full name"></div>
             <div class="fg"><label>Business name</label><input class="fi" id="pp-set-bizname" placeholder="Your business name"></div>
             <div class="fg"><label>Phone</label><input class="fi" id="pp-set-phone" placeholder="+27 00 000 0000"></div>
+            <div class="fg"><label>Address <span style="font-weight:400;color:var(--muted);font-size:.75rem">(shown on your public page)</span></label><input class="fi" id="pp-set-address" placeholder="e.g. 123 Main St, Cape Town, Western Cape"></div>
             <div class="fg" style="grid-column:1/-1">
               <label>Email</label>
               <div style="display:flex;gap:8px;align-items:center">
@@ -11328,7 +11329,7 @@ async function ppLoadSettings() {
   if (emailEl) emailEl.value = currentUser.email || '';
   // Load profile from user_profiles
   var res = await db_client.from('user_profiles')
-    .select('full_name, partner_name, phone')
+    .select('full_name, partner_name, phone, partner_address')
     .eq('id', currentUser.id)
     .maybeSingle();
   if (res.data) {
@@ -11336,9 +11337,11 @@ async function ppLoadSettings() {
     var fn = document.getElementById('pp-set-fullname');
     var bn = document.getElementById('pp-set-bizname');
     var ph = document.getElementById('pp-set-phone');
+    var ad = document.getElementById('pp-set-address');
     if (fn) fn.value = d.full_name || '';
     if (bn) bn.value = d.partner_name || '';
     if (ph) ph.value = d.phone || '';
+    if (ad) ad.value = d.partner_address || '';
   }
 }
 
@@ -11390,8 +11393,9 @@ async function ppSaveProfile() {
   var full_name    = document.getElementById('pp-set-fullname').value.trim();
   var partner_name = document.getElementById('pp-set-bizname').value.trim();
   var phone        = document.getElementById('pp-set-phone').value.trim();
+  var partner_address = (document.getElementById('pp-set-address')?.value || '').trim();
   if (!full_name) { if(msgEl){msgEl.style.color='#ef4444';msgEl.textContent='Full name is required.';} return; }
-  var res = await db_client.from('user_profiles').update({ full_name, partner_name, phone }).eq('id', currentUser.id);
+  var res = await db_client.from('user_profiles').update({ full_name, partner_name, phone, partner_address }).eq('id', currentUser.id);
   if (msgEl) {
     if (res.error) { msgEl.style.color='#ef4444'; msgEl.textContent='Error: ' + res.error.message; }
     else           { msgEl.style.color='#22c55e'; msgEl.textContent='Saved ✓'; setTimeout(()=>{ msgEl.textContent=''; }, 3000); }
@@ -16873,11 +16877,13 @@ async function loadPartnerStorefront(slug) {
   try {
     // Fetch page config + partner contact info in parallel
     var [res, partnerRes] = await Promise.all([
-      db_client.from('user_profiles').select('partner_name,full_name,page_tagline,page_description,page_logo,page_cover,page_cover_position,page_color,page_experiences,page_status,page_layout,page_blocks').eq('page_slug', slug).maybeSingle(),
+      db_client.from('user_profiles').select('partner_name,full_name,page_tagline,page_description,page_logo,page_cover,page_cover_position,page_color,page_experiences,page_status,page_layout,page_blocks,partner_address').eq('page_slug', slug).maybeSingle(),
       db_client.from('partners').select('location,region,website_url,contact_email,business_name').eq('page_slug', slug).maybeSingle()
     ]);
     var p = res.data;
     var partnerContact = partnerRes.data || {};
+    // Supplement with partner_address from user_profiles
+    if (!partnerContact.location && p.partner_address) partnerContact.location = p.partner_address;
     if (!p || p.page_status !== 'published') {
       document.getElementById('ps-exp-grid').innerHTML = '<div style="text-align:center;padding:60px;color:var(--muted);grid-column:1/-1"><i class="fa fa-circle-exclamation" style="font-size:2rem;margin-bottom:10px;display:block"></i>This page is not available.</div>';
       return;
@@ -16893,11 +16899,12 @@ async function loadPartnerStorefront(slug) {
     var descEl = document.getElementById('ps-desc'); if (descEl) descEl.textContent = p.page_description || '';
     var rawExp = p.page_experiences || [];
     var expIds = rawExp.map(function(x){ return typeof x==='string'?x:(x&&x.id?x.id:null); }).filter(Boolean);
-    var query = db_client.from('experiences').select('id,name,category,city,price,image_url,images,description').eq('is_active', true);
+    var query = db_client.from('experiences').select('id,name,category,city,price,image_url,image_urls,images,description').eq('is_active', true);
     if (expIds.length) query = query.in('id', expIds);
     var expRes = await query;
     var exps = expRes.data || [];
     if (expIds.length) exps.sort(function(a,b){ return expIds.indexOf(a.id)-expIds.indexOf(b.id); });
+    _psAllExps = exps; // store for Search filter
     var grid = document.getElementById('ps-exp-grid');
     if (!grid) return;
     var pageLayout = p.page_layout || 'grid';
@@ -17262,7 +17269,7 @@ function psBuildBar(color, activeBlocks) {
 
   return '<div style="display:flex;align-items:center;background:#fff;border-radius:12px;box-shadow:0 4px 24px rgba(0,0,0,.2);overflow:hidden;max-width:960px" id="ps-smart-bar">'
     + bar
-    + '<div style="padding:10px;flex-shrink:0"><button onclick="psBookingComingSoon()" style="background:'+color+';color:#fff;border:none;border-radius:8px;padding:12px 24px;font-weight:700;font-size:.88rem;cursor:pointer;white-space:nowrap">Search →</button></div>'
+    + '<div style="padding:10px;flex-shrink:0"><button onclick="psSearchFilter()" style="background:'+color+';color:#fff;border:none;border-radius:8px;padding:12px 24px;font-weight:700;font-size:.88rem;cursor:pointer;white-space:nowrap">Search →</button></div>'
     + '</div>';
 }
 
@@ -17302,7 +17309,7 @@ function psRenderBlocks(blocks, p, color, exps, partnerContact, slug) {
     bookingEl.innerHTML = '<div style="background:'+color+';padding:28px 40px" id="ps-widget-inner">'
       + '<div style="max-width:1100px;margin:0 auto">'
       + tabsHtml
-      + '<div id="ps-exp-filtered"></div>'
+      + '<div id="ps-bar-wrap">' + psBuildBar(color, [bookingBlocks[0].id]) + '</div>'
       + '</div></div>';
     bookingEl.dataset.color = color;
 
@@ -17322,7 +17329,8 @@ function psRenderBlocks(blocks, p, color, exps, partnerContact, slug) {
     var allImgs = [];
     (exps||[]).forEach(function(e){
       if (e.image_url) allImgs.push(e.image_url);
-      if (Array.isArray(e.images)) e.images.forEach(function(img){ if(img && img !== e.image_url) allImgs.push(img); });
+      if (Array.isArray(e.image_urls)) e.image_urls.forEach(function(img){ if(img && !allImgs.includes(img)) allImgs.push(img); });
+      if (Array.isArray(e.images)) e.images.forEach(function(img){ if(img && !allImgs.includes(img)) allImgs.push(img); });
     });
     if (allImgs.length) {
       belowHtml += '<div style="background:'+galleryBg+';padding:64px 40px">'
@@ -17330,8 +17338,8 @@ function psRenderBlocks(blocks, p, color, exps, partnerContact, slug) {
         +'<div style="font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.18em;color:'+color+';margin-bottom:10px;text-align:center">Photo Gallery</div>'
         +'<h2 style="font-family:\'Cormorant Garamond\',serif;font-size:2.2rem;font-style:italic;font-weight:400;color:#fff;text-align:center;margin-bottom:32px">Our venues &amp; experiences</h2>'
         +'<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px">'
-        + allImgs.slice(0,12).map(function(img){
-            return '<div style="aspect-ratio:4/3;overflow:hidden;border-radius:10px"><img src="'+img+'" style="width:100%;height:100%;object-fit:cover;transition:transform .3s" loading="lazy"></div>';
+        + allImgs.slice(0,30).map(function(img){
+            return '<div style="aspect-ratio:4/3;overflow:hidden;border-radius:10px"><img src="'+img+'" style="width:100%;height:100%;object-fit:cover" loading="lazy"></div>';
           }).join('')
         +'</div></div></div>';
     } else {
@@ -17344,7 +17352,7 @@ function psRenderBlocks(blocks, p, color, exps, partnerContact, slug) {
     var revBlock = otherBlocks.find(function(b){ return b.id==='reviews'; }) || {};
     var revBg   = revBlock.bg   || '#1e1e1e';
     var revText = revBlock.text || '#ffffff';
-    var partnerName = p.partner_name || p.full_name || '';
+    // Inject container first so async can find it
     belowHtml += '<div id="ps-reviews-block" style="background:'+revBg+';padding:64px 40px">'
       +'<div style="max-width:1100px;margin:0 auto">'
       +'<div style="font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.18em;color:'+color+';margin-bottom:10px;text-align:center">What our guests say</div>'
@@ -17352,33 +17360,6 @@ function psRenderBlocks(blocks, p, color, exps, partnerContact, slug) {
       +'<div id="ps-reviews-list" style="display:flex;gap:20px;overflow-x:auto;padding-bottom:12px;scrollbar-width:none">'
       +'<div style="color:rgba(255,255,255,.4);font-size:.82rem;padding:20px">Loading reviews…</div>'
       +'</div></div></div>';
-    // Async load reviews
-    (async function() {
-      try {
-        var rRes = await db_client.from('experience_reviews')
-          .select('display_name,rating,text,experience_name,created_at')
-          .eq('partner_name', partnerName)
-          .eq('status', 'approved')
-          .order('created_at', {ascending: false})
-          .limit(20);
-        var reviews = rRes.data || [];
-        var listEl = document.getElementById('ps-reviews-list');
-        if (!listEl) return;
-        if (!reviews.length) {
-          listEl.innerHTML = '<div style="color:rgba(255,255,255,.4);font-size:.82rem;padding:20px;font-style:italic">No reviews yet. Be the first to book!</div>';
-          return;
-        }
-        listEl.innerHTML = reviews.map(function(r){
-          var stars = '★'.repeat(r.rating||5) + '☆'.repeat(5-(r.rating||5));
-          return '<div style="flex-shrink:0;border:1px solid rgba(255,255,255,.1);border-radius:14px;padding:28px;min-width:280px;max-width:320px">'
-            +'<div style="font-size:.75rem;color:'+color+';margin-bottom:12px">'+stars+'</div>'
-            +'<p style="font-size:.92rem;line-height:1.75;color:'+revText+'cc;font-style:italic;margin-bottom:16px">"'+(r.text||'')+'</p>'
-            +'<div style="font-size:.78rem;font-weight:700;color:'+revText+'">'+r.display_name+'</div>'
-            +(r.experience_name ? '<div style="font-size:.7rem;color:'+revText+'66;margin-top:2px">'+r.experience_name+'</div>' : '')
-            +'</div>';
-        }).join('');
-      } catch(err) { console.warn('reviews block:', err.message); }
-    })();
   }
 
   // GIFT VOUCHERS (unchanged)
@@ -17454,9 +17435,90 @@ function psRenderBlocks(blocks, p, color, exps, partnerContact, slug) {
   }
 
   belowEl.innerHTML = belowHtml;
+
+  // Async: load real reviews after DOM is ready
+  if (otherBlocks.some(function(b){ return b.id==='reviews'; })) {
+    var revBlock2 = otherBlocks.find(function(b){ return b.id==='reviews'; }) || {};
+    var revText2 = revBlock2.text || '#ffffff';
+    var expIdsForReviews = (exps||[]).map(function(e){ return e.id; }).filter(Boolean);
+    (async function() {
+      try {
+        var rQuery = db_client.from('experience_reviews')
+          .select('display_name,rating,text,experience_name,created_at')
+          .eq('status', 'approved')
+          .order('created_at', {ascending: false})
+          .limit(20);
+        if (expIdsForReviews.length) rQuery = rQuery.in('experience_id', expIdsForReviews);
+        var rRes = await rQuery;
+        var reviews = rRes.data || [];
+        var listEl = document.getElementById('ps-reviews-list');
+        if (!listEl) return;
+        if (!reviews.length) {
+          listEl.innerHTML = '<div style="color:rgba(255,255,255,.4);font-size:.82rem;padding:20px;font-style:italic">No reviews yet. Be the first to book!</div>';
+          return;
+        }
+        listEl.innerHTML = reviews.map(function(r){
+          var stars = '★'.repeat(Math.min(r.rating||5,5)) + '☆'.repeat(Math.max(0,5-(r.rating||5)));
+          return '<div style="flex-shrink:0;border:1px solid rgba(255,255,255,.1);border-radius:14px;padding:28px;min-width:280px;max-width:320px">'
+            +'<div style="font-size:.75rem;color:'+color+';margin-bottom:12px">'+stars+'</div>'
+            +'<p style="font-size:.92rem;line-height:1.75;color:'+revText2+'cc;font-style:italic;margin-bottom:16px">"'+(r.text||'')+'</p>'
+            +'<div style="font-size:.78rem;font-weight:700;color:'+revText2+'">'+r.display_name+'</div>'
+            +(r.experience_name ? '<div style="font-size:.7rem;color:'+revText2+'66;margin-top:2px">'+r.experience_name+'</div>' : '')
+            +'</div>';
+        }).join('');
+      } catch(err) { console.warn('reviews block:', err.message); }
+    })();
+  }
 }
 
 // Render filtered experiences under booking tabs
+// Filter the Experiences grid by active booking tab categories
+var _psAllExps = [];
+function psSearchFilter() {
+  var CAT_MAP = {
+    hotel_booking:      ['accommodation','hotel'],
+    restaurant_booking: ['dining','restaurant'],
+    spa_booking:        ['wellness','spa'],
+    activity_booking:   ['activity','activities','culture','nature','event','rental']
+  };
+  var activeList = Object.keys(_psActiveBlocks).filter(function(k){ return _psActiveBlocks[k]; });
+  var cats = [];
+  activeList.forEach(function(bid){ if(CAT_MAP[bid]) cats = cats.concat(CAT_MAP[bid]); });
+  var color = document.getElementById('ps-booking-widget')?.dataset.color || '#b45309';
+  var grid = document.getElementById('ps-exp-grid');
+  if (!grid) return;
+
+  var matched  = _psAllExps.filter(function(e){ return e.category && cats.includes(e.category); });
+  var uncatd   = _psAllExps.filter(function(e){ return !e.category; });
+  var hasMatch = matched.length > 0;
+
+  function makeCard(e) {
+    var img = e.image_url || (Array.isArray(e.images)&&e.images[0]) || '';
+    return '<div style="border:1px solid var(--border);border-radius:12px;overflow:hidden;background:#fff;box-shadow:0 2px 8px rgba(0,0,0,.06)">'
+      +(img?'<img src="'+img+'" style="width:100%;height:160px;object-fit:cover">':'<div style="height:160px;background:var(--b50)"></div>')
+      +'<div style="padding:14px">'
+      +'<div style="font-size:.9rem;font-weight:700;color:var(--navy);margin-bottom:4px">'+e.name+'</div>'
+      +(e.city?'<div style="font-size:.76rem;color:var(--muted);margin-bottom:6px"><i class="fa fa-location-dot" style="color:'+color+'"></i> '+e.city+'</div>':'')
+      +'<div style="display:flex;align-items:center;justify-content:space-between;margin-top:8px">'
+      +(e.price?'<div style="font-size:1.05rem;font-weight:700;color:var(--navy)">R'+Number(e.price).toLocaleString()+'</div>':'<div></div>')
+      +'<button onclick="psBookExperience(this.dataset.eid)" data-eid="'+e.id+'" style="background:'+color+';color:#fff;border:none;border-radius:8px;padding:7px 16px;font-size:.78rem;font-weight:700;cursor:pointer">Book now</button>'
+      +'</div></div></div>';
+  }
+
+  var html = '';
+  if (!hasMatch && !uncatd.length) {
+    html = '<div style="text-align:center;padding:40px;color:var(--muted);grid-column:1/-1">No experiences found for this category.</div>';
+  } else {
+    if (hasMatch) html += matched.map(makeCard).join('');
+    if (uncatd.length) {
+      var label = hasMatch ? '<div style="font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);grid-column:1/-1;margin-top:8px">Other experiences</div>' : '';
+      html += label + uncatd.map(makeCard).join('');
+    }
+  }
+  grid.style.cssText = 'display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:18px';
+  grid.innerHTML = html;
+}
+
 function psRenderFilteredExps(activeBlockIds, exps, color, catMap) {
   var el = document.getElementById('ps-exp-filtered');
   if (!el) return;
@@ -17494,16 +17556,10 @@ function psRenderFilteredExps(activeBlockIds, exps, color, catMap) {
 }
 
 function psToggleBookingTab(btn, blockId) {
-  var bookingEl = document.getElementById('ps-booking-widget');
-  var color = bookingEl?.dataset.color || '#b45309';
-  var exps   = bookingEl?._allExps || [];
-  var catMap = bookingEl?._catMap  || {};
-  // Toggle active state
+  var color = document.getElementById('ps-booking-widget')?.dataset.color || '#b45309';
   _psActiveBlocks[blockId] = !_psActiveBlocks[blockId];
-  // Ensure at least one is always active
   var activeList = Object.keys(_psActiveBlocks).filter(function(k){ return _psActiveBlocks[k]; });
   if (!activeList.length) { _psActiveBlocks[blockId] = true; activeList = [blockId]; }
-  // Update tab styles
   document.querySelectorAll('[id^="ps-tab-"]').forEach(function(b){
     var bid = b.id.replace('ps-tab-','');
     var isOn = !!_psActiveBlocks[bid];
@@ -17511,8 +17567,8 @@ function psToggleBookingTab(btn, blockId) {
     b.style.color = isOn ? color : '#fff';
     b.style.boxShadow = isOn ? '0 2px 8px rgba(0,0,0,.15)' : 'none';
   });
-  // Render filtered experiences
-  psRenderFilteredExps(activeList, exps, color, catMap);
+  var barWrap = document.getElementById('ps-bar-wrap');
+  if (barWrap) barWrap.innerHTML = psBuildBar(color, activeList);
 }
 
 
