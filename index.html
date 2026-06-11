@@ -6512,7 +6512,7 @@ tr:hover td{background:var(--b50)}
             </div>
             <div style="display:flex;gap:10px;justify-content:space-between">
               <button class="btn bg bsm" onclick="ppPageGoStep(1)">← Back</button>
-              <button class="btn bp bsm" onclick="ppPageSave();ppPageGoStep(4)">Save & Next →</button>
+              <button class="btn bp bsm" onclick="ppPageSave();ppPageGoStep(3)">Save & Next →</button>
             </div>
           </div>
         </div>
@@ -6577,8 +6577,8 @@ tr:hover td{background:var(--b50)}
           <div style="text-align:center;padding:20px;color:var(--muted)">Loading experiences…</div>
         </div>
           <div style="display:flex;gap:10px;justify-content:space-between;max-width:560px">
-            <button class="btn bg bsm" onclick="ppPageGoStep(2)">← Back</button>
-            <button class="btn bp bsm" onclick="ppPageSave();ppPageGoStep(4)">Save & Preview →</button>
+            <button class="btn bg bsm" onclick="ppPageGoStep(3)">← Back</button>
+            <button class="btn bp bsm" onclick="ppPageSave();ppPageGoStep(5)">Save & Preview →</button>
           </div>
         </div>
 
@@ -16924,7 +16924,7 @@ async function ppSendContactMessage() {
 // ── Public partner storefront /p/[slug] ──────────────────────────
 async function loadPartnerStorefront(slug) {
   try {
-    var res = await db_client.from('user_profiles').select('partner_name,full_name,page_tagline,page_description,page_logo,page_cover,page_cover_position,page_color,page_experiences,page_status,page_layout,page_blocks,location,contact_phone,contact_email,website_url').eq('page_slug', slug).maybeSingle();
+    var res = await db_client.from('user_profiles').select('partner_name,full_name,page_tagline,page_description,page_logo,page_cover,page_cover_position,page_color,page_experiences,page_status,page_layout,page_blocks').eq('page_slug', slug).maybeSingle();
     var p = res.data;
     if (!p || p.page_status !== 'published') {
       document.getElementById('ps-exp-grid').innerHTML = '<div style="text-align:center;padding:60px;color:var(--muted);grid-column:1/-1"><i class="fa fa-circle-exclamation" style="font-size:2rem;margin-bottom:10px;display:block"></i>This page is not available.</div>';
@@ -16933,7 +16933,8 @@ async function loadPartnerStorefront(slug) {
     var color = p.page_color || '#b45309';
     // Hero
     var hero = document.getElementById('ps-hero');
-    if (hero) hero.style.background = (p.page_cover ? 'url('+p.page_cover+') center/cover' : 'linear-gradient(135deg,'+color+'cc,#1a1a2e)');
+    var heroCoverPos = p.page_cover_position || '50% 30%';
+    if (hero) hero.style.background = (p.page_cover ? 'url('+p.page_cover+') '+heroCoverPos+'/cover' : 'linear-gradient(135deg,'+color+'cc,#1a1a2e)');
     var logoEl = document.getElementById('ps-logo');
     if (logoEl && p.page_logo) { logoEl.src = p.page_logo; logoEl.style.display = 'block'; }
     var nameEl = document.getElementById('ps-name'); if (nameEl) nameEl.textContent = p.partner_name || p.full_name || '';
@@ -16951,7 +16952,6 @@ async function loadPartnerStorefront(slug) {
     var grid = document.getElementById('ps-exp-grid');
     if (!grid) return;
     var pageLayout = p.page_layout || 'grid';
-    var color = p.page_color || '#b45309';
 
     // Find featured experience
     var savedExp = p.page_experiences || [];
@@ -17106,12 +17106,9 @@ function psRenderBlocks(blocks, p, color) {
     if (block === 'map_contact') {
       html += '<div style="margin-top:32px;padding:24px;background:#fff;border:1px solid var(--border);border-radius:14px">'
         + '<h3 style="font-size:1.1rem;color:var(--navy);margin-bottom:14px">📍 Find Us</h3>'
-        + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;font-size:.85rem;color:#374151">'
-        + (p.location ? '<div><i class="fa fa-location-dot" style="color:'+color+'"></i> '+p.location+'</div>' : '')
-        + (p.contact_phone ? '<div><i class="fa fa-phone" style="color:'+color+'"></i> '+p.contact_phone+'</div>' : '')
-        + (p.contact_email ? '<div><i class="fa fa-envelope" style="color:'+color+'"></i> '+p.contact_email+'</div>' : '')
-        + (p.website_url ? '<div><i class="fa fa-globe" style="color:'+color+'"></i> <a href="'+p.website_url+'" target="_blank" style="color:'+color+'">Website</a></div>' : '')
-        + '</div></div>';
+        + '<p style="font-size:.85rem;color:#374151;line-height:1.7">'+(p.page_description||'Contact us for more information.')+'</p>'
+        + '<div style="margin-top:12px;font-size:.85rem;color:var(--muted)"><i class="fa fa-globe" style="color:'+color+'"></i> wowbox.co.za/wow/'+(p.page_slug||'')+'</div>'
+        + '</div>';
     }
     if (block === 'reviews') {
       html += '<div id="ps-reviews-block" style="margin-top:32px;padding:24px;background:#fff;border:1px solid var(--border);border-radius:14px">'
