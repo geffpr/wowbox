@@ -6432,9 +6432,19 @@ tr:hover td{background:var(--b50)}
               </div>
               <div>
                 <label style="font-size:.75rem;color:var(--muted);display:block;margin-bottom:6px">Cover image (16:9 landscape)</label>
-                <input type="file" id="pp-pg-cover-file" accept="image/*" class="fi" style="padding:6px">
-                <img id="pp-pg-cover-preview" src="" style="display:none;margin-top:8px;width:100%;height:60px;object-fit:cover;border-radius:6px;border:1px solid var(--border)">
+                <input type="file" id="pp-pg-cover-file" accept="image/*" class="fi" style="padding:6px" onchange="ppPageLoadCoverCrop(this)">
                 <div id="pp-pg-cover-status" style="font-size:.7rem;color:var(--muted);margin-top:3px"></div>
+                <!-- Crop widget: shown after image is loaded -->
+                <div id="pp-pg-crop-wrap" style="display:none;margin-top:10px">
+                  <div style="font-size:.72rem;color:var(--muted);margin-bottom:5px"><i class="fa fa-hand-pointer"></i> Drag to reposition the visible area</div>
+                  <div id="pp-pg-crop-frame" style="position:relative;width:100%;aspect-ratio:16/9;overflow:hidden;border-radius:8px;border:2px solid var(--b400);cursor:grab;user-select:none" onmousedown="ppPageCropStart(event)" ontouchstart="ppPageCropStart(event)">
+                    <img id="pp-pg-crop-img" src="" style="position:absolute;min-width:100%;min-height:100%;width:auto;height:auto;pointer-events:none" draggable="false">
+                    <!-- Overlay grid -->
+                    <div style="position:absolute;inset:0;pointer-events:none;background:linear-gradient(rgba(255,255,255,.08) 1px,transparent 1px) 0 0/33.33% 33.33%,linear-gradient(90deg,rgba(255,255,255,.08) 1px,transparent 1px) 0 0/33.33% 33.33%"></div>
+                    <div style="position:absolute;inset:0;border:2px solid rgba(255,255,255,.6);pointer-events:none;border-radius:6px"></div>
+                  </div>
+                  <div style="font-size:.7rem;color:var(--muted);margin-top:5px;text-align:center" id="pp-pg-crop-hint">Position saved automatically</div>
+                </div>
               </div>
             </div>
             <div style="margin-bottom:18px">
@@ -16857,7 +16867,7 @@ async function ppSendContactMessage() {
 // ── Public partner storefront /p/[slug] ──────────────────────────
 async function loadPartnerStorefront(slug) {
   try {
-    var res = await db_client.from('user_profiles').select('partner_name,full_name,page_tagline,page_description,page_logo,page_cover,page_color,page_experiences,page_status,page_layout').eq('page_slug', slug).maybeSingle();
+    var res = await db_client.from('user_profiles').select('partner_name,full_name,page_tagline,page_description,page_logo,page_cover,page_cover_position,page_color,page_experiences,page_status,page_layout').eq('page_slug', slug).maybeSingle();
     var p = res.data;
     if (!p || p.page_status !== 'published') {
       document.getElementById('ps-exp-grid').innerHTML = '<div style="text-align:center;padding:60px;color:var(--muted);grid-column:1/-1"><i class="fa fa-circle-exclamation" style="font-size:2rem;margin-bottom:10px;display:block"></i>This page is not available.</div>';
@@ -16974,6 +16984,122 @@ function psBookExperience(expId) {
 // ── Partner Page (Storefront) wizard ────────────────────────────
 var _ppPageData = {};
 
+// ── Cover image crop/pan widget ──────────────────────────────────
+var _cropState = { dragging: false, startX: 0, startY: 0, imgLeft: 0, imgTop: 0 };
+
+function ppPageLoadCoverCrop(input) {
+  var file = input.files && input.files[0];
+  if (!file) return;
+  var st = document.getElementById('pp-pg-cover-status');
+  if (st) st.textContent = 'Loading…';
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    var img = document.getElementById('pp-pg-crop-img');
+    var wrap = document.getElementById('pp-pg-crop-wrap');
+    if (!img || !wrap) return;
+    img.src = e.target.result;
+    img.onload = function() {
+      wrap.style.display = 'block';
+      // Center image initially
+      var frame = document.getElementById('pp-pg-crop-frame');
+      var fw = frame.offsetWidth, fh = frame.offsetHeight;
+      var iw = img.naturalWidth, ih = img.naturalHeight;
+      var scale = Math.max(fw/iw, fh/ih);
+      img.style.width  = (iw * scale) + 'px';
+      img.style.height = (ih * scale) + 'px';
+      img.style.left   = ((fw - iw*scale)/2) + 'px';
+      img.style.top    = ((fh - ih*scale)/2) + 'px';
+      _cropState.imgLeft = (fw - iw*scale)/2;
+      _cropState.imgTop  = (fh - ih*scale)/2;
+      ppPageUpdateCoverPosition();
+      if (st) st.textContent = '✓ Drag to reposition';
+    };
+  };
+  reader.readAsDataURL(file);
+  // Store file for save
+  _ppPageData._pendingCoverFile = file;
+}
+
+function ppPageCropStart(e) {
+  e.preventDefault();
+  var touch = e.touches ? e.touches[0] : e;
+  _cropState.dragging = true;
+  _cropState.startX = touch.clientX - _cropState.imgLeft;
+  _cropState.startY = touch.clientY - _cropState.imgTop;
+  var frame = document.getElementById('pp-pg-crop-frame');
+  if (frame) frame.style.cursor = 'grabbing';
+  var onMove = function(ev) {
+    if (!_cropState.dragging) return;
+    var t = ev.touches ? ev.touches[0] : ev;
+    var img = document.getElementById('pp-pg-crop-img');
+    var frame = document.getElementById('pp-pg-crop-frame');
+    if (!img || !frame) return;
+    var fw = frame.offsetWidth, fh = frame.offsetHeight;
+    var iw = parseFloat(img.style.width), ih = parseFloat(img.style.height);
+    var newL = Math.min(0, Math.max(fw - iw, t.clientX - _cropState.startX));
+    var newT = Math.min(0, Math.max(fh - ih, t.clientY - _cropState.startY));
+    img.style.left = newL + 'px';
+    img.style.top  = newT + 'px';
+    _cropState.imgLeft = newL;
+    _cropState.imgTop  = newT;
+    ppPageUpdateCoverPosition();
+  };
+  var onEnd = function() {
+    _cropState.dragging = false;
+    var frame = document.getElementById('pp-pg-crop-frame');
+    if (frame) frame.style.cursor = 'grab';
+    document.removeEventListener('mousemove', onMove);
+    document.removeEventListener('mouseup', onEnd);
+    document.removeEventListener('touchmove', onMove);
+    document.removeEventListener('touchend', onEnd);
+  };
+  document.addEventListener('mousemove', onMove);
+  document.addEventListener('mouseup', onEnd);
+  document.addEventListener('touchmove', onMove, { passive: false });
+  document.addEventListener('touchend', onEnd);
+}
+
+function ppPageUpdateCoverPosition() {
+  var img   = document.getElementById('pp-pg-crop-img');
+  var frame = document.getElementById('pp-pg-crop-frame');
+  if (!img || !frame) return;
+  var fw = frame.offsetWidth, fh = frame.offsetHeight;
+  var iw = parseFloat(img.style.width), ih = parseFloat(img.style.height);
+  var l  = parseFloat(img.style.left) || 0;
+  var t  = parseFloat(img.style.top)  || 0;
+  // Convert to percentage: what % of the image is at the left/top of the frame
+  var pctX = iw > fw ? Math.round((-l / (iw - fw)) * 100) : 50;
+  var pctY = ih > fh ? Math.round((-t / (ih - fh)) * 100) : 50;
+  _ppPageData._coverPosition = pctX + '% ' + pctY + '%';
+  ppPageUpdateMiniPreview();
+}
+
+function ppPageInitCropFromUrl(url, position) {
+  var wrap = document.getElementById('pp-pg-crop-wrap');
+  var img  = document.getElementById('pp-pg-crop-img');
+  if (!wrap || !img || !url) return;
+  img.src = url;
+  img.onload = function() {
+    wrap.style.display = 'block';
+    var frame = document.getElementById('pp-pg-crop-frame');
+    if (!frame) return;
+    var fw = frame.offsetWidth || 300;
+    var fh = frame.offsetHeight || (fw * 9/16);
+    var iw = img.naturalWidth, ih = img.naturalHeight;
+    var scale = Math.max(fw/iw, fh/ih);
+    var sw = iw*scale, sh = ih*scale;
+    img.style.width = sw+'px'; img.style.height = sh+'px';
+    // Restore saved position
+    var parts = (position||'50% 50%').split(' ');
+    var px = parseFloat(parts[0])||50, py = parseFloat(parts[1])||50;
+    img.style.left = (-((sw-fw)*px/100))+'px';
+    img.style.top  = (-((sh-fh)*py/100))+'px';
+    _cropState.imgLeft = parseFloat(img.style.left);
+    _cropState.imgTop  = parseFloat(img.style.top);
+    _ppPageData._coverPosition = position || '50% 50%';
+  };
+}
+
 // ── Layout selector ───────────────────────────────────────────────
 var _ppSelectedLayout = 'grid';
 
@@ -17046,8 +17172,8 @@ async function ppPageInit() {
   try {
     var uid = currentUser && currentUser.id;
     var res = uid 
-      ? await db_client.from('user_profiles').select('full_name,partner_name,page_slug,page_status,page_tagline,page_description,page_logo,page_cover,page_color,page_experiences').eq('id', uid).maybeSingle()
-      : await db_client.from('user_profiles').select('full_name,partner_name,page_slug,page_status,page_tagline,page_description,page_logo,page_cover,page_color,page_experiences').eq('email', email).maybeSingle();
+      ? await db_client.from('user_profiles').select('full_name,partner_name,page_slug,page_status,page_tagline,page_description,page_logo,page_cover,page_cover_position,page_color,page_experiences,page_layout').eq('id', uid).maybeSingle()
+      : await db_client.from('user_profiles').select('full_name,partner_name,page_slug,page_status,page_tagline,page_description,page_logo,page_cover,page_cover_position,page_color,page_experiences,page_layout').eq('email', email).maybeSingle();
     var d = res.data || {};
     _ppPageData = d;
     // Populate step 1
@@ -17059,7 +17185,7 @@ async function ppPageInit() {
     if (d.page_color) document.getElementById('pp-pg-color').value = d.page_color;
     if (d.page_layout) { ppPageSetLayout(null, d.page_layout); }
     if (d.page_logo)  { var lp = document.getElementById('pp-pg-logo-preview');  if (lp) { lp.src = d.page_logo;  lp.style.display = 'block'; } }
-    if (d.page_cover) { var cp = document.getElementById('pp-pg-cover-preview'); if (cp) { cp.src = d.page_cover; cp.style.display = 'block'; } }
+    if (d.page_cover) setTimeout(function(){ ppPageInitCropFromUrl(d.page_cover, d.page_cover_position); }, 100);
     ppPageUpdateMiniPreview();
     // Update status badge
     ppPageUpdateStatusBadge(d.page_status || 'draft');
@@ -17134,7 +17260,9 @@ function ppPageUpdateMiniPreview() {
   var mini  = document.getElementById('pp-pg-mini-preview');
   var mName = document.getElementById('pp-pg-mini-name');
   var mLogo = document.getElementById('pp-pg-mini-logo');
-  if (mini)  mini.style.background = 'linear-gradient(135deg,' + color + 'cc,#1a1a2e)';
+  var coverUrl = _ppPageData.page_cover || '';
+  var coverPos = _ppPageData._coverPosition || '50% 30%';
+  if (mini) mini.style.background = coverUrl ? 'url('+coverUrl+') '+coverPos+'/cover' : 'linear-gradient(135deg,'+color+'cc,#1a1a2e)';
   if (mName) mName.textContent = name;
   if (mLogo) { if (logo) { mLogo.src = logo; mLogo.style.display = 'block'; } else mLogo.style.display = 'none'; }
 }
@@ -17205,7 +17333,8 @@ function ppPageRenderPreview() {
   var layout  = ppPageGetLayout();
   var logo    = _ppPageData.page_logo  || '';
   var cover   = _ppPageData.page_cover || '';
-  var coverBg = cover ? 'url('+cover+') center/cover' : 'linear-gradient(135deg,'+color+'cc,#1a1a2e)';
+  var coverPos2 = _ppPageData._coverPosition || _ppPageData.page_cover_position || '50% 30%';
+  var coverBg = cover ? 'url('+cover+') '+coverPos2+'/cover' : 'linear-gradient(135deg,'+color+'cc,#1a1a2e)';
 
   // Get ordered experiences from rows
   var expRows = Array.from(document.querySelectorAll('#pp-pg-exp-list .pp-exp-row'));
@@ -17369,7 +17498,7 @@ async function ppPageSave() {
       }
     }
     // Upload cover if new file selected
-    var coverFile = document.getElementById('pp-pg-cover-file')?.files?.[0];
+    var coverFile = _ppPageData._pendingCoverFile || (document.getElementById('pp-pg-cover-file')?.files?.[0]);
     if (coverFile) {
       var cs = document.getElementById('pp-pg-cover-status');
       if (cs) cs.textContent = 'Uploading…';
