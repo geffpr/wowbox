@@ -17056,32 +17056,134 @@ var BLOCK_LABELS = {
   reviews:'⭐ Reviews', gift_vouchers:'🎁 Gift Vouchers'
 };
 
+// ── Blocks step with drag+drop + per-block colors ────────────────
+var _ppBlockSettings = {}; // block_id → {bg, text}
+
+var BLOCK_DEFS = [
+  { id:'hotel_booking',      icon:'fa-bed',           label:'Hotel Booking',      desc:'Check-in/out dates, room type, number of guests',    booking:true },
+  { id:'restaurant_booking', icon:'fa-utensils',      label:'Restaurant Booking', desc:'Date, time, party size, section preference',          booking:true },
+  { id:'spa_booking',        icon:'fa-spa',           label:'Spa Booking',        desc:'Treatment, therapist, date and time slot',            booking:true },
+  { id:'activity_booking',   icon:'fa-person-hiking', label:'Activity Booking',   desc:'Date, participants, activity type',                   booking:true },
+  { id:'photo_gallery',      icon:'fa-images',        label:'Photo Gallery',      desc:'Showcase your venue with a photo grid',              booking:false },
+  { id:'map_contact',        icon:'fa-location-dot',  label:'Map & Contact',      desc:'Address, phone, email, opening hours',               booking:false },
+  { id:'reviews',            icon:'fa-star',          label:'Reviews',            desc:'Display guest reviews from your experiences',        booking:false },
+  { id:'gift_vouchers',      icon:'fa-gift',          label:'Gift Vouchers',      desc:'Sell digital gift cards for your venue',             booking:false }
+];
+
 function ppPageLoadBlocks() {
   var saved = _ppPageData.page_blocks || [];
-  document.querySelectorAll('.pp-block-card').forEach(function(card){
-    card.classList.toggle('active', saved.includes(card.dataset.block));
-  });
+  // Normalize saved to objects
+  var savedObjs = saved.map(function(b){ return typeof b === 'string' ? {id:b} : b; });
+  var savedIds  = savedObjs.map(function(b){ return b.id; });
+  _ppBlockSettings = {};
+  savedObjs.forEach(function(b){ if(b.id) _ppBlockSettings[b.id] = {bg:b.bg||'', text:b.text||''}; });
+
+  var grid = document.getElementById('pp-blocks-grid');
+  if (!grid) return;
+
+  // Render with drag handles + color pickers
+  grid.innerHTML = BLOCK_DEFS.map(function(def){
+    var isActive = savedIds.includes(def.id);
+    var sett = _ppBlockSettings[def.id] || {};
+    return '<div class="pp-block-card'+(isActive?' active':'')+'" data-block="'+def.id+'" draggable="true" '
+      + 'style="border:2px solid '+(isActive?'var(--b600)':'var(--border)')+';border-radius:10px;padding:14px;cursor:pointer;position:relative;background:'+(isActive?'var(--b50)':'#fff')+'">'
+      + '<div style="display:flex;align-items:flex-start;gap:10px">'
+      + '<i class="fa fa-grip-lines" style="color:var(--muted);cursor:grab;margin-top:3px;flex-shrink:0" title="Drag to reorder"></i>'
+      + '<div onclick="ppPageToggleBlock(this.closest(\'.pp-block-card\'))" style="flex:1;cursor:pointer">'
+      + '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">'
+      + '<i class="fa '+def.icon+'" style="color:'+(isActive?'var(--b600)':'var(--muted)')+';font-size:.9rem"></i>'
+      + '<span style="font-weight:700;font-size:.88rem;color:var(--navy)">'+def.label+'</span>'
+      + (isActive ? '<span style="font-size:.7rem;color:var(--b600);font-weight:700">✓ Active</span>' : '')
+      + '</div>'
+      + '<div style="font-size:.74rem;color:var(--muted)">'+def.desc+'</div>'
+      + '</div>'
+      + '</div>'
+      // Color settings (only for non-booking blocks, shown when active)
+      + (!def.booking && isActive ? '<div class="pp-block-colors" style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border);display:flex;gap:12px;align-items:center">'
+          + '<div style="display:flex;align-items:center;gap:6px;font-size:.72rem;color:var(--muted)"><span>Background</span><input type="color" value="'+(sett.bg||'#1e1e1e')+'" onchange="ppPageBlockColorChange(this,this.dataset.prop)" data-prop="bg" data-bid="'+def.id+'"  onclick="event.stopPropagation()" style="width:28px;height:22px;border:1px solid var(--border);border-radius:4px;cursor:pointer;padding:1px"></div>'
+          + '<div style="display:flex;align-items:center;gap:6px;font-size:.72rem;color:var(--muted)"><span>Text</span><input type="color" value="'+(sett.text||'#ffffff')+'" onchange="ppPageBlockColorChange(this,this.dataset.prop)" data-prop="text" data-bid="'+def.id+'"  onclick="event.stopPropagation()" style="width:28px;height:22px;border:1px solid var(--border);border-radius:4px;cursor:pointer;padding:1px"></div>'
+          + '</div>' : '')
+      + '</div>';
+  }).join('');
+
+  ppPageInitBlocksDrag(grid);
   ppPageUpdateBlocksLabel();
 }
 
 function ppPageToggleBlock(card) {
-  card.classList.toggle('active');
+  var isActive = card.classList.toggle('active');
+  var blockId = card.dataset.block;
+  card.style.border = '2px solid ' + (isActive ? 'var(--b600)' : 'var(--border)');
+  card.style.background = isActive ? 'var(--b50)' : '#fff';
+  var icon = card.querySelector('.fa[class*="fa-"]:not(.fa-grip)');
+  if (icon) icon.style.color = isActive ? 'var(--b600)' : 'var(--muted)';
+  // Show/hide color pickers for non-booking blocks
+  var def = BLOCK_DEFS.find(function(d){ return d.id === blockId; });
+  if (def && !def.booking) {
+    var existing = card.querySelector('.pp-block-colors');
+    if (isActive && !existing) {
+      var sett = _ppBlockSettings[blockId] || {};
+      var div = document.createElement('div');
+      div.className = 'pp-block-colors';
+      div.style.cssText = 'margin-top:12px;padding-top:10px;border-top:1px solid var(--border);display:flex;gap:12px;align-items:center';
+      div.innerHTML = '<div style="display:flex;align-items:center;gap:6px;font-size:.72rem;color:var(--muted)"><span>Background</span><input type="color" value="'+(sett.bg||'#1e1e1e')+'" onchange="ppPageBlockColorChange(this,this.dataset.prop)" data-prop="bg" data-bid="'+blockId+'" onclick="event.stopPropagation()" style="width:28px;height:22px;border:1px solid var(--border);border-radius:4px;cursor:pointer;padding:1px"></div>'
+        + '<div style="display:flex;align-items:center;gap:6px;font-size:.72rem;color:var(--muted)"><span>Text</span><input type="color" value="'+(sett.text||'#ffffff')+'" onchange="ppPageBlockColorChange(this,this.dataset.prop)" data-prop="text" data-bid="'+blockId+'" onclick="event.stopPropagation()" style="width:28px;height:22px;border:1px solid var(--border);border-radius:4px;cursor:pointer;padding:1px"></div>';
+      card.appendChild(div);
+    } else if (!isActive && existing) {
+      existing.remove();
+    }
+  }
   ppPageUpdateBlocksLabel();
 }
 
+function ppPageBlockColorChange(input, prop) {
+  var blockId = input.dataset.bid;
+  var p = prop || input.dataset.prop;
+  if (blockId && p) ppPageSetBlockColor(blockId, p, input.value);
+}
+
+function ppPageSetBlockColor(blockId, prop, value) {
+  if (!_ppBlockSettings[blockId]) _ppBlockSettings[blockId] = {};
+  _ppBlockSettings[blockId][prop] = value;
+}
+
 function ppPageUpdateBlocksLabel() {
-  var active = Array.from(document.querySelectorAll('.pp-block-card.active')).map(function(c){ return BLOCK_LABELS[c.dataset.block]||c.dataset.block; });
+  var active = Array.from(document.querySelectorAll('.pp-block-card.active')).map(function(c){ 
+    var def = BLOCK_DEFS.find(function(d){ return d.id===c.dataset.block; });
+    return def ? def.label : c.dataset.block;
+  });
   var el = document.getElementById('pp-blocks-active');
-  if (el) el.textContent = active.length ? 'Active: ' + active.join(' · ') : 'No blocks selected — only the base page will show.';
+  if (el) el.textContent = active.length ? active.length + ' block(s) active: ' + active.join(' · ') : 'No blocks selected.';
+}
+
+function ppPageInitBlocksDrag(el) {
+  if (!el) return;
+  var dragging = null;
+  el.querySelectorAll('.pp-block-card').forEach(function(row){
+    row.addEventListener('dragstart', function(e){ dragging=row; row.style.opacity='.4'; e.dataTransfer.effectAllowed='move'; });
+    row.addEventListener('dragend',   function(){ row.style.opacity='1'; dragging=null; });
+    row.addEventListener('dragover',  function(e){ e.preventDefault(); if(dragging&&dragging!==row){ var r=row.getBoundingClientRect(); el.insertBefore(dragging, e.clientY<r.top+r.height/2?row:row.nextSibling); } });
+  });
 }
 
 async function ppPageSaveBlocks() {
-  var blocks = Array.from(document.querySelectorAll('.pp-block-card.active')).map(function(c){ return c.dataset.block; });
+  var rows = Array.from(document.querySelectorAll('#pp-blocks-grid .pp-block-card.active'));
+  var blocks = rows.map(function(c){
+    var id = c.dataset.block;
+    var sett = _ppBlockSettings[id] || {};
+    var obj = {id: id};
+    if (sett.bg)   obj.bg   = sett.bg;
+    if (sett.text) obj.text = sett.text;
+    return obj;
+  });
   _ppPageData.page_blocks = blocks;
   var uid = currentUser && currentUser.id;
   if (!uid) return;
-  try { await db_client.from('user_profiles').update({ page_blocks: blocks }).eq('id', uid); } catch(e) { console.warn(e); }
+  try { await db_client.from('user_profiles').update({ page_blocks: blocks }).eq('id', uid); }
+  catch(e) { console.warn('ppPageSaveBlocks:', e.message); }
 }
+
+
 
 // ── Public page: render active blocks ────────────────────────────
 // ── Public page: render blocks (premium luxury style) ─────────────
@@ -17197,7 +17299,7 @@ function psRenderBlocks(blocks, p, color) {
   // ── BOOKING WIDGET ───────────────────────────────────────────────
   var bookingEl = document.getElementById('ps-booking-widget');
   if (bookingEl && bookingBlocks.length) {
-    var BTABS  = { hotel_booking:'🏨 Stay', restaurant_booking:'🍽️ Dine', spa_booking:'🧖 Relax', activity_booking:'🏄 Activities' };
+    var BTABS  = { hotel_booking:'<i class="fa fa-bed"></i> Stay', restaurant_booking:'<i class="fa fa-utensils"></i> Dine', spa_booking:'<i class="fa fa-spa"></i> Relax', activity_booking:'<i class="fa fa-person-hiking"></i> Activities' };
     // Init active state: first block only
     _psActiveBlocks = {};
     _psActiveBlocks[bookingBlocks[0]] = true;
@@ -17225,20 +17327,25 @@ function psRenderBlocks(blocks, p, color) {
   var belowHtml = '';
 
   if (otherBlocks.includes('reviews')) {
-    belowHtml += '<div style="background:#1e1e1e;padding:64px 40px">'
+    var revBlock = (p.page_blocks||[]).find(function(b){ return (b.id||b)==='reviews'; });
+    var revBg   = (revBlock&&revBlock.bg)   || '#1e1e1e';
+    var revText = (revBlock&&revBlock.text) || '#ffffff';
+    belowHtml += '<div style="background:'+revBg+';padding:64px 40px">'
       +'<div style="max-width:1100px;margin:0 auto">'
       +'<div style="font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.18em;color:'+color+';margin-bottom:10px;text-align:center">What our guests say</div>'
-      +'<h2 style="font-family:\'Cormorant Garamond\',serif;font-size:2.4rem;font-style:italic;font-weight:400;color:#fff;text-align:center;margin-bottom:44px">Unforgettable moments</h2>'
+      +'<h2 style="font-family:\'Cormorant Garamond\',serif;font-size:2.4rem;font-style:italic;font-weight:400;color:'+revText+';text-align:center;margin-bottom:44px">Unforgettable moments</h2>'
       +'<div style="display:flex;gap:20px;overflow-x:auto;padding-bottom:12px;scrollbar-width:none">'
       +'<div style="flex-shrink:0;border:1px solid rgba(255,255,255,.1);border-radius:14px;padding:28px;min-width:280px;max-width:320px">'
       +'<div style="font-size:2.4rem;color:'+color+';line-height:1;margin-bottom:14px">❝</div>'
-      +'<p style="font-size:.92rem;line-height:1.75;color:rgba(255,255,255,.8);font-style:italic;margin-bottom:18px">Guest reviews will appear here once customers start booking.</p>'
+      +'<p style="font-size:.92rem;line-height:1.75;color:'+revText+'99;font-style:italic;margin-bottom:18px">Guest reviews will appear here once customers start booking.</p>'
       +'<div style="font-size:.75rem;color:'+color+'">★★★★★</div>'
       +'</div></div></div></div>';
   }
 
   if (otherBlocks.includes('gift_vouchers')) {
-    belowHtml += '<div style="background:#fdf8f4;padding:72px 40px">'
+    var gvBlock = (p.page_blocks||[]).find(function(b){ return (b.id||b)==='gift_vouchers'; });
+    var gvBg    = (gvBlock&&gvBlock.bg) || '#fdf8f4';
+    belowHtml += '<div style="background:'+gvBg+';padding:72px 40px">'
       +'<div style="max-width:1100px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr;gap:60px;align-items:center">'
       +'<div><div style="font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.18em;color:'+color+';margin-bottom:14px">Gift Experiences</div>'
       +'<h2 style="font-family:\'Cormorant Garamond\',serif;font-size:3rem;font-weight:400;color:#1a1a2e;line-height:1.15;margin-bottom:18px">The gift of an<br><em>unforgettable moment</em></h2>'
@@ -17740,6 +17847,35 @@ function ppPageRenderPreview() {
     + buildGrid()
     + '<div style="margin-top:28px;padding-top:16px;border-top:1px solid var(--border);text-align:center;font-size:.74rem;color:var(--muted)">Powered by <strong style="color:'+color+'">WowBox</strong></div>'
     + '</div></div>';
+
+  // ── Append block previews ──────────────────────────────────────
+  var activeBlockObjs = Array.from(document.querySelectorAll('#pp-blocks-grid .pp-block-card.active')).map(function(c){
+    var id = c.dataset.block;
+    var sett = _ppBlockSettings[id] || {};
+    return Object.assign({id:id}, sett);
+  });
+  if (activeBlockObjs.length) {
+    var bookingActives = activeBlockObjs.filter(function(b){ return _psBookingBlocks.includes(b.id); });
+    var otherActives   = activeBlockObjs.filter(function(b){ return !_psBookingBlocks.includes(b.id); });
+    if (bookingActives.length) {
+      var BICONS = { hotel_booking:'<i class="fa fa-bed"></i> Stay', restaurant_booking:'<i class="fa fa-utensils"></i> Dine', spa_booking:'<i class="fa fa-spa"></i> Relax', activity_booking:'<i class="fa fa-person-hiking"></i> Activities' };
+      pageHTML += '<div style="background:'+color+';padding:20px 24px">'
+        + '<div style="display:flex;gap:6px;margin-bottom:14px">'
+        + bookingActives.map(function(b,i){ return '<span style="background:'+(i===0?'#fff':'rgba(255,255,255,.2)')+';color:'+(i===0?color:'#fff')+';border-radius:99px;padding:7px 18px;font-size:.8rem;font-weight:700">'+(BICONS[b.id]||b.id)+'</span>'; }).join('')
+        + '</div>'
+        + '<div style="background:#fff;border-radius:10px;padding:16px;font-size:.8rem;color:#9ca3af;font-style:italic;max-width:700px">Search bar · ' + bookingActives.map(function(b){ return (BICONS[b.id]||b.id).replace(/<[^>]+>/g,''); }).join(' + ') + ' fields</div>'
+        + '</div>';
+    }
+    otherActives.forEach(function(b){
+      var def = BLOCK_DEFS.find(function(d){ return d.id===b.id; });
+      var bg   = b.bg   || (b.id==='reviews'?'#1e1e1e':(b.id==='gift_vouchers'?'#fdf8f4':'#ffffff'));
+      var text = b.text || (b.id==='reviews'?'#ffffff':'#1a1a2e');
+      pageHTML += '<div style="background:'+bg+';padding:32px 24px;text-align:center">'
+        + '<div style="font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.14em;color:'+color+';margin-bottom:8px">'+(def?def.label:b.id)+'</div>'
+        + '<div style="font-family:\'Cormorant Garamond\',serif;font-size:1.6rem;font-style:italic;color:'+text+';opacity:.7">'+(def?def.desc:'')+'</div>'
+        + '</div>';
+    });
+  }
 
   // Build preview with toggle + social card
   wrap.innerHTML = ''
