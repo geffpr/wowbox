@@ -17614,6 +17614,82 @@ function bkwBackToExp() {
   window.scrollTo(0,0);
 }
 
+function psGalleryOpen(gid, idx) {
+  var g = (window._psGalleries||{})[gid];
+  if (!g) return;
+  g.cur = idx;
+  var lb = document.getElementById(gid+'-lb');
+  var img = document.getElementById(gid+'-lb-img');
+  var cnt = document.getElementById(gid+'-lb-cnt');
+  if (!lb || !img) return;
+  img.src = g.imgs[idx];
+  if (cnt) cnt.textContent = (idx+1) + ' / ' + g.imgs.length;
+  lb.style.display = 'block';
+  document.body.style.overflow = 'hidden';
+  // Keyboard nav
+  g._keyHandler = function(e) {
+    if (e.key === 'ArrowLeft')  psGalleryNav(gid, -1);
+    if (e.key === 'ArrowRight') psGalleryNav(gid, 1);
+    if (e.key === 'Escape')     psGalleryClose(gid);
+  };
+  document.addEventListener('keydown', g._keyHandler);
+  // Touch/swipe
+  var lbEl = lb;
+  var tx = 0;
+  lbEl._touchStart = function(e){ tx = e.touches[0].clientX; };
+  lbEl._touchEnd   = function(e){
+    var dx = e.changedTouches[0].clientX - tx;
+    if (Math.abs(dx) > 50) psGalleryNav(gid, dx < 0 ? 1 : -1);
+  };
+  lbEl.addEventListener('touchstart', lbEl._touchStart, {passive:true});
+  lbEl.addEventListener('touchend',   lbEl._touchEnd,   {passive:true});
+}
+
+function psGalleryClose(gid) {
+  var g = (window._psGalleries||{})[gid];
+  var lb = document.getElementById(gid+'-lb');
+  if (lb) lb.style.display = 'none';
+  document.body.style.overflow = '';
+  if (g && g._keyHandler) document.removeEventListener('keydown', g._keyHandler);
+  if (lb && lb._touchStart) lb.removeEventListener('touchstart', lb._touchStart);
+  if (lb && lb._touchEnd)   lb.removeEventListener('touchend',   lb._touchEnd);
+}
+
+function psGalleryNav(gid, dir) {
+  var g = (window._psGalleries||{})[gid];
+  if (!g) return;
+  g.cur = (g.cur + dir + g.imgs.length) % g.imgs.length;
+  var img = document.getElementById(gid+'-lb-img');
+  var cnt = document.getElementById(gid+'-lb-cnt');
+  if (img) img.src = g.imgs[g.cur];
+  if (cnt) cnt.textContent = (g.cur+1) + ' / ' + g.imgs.length;
+}
+
+function psGalleryShowAll(gid) {
+  var g = (window._psGalleries||{})[gid];
+  if (!g) return;
+  var grid = document.getElementById(gid+'-grid');
+  var btn  = document.getElementById(gid+'-btn');
+  if (!grid) return;
+  // Append remaining photos
+  var existing = grid.querySelectorAll('div').length;
+  var remaining = g.imgs.slice(existing);
+  remaining.forEach(function(img, i){
+    var idx = existing + i;
+    var div = document.createElement('div');
+    div.style.cssText = 'cursor:pointer;overflow:hidden;border-radius:10px;break-inside:avoid;margin-bottom:10px';
+    div.onclick = function(){ psGalleryOpen(gid, idx); };
+    var im = document.createElement('img');
+    im.src = img; im.loading = 'lazy';
+    im.style.cssText = 'width:100%;display:block;transition:transform .3s';
+    im.onmouseover = function(){ this.style.transform='scale(1.04)'; };
+    im.onmouseout  = function(){ this.style.transform='scale(1)'; };
+    div.appendChild(im);
+    grid.appendChild(div);
+  });
+  if (btn) btn.style.display = 'none';
+}
+
 function bkwBackToPartner() {
   var slug = _bkwState.partnerSlug || '';
   history.pushState(null,'','/wow/'+slug);
@@ -18213,15 +18289,48 @@ function psRenderBlocks(blocks, p, color, exps, partnerContact, slug) {
       if (Array.isArray(e.images)) e.images.forEach(function(img){ if(img && !allImgs.includes(img)) allImgs.push(img); });
     });
     if (allImgs.length) {
-      belowHtml += '<div style="background:'+galleryBg+';padding:64px 40px">'
-        +'<div style="max-width:1100px;margin:0 auto">'
-        +'<div style="font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.18em;color:'+color+';margin-bottom:10px;text-align:center">Photo Gallery</div>'
-        +'<h2 style="font-family:\'Cormorant Garamond\',serif;font-size:2.2rem;font-style:italic;font-weight:400;color:#fff;text-align:center;margin-bottom:32px">Our venues &amp; experiences</h2>'
-        +'<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px">'
-        + allImgs.slice(0,30).map(function(img){
-            return '<div style="aspect-ratio:4/3;overflow:hidden;border-radius:10px"><img src="'+img+'" style="width:100%;height:100%;object-fit:cover" loading="lazy"></div>';
-          }).join('')
-        +'</div></div></div>';
+      var gid = 'ps-gallery-' + Date.now();
+      var previewImgs = allImgs.slice(0, 6);
+      var totalCount = allImgs.length;
+
+      var thumbs = function(imgs) {
+        return imgs.map(function(img, i){
+          return '<div onclick="psGalleryOpen(\''+gid+'\','+i+')" style="cursor:pointer;overflow:hidden;border-radius:10px;break-inside:avoid;margin-bottom:10px">'
+            + '<img src="'+img+'" loading="lazy" style="width:100%;display:block;transition:transform .3s" onmouseover="this.style.transform=\'scale(1.04)\'" onmouseout="this.style.transform=\'scale(1)\'">'
+            + '</div>';
+        }).join('');
+      };
+
+      belowHtml += '<div style="background:'+galleryBg+';padding:64px 40px" id="'+gid+'-wrap">'
+        + '<div style="max-width:1100px;margin:0 auto">'
+        + '<div style="font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.18em;color:'+color+';margin-bottom:10px;text-align:center">Photo Gallery</div>'
+        + '<h2 style="font-family:\'Cormorant Garamond\',serif;font-size:2.2rem;font-style:italic;font-weight:400;color:#fff;text-align:center;margin-bottom:32px">Our venues &amp; experiences</h2>'
+        // Desktop: masonry 4-col, Mobile: 2-col grid
+        + '<div id="'+gid+'-grid" style="column-count:4;column-gap:10px;column-fill:balance">'
+        + '<style>@media(max-width:768px){#'+gid+'-grid{column-count:2}}@media(max-width:480px){#'+gid+'-grid{column-count:2}}</style>'
+        + thumbs(previewImgs)
+        + '</div>'
+        + (totalCount > 6
+            ? '<div style="text-align:center;margin-top:24px">'
+              + '<button id="'+gid+'-btn" onclick="psGalleryShowAll(\''+gid+'\')" style="background:transparent;border:2px solid rgba(255,255,255,.4);color:#fff;border-radius:99px;padding:11px 28px;font-size:.85rem;font-weight:600;cursor:pointer;transition:all .2s" onmouseover="this.style.borderColor=\'#fff\'" onmouseout="this.style.borderColor=\'rgba(255,255,255,.4)\'">'
+              + '<i class="fa fa-images" style="margin-right:8px"></i>Show all photos ('+totalCount+')'
+              + '</button></div>'
+            : '')
+        + '</div></div>'
+        // Lightbox
+        + '<div id="'+gid+'-lb" style="display:none;position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.95);touch-action:pan-y" onclick="if(event.target.id===\''+gid+'-lb\')psGalleryClose(\''+gid+'\')">'
+        + '<button onclick="psGalleryClose(\''+gid+'\')" style="position:fixed;top:16px;right:16px;background:rgba(255,255,255,.15);border:none;color:#fff;border-radius:50%;width:40px;height:40px;font-size:1.2rem;cursor:pointer;z-index:2"><i class="fa fa-xmark"></i></button>'
+        + '<button onclick="psGalleryNav(\''+gid+'\',-1)" style="position:fixed;left:16px;top:50%;transform:translateY(-50%);background:rgba(255,255,255,.15);border:none;color:#fff;border-radius:50%;width:44px;height:44px;font-size:1.2rem;cursor:pointer;z-index:2"><i class="fa fa-chevron-left"></i></button>'
+        + '<button onclick="psGalleryNav(\''+gid+'\',1)" style="position:fixed;right:16px;top:50%;transform:translateY(-50%);background:rgba(255,255,255,.15);border:none;color:#fff;border-radius:50%;width:44px;height:44px;font-size:1.2rem;cursor:pointer;z-index:2"><i class="fa fa-chevron-right"></i></button>'
+        + '<div style="display:flex;align-items:center;justify-content:center;height:100%;padding:60px 80px">'
+        + '<img id="'+gid+'-lb-img" src="" style="max-width:100%;max-height:100%;object-fit:contain;border-radius:8px;user-select:none">'
+        + '</div>'
+        + '<div id="'+gid+'-lb-cnt" style="position:fixed;bottom:20px;left:50%;transform:translateX(-50%);color:rgba(255,255,255,.7);font-size:.82rem;background:rgba(0,0,0,.5);padding:5px 16px;border-radius:99px"></div>'
+        + '</div>';
+
+      // Store gallery data
+      belowHtml += '<script>window._psGalleries=window._psGalleries||{};window._psGalleries["'+gid+'"]={imgs:'+JSON.stringify(allImgs)+',cur:0};<\/script>';
+
     } else {
       belowHtml += '<div style="background:'+galleryBg+';padding:40px;text-align:center;color:rgba(255,255,255,.5);font-size:.88rem">No photos available yet.</div>';
     }
