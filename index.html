@@ -4592,6 +4592,159 @@ tr:hover td{background:var(--b50)}
   </div>
 </div>
 
+<!-- ═══════════════════════ PAGE: BKW EXP DETAIL ═══════════════════════ -->
+<div id="page-bkw-exp" class="page" style="display:none">
+  <div style="max-width:1240px;margin:0 auto;padding:28px 40px 0">
+    <div style="font-size:.73rem;color:var(--muted);display:flex;align-items:center;gap:5px;margin-bottom:20px">
+      <span class="txt-blue" style="cursor:pointer" onclick="bkwBackToPartner()"><i class="fa fa-arrow-left"></i> <span id="bkw-bc-partner">Back</span></span>
+      <i class="fa fa-chevron-right" style="font-size:.55rem"></i>
+      <span id="bkw-bc-expname">Experience</span>
+    </div>
+  </div>
+  <div class="exp-detail-layout">
+    <div>
+      <div class="exp-gallery" style="position:relative">
+        <div class="eg-main"><img id="bkw-main-img" src="" alt=""></div>
+        <div class="eg-side"><img id="bkw-img2" src="" alt=""></div>
+        <div class="eg-side"><img id="bkw-img3" src="" alt=""></div>
+      </div>
+      <div class="tabs" style="margin-bottom:24px">
+        <button class="tab on" onclick="switchBkwTab('overview',this)">Overview</button>
+        <button class="tab" onclick="switchBkwTab('programme',this)">Programme</button>
+        <button class="tab" onclick="switchBkwTab('amenities',this)">Amenities</button>
+        <button class="tab" onclick="switchBkwTab('reviews',this)">Reviews (<span id="bkw-rev-cnt">0</span>)</button>
+      </div>
+      <div id="bkw-tab-overview">
+        <h1 id="bkw-exp-title" style="font-size:2rem;color:var(--navy);margin-bottom:10px"></h1>
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px">
+          <span id="bkw-exp-stars" class="stars-link"></span>
+          <span class="txt-sm txt-muted" id="bkw-exp-rating-cnt"></span>
+          <span id="bkw-exp-type-badge" class="rtype-badge rt-activity"></span>
+        </div>
+        <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:22px">
+          <span style="font-size:.82rem;color:var(--slate);display:flex;align-items:center;gap:5px" id="bkw-exp-loc"><i class="fa fa-location-dot" style="color:var(--b400)"></i></span>
+          <span style="font-size:.82rem;color:var(--slate);display:flex;align-items:center;gap:5px" id="bkw-exp-partner-disp"><i class="fa fa-building" style="color:var(--b400)"></i></span>
+          <span style="font-size:.82rem;color:var(--slate);display:flex;align-items:center;gap:5px" id="bkw-exp-cap-disp"><i class="fa fa-users" style="color:var(--b400)"></i></span>
+        </div>
+        <p id="bkw-exp-desc-full" style="color:var(--slate);font-size:.88rem;line-height:1.8"></p>
+      </div>
+      <div id="bkw-tab-programme" style="display:none">
+        <h3 style="font-size:1.3rem;color:var(--navy);margin-bottom:16px">Your programme</h3>
+        <div class="program-list" id="bkw-prog-list"></div>
+      </div>
+      <div id="bkw-tab-amenities" style="display:none">
+        <h3 style="font-size:1.3rem;color:var(--navy);margin-bottom:16px">Amenities &amp; inclusions</h3>
+        <div class="amenities" id="bkw-amenities"></div>
+      </div>
+      <div id="bkw-tab-reviews" style="display:none">
+        <div class="exp-rev-grid" style="display:grid;grid-template-columns:220px 1fr;gap:24px;margin-bottom:24px">
+          <div class="rv-score-big">
+            <div class="big-num" id="bkw-rv-num">—</div>
+            <div style="color:var(--amber);font-size:1.1rem;margin:4px 0" id="bkw-rv-stars"></div>
+            <div style="font-size:.73rem;color:var(--muted)" id="bkw-rv-total"></div>
+          </div>
+          <div class="rev-grid" style="grid-template-columns:1fr" id="bkw-rev-list"></div>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div style="position:sticky;top:80px">
+        <div class="res-form-wrap">
+          <div id="bkw-price-display" style="margin-bottom:18px;padding:14px 16px;background:var(--b50);border-radius:10px;border:1px solid var(--b100)">
+            <div style="font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--b600);margin-bottom:4px">Price</div>
+            <div id="bkw-price-tag" style="font-size:1.5rem;font-weight:700;color:var(--navy)"></div>
+            <div id="bkw-price-sub" style="font-size:.75rem;color:var(--muted);margin-top:2px"></div>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+            <div id="bkw-form-badge" class="rtype-badge rt-activity"></div>
+            <h3 class="res-form-title" style="margin-bottom:0">Reserve this experience</h3>
+          </div>
+          <div id="bkw-fields"></div>
+          <div id="bkw-summary" style="display:none;background:var(--bg);border-radius:8px;padding:12px 14px;margin-top:16px;font-size:.83rem">
+            <div style="display:flex;justify-content:space-between;color:var(--muted);margin-bottom:4px">
+              <span id="bkw-sum-line">Experience</span><span id="bkw-sum-exp-amt">—</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;color:var(--muted);margin-bottom:8px">
+              <span>Service fee</span><span id="bkw-sum-fee-amt">—</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;font-weight:700;color:var(--navy);border-top:1px solid var(--border);padding-top:8px">
+              <span>Total</span><span id="bkw-sum-total-amt">—</span>
+            </div>
+          </div>
+          <button class="btn bp block" style="margin-top:16px" onclick="bkwGoCheckout()">
+            <i class="fa fa-arrow-right"></i> Confirm reservation
+          </button>
+          <div style="display:flex;gap:18px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);flex-wrap:wrap">
+            <span style="font-size:.68rem;color:var(--muted);display:flex;align-items:center;gap:4px"><i class="fa fa-shield-halved" style="color:var(--b400)"></i> Secure</span>
+            <span style="font-size:.68rem;color:var(--muted);display:flex;align-items:center;gap:4px"><i class="fa fa-rotate-left" style="color:var(--b400)"></i> Free cancellation</span>
+            <span style="font-size:.68rem;color:var(--muted);display:flex;align-items:center;gap:4px"><i class="fa fa-headset" style="color:var(--b400)"></i> 24/7 support</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════ PAGE: BKW CHECKOUT ═══════════════════════ -->
+<div id="page-bkw-checkout" class="page" style="display:none">
+  <div style="max-width:720px;margin:0 auto;padding:40px 24px">
+    <div style="font-size:.73rem;color:var(--muted);margin-bottom:24px">
+      <span class="txt-blue" style="cursor:pointer" onclick="bkwBackToExp()"><i class="fa fa-arrow-left"></i> Back to experience</span>
+    </div>
+    <h2 style="font-family:'Cormorant Garamond',serif;font-size:2rem;color:var(--navy);margin-bottom:6px">Complete your booking</h2>
+    <p style="font-size:.85rem;color:var(--muted);margin-bottom:32px">Review your order and enter your details to pay.</p>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:28px">
+      <div>
+        <div style="font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:14px">Order summary</div>
+        <div style="background:var(--bg);border-radius:12px;padding:20px;border:1px solid var(--border)">
+          <div id="bkw-co-exp-name" style="font-size:.95rem;font-weight:700;color:var(--navy);margin-bottom:12px"></div>
+          <div id="bkw-co-details" style="font-size:.82rem;color:var(--slate);line-height:2;margin-bottom:16px"></div>
+          <div style="border-top:1px solid var(--border);padding-top:14px">
+            <div style="display:flex;justify-content:space-between;font-size:.83rem;color:var(--muted);margin-bottom:6px">
+              <span id="bkw-co-price-line">Experience</span><span id="bkw-co-exp-amt">—</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;font-size:.83rem;color:var(--muted);margin-bottom:10px">
+              <span>Service fee</span><span id="bkw-co-fee-amt">—</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;font-size:1.05rem;font-weight:700;color:var(--navy)">
+              <span>Total</span><span id="bkw-co-total-amt">—</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div style="font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:14px">Your details</div>
+        <div class="fg"><label>Full name *</label><input class="fi" id="bkw-co-name" placeholder="Your full name"></div>
+        <div class="fg"><label>Email *</label><input class="fi" type="email" id="bkw-co-email" placeholder="your@email.com"></div>
+        <div id="bkw-co-status" style="font-size:.8rem;color:var(--muted);text-align:center;margin-bottom:8px;min-height:18px"></div>
+        <button id="bkw-co-btn" onclick="bkwSubmitPayment()" class="btn bp block">
+          <i class="fa fa-lock" style="margin-right:8px"></i>Pay securely — <span id="bkw-co-btn-total"></span>
+        </button>
+        <div style="display:flex;gap:18px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);flex-wrap:wrap">
+          <span style="font-size:.68rem;color:var(--muted);display:flex;align-items:center;gap:4px"><i class="fa fa-shield-halved" style="color:var(--b400)"></i> Secure</span>
+          <span style="font-size:.68rem;color:var(--muted);display:flex;align-items:center;gap:4px"><i class="fa fa-rotate-left" style="color:var(--b400)"></i> Free cancellation</span>
+          <span style="font-size:.68rem;color:var(--muted);display:flex;align-items:center;gap:4px"><i class="fa fa-headset" style="color:var(--b400)"></i> 24/7 support</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════ PAGE: BKW CONFIRMATION ═══════════════════════ -->
+<div id="page-bkw-confirm" class="page" style="display:none">
+  <div style="max-width:560px;margin:80px auto;padding:0 24px;text-align:center">
+    <div style="font-size:4rem;margin-bottom:20px">🎉</div>
+    <h2 style="font-family:'Cormorant Garamond',serif;font-size:2.4rem;color:var(--navy);margin-bottom:10px">Booking confirmed!</h2>
+    <p style="color:var(--muted);font-size:.9rem;margin-bottom:32px">A confirmation email has been sent to you.</p>
+    <div style="background:var(--bg);border-radius:14px;padding:24px;margin-bottom:28px;text-align:left">
+      <div style="font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:6px">Booking reference</div>
+      <div id="bkw-conf-ref" style="font-size:1.6rem;font-weight:700;color:var(--navy);font-family:monospace;margin-bottom:16px"></div>
+      <div id="bkw-conf-details" style="font-size:.85rem;color:var(--slate);line-height:2"></div>
+    </div>
+    <button onclick="bkwBackToPartner()" class="btn bp" style="padding:12px 36px">Back to partner page</button>
+  </div>
+</div>
+
 <!-- ═══════════════════════ PAGE: REVIEWS ═══════════════════════ -->
 <div id="page-reviews" class="page">
   <div class="phdr">
@@ -5192,73 +5345,6 @@ tr:hover td{background:var(--b50)}
   <div id="ps-blocks-below"></div>
   <div style="text-align:center;padding:32px;border-top:1px solid var(--border)">
     <div style="font-size:.74rem;color:var(--muted)">Powered by <a href="/" style="color:var(--b600);font-weight:700">WowBox</a></div>
-  </div>
-
-  <!-- BKW FLOW OVERLAY -->
-  <div id="bkw-overlay" style="display:none;position:fixed;inset:0;z-index:9000;background:rgba(0,0,0,.55);overflow-y:auto">
-    <div style="max-width:680px;margin:40px auto;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 24px 80px rgba(0,0,0,.3)">
-      <!-- Step 1: Detail + Form -->
-      <div id="bkw-step-detail">
-        <div id="bkw-exp-hero" style="height:240px;background:#f3f4f6;position:relative">
-          <img id="bkw-exp-img" src="" style="width:100%;height:100%;object-fit:cover">
-          <button onclick="bkwClose()" style="position:absolute;top:14px;right:14px;background:rgba(0,0,0,.5);border:none;color:#fff;border-radius:50%;width:34px;height:34px;font-size:1.1rem;cursor:pointer;display:flex;align-items:center;justify-content:center"><i class="fa fa-xmark"></i></button>
-        </div>
-        <div style="padding:28px 32px">
-          <div id="bkw-exp-category" style="font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.14em;color:var(--b600);margin-bottom:6px"></div>
-          <h2 id="bkw-exp-name" style="font-family:'Cormorant Garamond',serif;font-size:1.9rem;font-weight:700;color:var(--navy);margin-bottom:6px"></h2>
-          <div id="bkw-exp-city" style="font-size:.82rem;color:var(--muted);margin-bottom:14px"></div>
-          <p id="bkw-exp-desc" style="font-size:.88rem;color:#4b5563;line-height:1.75;margin-bottom:24px"></p>
-          <div id="bkw-form-wrap"></div>
-          <div id="bkw-price-summary" style="background:var(--bg);border-radius:10px;padding:16px 20px;margin-top:20px;display:none">
-            <div style="display:flex;justify-content:space-between;font-size:.85rem;color:var(--muted);margin-bottom:6px">
-              <span id="bkw-price-line">Experience</span><span id="bkw-price-exp">—</span>
-            </div>
-            <div style="display:flex;justify-content:space-between;font-size:.85rem;color:var(--muted);margin-bottom:10px">
-              <span>Service fee</span><span id="bkw-price-fee">—</span>
-            </div>
-            <div style="display:flex;justify-content:space-between;font-size:1rem;font-weight:700;color:var(--navy);border-top:1px solid var(--border);padding-top:10px">
-              <span>Total</span><span id="bkw-price-total">—</span>
-            </div>
-          </div>
-          <button id="bkw-btn-pay" onclick="bkwGoPayment()" style="width:100%;margin-top:20px;padding:14px;background:var(--b600);color:#fff;border:none;border-radius:10px;font-size:.95rem;font-weight:700;cursor:pointer">Continue to payment →</button>
-        </div>
-      </div>
-      <!-- Step 2: Payment -->
-      <div id="bkw-step-payment" style="display:none;padding:32px">
-        <div style="display:flex;align-items:center;gap:10px;margin-bottom:24px">
-          <button onclick="bkwBackToDetail()" style="background:none;border:none;cursor:pointer;color:var(--b600);font-size:.85rem;font-weight:600"><i class="fa fa-arrow-left"></i> Back</button>
-          <h3 style="font-family:'Cormorant Garamond',serif;font-size:1.4rem;color:var(--navy);margin:0">Payment details</h3>
-        </div>
-        <div class="fg"><label>Full name *</label><input class="fi" id="bkw-payer-name" placeholder="Your full name"></div>
-        <div class="fg"><label>Email *</label><input class="fi" type="email" id="bkw-payer-email" placeholder="your@email.com"></div>
-        <div style="background:var(--bg);border-radius:10px;padding:16px 20px;margin:20px 0">
-          <div style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:10px">Order summary</div>
-          <div style="display:flex;justify-content:space-between;font-size:.85rem;color:var(--navy);margin-bottom:6px">
-            <span id="bkw-sum-exp">—</span><span id="bkw-sum-price">—</span>
-          </div>
-          <div style="display:flex;justify-content:space-between;font-size:.82rem;color:var(--muted);margin-bottom:10px">
-            <span>Service fee</span><span id="bkw-sum-fee">—</span>
-          </div>
-          <div style="display:flex;justify-content:space-between;font-size:1rem;font-weight:700;color:var(--navy);border-top:1px solid var(--border);padding-top:10px">
-            <span>Total</span><span id="bkw-sum-total">—</span>
-          </div>
-        </div>
-        <div id="bkw-pay-status" style="font-size:.82rem;color:var(--muted);text-align:center;margin-bottom:10px;min-height:18px"></div>
-        <button id="bkw-btn-confirm" onclick="bkwInitiatePayment()" style="width:100%;padding:14px;background:var(--b600);color:#fff;border:none;border-radius:10px;font-size:.95rem;font-weight:700;cursor:pointer"><i class="fa fa-lock" style="margin-right:8px"></i>Pay securely</button>
-      </div>
-      <!-- Step 3: Confirmation -->
-      <div id="bkw-step-confirm" style="display:none;padding:40px;text-align:center">
-        <div style="font-size:3rem;margin-bottom:16px">🎉</div>
-        <h2 style="font-family:'Cormorant Garamond',serif;font-size:2rem;color:var(--navy);margin-bottom:8px">Booking confirmed!</h2>
-        <p style="color:var(--muted);font-size:.88rem;margin-bottom:24px">A confirmation email has been sent to you.</p>
-        <div style="background:var(--bg);border-radius:12px;padding:20px;margin-bottom:24px">
-          <div style="font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:6px">Booking reference</div>
-          <div id="bkw-confirm-ref" style="font-size:1.5rem;font-weight:700;color:var(--navy);font-family:monospace"></div>
-        </div>
-        <div id="bkw-confirm-details" style="font-size:.85rem;color:#4b5563;line-height:1.8;margin-bottom:24px"></div>
-        <button onclick="bkwClose()" style="padding:12px 32px;background:var(--b600);color:#fff;border:none;border-radius:10px;font-weight:700;cursor:pointer">Done</button>
-      </div>
-    </div>
   </div>
 </div>
 
@@ -8909,12 +8995,30 @@ function goFromHash() {
   // ── /p/partner-slug (Partner storefront) ──
   // ── /wow/partner-slug (Partner storefront) ──
   if (path.startsWith('/wow/')) {
-    var partnerSlug = path.replace('/wow/', '').replace(/\/+$/, '');
+    var wowParts = path.replace(/^\/wow\//, '').replace(/\/+$/, '').split('/');
+    var partnerSlug = wowParts[0];
+    var subRoute    = wowParts[1];
+    var subId       = wowParts[2];
     if (partnerSlug) {
-      // Show page directly without go() overwriting URL to /wow
+      if (subRoute === 'exp' && subId) {
+        _bkwState.partnerSlug = partnerSlug;
+        document.querySelectorAll('.page').forEach(function(pg){ pg.style.display='none'; });
+        var pg = document.getElementById('page-bkw-exp');
+        if (pg) pg.style.display = 'block';
+        loadBkwExp(subId, partnerSlug);
+        return;
+      }
+      if ((subRoute === 'checkout' || subRoute === 'confirmed') && subId) {
+        document.querySelectorAll('.page').forEach(function(pg){ pg.style.display='none'; });
+        var psEl = document.getElementById('page-partner-storefront');
+        if (psEl) psEl.style.display = 'block';
+        loadPartnerStorefront(partnerSlug);
+        return;
+      }
       document.querySelectorAll('.page').forEach(function(pg){ pg.style.display='none'; });
-      var psEl = document.getElementById('page-partner-storefront');
-      if (psEl) psEl.style.display = 'block';
+      var psEl2 = document.getElementById('page-partner-storefront');
+      if (psEl2) psEl2.style.display = 'block';
+      _bkwState.partnerSlug = partnerSlug;
       loadPartnerStorefront(partnerSlug);
       return;
     }
@@ -17005,6 +17109,7 @@ async function loadPartnerStorefront(slug) {
     var exps = expRes.data || [];
     if (expIds.length) exps.sort(function(a,b){ return expIds.indexOf(a.id)-expIds.indexOf(b.id); });
     _psAllExps = exps; // store for Search filter
+    _bkwState.partnerName = p.partner_name || p.full_name || '';
     var grid = document.getElementById('ps-exp-grid');
     if (!grid) return;
     var pageLayout = p.page_layout || 'grid';
@@ -17086,216 +17191,338 @@ async function loadPartnerStorefront(slug) {
 }
 
 
-function psBookExperience(expId) {
-  psShowExpDetail(expId);
-}
-
-// ── BKW FLOW STATE ────────────────────────────────────────────────
+// ── BKW FLOW STATE ───────────────────────────────────────────────
 var _bkwState = {};
 
-async function psShowExpDetail(expId) {
-  // Fetch experience from DB
+function psBookExperience(expId) {
+  var slug = _bkwState.partnerSlug || window.location.pathname.split('/')[2] || '';
+  history.pushState(null, '', '/wow/' + slug + '/exp/' + expId);
+  loadBkwExp(expId, slug);
+}
+
+async function loadBkwExp(expId, slug) {
+  // Show page
+  document.querySelectorAll('.page').forEach(function(p){ p.style.display='none'; });
+  var pg = document.getElementById('page-bkw-exp');
+  if (pg) pg.style.display = 'block';
+  window.scrollTo(0,0);
+
+  // Store slug for back navigation
+  _bkwState.partnerSlug = slug || _bkwState.partnerSlug || '';
+  _bkwState.expId = expId;
+
+  // Fetch experience
   var res = await db_client.from('experiences')
-    .select('id,name,category,city,description,image_url,images,capacity,reservation_type,wow_price,wow_pricing_type,partner_email,partner_name')
+    .select('id,name,category,city,description,image_url,image_urls,images,capacity,reservation_type,wow_price,wow_pricing_type,partner_email,partner_name,programme,amenities')
     .eq('id', expId).maybeSingle();
   var e = res.data;
   if (!e) return;
+  _bkwState.exp = e;
 
-  // Fetch platform fee rate
+  // Fetch platform fee
   var feeRate = 2.5;
   try {
     var fr = await db_client.from('commission_rates').select('platform_rate').eq('rate_type','global').eq('target_id','__wow_fee__').maybeSingle();
     if (fr.data) feeRate = Number(fr.data.platform_rate);
   } catch(err) {}
+  _bkwState.feeRate = feeRate;
 
-  var wowPrice   = e.wow_price || e.price || 0;
+  var wowPrice = e.wow_price || 0;
   var pricingType = e.wow_pricing_type || 'per_person';
-  var cap        = parseInt(e.capacity) || 2;
-  var rt         = e.reservation_type || 'activity';
+  var cap = parseInt(e.capacity) || 2;
+  _bkwState.wowPrice = wowPrice;
+  _bkwState.pricingType = pricingType;
+  _bkwState.cap = cap;
 
-  // Store state
-  _bkwState = { e, wowPrice, pricingType, cap, rt, feeRate, guests: 1, formData: {} };
+  // Breadcrumb
+  var partnerName = _bkwState.partnerName || e.partner_name || 'Partner';
+  var bcPartner = document.getElementById('bkw-bc-partner');
+  if (bcPartner) bcPartner.textContent = partnerName;
+  var bcExp = document.getElementById('bkw-bc-expname');
+  if (bcExp) bcExp.textContent = e.name;
 
-  // Populate overlay
-  var img = e.image_url || (Array.isArray(e.images) && e.images[0]) || '';
-  document.getElementById('bkw-exp-img').src = img;
-  document.getElementById('bkw-exp-img').style.display = img ? 'block' : 'none';
-  document.getElementById('bkw-exp-category').textContent = e.category || '';
-  document.getElementById('bkw-exp-name').textContent = e.name;
-  document.getElementById('bkw-exp-city').innerHTML = e.city ? '<i class="fa fa-location-dot" style="color:var(--b600);margin-right:5px"></i>' + e.city : '';
-  document.getElementById('bkw-exp-desc').textContent = e.description || '';
+  // Images
+  var imgs = [];
+  if (e.image_url) imgs.push(e.image_url);
+  if (Array.isArray(e.image_urls)) e.image_urls.forEach(function(u){ if(u && !imgs.includes(u)) imgs.push(u); });
+  if (Array.isArray(e.images)) e.images.forEach(function(u){ if(u && !imgs.includes(u)) imgs.push(u); });
+  var mi = document.getElementById('bkw-main-img'); if(mi){ mi.src=imgs[0]||''; mi.style.display=imgs[0]?'block':'none'; }
+  var i2 = document.getElementById('bkw-img2'); if(i2){ i2.src=imgs[1]||''; i2.style.display=imgs[1]?'block':'none'; }
+  var i3 = document.getElementById('bkw-img3'); if(i3){ i3.src=imgs[2]||''; i3.style.display=imgs[2]?'block':'none'; }
+
+  // Overview
+  var title = document.getElementById('bkw-exp-title'); if(title) title.textContent = e.name;
+  var desc = document.getElementById('bkw-exp-desc-full'); if(desc) desc.textContent = e.description||'';
+  var loc = document.getElementById('bkw-exp-loc'); if(loc) loc.innerHTML = e.city ? '<i class="fa fa-location-dot" style="color:var(--b400)"></i> '+e.city : '';
+  var pdisp = document.getElementById('bkw-exp-partner-disp'); if(pdisp) pdisp.innerHTML = e.partner_name ? '<i class="fa fa-building" style="color:var(--b400)"></i> '+e.partner_name : '';
+  var cdisp = document.getElementById('bkw-exp-cap-disp'); if(cdisp) cdisp.innerHTML = '<i class="fa fa-users" style="color:var(--b400)"></i> Up to '+cap+' guest'+(cap>1?'s':'');
+  var badge = document.getElementById('bkw-exp-type-badge');
+  if (badge) { badge.textContent = bkwRtLabel(e.reservation_type); badge.className = 'rtype-badge rt-'+(e.reservation_type||'activity'); }
+
+  // Reviews async
+  var revCnt = document.getElementById('bkw-rev-cnt'); if(revCnt) revCnt.textContent='0';
+  (async function(){
+    try {
+      var rr = await db_client.from('experience_reviews').select('display_name,rating,text,created_at').eq('experience_id',expId).eq('status','approved').order('created_at',{ascending:false}).limit(20);
+      var revs = rr.data||[];
+      if(revCnt) revCnt.textContent = revs.length;
+      var avg = revs.length ? (revs.reduce(function(s,r){return s+(r.rating||5);},0)/revs.length).toFixed(1) : null;
+      var starsEl = document.getElementById('bkw-exp-stars'); if(starsEl) starsEl.innerHTML = avg ? bkwStars(avg)+' '+avg : '';
+      var rcnt = document.getElementById('bkw-exp-rating-cnt'); if(rcnt) rcnt.textContent = revs.length ? '('+revs.length+' review'+(revs.length>1?'s':'')+')' : '';
+      var rvNum = document.getElementById('bkw-rv-num'); if(rvNum) rvNum.textContent = avg||'—';
+      var rvStars = document.getElementById('bkw-rv-stars'); if(rvStars) rvStars.innerHTML = avg ? bkwStars(avg) : '';
+      var rvTotal = document.getElementById('bkw-rv-total'); if(rvTotal) rvTotal.textContent = revs.length+' review'+(revs.length!==1?'s':'');
+      var rvList = document.getElementById('bkw-rev-list');
+      if(rvList) rvList.innerHTML = revs.length ? revs.map(function(r){
+        return '<div class="rev-card"><div class="rv-meta"><span class="rv-name">'+r.display_name+'</span></div>'
+          +'<div class="rv-stars">'+bkwStars(r.rating||5)+'</div>'
+          +'<p class="rv-text">'+(r.text||'')+'</p></div>';
+      }).join('') : '<p style="color:var(--muted);font-size:.85rem">No reviews yet.</p>';
+    } catch(err){}
+  })();
+
+  // Programme
+  var progList = document.getElementById('bkw-prog-list');
+  if(progList) {
+    var prog = Array.isArray(e.programme) ? e.programme : [];
+    progList.innerHTML = prog.length ? prog.map(function(p,i){
+      return '<div class="prog-item"><div class="prog-num">'+(i+1)+'</div><div><strong>'+p.title+'</strong><p>'+p.description+'</p></div></div>';
+    }).join('') : '<p style="color:var(--muted);font-size:.85rem">Programme details will be shared upon booking.</p>';
+  }
+
+  // Amenities
+  var amenEl = document.getElementById('bkw-amenities');
+  if(amenEl) {
+    var amen = Array.isArray(e.amenities) ? e.amenities : [];
+    amenEl.innerHTML = amen.length ? amen.map(function(a){
+      return '<span class="amenity-chip"><i class="fa fa-check" style="color:var(--b500);margin-right:5px"></i>'+a+'</span>';
+    }).join('') : '<p style="color:var(--muted);font-size:.85rem">Contact the partner for inclusions.</p>';
+  }
+
+  // Price display
+  bkwUpdateExpPrice(1);
 
   // Build booking form
   var blocked = await loadBlockedDates(expId);
-  bkwBuildForm(rt, cap, pricingType, blocked);
-
-  // Show steps
-  document.getElementById('bkw-step-detail').style.display = 'block';
-  document.getElementById('bkw-step-payment').style.display = 'none';
-  document.getElementById('bkw-step-confirm').style.display = 'none';
-  document.getElementById('bkw-overlay').style.display = 'block';
-  document.body.style.overflow = 'hidden';
+  bkwBuildExpForm(e.reservation_type, cap, blocked);
 }
 
-function bkwBuildForm(rt, cap, pricingType, blocked) {
-  var today = new Date().toISOString().slice(0,10);
-  var guestOpts = Array.from({length: cap}, function(_, i){ return '<option value="'+(i+1)+'">'+(i+1)+' guest'+(i>0?'s':'')+'</option>'; }).join('');
-  var dateAttrs = 'type="date" min="'+today+'"';
-
-  var html = '';
-
-  if (rt === 'accommodation') {
-    html = '<div class="fg-row"><div class="fg"><label>Check-in *</label><input class="fi bkw-date" id="bkw-ci" '+dateAttrs+' onchange="bkwUpdatePrice()"></div>'
-         + '<div class="fg"><label>Check-out *</label><input class="fi bkw-date" id="bkw-co" '+dateAttrs+' onchange="bkwUpdatePrice()"></div></div>'
-         + '<div class="fg"><label>Guests</label><select class="fi" id="bkw-guests" onchange="bkwUpdatePrice()">'+guestOpts+'</select></div>'
-         + '<div class="fg"><label>Guest name *</label><input class="fi" id="bkw-g1" placeholder="Lead guest full name"></div>';
-  } else if (rt === 'dining') {
-    html = '<div class="fg-row"><div class="fg"><label>Date *</label><input class="fi bkw-date" id="bkw-date" '+dateAttrs+' onchange="bkwUpdatePrice()"></div>'
-         + '<div class="fg"><label>Time</label><select class="fi" id="bkw-time"><option>12:00</option><option>12:30</option><option>13:00</option><option>18:00</option><option>18:30</option><option>19:00</option><option>19:30</option><option>20:00</option></select></div></div>'
-         + '<div class="fg"><label>Guests</label><select class="fi" id="bkw-guests" onchange="bkwUpdatePrice()">'+guestOpts+'</select></div>'
-         + '<div class="fg"><label>Guest name *</label><input class="fi" id="bkw-g1" placeholder="Lead guest full name"></div>'
-         + '<div class="fg"><label>Special requests</label><textarea class="fi" id="bkw-notes" rows="2" style="resize:vertical" placeholder="Dietary needs, occasion…"></textarea></div>';
-  } else if (rt === 'wellness') {
-    html = '<div class="fg-row"><div class="fg"><label>Date *</label><input class="fi bkw-date" id="bkw-date" '+dateAttrs+' onchange="bkwUpdatePrice()"></div>'
-         + '<div class="fg"><label>Time</label><select class="fi" id="bkw-time"><option>09:00</option><option>10:00</option><option>11:00</option><option>14:00</option><option>15:00</option><option>16:00</option></select></div></div>'
-         + '<div class="fg"><label>Guests</label><select class="fi" id="bkw-guests" onchange="bkwUpdatePrice()">'+guestOpts+'</select></div>'
-         + '<div class="fg"><label>Guest name *</label><input class="fi" id="bkw-g1" placeholder="Lead guest full name"></div>';
-  } else {
-    // activity + default
-    html = '<div class="fg-row"><div class="fg"><label>Date *</label><input class="fi bkw-date" id="bkw-date" '+dateAttrs+' onchange="bkwUpdatePrice()"></div>'
-         + '<div class="fg"><label>Guests</label><select class="fi" id="bkw-guests" onchange="bkwUpdatePrice()">'+guestOpts+'</select></div></div>'
-         + '<div class="fg"><label>Guest name *</label><input class="fi" id="bkw-g1" placeholder="Lead guest full name"></div>'
-         + '<div class="fg"><label>Notes</label><textarea class="fi" id="bkw-notes" rows="2" style="resize:vertical" placeholder="Any special requirements…"></textarea></div>';
-  }
-
-  document.getElementById('bkw-form-wrap').innerHTML = html;
-
-  // Init Flatpickr on date inputs
-  setTimeout(function() {
-    document.querySelectorAll('.bkw-date').forEach(function(el) {
-      if (window.flatpickr) {
-        flatpickr(el, { minDate: today, disable: blocked, dateFormat: 'Y-m-d', onChange: function(){ bkwUpdatePrice(); } });
-      }
-    });
-    bkwUpdatePrice();
-  }, 50);
+function bkwRtLabel(rt) {
+  var labels = {accommodation:'Stay',dining:'Dining',wellness:'Wellness',activity:'Activity',rental:'Rental',event:'Event'};
+  return labels[rt] || rt || 'Experience';
 }
 
-function bkwUpdatePrice() {
+function bkwStars(n) {
+  var full = Math.round(n); var s='';
+  for(var i=0;i<5;i++) s += i<full ? '★' : '☆';
+  return s;
+}
+
+function switchBkwTab(tab, btn) {
+  ['overview','programme','amenities','reviews'].forEach(function(t){
+    var el = document.getElementById('bkw-tab-'+t); if(el) el.style.display = t===tab ? 'block' : 'none';
+  });
+  document.querySelectorAll('#page-bkw-exp .tab').forEach(function(b){ b.classList.remove('on'); });
+  if(btn) btn.classList.add('on');
+}
+
+function bkwUpdateExpPrice(guests) {
   var s = _bkwState;
-  if (!s.e) return;
-  var guests = parseInt(document.getElementById('bkw-guests')?.value || '1');
-  _bkwState.guests = guests;
-
-  var expAmt = s.pricingType === 'per_person' ? s.wowPrice * guests : s.wowPrice;
+  if (!s.exp) return;
+  var g = parseInt(guests) || 1;
+  _bkwState.guests = g;
+  var expAmt = s.pricingType === 'per_person' ? s.wowPrice * g : s.wowPrice;
   var feeAmt = Math.round(expAmt * s.feeRate / 100);
   var total  = expAmt + feeAmt;
-
   _bkwState.expAmt = expAmt;
   _bkwState.feeAmt = feeAmt;
   _bkwState.total  = total;
 
-  var label = s.pricingType === 'per_person'
-    ? 'R' + s.wowPrice.toLocaleString() + ' × ' + guests + ' guest' + (guests > 1 ? 's' : '')
-    : 'Fixed price';
+  var tag = document.getElementById('bkw-price-tag');
+  var sub = document.getElementById('bkw-price-sub');
+  if (s.pricingType === 'per_person') {
+    if(tag) tag.textContent = 'R' + s.wowPrice.toLocaleString() + ' / person';
+    if(sub) sub.textContent = g > 1 ? 'R' + expAmt.toLocaleString() + ' for ' + g + ' guests' : '';
+  } else {
+    if(tag) tag.textContent = 'R' + s.wowPrice.toLocaleString();
+    if(sub) sub.textContent = 'Fixed price — up to '+s.cap+' guests';
+  }
 
-  document.getElementById('bkw-price-line').textContent = label;
-  document.getElementById('bkw-price-exp').textContent  = 'R' + expAmt.toLocaleString();
-  document.getElementById('bkw-price-fee').textContent  = 'R' + feeAmt.toLocaleString();
-  document.getElementById('bkw-price-total').textContent = 'R' + total.toLocaleString();
-  document.getElementById('bkw-price-summary').style.display = 'block';
+  var sumLine = document.getElementById('bkw-sum-line');
+  var sumExp  = document.getElementById('bkw-sum-exp-amt');
+  var sumFee  = document.getElementById('bkw-sum-fee-amt');
+  var sumTot  = document.getElementById('bkw-sum-total-amt');
+  var sumEl   = document.getElementById('bkw-summary');
+  if(sumLine) sumLine.textContent = s.pricingType==='per_person' ? 'R'+s.wowPrice+' × '+g+' guest'+(g>1?'s':'') : 'Fixed price';
+  if(sumExp)  sumExp.textContent  = 'R'+expAmt.toLocaleString();
+  if(sumFee)  sumFee.textContent  = 'R'+feeAmt.toLocaleString();
+  if(sumTot)  sumTot.textContent  = 'R'+total.toLocaleString();
+  if(sumEl)   sumEl.style.display = s.wowPrice > 0 ? 'block' : 'none';
 }
 
-function bkwGoPayment() {
-  var s = _bkwState;
-  // Validate required fields
-  var g1 = document.getElementById('bkw-g1')?.value.trim();
-  var dateVal = document.getElementById('bkw-date')?.value || document.getElementById('bkw-ci')?.value || '';
-  if (!g1) { alert('Please enter the guest name.'); return; }
-  if (!dateVal) { alert('Please select a date.'); return; }
+function bkwBuildExpForm(rt, cap, blocked) {
+  var today = new Date().toISOString().slice(0,10);
+  var guestOpts = Array.from({length:cap},function(_,i){return '<option value="'+(i+1)+'">'+(i+1)+' guest'+(i>0?'s':'')+'</option>';}).join('');
+  var html = '';
 
-  // Collect form data
+  if (rt === 'accommodation') {
+    html = '<div class="fg-row"><div class="fg"><label>Check-in *</label><input class="fi" id="bkw-ci" type="date" min="'+today+'"></div>'
+         + '<div class="fg"><label>Check-out *</label><input class="fi" id="bkw-co-date" type="date" min="'+today+'"></div></div>'
+         + '<div class="fg"><label>Guests</label><select class="fi" id="bkw-guests" onchange="bkwUpdateExpPrice(this.value)">'+guestOpts+'</select></div>'
+         + '<div class="fg"><label>Guest name *</label><input class="fi" id="bkw-g1" placeholder="Lead guest full name"></div>';
+  } else if (rt === 'dining') {
+    html = '<div class="fg-row"><div class="fg"><label>Date *</label><input class="fi" id="bkw-date" type="date" min="'+today+'"></div>'
+         + '<div class="fg"><label>Preferred time *</label><select class="fi" id="bkw-time"><option value="12:00">12:00 — Lunch</option><option value="13:00">13:00 — Lunch</option><option value="18:00">18:00 — Dinner</option><option value="19:00">19:00 — Dinner</option><option value="20:00">20:00 — Dinner</option><option value="20:30">20:30 — Dinner</option></select></div></div>'
+         + '<div class="fg"><label>Number of guests *</label><select class="fi" id="bkw-guests" onchange="bkwUpdateExpPrice(this.value)">'+guestOpts+'</select></div>'
+         + '<div class="fg"><label>Name for reservation *</label><input class="fi" id="bkw-g1" placeholder="Lead guest full name"></div>'
+         + '<div class="fg"><label>Occasion</label><select class="fi" id="bkw-occasion"><option value="">—</option><option>Birthday</option><option>Anniversary</option><option>Proposal</option><option>Business</option></select></div>'
+         + '<div class="fg"><label>Dietary requirements <span style="font-weight:400;color:var(--muted);font-size:.75rem">Optional</span></label><input class="fi" id="bkw-dietary" placeholder="e.g. vegetarian, gluten-free"></div>'
+         + '<div class="fg"><label>Additional notes</label><textarea class="fi" id="bkw-notes" rows="2" style="resize:vertical" placeholder="Any other requests…"></textarea></div>';
+  } else if (rt === 'wellness') {
+    html = '<div class="fg-row"><div class="fg"><label>Date *</label><input class="fi" id="bkw-date" type="date" min="'+today+'"></div>'
+         + '<div class="fg"><label>Preferred time</label><select class="fi" id="bkw-time"><option>09:00</option><option>10:00</option><option>11:00</option><option>14:00</option><option>15:00</option><option>16:00</option></select></div></div>'
+         + '<div class="fg"><label>Guests</label><select class="fi" id="bkw-guests" onchange="bkwUpdateExpPrice(this.value)">'+guestOpts+'</select></div>'
+         + '<div class="fg"><label>Name *</label><input class="fi" id="bkw-g1" placeholder="Lead guest full name"></div>'
+         + '<div class="fg"><label>Notes</label><textarea class="fi" id="bkw-notes" rows="2" style="resize:vertical" placeholder="Any preferences or health notes…"></textarea></div>';
+  } else {
+    html = '<div class="fg-row"><div class="fg"><label>Date *</label><input class="fi" id="bkw-date" type="date" min="'+today+'"></div>'
+         + '<div class="fg"><label>Guests</label><select class="fi" id="bkw-guests" onchange="bkwUpdateExpPrice(this.value)">'+guestOpts+'</select></div></div>'
+         + '<div class="fg"><label>Name *</label><input class="fi" id="bkw-g1" placeholder="Lead guest full name"></div>'
+         + '<div class="fg"><label>Notes</label><textarea class="fi" id="bkw-notes" rows="2" style="resize:vertical" placeholder="Any special requirements…"></textarea></div>';
+  }
+
+  var fields = document.getElementById('bkw-fields');
+  if(fields) fields.innerHTML = html;
+
+  var badge = document.getElementById('bkw-form-badge');
+  if(badge){ badge.textContent = bkwRtLabel(rt); badge.className='rtype-badge rt-'+(rt||'activity'); }
+
+  // Init Flatpickr
+  setTimeout(function(){
+    document.querySelectorAll('#bkw-fields input[type=date]').forEach(function(el){
+      if(window.flatpickr) flatpickr(el, {minDate:today, disable:blocked, dateFormat:'Y-m-d'});
+    });
+  }, 50);
+}
+
+function bkwGoCheckout() {
+  var s = _bkwState;
+  if (!s.exp) return;
+  var g1   = document.getElementById('bkw-g1')?.value.trim();
+  var date = document.getElementById('bkw-date')?.value || document.getElementById('bkw-ci')?.value || '';
+  if (!g1)   { alert('Please enter the guest name.'); return; }
+  if (!date) { alert('Please select a date.'); return; }
+
   _bkwState.formData = {
-    guest1:  g1,
-    date:    dateVal,
-    end:     document.getElementById('bkw-co')?.value || '',
-    time:    document.getElementById('bkw-time')?.value || '',
-    guests:  _bkwState.guests,
-    notes:   document.getElementById('bkw-notes')?.value || ''
+    guest1:   g1,
+    date:     date,
+    endDate:  document.getElementById('bkw-co-date')?.value || '',
+    time:     document.getElementById('bkw-time')?.value || '',
+    guests:   parseInt(document.getElementById('bkw-guests')?.value||'1'),
+    occasion: document.getElementById('bkw-occasion')?.value || '',
+    dietary:  document.getElementById('bkw-dietary')?.value || '',
+    notes:    document.getElementById('bkw-notes')?.value || ''
   };
 
-  // Populate payment step summary
-  document.getElementById('bkw-sum-exp').textContent   = s.e.name;
-  document.getElementById('bkw-sum-price').textContent = 'R' + (s.expAmt||0).toLocaleString();
-  document.getElementById('bkw-sum-fee').textContent   = 'R' + (s.feeAmt||0).toLocaleString();
-  document.getElementById('bkw-sum-total').textContent = 'R' + (s.total||0).toLocaleString();
+  // Navigate to checkout
+  var slug = s.partnerSlug || '';
+  history.pushState(null,'','/wow/'+slug+'/checkout/'+s.exp.id);
 
-  document.getElementById('bkw-step-detail').style.display  = 'none';
-  document.getElementById('bkw-step-payment').style.display = 'block';
+  // Populate checkout page
+  var coExpName = document.getElementById('bkw-co-exp-name'); if(coExpName) coExpName.textContent = s.exp.name;
+  var fd = s.formData;
+  var details = '';
+  if(fd.date) details += '📅 '+fd.date+(fd.time?' at '+fd.time:'')+'<br>';
+  if(fd.endDate) details += '↩ Check-out: '+fd.endDate+'<br>';
+  details += '👤 '+fd.guest1+(fd.guests>1?' + '+(fd.guests-1)+' more guest'+(fd.guests>2?'s':''):'')+'<br>';
+  if(fd.occasion) details += '🎉 '+fd.occasion+'<br>';
+  if(fd.dietary)  details += '🥗 '+fd.dietary+'<br>';
+  var coDetails = document.getElementById('bkw-co-details'); if(coDetails) coDetails.innerHTML = details;
+  var coPriceLine = document.getElementById('bkw-co-price-line');
+  if(coPriceLine) coPriceLine.textContent = s.pricingType==='per_person' ? 'R'+s.wowPrice+' × '+fd.guests+' guest'+(fd.guests>1?'s':'') : 'Fixed price';
+  var coExpAmt = document.getElementById('bkw-co-exp-amt');  if(coExpAmt)  coExpAmt.textContent  = 'R'+(s.expAmt||0).toLocaleString();
+  var coFeeAmt = document.getElementById('bkw-co-fee-amt');  if(coFeeAmt)  coFeeAmt.textContent  = 'R'+(s.feeAmt||0).toLocaleString();
+  var coTotAmt = document.getElementById('bkw-co-total-amt');if(coTotAmt)  coTotAmt.textContent  = 'R'+(s.total||0).toLocaleString();
+  var coBtnTot = document.getElementById('bkw-co-btn-total');if(coBtnTot)  coBtnTot.textContent  = 'R'+(s.total||0).toLocaleString();
+
+  // Pre-fill email if logged in
+  if (currentUser) {
+    var coEmail = document.getElementById('bkw-co-email'); if(coEmail && !coEmail.value) coEmail.value = currentUser.email||'';
+    var coName  = document.getElementById('bkw-co-name');  if(coName  && !coName.value)  coName.value  = currentUser.user_metadata?.full_name||'';
+  }
+
+  document.querySelectorAll('.page').forEach(function(p){ p.style.display='none'; });
+  var pg = document.getElementById('page-bkw-checkout'); if(pg) pg.style.display='block';
+  window.scrollTo(0,0);
 }
 
-function bkwBackToDetail() {
-  document.getElementById('bkw-step-payment').style.display = 'none';
-  document.getElementById('bkw-step-detail').style.display  = 'block';
-}
-
-async function bkwInitiatePayment() {
+function bkwBackToExp() {
   var s = _bkwState;
-  var name  = document.getElementById('bkw-payer-name')?.value.trim();
-  var email = document.getElementById('bkw-payer-email')?.value.trim();
-  var statusEl = document.getElementById('bkw-pay-status');
-  var btn = document.getElementById('bkw-btn-confirm');
+  history.pushState(null,'','/wow/'+(s.partnerSlug||'')+'/exp/'+(s.expId||''));
+  document.querySelectorAll('.page').forEach(function(p){ p.style.display='none'; });
+  var pg = document.getElementById('page-bkw-exp'); if(pg) pg.style.display='block';
+  window.scrollTo(0,0);
+}
 
+function bkwBackToPartner() {
+  var slug = _bkwState.partnerSlug || '';
+  history.pushState(null,'','/wow/'+slug);
+  document.querySelectorAll('.page').forEach(function(p){ p.style.display='none'; });
+  var psEl = document.getElementById('page-partner-storefront'); if(psEl) psEl.style.display='block';
+  window.scrollTo(0,0);
+}
+
+async function bkwSubmitPayment() {
+  var s = _bkwState;
+  var name  = document.getElementById('bkw-co-name')?.value.trim();
+  var email = document.getElementById('bkw-co-email')?.value.trim();
+  var statusEl = document.getElementById('bkw-co-status');
+  var btn = document.getElementById('bkw-co-btn');
   if (!name)  { alert('Please enter your full name.'); return; }
   if (!email || !email.includes('@')) { alert('Please enter a valid email.'); return; }
-
   _bkwState.payerName  = name;
   _bkwState.payerEmail = email;
-
-  if (statusEl) statusEl.textContent = 'Opening payment…';
-  if (btn) { btn.disabled = true; btn.textContent = 'Processing…'; }
 
   var bkwRef = 'BKW-' + Math.random().toString(36).toUpperCase().slice(2,6) + '-' + Math.random().toString(36).toUpperCase().slice(2,6);
   _bkwState.bkwRef = bkwRef;
 
-  // TEST MODE
+  if(btn){ btn.disabled=true; btn.innerHTML='<i class="fa fa-spinner fa-spin"></i> Processing…'; }
+  if(statusEl) statusEl.textContent = 'Opening payment…';
+
   if (PAYFAST_TEST_MODE) {
     await bkwCompleteBooking(bkwRef);
-    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa fa-lock" style="margin-right:8px"></i>Pay securely'; }
-    if (statusEl) statusEl.textContent = '';
+    if(btn){ btn.disabled=false; btn.innerHTML='<i class="fa fa-lock" style="margin-right:8px"></i>Pay securely — R'+(s.total||0).toLocaleString(); }
+    if(statusEl) statusEl.textContent='';
     return;
   }
 
   try {
     var pfRes = await fetch('/api/payfast-initiate', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({
-        amount:       s.total,
-        email:        email,
-        name_first:   name.split(' ')[0] || name,
-        name_last:    name.split(' ').slice(1).join(' ') || '',
-        item_name:    'WowBox — ' + s.e.name,
-        item_description: s.formData.guests + ' guest(s) · ' + (s.formData.date || ''),
+        amount: s.total, email: email,
+        name_first: name.split(' ')[0]||name, name_last: name.split(' ').slice(1).join(' ')||'',
+        item_name: 'WowBox — '+s.exp.name,
+        item_description: (s.formData.guests||1)+' guest(s) · '+(s.formData.date||''),
         m_payment_id: bkwRef
       })
     });
     var pfData = await pfRes.json();
-    if (!pfData.uuid) throw new Error(pfData.error || 'Payment initiation failed');
-    window.payfast_do_onsite_payment(pfData.uuid, async function(result) {
+    if (!pfData.uuid) throw new Error(pfData.error||'Payment failed');
+    window.payfast_do_onsite_payment(pfData.uuid, async function(result){
       if (result === true) {
         await bkwCompleteBooking(bkwRef);
       } else {
-        if (statusEl) statusEl.textContent = '';
-        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa fa-lock" style="margin-right:8px"></i>Pay securely'; }
+        if(btn){ btn.disabled=false; btn.innerHTML='<i class="fa fa-lock" style="margin-right:8px"></i>Pay securely — R'+(s.total||0).toLocaleString(); }
+        if(statusEl) statusEl.textContent='';
       }
-    }, function() {
-      if (statusEl) statusEl.textContent = '';
-      if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa fa-lock" style="margin-right:8px"></i>Pay securely'; }
+    }, function(){
+      if(btn){ btn.disabled=false; btn.innerHTML='<i class="fa fa-lock" style="margin-right:8px"></i>Pay securely — R'+(s.total||0).toLocaleString(); }
+      if(statusEl) statusEl.textContent='';
     });
   } catch(err) {
-    if (statusEl) statusEl.textContent = 'Payment error. Please try again.';
-    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa fa-lock" style="margin-right:8px"></i>Pay securely'; }
+    if(statusEl) statusEl.textContent='Payment error. Please try again.';
+    if(btn){ btn.disabled=false; btn.innerHTML='<i class="fa fa-lock" style="margin-right:8px"></i>Pay securely — R'+(s.total||0).toLocaleString(); }
     console.error('BKW payment error:', err);
   }
 }
@@ -17303,96 +17530,76 @@ async function bkwInitiatePayment() {
 async function bkwCompleteBooking(bkwRef) {
   var s = _bkwState;
   try {
-    // Insert booking
     await db_client.from('bookings').insert({
       booking_reference: bkwRef,
-      experience_id:     s.e.id,
-      experience_name:   s.e.name,
-      partner_email:     s.e.partner_email || '',
-      partner_name:      s.e.partner_name  || '',
+      experience_id:     s.exp.id,
+      experience_name:   s.exp.name,
+      partner_email:     s.exp.partner_email||'',
+      partner_name:      s.exp.partner_name||'',
       customer_email:    s.payerEmail,
       customer_name:     s.payerName,
-      guest_name:        s.formData.guest1 || '',
-      guests:            s.formData.guests || 1,
-      wow_guests:        s.formData.guests || 1,
-      booking_date:      s.formData.date   || null,
-      booking_time:      s.formData.time   || null,
-      checkin_date:      s.formData.date   || null,
-      checkout_date:     s.formData.end    || null,
-      reservation_type:  s.rt,
+      guest_name:        s.formData.guest1||'',
+      guests:            s.formData.guests||1,
+      wow_guests:        s.formData.guests||1,
+      booking_date:      s.formData.date||null,
+      booking_time:      s.formData.time||null,
+      checkin_date:      s.formData.date||null,
+      checkout_date:     s.formData.endDate||null,
+      reservation_type:  s.exp.reservation_type,
       booking_details:   s.formData,
-      service_fee:       s.feeAmt || 0,
+      service_fee:       s.feeAmt||0,
       status:            'pending_confirmation',
       flow:              'wow'
     });
 
-    // Insert commission entry
     var commRate = 35;
     try {
       var cr = await db_client.from('commission_rates').select('platform_rate').eq('rate_type','global').eq('target_id','__global__').maybeSingle();
-      if (cr.data) commRate = Number(cr.data.platform_rate);
-      var crp = await db_client.from('commission_rates').select('platform_rate').eq('rate_type','partner').eq('target_id', s.e.partner_email||'').maybeSingle();
-      if (crp.data) commRate = Number(crp.data.platform_rate);
-    } catch(err) {}
+      if(cr.data) commRate = Number(cr.data.platform_rate);
+      var crp = await db_client.from('commission_rates').select('platform_rate').eq('rate_type','partner').eq('target_id',s.exp.partner_email||'').maybeSingle();
+      if(crp.data) commRate = Number(crp.data.platform_rate);
+    } catch(e){}
 
-    var platformAmt = Math.round(s.expAmt * commRate / 100);
+    var platformAmt  = Math.round(s.expAmt * commRate / 100);
     var partnerPayout = s.expAmt - platformAmt;
-
     await db_client.from('commission_entries').insert({
-      booking_reference: bkwRef,
-      partner_email:     s.e.partner_email || '',
-      partner_name:      s.e.partner_name  || '',
-      experience_name:   s.e.name,
-      box_price:         s.expAmt,
-      platform_rate:     commRate,
-      platform_amount:   platformAmt,
-      partner_payout:    partnerPayout,
-      payout_status:     'pending',
-      flow:              'wow'
+      booking_reference: bkwRef, partner_email: s.exp.partner_email||'',
+      partner_name: s.exp.partner_name||'', experience_name: s.exp.name,
+      box_price: s.expAmt, platform_rate: commRate, platform_amount: platformAmt,
+      partner_payout: partnerPayout, payout_status:'pending', flow:'wow'
     });
 
-    // Send confirmation email
     try {
       await fetch('/api/send-email', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method:'POST', headers:{'Content-Type':'application/json'},
         body: JSON.stringify({
-          type:            'booking_confirmation',
-          customerEmail:   s.payerEmail,
-          customerName:    s.payerName,
-          partnerEmail:    s.e.partner_email || '',
-          experienceName:  s.e.name,
-          bookingRef:      bkwRef,
-          bookingDate:     s.formData.date  || '',
-          guestName:       s.formData.guest1 || '',
-          guests:          s.formData.guests || 1,
-          total:           s.total,
-          serviceFee:      s.feeAmt
+          type:'booking_confirmation', customerEmail:s.payerEmail, customerName:s.payerName,
+          partnerEmail:s.exp.partner_email||'', experienceName:s.exp.name,
+          bookingRef:bkwRef, bookingDate:s.formData.date||'',
+          guestName:s.formData.guest1||'', guests:s.formData.guests||1,
+          total:s.total, serviceFee:s.feeAmt
         })
       });
-    } catch(err) {}
+    } catch(e){}
 
-    // Show confirmation
-    document.getElementById('bkw-confirm-ref').textContent = bkwRef;
-    document.getElementById('bkw-confirm-details').innerHTML =
-      '<strong>' + s.e.name + '</strong><br>' +
-      (s.formData.date ? '📅 ' + s.formData.date + (s.formData.time ? ' at ' + s.formData.time : '') + '<br>' : '') +
-      '👤 ' + (s.formData.guest1 || s.payerName) + (s.formData.guests > 1 ? ' + ' + (s.formData.guests - 1) + ' guest(s)' : '') + '<br>' +
-      '💳 R' + s.total.toLocaleString() + ' paid';
+    // Show confirmation page
+    var confRef = document.getElementById('bkw-conf-ref'); if(confRef) confRef.textContent = bkwRef;
+    var fd = s.formData;
+    var details = '<strong>'+s.exp.name+'</strong><br>';
+    if(fd.date) details += '📅 '+fd.date+(fd.time?' at '+fd.time:'')+'<br>';
+    details += '👤 '+fd.guest1+(fd.guests>1?' + '+(fd.guests-1)+' more':'')+'<br>';
+    details += '💳 R'+s.total.toLocaleString()+' paid';
+    var confDetails = document.getElementById('bkw-conf-details'); if(confDetails) confDetails.innerHTML = details;
 
-    document.getElementById('bkw-step-payment').style.display = 'none';
-    document.getElementById('bkw-step-confirm').style.display  = 'block';
+    history.pushState(null,'','/wow/'+(s.partnerSlug||'')+'/confirmed/'+bkwRef);
+    document.querySelectorAll('.page').forEach(function(p){ p.style.display='none'; });
+    var pg = document.getElementById('page-bkw-confirm'); if(pg) pg.style.display='block';
+    window.scrollTo(0,0);
 
   } catch(err) {
     console.error('BKW complete error:', err);
-    alert('Booking saved but there was an error. Reference: ' + bkwRef);
+    alert('Booking saved. Reference: '+bkwRef);
   }
-}
-
-function bkwClose() {
-  document.getElementById('bkw-overlay').style.display = 'none';
-  document.body.style.overflow = '';
-  _bkwState = {};
 }
 
 // ── Partner Page (Storefront) wizard ────────────────────────────
