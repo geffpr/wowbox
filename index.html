@@ -5381,53 +5381,80 @@ tr:hover td{background:var(--b50)}
     <!-- Filter bar -->
     <div id="ps-filter-bar" style="margin-bottom:20px">
       <!-- Desktop: inline filters -->
-      <div id="ps-filter-desktop" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
-        <div style="display:flex;align-items:center;gap:8px;font-size:.78rem;color:var(--muted)">
-          <span style="font-weight:600;white-space:nowrap">Price (R)</span>
-          <input type="number" id="ps-f-min" placeholder="Min" min="0" style="width:70px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:.78rem">
-          <span>—</span>
-          <input type="number" id="ps-f-max" placeholder="Max" min="0" style="width:70px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:.78rem">
+      <div id="ps-filter-desktop" style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+        <!-- Price range slider -->
+        <div style="display:flex;flex-direction:column;gap:6px;min-width:220px">
+          <div style="display:flex;justify-content:space-between;font-size:.72rem;font-weight:600;color:var(--muted)">
+            <span>Price (R)</span>
+            <span id="ps-price-label" style="color:var(--navy);font-weight:700">Any price</span>
+          </div>
+          <div id="ps-range-wrap" style="position:relative;height:20px;display:flex;align-items:center">
+            <div id="ps-range-track" style="position:absolute;left:0;right:0;height:4px;background:#e5e7eb;border-radius:2px">
+              <div id="ps-range-fill" style="position:absolute;height:100%;border-radius:2px;background:var(--b600)"></div>
+            </div>
+            <input type="range" id="ps-f-min-r" min="0" max="5000" step="50" value="0"
+              oninput="psSyncSlider()"
+              style="position:absolute;width:100%;appearance:none;background:transparent;outline:none;pointer-events:none;height:4px">
+            <input type="range" id="ps-f-max-r" min="0" max="5000" step="50" value="5000"
+              oninput="psSyncSlider()"
+              style="position:absolute;width:100%;appearance:none;background:transparent;outline:none;pointer-events:none;height:4px">
+          </div>
         </div>
-        <select id="ps-f-city" style="padding:5px 10px;border:1px solid var(--border);border-radius:6px;font-size:.78rem;color:var(--navy)">
+        <input type="hidden" id="ps-f-min">
+        <input type="hidden" id="ps-f-max">
+        <select id="ps-f-city" style="padding:7px 12px;border:1px solid var(--border);border-radius:8px;font-size:.78rem;color:var(--navy);background:#fff">
           <option value="">All cities</option>
         </select>
-        <select id="ps-f-sort" style="padding:5px 10px;border:1px solid var(--border);border-radius:6px;font-size:.78rem;color:var(--navy)">
+        <select id="ps-f-sort" style="padding:7px 12px;border:1px solid var(--border);border-radius:8px;font-size:.78rem;color:var(--navy);background:#fff">
           <option value="">Sort: Default</option>
           <option value="price_asc">Price: Low → High</option>
           <option value="price_desc">Price: High → Low</option>
           <option value="name_asc">Name: A → Z</option>
         </select>
-        <button id="ps-f-clear" onclick="psResetFilters()" style="display:none;padding:5px 12px;border:1px solid var(--border);border-radius:6px;font-size:.78rem;color:var(--muted);background:#fff;cursor:pointer">✕ Clear</button>
+        <button id="ps-f-clear" onclick="psResetFilters()" style="display:none;padding:7px 14px;border:1px solid var(--border);border-radius:8px;font-size:.78rem;color:var(--muted);background:#fff;cursor:pointer">✕ Clear</button>
       </div>
       <!-- Mobile: collapsible filters -->
       <div id="ps-filter-mobile" style="display:none">
-        <button onclick="psToggleFilterMobile()" style="display:flex;align-items:center;gap:6px;padding:8px 14px;border:1px solid var(--border);border-radius:8px;background:#fff;font-size:.82rem;font-weight:600;color:var(--navy);cursor:pointer;width:100%">
+        <button onclick="psToggleFilterMobile()" style="display:flex;align-items:center;gap:6px;padding:10px 16px;border:1px solid var(--border);border-radius:10px;background:#fff;font-size:.84rem;font-weight:600;color:var(--navy);cursor:pointer;width:100%">
           <i class="fa fa-sliders"></i> Filters <i class="fa fa-chevron-down" id="ps-filter-chevron" style="margin-left:auto;font-size:.65rem"></i>
         </button>
-        <div id="ps-filter-mobile-body" style="display:none;padding:14px;border:1px solid var(--border);border-radius:0 0 8px 8px;background:#fff;margin-top:-1px">
-          <div class="fg" style="margin-bottom:10px">
-            <label style="font-size:.72rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.08em">Price (R)</label>
-            <div style="display:flex;gap:8px;margin-top:5px">
-              <input type="number" id="ps-f-min-m" placeholder="Min" style="flex:1;padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-size:.82rem">
-              <input type="number" id="ps-f-max-m" placeholder="Max" style="flex:1;padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-size:.82rem">
+        <div id="ps-filter-mobile-body" style="display:none;padding:16px;border:1px solid var(--border);border-radius:0 0 10px 10px;background:#fff;margin-top:-1px">
+          <!-- Mobile price slider -->
+          <div style="margin-bottom:16px">
+            <div style="display:flex;justify-content:space-between;font-size:.72rem;font-weight:600;color:var(--muted);margin-bottom:8px">
+              <span>Price (R)</span>
+              <span id="ps-price-label-m" style="color:var(--navy);font-weight:700">Any price</span>
+            </div>
+            <div id="ps-range-wrap-m" style="position:relative;height:20px;display:flex;align-items:center">
+              <div id="ps-range-track-m" style="position:absolute;left:0;right:0;height:4px;background:#e5e7eb;border-radius:2px">
+                <div id="ps-range-fill-m" style="position:absolute;height:100%;border-radius:2px;background:var(--b600)"></div>
+              </div>
+              <input type="range" id="ps-f-min-r-m" min="0" max="5000" step="50" value="0"
+                oninput="psSyncSlider(true)"
+                style="position:absolute;width:100%;appearance:none;background:transparent;outline:none;pointer-events:none;height:4px">
+              <input type="range" id="ps-f-max-r-m" min="0" max="5000" step="50" value="5000"
+                oninput="psSyncSlider(true)"
+                style="position:absolute;width:100%;appearance:none;background:transparent;outline:none;pointer-events:none;height:4px">
             </div>
           </div>
+          <input type="hidden" id="ps-f-min-m">
+          <input type="hidden" id="ps-f-max-m">
           <div class="fg" style="margin-bottom:10px">
             <label style="font-size:.72rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.08em">City</label>
-            <select id="ps-f-city-m" style="width:100%;margin-top:5px;padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-size:.82rem">
+            <select id="ps-f-city-m" style="width:100%;margin-top:5px;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:.84rem">
               <option value="">All cities</option>
             </select>
           </div>
-          <div class="fg" style="margin-bottom:14px">
+          <div class="fg" style="margin-bottom:16px">
             <label style="font-size:.72rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.08em">Sort</label>
-            <select id="ps-f-sort-m" style="width:100%;margin-top:5px;padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-size:.82rem">
+            <select id="ps-f-sort-m" style="width:100%;margin-top:5px;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:.84rem">
               <option value="">Default</option>
               <option value="price_asc">Price: Low → High</option>
               <option value="price_desc">Price: High → Low</option>
               <option value="name_asc">Name: A → Z</option>
             </select>
           </div>
-          <button onclick="psSearchFilter()" style="width:100%;padding:10px;background:var(--b600);color:#fff;border:none;border-radius:8px;font-weight:700;font-size:.85rem;cursor:pointer">Apply filters</button>
+          <button onclick="psSearchFilter()" style="width:100%;padding:11px;background:var(--b600);color:#fff;border:none;border-radius:8px;font-weight:700;font-size:.86rem;cursor:pointer">Apply filters</button>
         </div>
       </div>
     </div>
@@ -18332,10 +18359,81 @@ var _psPageLayout = 'grid';
 var _psFeaturedId = null;
 var _psPageColor  = '#b45309';
 
+function psSyncSlider(isMobile) {
+  var sfx = isMobile ? '-m' : '';
+  var minR = document.getElementById('ps-f-min-r'+sfx);
+  var maxR = document.getElementById('ps-f-max-r'+sfx);
+  var fill = document.getElementById('ps-range-fill'+sfx);
+  var label = document.getElementById('ps-price-label'+sfx);
+  var hidMin = document.getElementById('ps-f-min'+sfx);
+  var hidMax = document.getElementById('ps-f-max'+sfx);
+  if (!minR || !maxR) return;
+
+  var min = parseInt(minR.value);
+  var max = parseInt(maxR.value);
+  var slMax = parseInt(minR.max);
+
+  // Prevent crossing
+  if (min > max - 50) {
+    if (document.activeElement === minR) { min = max - 50; minR.value = min; }
+    else { max = min + 50; maxR.value = max; }
+  }
+
+  // Update fill bar
+  var pMin = (min / slMax) * 100;
+  var pMax = (max / slMax) * 100;
+  if (fill) { fill.style.left = pMin + '%'; fill.style.width = (pMax - pMin) + '%'; }
+
+  // Update label
+  var isAny = min === 0 && max === slMax;
+  if (label) label.textContent = isAny ? 'Any price' : 'R'+min.toLocaleString()+' – R'+max.toLocaleString();
+
+  // Sync hidden inputs (used by psGetFilterValues)
+  if (hidMin) hidMin.value = min > 0 ? min : '';
+  if (hidMax) hidMax.value = max < slMax ? max : '';
+
+  // Apply color from partner
+  var color = document.getElementById('ps-booking-widget')?.dataset.color || '#b45309';
+  if (fill) fill.style.background = color;
+
+  // Enable pointer events on thumbs
+  [minR, maxR].forEach(function(r){ r.style.pointerEvents = 'auto'; });
+}
+
 function psInitFilters(exps, color, layout, featuredId) {
   _psPageLayout = layout || 'grid';
   _psFeaturedId = featuredId;
   _psPageColor  = color || '#b45309';
+
+  // Set slider max based on actual prices
+  var prices = exps.map(function(e){ return e.wow_price || 0; }).filter(Boolean);
+  var maxPrice = prices.length ? Math.ceil(Math.max.apply(null, prices) / 500) * 500 : 5000;
+  maxPrice = Math.max(maxPrice, 500);
+
+  ['ps-f-min-r','ps-f-max-r','ps-f-min-r-m','ps-f-max-r-m'].forEach(function(id){
+    var el = document.getElementById(id);
+    if (el) {
+      el.max = maxPrice;
+      if (id.includes('max')) el.value = maxPrice;
+    }
+  });
+
+  // Apply partner color to sliders
+  var styleId = 'ps-slider-style';
+  var existing = document.getElementById(styleId);
+  if (existing) existing.remove();
+  var style = document.createElement('style');
+  style.id = styleId;
+  style.textContent = [
+    'input[type=range]#ps-f-min-r::-webkit-slider-thumb,input[type=range]#ps-f-max-r::-webkit-slider-thumb,input[type=range]#ps-f-min-r-m::-webkit-slider-thumb,input[type=range]#ps-f-max-r-m::-webkit-slider-thumb{-webkit-appearance:none;width:20px;height:20px;border-radius:50%;background:'+color+';border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.25);cursor:pointer;pointer-events:all;position:relative;z-index:2}',
+    'input[type=range]#ps-f-min-r::-moz-range-thumb,input[type=range]#ps-f-max-r::-moz-range-thumb,input[type=range]#ps-f-min-r-m::-moz-range-thumb,input[type=range]#ps-f-max-r-m::-moz-range-thumb{width:20px;height:20px;border-radius:50%;background:'+color+';border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.25);cursor:pointer}'
+  ].join('');
+  document.head.appendChild(style);
+
+  // Init fill
+  psSyncSlider(false);
+  psSyncSlider(true);
+
   // Populate city dropdowns
   var cities = [...new Set(exps.map(function(e){ return e.city; }).filter(Boolean))].sort();
   ['ps-f-city','ps-f-city-m'].forEach(function(id){
@@ -18344,6 +18442,7 @@ function psInitFilters(exps, color, layout, featuredId) {
     el.innerHTML = '<option value="">All cities</option>'
       + cities.map(function(c){ return '<option>'+c+'</option>'; }).join('');
   });
+
   // Show/hide desktop vs mobile filter bar
   var isMobile = window.innerWidth < 640;
   var desk = document.getElementById('ps-filter-desktop');
@@ -18387,10 +18486,15 @@ function psApplyFiltersAndSort(exps, filters) {
 }
 
 function psResetFilters() {
+  // Reset sliders to full range
+  ['ps-f-min-r','ps-f-min-r-m'].forEach(function(id){ var el=document.getElementById(id); if(el) el.value=0; });
+  ['ps-f-max-r','ps-f-max-r-m'].forEach(function(id){ var el=document.getElementById(id); if(el) el.value=el.max; });
+  psSyncSlider(false);
+  psSyncSlider(true);
   ['ps-f-min','ps-f-max','ps-f-min-m','ps-f-max-m'].forEach(function(id){ var el=document.getElementById(id); if(el) el.value=''; });
   ['ps-f-city','ps-f-city-m','ps-f-sort','ps-f-sort-m'].forEach(function(id){ var el=document.getElementById(id); if(el) el.selectedIndex=0; });
   var clr = document.getElementById('ps-f-clear'); if(clr) clr.style.display='none';
-  psRenderExpGrid(_psAllExps, [], _psPageLayout, _psPageColor, _psFeaturedId);
+  psRenderExpGrid(_psAllExps, null, _psPageLayout, _psPageColor, _psFeaturedId);
 }
 
 function psMakeCard(e, color, imgHeight, fullWidth) {
