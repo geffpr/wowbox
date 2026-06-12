@@ -677,7 +677,7 @@ async function authForgot() {
 }
 
 function showDash(tab) {
-  var allTabs = ['dash-boxes','dash-orders','dash-redeem','dash-wishlist','dash-reviews','dash-settings'];
+  var allTabs = ['dash-boxes','dash-orders','dash-mybookings','dash-redeem','dash-wishlist','dash-reviews','dash-settings'];
   allTabs.forEach(function(t) {
     var el = document.getElementById(t);
     if (el) el.style.display = 'none';
@@ -686,8 +686,9 @@ function showDash(tab) {
   if (target) target.style.display = 'block';
   if (tab === 'wishlist') wlRender();
   if (tab === 'reviews' && currentUser) loadUserReviews(currentUser.email);
+  if (tab === 'mybookings' && currentUser) loadMyBkwBookings(currentUser.email);
   document.querySelectorAll('.sbl').forEach(function(b) { b.classList.remove('on'); });
-  var labels = {boxes:'My Boxes',orders:'My Orders',redeem:'Redeem',wishlist:'Wishlist',reviews:'My Reviews',settings:'Settings'};
+  var labels = {boxes:'My Boxes',orders:'My Orders',mybookings:'My Bookings',redeem:'Redeem',wishlist:'Wishlist',reviews:'My Reviews',settings:'Settings'};
   var label = labels[tab] || '';
   document.querySelectorAll('.sbl').forEach(function(b) {
     if (label && b.textContent.trim().includes(label)) b.classList.add('on');
@@ -4714,6 +4715,34 @@ tr:hover td{background:var(--b50)}
       </div>
       <div>
         <div style="font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:14px">Your details</div>
+        <!-- Auth block — hidden when logged in -->
+        <div id="bkw-auth-block" style="background:var(--b50);border:1px solid var(--b100);border-radius:10px;padding:14px;margin-bottom:16px">
+          <div style="font-size:.78rem;font-weight:600;color:var(--navy);margin-bottom:4px"><i class="fa fa-user-circle" style="color:var(--b500);margin-right:5px"></i>Track your booking</div>
+          <div style="font-size:.72rem;color:var(--muted);margin-bottom:12px">Sign in or create a free WowBox account to view your booking in My Account.</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">
+            <button onclick="bkwAuthGoogle()" style="flex:1;display:flex;align-items:center;justify-content:center;gap:7px;background:#fff;border:1.5px solid var(--border);border-radius:8px;padding:8px 12px;font-size:.75rem;font-weight:600;cursor:pointer">
+              <svg viewBox="0 0 24 24" style="width:16px;height:16px"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.47 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
+              Continue with Google
+            </button>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button onclick="bkwShowInlineAuth('in')" style="flex:1;background:var(--b600);color:#fff;border:none;border-radius:8px;padding:8px;font-size:.75rem;font-weight:600;cursor:pointer">Sign in</button>
+            <button onclick="bkwShowInlineAuth('up')" style="flex:1;background:#fff;border:1.5px solid var(--b300);color:var(--navy);border-radius:8px;padding:8px;font-size:.75rem;font-weight:600;cursor:pointer">Create account</button>
+          </div>
+          <div id="bkw-inline-auth" style="display:none;margin-top:12px">
+            <div class="fg" style="margin-bottom:8px"><input class="fi" id="bkw-auth-email" type="email" placeholder="your@email.com" style="font-size:.82rem"></div>
+            <div class="fg" id="bkw-auth-name-wrap" style="display:none;margin-bottom:8px"><input class="fi" id="bkw-auth-name" type="text" placeholder="Your full name" style="font-size:.82rem"></div>
+            <div class="fg" style="margin-bottom:10px"><input class="fi" id="bkw-auth-pass" type="password" placeholder="Password" style="font-size:.82rem"></div>
+            <div id="bkw-auth-err" style="font-size:.72rem;color:#dc2626;margin-bottom:8px;display:none"></div>
+            <button id="bkw-auth-submit" onclick="bkwSubmitInlineAuth()" style="width:100%;background:var(--b600);color:#fff;border:none;border-radius:8px;padding:9px;font-size:.8rem;font-weight:700;cursor:pointer">Continue</button>
+          </div>
+          <div style="text-align:center;margin-top:10px">
+            <span onclick="bkwSkipAuth()" style="font-size:.7rem;color:var(--muted);cursor:pointer;text-decoration:underline">Continue as guest</span>
+          </div>
+        </div>
+        <div id="bkw-auth-done" style="display:none;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:.78rem;color:#166534">
+          <i class="fa fa-circle-check" style="margin-right:5px"></i><span id="bkw-auth-done-msg">Signed in — your booking will appear in My Account.</span>
+        </div>
         <div class="fg"><label>Full name *</label><input class="fi" id="bkw-co-name" placeholder="Your full name"></div>
         <div class="fg"><label>Email *</label><input class="fi" type="email" id="bkw-co-email" placeholder="your@email.com"></div>
         <div id="bkw-co-status" style="font-size:.8rem;color:var(--muted);text-align:center;margin-bottom:8px;min-height:18px"></div>
@@ -5134,6 +5163,7 @@ tr:hover td{background:var(--b50)}
       </div>
       <button class="sbl on" onclick="showDash('boxes')"><i class="fa fa-gift"></i> My Boxes</button>
       <button class="sbl" onclick="showDash('orders')"><i class="fa fa-box"></i> My Orders</button>
+      <button class="sbl" onclick="showDash('mybookings')"><i class="fa fa-calendar-check"></i> My Bookings</button>
       <button class="sbl" onclick="showDash('redeem')"><i class="fa fa-ticket"></i> Redeem a Box</button>
       <button class="sbl" onclick="showDash('wishlist')"><i class="fa fa-heart"></i> Wishlist</button>
       <button class="sbl" onclick="showDash('reviews')"><i class="fa fa-star"></i> My Reviews <span id="dash-reviews-badge" style="display:none;margin-left:auto;background:#ef4444;color:#fff;border-radius:99px;padding:1px 6px;font-size:.6rem;font-weight:700"></span></button>
@@ -5239,6 +5269,15 @@ tr:hover td{background:var(--b50)}
         </div>
       </div>
       <!-- Orders tab -->
+      <!-- My Bookings tab (BKW direct bookings) -->
+      <div id="dash-mybookings" style="display:none">
+        <h2 style="font-size:1.5rem;color:var(--navy);margin-bottom:4px">My Bookings</h2>
+        <p style="color:var(--muted);font-size:.82rem;margin-bottom:20px">Your direct experience bookings made via partner pages.</p>
+        <div id="dash-mybookings-list">
+          <div style="text-align:center;padding:32px;color:var(--muted)"><i class="fa fa-spinner fa-spin" style="font-size:1.5rem"></i></div>
+        </div>
+      </div>
+
       <div id="dash-orders" style="display:none">
         <h2 style="font-size:1.8rem;color:var(--navy);margin-bottom:5px">My Orders</h2>
         <p style="color:var(--muted);font-size:.85rem;margin-bottom:22px">Track and manage your purchases.</p>
@@ -17547,6 +17586,7 @@ function bkwGoCheckout() {
   document.querySelectorAll('.page').forEach(function(p){ p.style.display='none'; });
   var pg = document.getElementById('page-bkw-checkout'); if(pg) pg.style.display='block';
   window.scrollTo(0,0);
+  bkwUpdateAuthBlock();
 }
 
 function bkwBackToExp() {
@@ -17563,6 +17603,115 @@ function bkwBackToPartner() {
   document.querySelectorAll('.page').forEach(function(p){ p.style.display='none'; });
   var psEl = document.getElementById('page-partner-storefront'); if(psEl) psEl.style.display='block';
   window.scrollTo(0,0);
+}
+
+// ── BKW Checkout Auth ─────────────────────────────────────────────
+function bkwUpdateAuthBlock() {
+  var authBlock = document.getElementById('bkw-auth-block');
+  var authDone  = document.getElementById('bkw-auth-done');
+  var authMsg   = document.getElementById('bkw-auth-done-msg');
+  if (!authBlock) return;
+  if (currentUser) {
+    authBlock.style.display = 'none';
+    if (authDone) authDone.style.display = 'block';
+    if (authMsg) authMsg.textContent = 'Signed in as ' + (currentUser.email||'') + ' — your booking will appear in My Account.';
+    var coEmail = document.getElementById('bkw-co-email'); if(coEmail && !coEmail.value) coEmail.value = currentUser.email||'';
+    var coName  = document.getElementById('bkw-co-name');
+    if (coName && !coName.value) {
+      var meta = currentUser.user_metadata || currentUser.identities?.[0]?.identity_data || {};
+      coName.value = meta.full_name || meta.name || '';
+    }
+  } else {
+    authBlock.style.display = 'block';
+    if (authDone) authDone.style.display = 'none';
+  }
+}
+
+function bkwAuthGoogle() {
+  db_client.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: APP_URL + '/wow/' + (_bkwState.partnerSlug||'') } });
+}
+
+var _bkwAuthMode = 'in';
+function bkwShowInlineAuth(mode) {
+  _bkwAuthMode = mode;
+  var wrap = document.getElementById('bkw-inline-auth');
+  var nameWrap = document.getElementById('bkw-auth-name-wrap');
+  var btn = document.getElementById('bkw-auth-submit');
+  if(wrap) wrap.style.display = 'block';
+  if(nameWrap) nameWrap.style.display = mode === 'up' ? 'block' : 'none';
+  if(btn) btn.textContent = mode === 'up' ? 'Create account & continue' : 'Sign in & continue';
+}
+
+async function bkwSubmitInlineAuth() {
+  var email = document.getElementById('bkw-auth-email')?.value.trim();
+  var pass  = document.getElementById('bkw-auth-pass')?.value;
+  var name  = document.getElementById('bkw-auth-name')?.value.trim();
+  var errEl = document.getElementById('bkw-auth-err');
+  var btn   = document.getElementById('bkw-auth-submit');
+  if (!email || !pass) { if(errEl){errEl.textContent='Email and password required.';errEl.style.display='block';} return; }
+  if(btn) { btn.disabled=true; btn.textContent='Please wait…'; }
+  try {
+    var res;
+    if (_bkwAuthMode === 'up') {
+      res = await db_client.auth.signUp({ email, password: pass, options: { data: { full_name: name } } });
+    } else {
+      res = await db_client.auth.signInWithPassword({ email, password: pass });
+    }
+    if (res.error) throw res.error;
+    currentUser = res.data?.user || res.data?.session?.user || null;
+    bkwUpdateAuthBlock();
+  } catch(e) {
+    if(errEl){ errEl.textContent = e.message||'Authentication failed.'; errEl.style.display='block'; }
+    if(btn){ btn.disabled=false; btn.textContent = _bkwAuthMode==='up'?'Create account & continue':'Sign in & continue'; }
+  }
+}
+
+function bkwSkipAuth() {
+  var authBlock = document.getElementById('bkw-auth-block');
+  if(authBlock) authBlock.style.display = 'none';
+}
+
+// ── My Account: load BKW bookings ─────────────────────────────────
+async function loadMyBkwBookings(email) {
+  var listEl = document.getElementById('dash-mybookings-list');
+  if (!listEl || !email) return;
+  listEl.innerHTML = '<div style="text-align:center;padding:24px;color:var(--muted)"><i class="fa fa-spinner fa-spin"></i></div>';
+  try {
+    var res = await db_client.from('bookings')
+      .select('booking_reference,experience_name,booking_date,booking_time,guests,status,created_at,booking_details,service_fee,flow,customer_name,guest_name,reservation_type')
+      .eq('customer_email', email)
+      .eq('flow', 'wow')
+      .order('created_at', { ascending: false })
+      .limit(50);
+    var bookings = res.data || [];
+    if (!bookings.length) {
+      listEl.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted);font-size:.85rem"><i class="fa fa-calendar-days" style="font-size:2rem;opacity:.3;display:block;margin-bottom:10px"></i>No bookings yet.<br><span style="font-size:.78rem">Book an experience on a partner page to see it here.</span></div>';
+      return;
+    }
+    var sColors = { pending_confirmation:'#d97706', confirmed:'#16a34a', used:'#64748b', cancelled:'#dc2626' };
+    listEl.innerHTML = bookings.map(function(b){
+      var bDate = b.booking_date ? new Date(b.booking_date).toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'}) : '—';
+      var timeStr = b.booking_time ? ' at ' + b.booking_time : '';
+      var det = (typeof b.booking_details === 'object' && b.booking_details) ? b.booking_details : {};
+      var sColor = sColors[b.status] || '#64748b';
+      var guest = b.guest_name || b.customer_name || '—';
+      var detLines = [det.occasion, det.dietary, det.notes, det.endDate ? 'Check-out: '+det.endDate : ''].filter(Boolean);
+      return '<div style="background:#fff;border:1px solid var(--border);border-radius:12px;padding:18px;margin-bottom:12px">'
+        + '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">'
+        + '<div><div style="font-size:.9rem;font-weight:700;color:var(--navy);margin-bottom:3px">'+b.experience_name+'</div>'
+        + '<div style="font-size:.76rem;color:var(--muted)">📅 '+bDate+timeStr+' · 👤 '+(b.guests||1)+' guest'+((b.guests||1)!==1?'s':'')+'</div></div>'
+        + '<span style="font-size:.68rem;font-weight:700;color:'+sColor+';background:'+sColor+'18;padding:3px 10px;border-radius:99px">'+b.status.replace('_',' ')+'</span>'
+        + '</div>'
+        + '<div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:8px">'
+        + '<div style="font-size:.78rem;color:var(--muted)">Guest: <strong style="color:var(--navy)">'+guest+'</strong></div>'
+        + (b.booking_reference ? '<div style="font-size:.78rem;color:var(--muted)">Ref: <code style="color:var(--b700);font-size:.75rem">'+b.booking_reference+'</code></div>' : '')
+        + '</div>'
+        + (detLines.length ? '<div style="font-size:.75rem;color:var(--muted)">'+detLines.join(' · ')+'</div>' : '')
+        + '</div>';
+    }).join('');
+  } catch(e) {
+    listEl.innerHTML = '<div style="padding:16px;color:#dc2626;font-size:.82rem">Error: '+(e.message||'unknown')+'</div>';
+  }
 }
 
 async function bkwSubmitPayment() {
