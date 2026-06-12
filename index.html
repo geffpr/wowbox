@@ -17294,11 +17294,17 @@ async function loadPartnerStorefront(slug) {
     var expRes = await query;
     var exps = expRes.data || [];
     if (expIds.length) exps.sort(function(a,b){ return expIds.indexOf(a.id)-expIds.indexOf(b.id); });
-    _psAllExps = exps; // store for Search filter
+    _psAllExps = exps;
     _bkwState.partnerName = p.partner_name || p.full_name || '';
-    // Init filter bar with city options + responsive mode
+
+    var pageLayout = p.page_layout || 'grid';
+    var savedExp = p.page_experiences || [];
+    var featuredId = null;
+    var featEntry = Array.isArray(savedExp) ? savedExp.find(function(x){ return x&&typeof x==='object'&&x.featured; }) : null;
+    if (featEntry) featuredId = featEntry.id;
+    if (!featuredId && exps.length) featuredId = exps[0].id;
+
     psInitFilters(exps, color, pageLayout, featuredId);
-    // Render experiences grid using shared renderer
     psRenderExpGrid(exps, null, pageLayout, color, featuredId);
     psRenderBlocks(p.page_blocks || [], p, color, exps, partnerContact, slug);
     document.title = (p.partner_name || p.full_name || 'Partner') + ' — WowBox';
