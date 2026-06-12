@@ -20184,40 +20184,53 @@ function ppEditExperience(expId, expName, expDesc, expType, expCity, expCap, exp
     return '<option value="'+o[0]+'"'+(expAccom===o[0]?' selected':'')+'>'+o[1]+'</option>';
   }).join('');
 
+  var sh = 'font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:var(--b600);margin:20px 0 12px;padding-bottom:8px;border-bottom:1px solid var(--b100)';
   document.getElementById('adm-modal-body').innerHTML =
     '<h3 style="font-size:1.1rem;color:var(--navy);margin-bottom:4px"><i class="fa fa-pen" style="color:var(--b500)"></i> Edit experience</h3>'
-    + '<div style="display:flex;align-items:center;gap:8px;background:var(--b50);border:1px solid var(--b200);border-radius:8px;padding:9px 12px;margin-bottom:14px;font-size:.78rem;color:var(--b700)"><i class="fa fa-info-circle" style="color:var(--b500)"></i> Your changes will be sent to WowBox admin for review before going live. You will receive an email once approved.</div>'
-    + '<div class="fg"><label>Experience name *</label><input class="fi" id="pp-edit-name" value="'+expName+'"></div>'
+    + '<div style="display:flex;align-items:center;gap:8px;background:var(--b50);border:1px solid var(--b200);border-radius:8px;padding:9px 12px;margin-bottom:14px;font-size:.78rem;color:var(--b700)"><i class="fa fa-info-circle" style="color:var(--b500)"></i> Your changes will be sent to WowBox admin for review before going live.</div>'
+
+    + '<div style="'+sh+'">1 · Basics</div>'
     + '<div class="fg-row">'
+    + '<div class="fg"><label>Experience name *</label><input class="fi" id="pp-edit-name" value="'+expName+'"></div>'
     + '<div class="fg"><label>Type</label><select class="fi" id="pp-edit-type">'+typeOpts+'</select></div>'
-    + '<div class="fg"><label>Category</label><select class="fi" id="pp-edit-category"><option value="">— Select —</option>'+typeOpts+'</select></div>'
     + '</div>'
     + '<div class="fg"><label>Description</label><textarea class="fi" id="pp-edit-desc" rows="3" style="resize:vertical">'+expDesc+'</textarea></div>'
+    + '<div class="fg"><label>Programme <span style="font-weight:400;color:var(--muted)">(up to 4 steps)</span></label><div id="pp-edit-programme-wrap">' + buildProgrammeFields('pp-edit', expProgramme||[]) + '</div></div>'
+    + '<div class="fg"><label>Amenities</label><div id="pp-edit-amenities-wrap">' + buildAmenitiesCheckboxes('pp-edit', expAmenities||[]) + '</div></div>'
+
+    + '<div style="'+sh+'">2 · Location</div>'
     + '<div class="fg-row">'
     + '<div class="fg"><label>City / Location</label><input class="fi" id="pp-edit-city" value="'+expCity+'"></div>'
     + '<div class="fg"><label>Province</label><select class="fi" id="pp-edit-province">'+provinceOpts+'</select></div>'
     + '</div>'
+
+    + '<div style="'+sh+'">3 · Capacity &amp; Availability</div>'
     + '<div class="fg-row">'
-    + '<div class="fg"><label>Capacity</label><input class="fi" id="pp-edit-cap" type="number" value="'+expCap+'"></div>'
+    + '<div class="fg"><label>Capacity (max guests)</label><input class="fi" id="pp-edit-cap" type="number" value="'+expCap+'"></div>'
     + '<div class="fg"><label>Booking type</label><select class="fi" id="pp-edit-booking"><option value="on_site"'+(expBooking==='on_site'?' selected':'')+'>On site</option><option value="online"'+(expBooking==='online'?' selected':'')+'>Online</option><option value="phone"'+(expBooking==='phone'?' selected':'')+'>Phone</option></select></div>'
-    + '<div class="fg"><label>Nights (0=day)</label><input class="fi" id="pp-edit-nights" type="number" min="0" max="14" value="'+expNights+'"></div>'
+    + '<div class="fg"><label>Nights (0 = day trip)</label><input class="fi" id="pp-edit-nights" type="number" min="0" max="14" value="'+expNights+'"></div>'
     + '</div>'
+    + '<div class="fg"><label>🔗 iCal sync URL <span style="font-weight:400;color:var(--muted)">(optional)</span></label><input class="fi" id="pp-edit-ical" value="'+(expIcal||'')+'" placeholder="webcal:// or https://... .ics link"><div style="font-size:.68rem;color:var(--muted);margin-top:3px">Blocked dates will grey out in the booking date picker.</div></div>'
+
+    + '<div style="'+sh+'">4 · Pricing</div>'
     + '<div class="fg-row">'
+    + '<div class="fg"><label>WowBox value (R) <span style="font-weight:400;color:var(--muted);font-size:.72rem">— voucher only</span></label><div style="position:relative"><span style="position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:.85rem">R</span><input class="fi" id="pp-edit-price" type="number" min="0" placeholder="e.g. 850" value="" style="padding-left:26px"></div><div style="font-size:.68rem;color:var(--muted);margin-top:3px"><i class="fa fa-gift" style="color:var(--b500)"></i> Used by WowBox gift boxes only.</div></div>'
+    + '<div class="fg"><label>Direct booking price /wow/ (R) <span style="font-weight:400;color:var(--muted);font-size:.72rem">— partner page</span></label><div style="position:relative"><span style="position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:.85rem">R</span><input class="fi" id="pp-edit-wow-price" type="number" min="0" placeholder="e.g. 500" value="'+(expWowPrice||'')+'" style="padding-left:26px"></div><div style="font-size:.68rem;color:var(--muted);margin-top:3px"><i class="fa fa-link" style="color:var(--b500)"></i> Price on your partner page for direct bookings.</div></div>'
+    + '<div class="fg"><label>Direct pricing type</label><select class="fi" id="pp-edit-wow-pricing"><option value="per_person"'+(expWowPricing==="per_person"?' selected':'')+'>Per person</option><option value="fixed"'+(expWowPricing==="fixed"?' selected':'')+'>Fixed (whole group)</option></select><div style="font-size:.68rem;color:var(--muted);margin-top:3px">Per person: price × guests. Fixed: same regardless of group size.</div></div>'
+    + '</div>'
+
+    + '<div style="'+sh+'">5 · Classification</div>'
+    + '<div class="fg-row">'
+    + '<div class="fg"><label>Category</label><select class="fi" id="pp-edit-category"><option value="">— Select —</option>'+typeOpts+'</select></div>'
     + '<div class="fg"><label>Weekend style</label><select class="fi" id="pp-edit-weekend">'+weekendOpts+'</select></div>'
     + '<div class="fg"><label>Accommodation type</label><select class="fi" id="pp-edit-accom">'+accomOpts+'</select></div>'
     + '</div>'
+    + '<div class="fg-row">'
     + '<div class="fg"><label>Certification <span style="font-weight:400;color:var(--muted)">(optional)</span></label><input class="fi" id="pp-edit-cert" value="'+expCert+'" placeholder="Eat Out, AA Travel, Fair Trade…"></div>'
-    + '<div class="fg-row" style="margin-top:4px">'
-    + '<div class="fg" style="display:flex;align-items:center;gap:10px"><input type="checkbox" id="pp-edit-accessible"'+(expAccessible?' checked':'')+' style="width:16px;height:16px;cursor:pointer"><label for="pp-edit-accessible" style="cursor:pointer;font-size:.82rem;color:var(--navy)">♿ PMR accessible</label></div>'
-    + '<div class="fg" style="display:flex;align-items:center;gap:10px"><input type="checkbox" id="pp-edit-insolite"'+(expInsolite?' checked':'')+' style="width:16px;height:16px;cursor:pointer"><label for="pp-edit-insolite" style="cursor:pointer;font-size:.82rem;color:var(--navy)">🌟 Insolite</label></div>'
+    + '<div class="fg" style="display:flex;align-items:center;gap:12px;padding-top:22px"><input type="checkbox" id="pp-edit-accessible"'+(expAccessible?' checked':'')+' style="width:16px;height:16px;cursor:pointer"><label for="pp-edit-accessible" style="cursor:pointer;font-size:.82rem">♿ PMR accessible</label><input type="checkbox" id="pp-edit-insolite"'+(expInsolite?' checked':'')+' style="width:16px;height:16px;cursor:pointer;margin-left:8px"><label for="pp-edit-insolite" style="cursor:pointer;font-size:.82rem">🌟 Insolite</label></div>'
     + '</div>'
-    + '<div class="fg"><label>🔗 iCal sync URL <span style="font-weight:400;color:var(--muted)">(optional)</span></label><input class="fi" id="pp-edit-ical" value="'+(expIcal||'')+'" placeholder="webcal:// or https://... .ics link"><div style="font-size:.68rem;color:var(--muted);margin-top:3px">Blocked dates will grey out in the booking date picker.</div></div>'
-    + '<div class="fg-row"><div class="fg"><label>WowBox value (R)</label><input class="fi" id="pp-edit-price" type="number" min="0" placeholder="e.g. 850" value=""></div>'
-    + '<div class="fg"><label>Direct booking price /wow/ (R)</label><input class="fi" id="pp-edit-wow-price" type="number" min="0" placeholder="e.g. 500" value="'+(expWowPrice||'')+'"><div style="font-size:.68rem;color:var(--muted);margin-top:3px">Price on your partner page for direct bookings.</div></div>'
-    + '<div class="fg"><label>Direct pricing type</label><select class="fi" id="pp-edit-wow-pricing"><option value="per_person"'+(expWowPricing==='per_person'?' selected':'')+'>Per person</option><option value="fixed"'+(expWowPricing==='fixed'?' selected':'')+'>Fixed (whole group)</option></select></div></div>'
-    + '<div class="fg"><label>Programme <span style="font-weight:400;color:var(--muted)">(up to 4 steps)</span></label><div id="pp-edit-programme-wrap">' + buildProgrammeFields('pp-edit', expProgramme||[]) + '</div></div>'
-    + '<div class="fg"><label>Amenities</label><div id="pp-edit-amenities-wrap">' + buildAmenitiesCheckboxes('pp-edit', expAmenities||[]) + '</div></div>'
-    + '<div style="display:flex;gap:9px;margin-top:18px;padding-top:14px;border-top:1px solid var(--border);position:sticky;bottom:0;background:var(--white)">'
+
+    + '<div style="display:flex;gap:9px;margin-top:20px;padding-top:14px;border-top:1px solid var(--border);position:sticky;bottom:0;background:var(--white)">'
     + '<button class="btn bp bsm" onclick="ppSubmitEdit(\'' + expId + '\')"><i class="fa fa-paper-plane"></i> Submit for review</button>'
     + '<button class="btn bg bsm" onclick="document.getElementById(\'adm-modal\').style.display=\'none\'">Cancel</button>'
     + '</div>';
