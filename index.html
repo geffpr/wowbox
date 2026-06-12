@@ -18104,11 +18104,13 @@ function psGetComboLabel(activeBlocks) {
 }
 
 function psBuildBar(color, activeBlocks) {
+  var activeBlock = activeBlocks[0];
+  var fields = _psFields[activeBlock] || [];
   var fi = 'background:transparent;border:none;outline:none;padding:10px 14px;font-size:.88rem;color:#1a1a2e;width:100%;font-family:inherit;box-sizing:border-box';
-  var fields = psGetComboFields(activeBlocks);
-  var label  = psGetComboLabel(activeBlocks);
-  var bar = fields.map(function(f, idx){
-    var border = idx < fields.length-1 ? 'border-right:1px solid #e5e7eb' : '';
+  var isMobile = window.innerWidth < 640;
+
+  var bar = fields.map(function(f, idx) {
+    var border = !isMobile && idx < fields.length - 1 ? 'border-right:1px solid #e5e7eb' : '';
     var inner = '';
     if (f.type === 'date') {
       inner = '<input type="date" id="'+f.id+'" style="'+fi+';padding-top:2px;padding-bottom:10px">';
@@ -18116,12 +18118,21 @@ function psBuildBar(color, activeBlocks) {
       var opts = (f.opts||[]).map(function(o, i){ return '<option'+(i===(f.def||0)?' selected':'')+'>'+o+'</option>'; }).join('');
       inner = '<select id="'+f.id+'" style="'+fi+';padding-top:2px;padding-bottom:10px;appearance:none;cursor:pointer">'+opts+'</select>';
     }
-    return '<div style="flex:'+f.flex+';min-width:0;'+border+'"><div style="font-size:.58rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#9ca3af;padding:10px 14px 2px">'+f.label+'</div>'+inner+'</div>';
+    var flex = isMobile ? '1 1 100%' : f.flex;
+    return '<div style="flex:'+flex+';min-width:80px;'+border+'"><div style="font-size:.58rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#9ca3af;padding:10px 14px 2px">'+f.label+'</div>'+inner+'</div>';
   }).join('');
 
-  return '<div style="display:flex;align-items:center;background:#fff;border-radius:12px;box-shadow:0 4px 24px rgba(0,0,0,.2);overflow:hidden;max-width:960px" id="ps-smart-bar">'
+  var wrapStyle = isMobile
+    ? 'display:flex;flex-direction:column;background:#fff;border-radius:12px;box-shadow:0 4px 24px rgba(0,0,0,.2);overflow:hidden;width:100%'
+    : 'display:flex;align-items:center;background:#fff;border-radius:12px;box-shadow:0 4px 24px rgba(0,0,0,.2);overflow:hidden;max-width:960px';
+
+  var btnStyle = isMobile
+    ? 'padding:12px;margin:8px;border-radius:8px;width:calc(100% - 16px)'
+    : 'padding:10px';
+
+  return '<div style="'+wrapStyle+'" id="ps-smart-bar">'
     + bar
-    + '<div style="padding:10px;flex-shrink:0"><button onclick="psSearchFilter()" style="background:'+color+';color:#fff;border:none;border-radius:8px;padding:12px 24px;font-weight:700;font-size:.88rem;cursor:pointer;white-space:nowrap">Search →</button></div>'
+    + '<div style="'+btnStyle+';flex-shrink:0"><button onclick="psSearchFilter()" style="background:'+color+';color:#fff;border:none;border-radius:8px;padding:12px 24px;font-weight:700;font-size:.88rem;cursor:pointer;white-space:nowrap;width:100%">Search →</button></div>'
     + '</div>';
 }
 
@@ -18409,9 +18420,10 @@ function psRenderFilteredExps(activeBlockIds, exps, color, catMap) {
 
 function psToggleBookingTab(btn, blockId) {
   var color = document.getElementById('ps-booking-widget')?.dataset.color || '#b45309';
-  _psActiveBlocks[blockId] = !_psActiveBlocks[blockId];
-  var activeList = Object.keys(_psActiveBlocks).filter(function(k){ return _psActiveBlocks[k]; });
-  if (!activeList.length) { _psActiveBlocks[blockId] = true; activeList = [blockId]; }
+  // On the partner page, tabs are single-select (only one active at a time)
+  Object.keys(_psActiveBlocks).forEach(function(k){ _psActiveBlocks[k] = false; });
+  _psActiveBlocks[blockId] = true;
+  // Update tab styles
   document.querySelectorAll('[id^="ps-tab-"]').forEach(function(b){
     var bid = b.id.replace('ps-tab-','');
     var isOn = !!_psActiveBlocks[bid];
@@ -18419,8 +18431,9 @@ function psToggleBookingTab(btn, blockId) {
     b.style.color = isOn ? color : '#fff';
     b.style.boxShadow = isOn ? '0 2px 8px rgba(0,0,0,.15)' : 'none';
   });
+  // Rebuild bar with fields for the active tab only
   var barWrap = document.getElementById('ps-bar-wrap');
-  if (barWrap) barWrap.innerHTML = psBuildBar(color, activeList);
+  if (barWrap) barWrap.innerHTML = psBuildBar(color, [blockId]);
 }
 
 
