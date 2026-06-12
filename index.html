@@ -18301,6 +18301,10 @@ function psRenderBlocks(blocks, p, color, exps, partnerContact, slug) {
         }).join('');
       };
 
+      // Store gallery data directly (injected scripts in innerHTML don't execute)
+      window._psGalleries = window._psGalleries || {};
+      window._psGalleries[gid] = { imgs: allImgs, cur: 0 };
+
       belowHtml += '<div style="background:'+galleryBg+';padding:64px 40px" id="'+gid+'-wrap">'
         + '<div style="max-width:1100px;margin:0 auto">'
         + '<div style="font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.18em;color:'+color+';margin-bottom:10px;text-align:center">Photo Gallery</div>'
@@ -18328,8 +18332,7 @@ function psRenderBlocks(blocks, p, color, exps, partnerContact, slug) {
         + '<div id="'+gid+'-lb-cnt" style="position:fixed;bottom:20px;left:50%;transform:translateX(-50%);color:rgba(255,255,255,.7);font-size:.82rem;background:rgba(0,0,0,.5);padding:5px 16px;border-radius:99px"></div>'
         + '</div>';
 
-      // Store gallery data
-      belowHtml += '<script>window._psGalleries=window._psGalleries||{};window._psGalleries["'+gid+'"]={imgs:'+JSON.stringify(allImgs)+',cur:0};<\/script>';
+      // Gallery data already stored above via window._psGalleries[gid]
 
     } else {
       belowHtml += '<div style="background:'+galleryBg+';padding:40px;text-align:center;color:rgba(255,255,255,.5);font-size:.88rem">No photos available yet.</div>';
