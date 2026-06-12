@@ -6038,162 +6038,203 @@ tr:hover td{background:var(--b50)}
 
         <!-- Add form -->
         <div class="pp-add-form" id="pp-add-form">
-          <h4 style="font-size:1rem;color:var(--navy);margin-bottom:16px"><i class="fa fa-plus-circle" style="color:var(--b500)"></i> New experience — pending admin review</h4>
-          <div class="fg-row">
-            <div class="fg"><label>Experience name *</label><input class="fi" id="pp-new-name" placeholder="e.g. Vineyard Sunset Dinner"></div>
-            <div class="fg">
-              <label>Type *</label>
-              <select class="fi" id="pp-new-type">
-                <option value="">— Select —</option>
-                <option value="accommodation">🏨 Accommodation</option>
-                <option value="dining">🍽️ Dining</option>
-                <option value="wellness">🧖 Wellness</option>
-                <option value="activity">🏄 Activity</option>
-                <option value="rental">🚗 Rental</option>
-                <option value="event">🎉 Event</option>
-              </select>
-            </div>
-          </div>
-          <div class="fg"><label>Description</label><textarea class="fi" id="pp-new-desc" rows="3" style="resize:vertical" placeholder="Describe what guests will experience…"></textarea></div>
-          <div class="fg">
-            <label>Programme <span style="font-weight:400;color:var(--muted)">(up to 4 steps — leave empty to skip)</span></label>
-            <div id="pp-new-programme-wrap"></div>
-          </div>
-          <div class="fg">
-            <label>Amenities</label>
-            <div id="pp-new-amenities-wrap"></div>
-          </div>
-          <div class="fg-row">
-            <div class="fg">
-              <label>Maximum guests per booking *</label>
-              <input class="fi" id="pp-new-capacity" type="number" placeholder="e.g. 2" min="1">
-              <div style="font-size:.68rem;color:var(--muted);margin-top:4px">How many guests can attend <strong>per booking</strong>. 1 = Solo only · 2 = up to 2 · 3+ = Group. Guests can always book fewer than the max.</div>
-            </div>
-            <div class="fg">
-              <label>Address / Location</label>
-              <input class="fi" id="pp-new-city" placeholder="Start typing address or venue…" autocomplete="off">
-              <input type="hidden" id="pp-new-lat">
-              <input type="hidden" id="pp-new-lng">
-              <input type="hidden" id="pp-new-address">
-              <div style="font-size:.68rem;color:var(--muted);margin-top:3px"><i class="fa fa-map-pin" style="color:var(--b500)"></i> Select from dropdown to auto-fill coordinates</div>
-            </div>
-            <div class="fg">
-              <label>Venue phone number *</label>
-              <input class="fi" id="pp-new-phone" type="tel" placeholder="+27 21 000 0000">
-              <div style="font-size:.68rem;color:var(--muted);margin-top:3px"><i class="fa fa-phone" style="color:var(--b500)"></i> Printed on the voucher — guests will call to confirm their visit</div>
-            </div>
-          </div>
-          <div class="fg-row">
-            <div class="fg">
-              <label>Experience value (ZAR) *</label>
-              <div style="position:relative"><span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:.85rem">R</span><input class="fi" id="pp-new-price" type="number" min="0" step="1" placeholder="e.g. 850" style="padding-left:26px"></div>
-              <div style="font-size:.68rem;color:var(--muted);margin-top:4px">Price per person / session charged by your venue.</div>
-            </div>
-            <div class="fg" style="display:flex;align-items:flex-end">
-              <div style="background:var(--b50);border:1px solid var(--b200);border-radius:var(--rs);padding:9px 12px;font-size:.72rem;color:var(--b700);line-height:1.5;margin-bottom:2px"><i class="fa fa-circle-info" style="color:var(--b500)"></i> Admin will assign this to the right box based on this value.</div>
-            </div>
-          </div>
-          <div class="fg">
-            <label style="display:block;margin-bottom:6px">Experience images <span style="font-weight:400;color:var(--muted)">(up to 3 — first is the main image)</span></label>
-            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px">
-              <div id="pp-img-slot-0" class="pp-img-slot" onclick="document.getElementById('pp-img-file-0').click()" style="border:2px dashed var(--b300);border-radius:var(--rs);aspect-ratio:4/3;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;background:var(--b50);transition:background .15s;font-size:.72rem;color:var(--muted);text-align:center;padding:8px">
-                <i class="fa fa-image" style="font-size:1.4rem;color:var(--b400);margin-bottom:4px"></i>Main image
-              </div>
-              <div id="pp-img-slot-1" class="pp-img-slot" onclick="document.getElementById('pp-img-file-1').click()" style="border:2px dashed var(--b300);border-radius:var(--rs);aspect-ratio:4/3;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;background:var(--b50);transition:background .15s;font-size:.72rem;color:var(--muted);text-align:center;padding:8px">
-                <i class="fa fa-image" style="font-size:1.4rem;color:var(--b400);margin-bottom:4px"></i>Photo 2
-              </div>
-              <div id="pp-img-slot-2" class="pp-img-slot" onclick="document.getElementById('pp-img-file-2').click()" style="border:2px dashed var(--b300);border-radius:var(--rs);aspect-ratio:4/3;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;background:var(--b50);transition:background .15s;font-size:.72rem;color:var(--muted);text-align:center;padding:8px">
-                <i class="fa fa-image" style="font-size:1.4rem;color:var(--b400);margin-bottom:4px"></i>Photo 3
+          <h4 style="font-size:1rem;color:var(--navy);margin-bottom:0;padding:16px 20px;border-bottom:1px solid var(--b100)"><i class="fa fa-plus-circle" style="color:var(--b500)"></i> New experience — pending admin review</h4>
+
+          <!-- §1 Basics -->
+          <div style="padding:18px 20px;border-bottom:1px solid var(--b100)">
+            <div style="font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:var(--b600);margin-bottom:14px">1 · Basics</div>
+            <div class="fg-row">
+              <div class="fg"><label>Experience name *</label><input class="fi" id="pp-new-name" placeholder="e.g. Vineyard Sunset Dinner"></div>
+              <div class="fg">
+                <label>Type *</label>
+                <select class="fi" id="pp-new-type">
+                  <option value="">— Select —</option>
+                  <option value="accommodation">🏨 Accommodation</option>
+                  <option value="dining">🍽️ Dining</option>
+                  <option value="wellness">🧖 Wellness</option>
+                  <option value="activity">🏄 Activity</option>
+                  <option value="rental">🚗 Rental</option>
+                  <option value="event">🎉 Event</option>
+                </select>
               </div>
             </div>
-            <input type="file" id="pp-img-file-0" accept="image/*" style="display:none" onchange="ppHandleImgUpload(0,this.files[0])">
-            <input type="file" id="pp-img-file-1" accept="image/*" style="display:none" onchange="ppHandleImgUpload(1,this.files[0])">
-            <input type="file" id="pp-img-file-2" accept="image/*" style="display:none" onchange="ppHandleImgUpload(2,this.files[0])">
-            <input type="hidden" id="pp-new-img-0">
-            <input type="hidden" id="pp-new-img-1">
-            <input type="hidden" id="pp-new-img-2">
-          </div>
-          <div class="fg-row">
-            <div class="fg"><label>Province</label>
-              <select class="fi" id="pp-new-province">
-                <option value="">— Select —</option>
-                <option>Gauteng</option><option>Western Cape</option><option>KwaZulu-Natal</option>
-                <option>Eastern Cape</option><option>Limpopo</option><option>Mpumalanga</option>
-                <option>North West</option><option>Free State</option><option>Northern Cape</option>
-              </select>
+            <div class="fg"><label>Description</label><textarea class="fi" id="pp-new-desc" rows="3" style="resize:vertical" placeholder="Describe what guests will experience…"></textarea></div>
+            <div class="fg">
+              <label>Programme <span style="font-weight:400;color:var(--muted)">(up to 4 steps — leave empty to skip)</span></label>
+              <div id="pp-new-programme-wrap"></div>
             </div>
-            <div class="fg"><label>Booking type</label>
-              <select class="fi" id="pp-new-booking-type">
-                <option value="on_site">On site (walk-in / call)</option>
-                <option value="online">Online booking</option>
-                <option value="phone">Phone reservation</option>
-              </select>
-            </div>
-            <div class="fg"><label>Nights (0 = day trip)</label>
-              <input class="fi" id="pp-new-nights" type="number" min="0" max="14" placeholder="0" value="0">
+            <div class="fg">
+              <label>Amenities</label>
+              <div id="pp-new-amenities-wrap"></div>
             </div>
           </div>
-          <div class="fg-row">
-            <div class="fg"><label>Category</label>
-              <select class="fi" id="pp-new-category">
-                <option value="">— Select —</option>
-                <option value="accommodation">🏨 Accommodation</option>
-                <option value="dining">🍽️ Dining</option>
-                <option value="wellness">🧖 Wellness</option>
-                <option value="activity">🏄 Activity</option>
-                <option value="culture">🎭 Culture</option>
-                <option value="nature">🦁 Nature</option>
-                <option value="event">🎉 Event</option>
-                <option value="rental">🚗 Rental</option>
-              </select>
-            </div>
-            <div class="fg"><label>Weekend style</label>
-              <select class="fi" id="pp-new-weekend-type">
-                <option value="">— Select —</option>
-                <option value="romantic">💑 Romantic</option>
-                <option value="family">👨‍👩‍👧 Family</option>
-                <option value="adventure">🏔️ Adventure</option>
-                <option value="relaxation">🧘 Relaxation</option>
-                <option value="gastronomic">🍷 Gastronomic</option>
-                <option value="cultural">🎨 Cultural</option>
-              </select>
-            </div>
-            <div class="fg"><label>Accommodation type</label>
-              <select class="fi" id="pp-new-accom-type">
-                <option value="">— N/A —</option>
-                <option value="hotel">Hotel</option>
-                <option value="lodge">Lodge</option>
-                <option value="boutique">Boutique</option>
-                <option value="guesthouse">Guest House</option>
-                <option value="insolite">Insolite</option>
-                <option value="farm">Farm Stay</option>
-                <option value="villa">Villa</option>
-              </select>
+
+          <!-- §2 Location -->
+          <div style="padding:18px 20px;border-bottom:1px solid var(--b100)">
+            <div style="font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:var(--b600);margin-bottom:14px">2 · Location</div>
+            <div class="fg-row">
+              <div class="fg">
+                <label>Address / Location</label>
+                <input class="fi" id="pp-new-city" placeholder="Start typing address or venue…" autocomplete="off">
+                <input type="hidden" id="pp-new-lat">
+                <input type="hidden" id="pp-new-lng">
+                <input type="hidden" id="pp-new-address">
+                <div style="font-size:.68rem;color:var(--muted);margin-top:3px"><i class="fa fa-map-pin" style="color:var(--b500)"></i> Select from dropdown to auto-fill coordinates</div>
+              </div>
+              <div class="fg"><label>Province</label>
+                <select class="fi" id="pp-new-province">
+                  <option value="">— Select —</option>
+                  <option>Gauteng</option><option>Western Cape</option><option>KwaZulu-Natal</option>
+                  <option>Eastern Cape</option><option>Limpopo</option><option>Mpumalanga</option>
+                  <option>North West</option><option>Free State</option><option>Northern Cape</option>
+                </select>
+              </div>
+              <div class="fg">
+                <label>Venue phone number *</label>
+                <input class="fi" id="pp-new-phone" type="tel" placeholder="+27 21 000 0000">
+                <div style="font-size:.68rem;color:var(--muted);margin-top:3px"><i class="fa fa-phone" style="color:var(--b500)"></i> Printed on the voucher — guests will call to confirm</div>
+              </div>
             </div>
           </div>
-          <div class="fg-row">
-            <div class="fg"><label>Certification <span style="font-weight:400;color:var(--muted)">(optional)</span></label>
-              <input class="fi" id="pp-new-certification" placeholder="e.g. Eat Out, AA, Fair Trade…">
+
+          <!-- §3 Capacity & Availability -->
+          <div style="padding:18px 20px;border-bottom:1px solid var(--b100)">
+            <div style="font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:var(--b600);margin-bottom:14px">3 · Capacity &amp; Availability</div>
+            <div class="fg-row">
+              <div class="fg">
+                <label>Maximum guests per booking *</label>
+                <input class="fi" id="pp-new-capacity" type="number" placeholder="e.g. 2" min="1">
+                <div style="font-size:.68rem;color:var(--muted);margin-top:4px">1 = Solo · 2 = Duo · 3+ = Group. Guests can always book fewer than the max.</div>
+              </div>
+              <div class="fg"><label>Booking type</label>
+                <select class="fi" id="pp-new-booking-type">
+                  <option value="on_site">On site (walk-in / call)</option>
+                  <option value="online">Online booking</option>
+                  <option value="phone">Phone reservation</option>
+                </select>
+              </div>
+              <div class="fg"><label>Nights (0 = day trip)</label>
+                <input class="fi" id="pp-new-nights" type="number" min="0" max="14" placeholder="0" value="0">
+              </div>
             </div>
-            <div class="fg" style="display:flex;align-items:center;gap:12px;padding-top:22px">
-              <input type="checkbox" id="pp-new-accessible" style="width:16px;height:16px;cursor:pointer">
-              <label for="pp-new-accessible" style="cursor:pointer;font-size:.82rem">♿ PMR accessible</label>
-              <input type="checkbox" id="pp-new-insolite" style="width:16px;height:16px;cursor:pointer;margin-left:8px">
-              <label for="pp-new-insolite" style="cursor:pointer;font-size:.82rem">🌟 Insolite</label>
+            <div class="fg">
+              <label>🔗 iCal sync URL <span style="font-weight:400;color:var(--muted)">(optional — sync from Google Calendar, Airbnb, Booking.com…)</span></label>
+              <input class="fi" id="pp-new-ical" placeholder="webcal:// or https://... link to your .ics calendar">
+              <div style="font-size:.68rem;color:var(--muted);margin-top:3px"><i class="fa fa-circle-info" style="color:var(--b400)"></i> Blocked dates will automatically grey out in the booking date picker.</div>
             </div>
           </div>
-          <div class="fg">
-            <label>🔗 iCal sync URL <span style="font-weight:400;color:var(--muted)">(optional — sync from Google Calendar, Airbnb, Booking.com…)</span></label>
-            <input class="fi" id="pp-new-ical" placeholder="webcal:// or https://... link to your .ics calendar">
-            <div style="font-size:.68rem;color:var(--muted);margin-top:3px"><i class="fa fa-circle-info" style="color:var(--b400)"></i> Blocked dates from this calendar will automatically grey out in the booking date picker.</div>
+
+          <!-- §4 Pricing -->
+          <div style="padding:18px 20px;border-bottom:1px solid var(--b100)">
+            <div style="font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:var(--b600);margin-bottom:14px">4 · Pricing</div>
+            <div class="fg-row">
+              <div class="fg">
+                <label>WowBox experience value (R) *</label>
+                <div style="position:relative"><span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:.85rem">R</span><input class="fi" id="pp-new-price" type="number" min="0" step="1" placeholder="e.g. 850" style="padding-left:26px"></div>
+                <div style="font-size:.68rem;color:var(--muted);margin-top:4px"><i class="fa fa-gift" style="color:var(--b500)"></i> Used by WowBox to value your experience in gift boxes. Not the direct booking price.</div>
+              </div>
+              <div class="fg">
+                <label>Direct booking price /wow/ (R)</label>
+                <div style="position:relative"><span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:.85rem">R</span><input class="fi" id="pp-new-wow-price" type="number" min="0" step="1" placeholder="e.g. 500" style="padding-left:26px"></div>
+                <div style="font-size:.68rem;color:var(--muted);margin-top:4px"><i class="fa fa-link" style="color:var(--b500)"></i> Price shown on your public partner page for direct bookings.</div>
+              </div>
+              <div class="fg">
+                <label>Direct pricing type</label>
+                <select class="fi" id="pp-new-wow-pricing-type">
+                  <option value="per_person">Per person</option>
+                  <option value="fixed">Fixed (whole group)</option>
+                </select>
+                <div style="font-size:.68rem;color:var(--muted);margin-top:4px">Per person: price × number of guests. Fixed: same price regardless of group size.</div>
+              </div>
+            </div>
           </div>
-          <div style="background:#fef3c7;border:1px solid #fcd34d;border-radius:var(--rs);padding:10px 14px;font-size:.75rem;color:#92400e;margin-bottom:16px">
-            <i class="fa fa-triangle-exclamation"></i> New experiences are submitted for WowBox admin review before going live. This usually takes 1–2 business days.
+
+          <!-- §5 Classification -->
+          <div style="padding:18px 20px;border-bottom:1px solid var(--b100)">
+            <div style="font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:var(--b600);margin-bottom:14px">5 · Classification</div>
+            <div class="fg-row">
+              <div class="fg"><label>Category</label>
+                <select class="fi" id="pp-new-category">
+                  <option value="">— Select —</option>
+                  <option value="accommodation">🏨 Accommodation</option>
+                  <option value="dining">🍽️ Dining</option>
+                  <option value="wellness">🧖 Wellness</option>
+                  <option value="activity">🏄 Activity</option>
+                  <option value="culture">🎭 Culture</option>
+                  <option value="nature">🦁 Nature</option>
+                  <option value="event">🎉 Event</option>
+                  <option value="rental">🚗 Rental</option>
+                </select>
+              </div>
+              <div class="fg"><label>Weekend style</label>
+                <select class="fi" id="pp-new-weekend-type">
+                  <option value="">— Select —</option>
+                  <option value="romantic">💑 Romantic</option>
+                  <option value="family">👨‍👩‍👧 Family</option>
+                  <option value="adventure">🏔️ Adventure</option>
+                  <option value="relaxation">🧘 Relaxation</option>
+                  <option value="gastronomic">🍷 Gastronomic</option>
+                  <option value="cultural">🎨 Cultural</option>
+                </select>
+              </div>
+              <div class="fg"><label>Accommodation type</label>
+                <select class="fi" id="pp-new-accom-type">
+                  <option value="">— N/A —</option>
+                  <option value="hotel">Hotel</option><option value="lodge">Lodge</option>
+                  <option value="boutique">Boutique</option><option value="guesthouse">Guest House</option>
+                  <option value="insolite">Insolite</option><option value="farm">Farm Stay</option>
+                  <option value="villa">Villa</option>
+                </select>
+              </div>
+            </div>
+            <div class="fg-row">
+              <div class="fg"><label>Certification <span style="font-weight:400;color:var(--muted)">(optional)</span></label>
+                <input class="fi" id="pp-new-certification" placeholder="e.g. Eat Out, AA, Fair Trade…">
+              </div>
+              <div class="fg" style="display:flex;align-items:center;gap:12px;padding-top:22px">
+                <input type="checkbox" id="pp-new-accessible" style="width:16px;height:16px;cursor:pointer">
+                <label for="pp-new-accessible" style="cursor:pointer;font-size:.82rem">♿ PMR accessible</label>
+                <input type="checkbox" id="pp-new-insolite" style="width:16px;height:16px;cursor:pointer;margin-left:8px">
+                <label for="pp-new-insolite" style="cursor:pointer;font-size:.82rem">🌟 Insolite</label>
+              </div>
+            </div>
           </div>
-          <div style="display:flex;gap:10px;flex-wrap:wrap">
-            <button class="btn bp bsm" onclick="submitNewExp()"><i class="fa fa-paper-plane"></i> Submit for review</button>
-            <button class="btn bg bsm" onclick="ppPreviewExperience()"><i class="fa fa-eye"></i> Preview</button>
-            <button class="btn bg bsm" onclick="toggleAddForm()">Cancel</button>
+
+          <!-- §6 Media -->
+          <div style="padding:18px 20px;border-bottom:1px solid var(--b100)">
+            <div style="font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:var(--b600);margin-bottom:14px">6 · Media</div>
+            <div class="fg">
+              <label style="display:block;margin-bottom:6px">Experience images <span style="font-weight:400;color:var(--muted)">(up to 3 — first is the main image)</span></label>
+              <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px">
+                <div id="pp-img-slot-0" class="pp-img-slot" onclick="document.getElementById('pp-img-file-0').click()" style="border:2px dashed var(--b300);border-radius:var(--rs);aspect-ratio:4/3;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;background:var(--b50);transition:background .15s;font-size:.72rem;color:var(--muted);text-align:center;padding:8px">
+                  <i class="fa fa-image" style="font-size:1.4rem;color:var(--b400);margin-bottom:4px"></i>Main image
+                </div>
+                <div id="pp-img-slot-1" class="pp-img-slot" onclick="document.getElementById('pp-img-file-1').click()" style="border:2px dashed var(--b300);border-radius:var(--rs);aspect-ratio:4/3;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;background:var(--b50);transition:background .15s;font-size:.72rem;color:var(--muted);text-align:center;padding:8px">
+                  <i class="fa fa-image" style="font-size:1.4rem;color:var(--b400);margin-bottom:4px"></i>Photo 2
+                </div>
+                <div id="pp-img-slot-2" class="pp-img-slot" onclick="document.getElementById('pp-img-file-2').click()" style="border:2px dashed var(--b300);border-radius:var(--rs);aspect-ratio:4/3;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;background:var(--b50);transition:background .15s;font-size:.72rem;color:var(--muted);text-align:center;padding:8px">
+                  <i class="fa fa-image" style="font-size:1.4rem;color:var(--b400);margin-bottom:4px"></i>Photo 3
+                </div>
+              </div>
+              <input type="file" id="pp-img-file-0" accept="image/*" style="display:none" onchange="ppHandleImgUpload(0,this.files[0])">
+              <input type="file" id="pp-img-file-1" accept="image/*" style="display:none" onchange="ppHandleImgUpload(1,this.files[0])">
+              <input type="file" id="pp-img-file-2" accept="image/*" style="display:none" onchange="ppHandleImgUpload(2,this.files[0])">
+              <input type="hidden" id="pp-new-img-0">
+              <input type="hidden" id="pp-new-img-1">
+              <input type="hidden" id="pp-new-img-2">
+            </div>
+          </div>
+
+          <!-- Submit -->
+          <div style="padding:16px 20px">
+            <div style="background:#fef3c7;border:1px solid #fcd34d;border-radius:var(--rs);padding:10px 14px;font-size:.75rem;color:#92400e;margin-bottom:16px">
+              <i class="fa fa-triangle-exclamation"></i> New experiences are submitted for WowBox admin review before going live. This usually takes 1–2 business days.
+            </div>
+            <div style="display:flex;gap:10px;flex-wrap:wrap">
+              <button class="btn bp bsm" onclick="submitNewExp()"><i class="fa fa-paper-plane"></i> Submit for review</button>
+              <button class="btn bg bsm" onclick="ppPreviewExperience()"><i class="fa fa-eye"></i> Preview</button>
+              <button class="btn bg bsm" onclick="toggleAddForm()">Cancel</button>
+            </div>
           </div>
         </div>
 
@@ -7115,176 +7156,228 @@ tr:hover td{background:var(--b50)}
               <button class="btn bg bsm" onclick="admHideExpForm()"><i class="fa fa-xmark"></i> Close</button>
             </div>
             <div class="afsec">
-              <div class="fg-row">
-                <div class="fg"><label>Experience name *</label><input class="fi" id="aef-name" placeholder="e.g. Clifton Penthouse Stay"></div>
-                <div class="fg"><label>Partner / Venue *</label><input class="fi" id="aef-partner" placeholder="Partner name"></div>
-              </div>
-              <div class="fg-row">
+
+              <!-- §1 Basics -->
+              <div style="padding:0 0 18px;border-bottom:1px solid var(--b100);margin-bottom:18px">
+                <div style="font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:var(--b600);margin-bottom:14px">1 · Basics</div>
+                <div class="fg-row">
+                  <div class="fg"><label>Experience name *</label><input class="fi" id="aef-name" placeholder="e.g. Clifton Penthouse Stay"></div>
+                  <div class="fg"><label>Partner / Venue *</label><input class="fi" id="aef-partner" placeholder="Partner name"></div>
+                </div>
+                <div class="fg-row">
+                  <div class="fg">
+                    <label>Reservation type *</label>
+                    <select class="fi" id="aef-rt" onchange="admExpTypeNote()">
+                      <option value="">— Select —</option>
+                      <option value="accommodation">🏨 Accommodation → check-in/out form</option>
+                      <option value="dining">🍽️ Dining → table reservation form</option>
+                      <option value="wellness">🧖 Wellness → spa booking form</option>
+                      <option value="activity">🏄 Activity → activity booking form</option>
+                      <option value="rental">🚗 Rental → dates + options form</option>
+                      <option value="event">🎉 Event → date + notes form</option>
+                    </select>
+                    <div id="aef-rt-note" style="display:none;margin-top:5px;padding:8px 12px;background:var(--b50);border:1px solid var(--b200);border-radius:var(--rs);font-size:.73rem;color:var(--b700)"></div>
+                  </div>
+                  <div class="fg">
+                    <label>Database * <span style="font-size:.7rem;color:var(--muted);font-weight:400">(Ctrl+click for multiple)</span></label>
+                    <select class="fi" id="aef-db" multiple size="5" style="height:auto">
+                      <option value="romantic-getaways">💑 Romantic Getaways</option>
+                      <option value="wellness-spa">🧖 Wellness &amp; Spa</option>
+                      <option value="food-gastronomy">🍽️ Food &amp; Gastronomy</option>
+                      <option value="adventure-outdoors">🏔️ Adventure &amp; Outdoors</option>
+                      <option value="ocean-coastal">🌊 Ocean &amp; Coastal</option>
+                      <option value="safari-wildlife">🦁 Safari &amp; Wildlife</option>
+                      <option value="wine-culture">🍷 Wine &amp; Culture</option>
+                      <option value="city-breaks">🏙️ City Breaks</option>
+                      <option value="family-adventures">👨‍👩‍👧 Family Adventures</option>
+                      <option value="ultra-premium">👑 Ultra-Premium</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="fg"><label>Description</label><textarea class="fi" id="aef-desc" rows="3" style="resize:vertical" placeholder="Full experience description shown on the detail page…"></textarea></div>
                 <div class="fg">
-                  <label>Reservation type *</label>
-                  <select class="fi" id="aef-rt" onchange="admExpTypeNote()">
-                    <option value="">— Select —</option>
-                    <option value="accommodation">🏨 Accommodation → check-in/out form</option>
-                    <option value="dining">🍽️ Dining → table reservation form</option>
-                    <option value="wellness">🧖 Wellness → spa booking form</option>
-                    <option value="activity">🏄 Activity → activity booking form</option>
-                    <option value="rental">🚗 Rental → dates + options form</option>
-                    <option value="event">🎉 Event → date + notes form</option>
-                  </select>
-                  <div id="aef-rt-note" style="display:none;margin-top:5px;padding:8px 12px;background:var(--b50);border:1px solid var(--b200);border-radius:var(--rs);font-size:.73rem;color:var(--b700)"></div>
+                  <label>Programme <span style="font-weight:400;color:var(--muted)">(4 steps max — empty steps are hidden)</span></label>
+                  <div id="aef-programme-wrap"></div>
                 </div>
                 <div class="fg">
-                  <label>Database * <span style="font-size:.7rem;color:var(--muted);font-weight:400">(Ctrl+click for multiple)</span></label>
-                  <select class="fi" id="aef-db" multiple size="5" style="height:auto">
-                    <option value="romantic-getaways">💑 Romantic Getaways</option>
-                    <option value="wellness-spa">🧖 Wellness &amp; Spa</option>
-                    <option value="food-gastronomy">🍽️ Food &amp; Gastronomy</option>
-                    <option value="adventure-outdoors">🏔️ Adventure &amp; Outdoors</option>
-                    <option value="ocean-coastal">🌊 Ocean &amp; Coastal</option>
-                    <option value="safari-wildlife">🦁 Safari &amp; Wildlife</option>
-                    <option value="wine-culture">🍷 Wine &amp; Culture</option>
-                    <option value="city-breaks">🏙️ City Breaks</option>
-                    <option value="family-adventures">👨‍👩‍👧 Family Adventures</option>
-                    <option value="ultra-premium">👑 Ultra-Premium</option>
-                  </select>
+                  <label>Amenities</label>
+                  <div id="aef-amenities-wrap"></div>
                 </div>
               </div>
-              <div class="fg-row">
+
+              <!-- §2 Location -->
+              <div style="padding:0 0 18px;border-bottom:1px solid var(--b100);margin-bottom:18px">
+                <div style="font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:var(--b600);margin-bottom:14px">2 · Location</div>
+                <div class="fg-row">
+                  <div class="fg">
+                    <label>Address / Location</label>
+                    <input class="fi" id="aef-loc" placeholder="Start typing address or venue…" autocomplete="off">
+                    <input type="hidden" id="aef-lat">
+                    <input type="hidden" id="aef-lng">
+                    <input type="hidden" id="aef-address">
+                    <div style="font-size:.68rem;color:var(--muted);margin-top:3px"><i class="fa fa-map-pin" style="color:var(--b500)"></i> Select from dropdown to auto-fill city + coordinates</div>
+                  </div>
+                  <div class="fg"><label>City</label><input class="fi" id="aef-city" type="text" placeholder="e.g. Cape Town"></div>
+                  <div class="fg"><label>Province</label>
+                    <select class="fi" id="aef-province">
+                      <option value="">— Select —</option>
+                      <option>Gauteng</option><option>Western Cape</option><option>KwaZulu-Natal</option>
+                      <option>Eastern Cape</option><option>Limpopo</option><option>Mpumalanga</option>
+                      <option>North West</option><option>Free State</option><option>Northern Cape</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="fg-row">
+                  <div class="fg">
+                    <label>Venue phone number *</label>
+                    <input class="fi" id="aef-phone" type="tel" placeholder="+27 21 000 0000">
+                    <div style="font-size:.68rem;color:var(--muted);margin-top:3px"><i class="fa fa-phone" style="color:var(--b500)"></i> Printed on the voucher so guests can call to confirm</div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- §3 Capacity & Availability -->
+              <div style="padding:0 0 18px;border-bottom:1px solid var(--b100);margin-bottom:18px">
+                <div style="font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:var(--b600);margin-bottom:14px">3 · Capacity &amp; Availability</div>
+                <div class="fg-row">
+                  <div class="fg"><label>Capacity (max guests)</label><input class="fi" id="aef-cap" type="number" placeholder="2"></div>
+                  <div class="fg"><label>Booking type</label>
+                    <select class="fi" id="aef-booking-type">
+                      <option value="on_site">On site</option>
+                      <option value="online">Online</option>
+                      <option value="phone">Phone</option>
+                    </select>
+                  </div>
+                  <div class="fg"><label>Nights (0=day)</label>
+                    <input class="fi" id="aef-nights" type="number" min="0" max="14" value="0">
+                  </div>
+                </div>
                 <div class="fg">
-                  <label>Address / Location</label>
-                  <input class="fi" id="aef-loc" placeholder="Start typing address or venue…" autocomplete="off">
-                  <input type="hidden" id="aef-lat">
-                  <input type="hidden" id="aef-lng">
-                  <input type="hidden" id="aef-address">
-                  <div style="font-size:.68rem;color:var(--muted);margin-top:3px"><i class="fa fa-map-pin" style="color:var(--b500)"></i> Select from dropdown to auto-fill city + coordinates</div>
-                </div>
-                <div class="fg">
-                  <label>Venue phone number *</label>
-                  <input class="fi" id="aef-phone" type="tel" placeholder="+27 21 000 0000">
-                  <div style="font-size:.68rem;color:var(--muted);margin-top:3px"><i class="fa fa-phone" style="color:var(--b500)"></i> Printed on the voucher so guests can call to confirm</div>
+                  <label>🔗 iCal sync URL <span style="font-weight:400;color:var(--muted)">(optional)</span></label>
+                  <div style="display:flex;gap:8px">
+                    <input class="fi" id="aef-ical" placeholder="webcal:// or https://... .ics link" style="flex:1">
+                    <button type="button" class="btn bg bsm" onclick="admSyncIcal()" style="flex-shrink:0;white-space:nowrap"><i class="fa fa-rotate"></i> Sync now</button>
+                  </div>
+                  <div id="aef-ical-status" style="font-size:.68rem;color:var(--muted);margin-top:3px"></div>
                 </div>
               </div>
-              <div class="fg"><label>Capacity</label><input class="fi" id="aef-cap" type="number" placeholder="2"></div>
-              <div class="fg"><label>City</label><input class="fi" id="aef-city" type="text" placeholder="e.g. Cape Town"></div>
-              <div class="fg"><label>Value (R) <span style="font-weight:400;color:var(--muted);font-size:.72rem">— WowBox voucher value</span></label><div style="position:relative"><span style="position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:.85rem">R</span><input class="fi" id="aef-price" type="number" min="0" step="1" placeholder="e.g. 850" style="padding-left:26px"></div></div>
-              <div class="fg"><label>Direct price /wow/ (R) <span style="font-weight:400;color:var(--muted);font-size:.72rem">— Partner page booking price</span></label><div style="position:relative"><span style="position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:.85rem">R</span><input class="fi" id="aef-wow-price" type="number" min="0" step="1" placeholder="e.g. 500" style="padding-left:26px"></div></div>
-              <div class="fg"><label>Pricing type /wow/</label><select class="fi" id="aef-wow-pricing-type"><option value="per_person">Per person</option><option value="fixed">Fixed (whole group)</option></select></div>
-              <div class="fg-row">
-                <div class="fg"><label>Province</label>
-                  <select class="fi" id="aef-province">
-                    <option value="">— Select —</option>
-                    <option>Gauteng</option><option>Western Cape</option><option>KwaZulu-Natal</option>
-                    <option>Eastern Cape</option><option>Limpopo</option><option>Mpumalanga</option>
-                    <option>North West</option><option>Free State</option><option>Northern Cape</option>
-                  </select>
+
+              <!-- §4 Pricing -->
+              <div style="padding:0 0 18px;border-bottom:1px solid var(--b100);margin-bottom:18px">
+                <div style="font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:var(--b600);margin-bottom:14px">4 · Pricing</div>
+                <div class="fg-row">
+                  <div class="fg">
+                    <label>WowBox value (R) <span style="font-weight:400;color:var(--muted);font-size:.72rem">— voucher value only</span></label>
+                    <div style="position:relative"><span style="position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:.85rem">R</span><input class="fi" id="aef-price" type="number" min="0" step="1" placeholder="e.g. 850" style="padding-left:26px"></div>
+                    <div style="font-size:.68rem;color:var(--muted);margin-top:3px"><i class="fa fa-gift" style="color:var(--b500)"></i> Used by WowBox gift boxes only. Not the direct booking price.</div>
+                  </div>
+                  <div class="fg">
+                    <label>Direct booking price /wow/ (R) <span style="font-weight:400;color:var(--muted);font-size:.72rem">— partner page</span></label>
+                    <div style="position:relative"><span style="position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:.85rem">R</span><input class="fi" id="aef-wow-price" type="number" min="0" step="1" placeholder="e.g. 500" style="padding-left:26px"></div>
+                    <div style="font-size:.68rem;color:var(--muted);margin-top:3px"><i class="fa fa-link" style="color:var(--b500)"></i> Price shown on /wow/ partner page for direct bookings.</div>
+                  </div>
+                  <div class="fg">
+                    <label>Direct pricing type</label>
+                    <select class="fi" id="aef-wow-pricing-type">
+                      <option value="per_person">Per person</option>
+                      <option value="fixed">Fixed (whole group)</option>
+                    </select>
+                    <div style="font-size:.68rem;color:var(--muted);margin-top:3px">Per person: price × guests. Fixed: same price regardless of group size.</div>
+                  </div>
                 </div>
-                <div class="fg"><label>Booking type</label>
-                  <select class="fi" id="aef-booking-type">
-                    <option value="on_site">On site</option>
-                    <option value="online">Online</option>
-                    <option value="phone">Phone</option>
-                  </select>
-                </div>
-                <div class="fg"><label>Nights (0=day)</label>
-                  <input class="fi" id="aef-nights" type="number" min="0" max="14" value="0">
-                </div>
-              </div>
-              <div class="fg-row">
-                <div class="fg"><label>Category</label>
-                  <select class="fi" id="aef-category">
-                    <option value="">— Select —</option>
-                    <option value="accommodation">🏨 Accommodation</option>
-                    <option value="dining">🍽️ Dining</option>
-                    <option value="wellness">🧖 Wellness</option>
-                    <option value="activity">🏄 Activity</option>
-                    <option value="culture">🎭 Culture</option>
-                    <option value="nature">🦁 Nature</option>
-                    <option value="event">🎉 Event</option>
-                    <option value="rental">🚗 Rental</option>
-                  </select>
-                </div>
-                <div class="fg"><label>Weekend style</label>
-                  <select class="fi" id="aef-weekend-type">
-                    <option value="">— Select —</option>
-                    <option value="romantic">💑 Romantic</option>
-                    <option value="family">👨‍👩‍👧 Family</option>
-                    <option value="adventure">🏔️ Adventure</option>
-                    <option value="relaxation">🧘 Relaxation</option>
-                    <option value="gastronomic">🍷 Gastronomic</option>
-                    <option value="cultural">🎨 Cultural</option>
-                  </select>
-                </div>
-                <div class="fg"><label>Accommodation type</label>
-                  <select class="fi" id="aef-accom-type">
-                    <option value="">— N/A —</option>
-                    <option value="hotel">Hotel</option>
-                    <option value="lodge">Lodge</option>
-                    <option value="boutique">Boutique</option>
-                    <option value="guesthouse">Guest House</option>
-                    <option value="insolite">Insolite</option>
-                    <option value="farm">Farm Stay</option>
-                    <option value="villa">Villa</option>
-                  </select>
+                <div class="fg-row">
+                  <div class="fg"><label>Weekend style</label>
+                    <select class="fi" id="aef-weekend-type">
+                      <option value="">— Select —</option>
+                      <option value="romantic">💑 Romantic</option>
+                      <option value="family">👨‍👩‍👧 Family</option>
+                      <option value="adventure">🏔️ Adventure</option>
+                      <option value="relaxation">🧘 Relaxation</option>
+                      <option value="gastronomic">🍷 Gastronomic</option>
+                      <option value="cultural">🎨 Cultural</option>
+                    </select>
+                  </div>
                 </div>
               </div>
-              <div class="fg-row">
-                <div class="fg"><label>Certification</label>
-                  <input class="fi" id="aef-certification" placeholder="Eat Out, AA, Fair Trade…">
+
+              <!-- §5 Classification -->
+              <div style="padding:0 0 18px;border-bottom:1px solid var(--b100);margin-bottom:18px">
+                <div style="font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:var(--b600);margin-bottom:14px">5 · Classification</div>
+                <div class="fg-row">
+                  <div class="fg"><label>Category</label>
+                    <select class="fi" id="aef-category">
+                      <option value="">— Select —</option>
+                      <option value="accommodation">🏨 Accommodation</option>
+                      <option value="dining">🍽️ Dining</option>
+                      <option value="wellness">🧖 Wellness</option>
+                      <option value="activity">🏄 Activity</option>
+                      <option value="culture">🎭 Culture</option>
+                      <option value="nature">🦁 Nature</option>
+                      <option value="event">🎉 Event</option>
+                      <option value="rental">🚗 Rental</option>
+                    </select>
+                  </div>
+                  <div class="fg"><label>Accommodation type</label>
+                    <select class="fi" id="aef-accom-type">
+                      <option value="">— N/A —</option>
+                      <option value="hotel">Hotel</option><option value="lodge">Lodge</option>
+                      <option value="boutique">Boutique</option><option value="guesthouse">Guest House</option>
+                      <option value="insolite">Insolite</option><option value="farm">Farm Stay</option>
+                      <option value="villa">Villa</option>
+                    </select>
+                  </div>
+                  <div class="fg"><label>Certification</label>
+                    <input class="fi" id="aef-certification" placeholder="Eat Out, AA, Fair Trade…">
+                  </div>
                 </div>
-                <div class="fg" style="display:flex;align-items:center;gap:12px;padding-top:22px">
+                <div class="fg" style="display:flex;align-items:center;gap:12px;padding-top:4px">
                   <input type="checkbox" id="aef-accessible" style="width:16px;height:16px;cursor:pointer">
-                  <label for="aef-accessible" style="cursor:pointer;font-size:.82rem">♿ PMR</label>
+                  <label for="aef-accessible" style="cursor:pointer;font-size:.82rem">♿ PMR accessible</label>
                   <input type="checkbox" id="aef-insolite" style="width:16px;height:16px;cursor:pointer;margin-left:8px">
                   <label for="aef-insolite" style="cursor:pointer;font-size:.82rem">🌟 Insolite</label>
                 </div>
               </div>
-              <div class="fg"><label>Description</label><textarea class="fi" id="aef-desc" rows="3" style="resize:vertical" placeholder="Full experience description shown on the detail page…"></textarea></div>
-              <div class="fg">
-                <label>Programme <span style="font-weight:400;color:var(--muted)">(4 steps max — empty steps are hidden)</span></label>
-                <div id="aef-programme-wrap"></div>
-              </div>
-              <div class="fg">
-                <label>Amenities</label>
-                <div id="aef-amenities-wrap"></div>
-              </div>
-              <div class="fg">
-                <label>🔗 iCal sync URL <span style="font-weight:400;color:var(--muted)">(optional)</span></label>
-                <div style="display:flex;gap:8px">
-                  <input class="fi" id="aef-ical" placeholder="webcal:// or https://... .ics link" style="flex:1">
-                  <button type="button" class="btn bg bsm" onclick="admSyncIcal()" style="flex-shrink:0;white-space:nowrap"><i class="fa fa-rotate"></i> Sync now</button>
+
+              <!-- §6 Media -->
+              <div style="padding:0 0 18px;border-bottom:1px solid var(--b100);margin-bottom:18px">
+                <div style="font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:var(--b600);margin-bottom:14px">6 · Media</div>
+                <div class="fg">
+                  <label>Images (up to 4)</label>
+                  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:6px">
+                    <div id="aef-img-slot-0" class="pp-img-slot" onclick="document.getElementById('aef-img-file-0').click()" style="border:2px dashed var(--b300);border-radius:var(--rs);aspect-ratio:4/3;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;background:var(--b50);font-size:.7rem;color:var(--muted);text-align:center;padding:8px;transition:background .15s">
+                      <i class="fa fa-image" style="font-size:1.3rem;color:var(--b400);margin-bottom:4px"></i>Main *
+                    </div>
+                    <div id="aef-img-slot-1" class="pp-img-slot" onclick="document.getElementById('aef-img-file-1').click()" style="border:2px dashed var(--b300);border-radius:var(--rs);aspect-ratio:4/3;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;background:var(--b50);font-size:.7rem;color:var(--muted);text-align:center;padding:8px;transition:background .15s">
+                      <i class="fa fa-image" style="font-size:1.3rem;color:var(--b400);margin-bottom:4px"></i>Photo 2
+                    </div>
+                    <div id="aef-img-slot-2" class="pp-img-slot" onclick="document.getElementById('aef-img-file-2').click()" style="border:2px dashed var(--b300);border-radius:var(--rs);aspect-ratio:4/3;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;background:var(--b50);font-size:.7rem;color:var(--muted);text-align:center;padding:8px;transition:background .15s">
+                      <i class="fa fa-image" style="font-size:1.3rem;color:var(--b400);margin-bottom:4px"></i>Photo 3
+                    </div>
+                    <div id="aef-img-slot-3" class="pp-img-slot" onclick="document.getElementById('aef-img-file-3').click()" style="border:2px dashed var(--b300);border-radius:var(--rs);aspect-ratio:4/3;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;background:var(--b50);font-size:.7rem;color:var(--muted);text-align:center;padding:8px;transition:background .15s">
+                      <i class="fa fa-image" style="font-size:1.3rem;color:var(--b400);margin-bottom:4px"></i>Photo 4
+                    </div>
+                  </div>
+                  <input type="file" id="aef-img-file-0" accept="image/*" style="display:none" onchange="aefHandleImgUpload(0,this.files[0])">
+                  <input type="file" id="aef-img-file-1" accept="image/*" style="display:none" onchange="aefHandleImgUpload(1,this.files[0])">
+                  <input type="file" id="aef-img-file-2" accept="image/*" style="display:none" onchange="aefHandleImgUpload(2,this.files[0])">
+                  <input type="file" id="aef-img-file-3" accept="image/*" style="display:none" onchange="aefHandleImgUpload(3,this.files[0])">
+                  <input type="hidden" id="aef-img-0">
+                  <input type="hidden" id="aef-img-1">
+                  <input type="hidden" id="aef-img-2">
+                  <input type="hidden" id="aef-img-3">
                 </div>
-                <div id="aef-ical-status" style="font-size:.68rem;color:var(--muted);margin-top:3px"></div>
               </div>
-              <div class="fg">
-                <label>Images (up to 4)</label>
-                <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:6px">
-                  <div id="aef-img-slot-0" class="pp-img-slot" onclick="document.getElementById('aef-img-file-0').click()" style="border:2px dashed var(--b300);border-radius:var(--rs);aspect-ratio:4/3;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;background:var(--b50);font-size:.7rem;color:var(--muted);text-align:center;padding:8px;transition:background .15s">
-                    <i class="fa fa-image" style="font-size:1.3rem;color:var(--b400);margin-bottom:4px"></i>Main *
-                  </div>
-                  <div id="aef-img-slot-1" class="pp-img-slot" onclick="document.getElementById('aef-img-file-1').click()" style="border:2px dashed var(--b300);border-radius:var(--rs);aspect-ratio:4/3;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;background:var(--b50);font-size:.7rem;color:var(--muted);text-align:center;padding:8px;transition:background .15s">
-                    <i class="fa fa-image" style="font-size:1.3rem;color:var(--b400);margin-bottom:4px"></i>Photo 2
-                  </div>
-                  <div id="aef-img-slot-2" class="pp-img-slot" onclick="document.getElementById('aef-img-file-2').click()" style="border:2px dashed var(--b300);border-radius:var(--rs);aspect-ratio:4/3;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;background:var(--b50);font-size:.7rem;color:var(--muted);text-align:center;padding:8px;transition:background .15s">
-                    <i class="fa fa-image" style="font-size:1.3rem;color:var(--b400);margin-bottom:4px"></i>Photo 3
-                  </div>
-                  <div id="aef-img-slot-3" class="pp-img-slot" onclick="document.getElementById('aef-img-file-3').click()" style="border:2px dashed var(--b300);border-radius:var(--rs);aspect-ratio:4/3;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;background:var(--b50);font-size:.7rem;color:var(--muted);text-align:center;padding:8px;transition:background .15s">
-                    <i class="fa fa-image" style="font-size:1.3rem;color:var(--b400);margin-bottom:4px"></i>Photo 4
-                  </div>
+
+              <!-- §7 Admin -->
+              <div style="padding:0 0 18px;margin-bottom:18px">
+                <div style="font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:var(--b600);margin-bottom:14px">7 · Admin</div>
+                <div class="fg"><label>Status</label>
+                  <select class="fi" id="aef-status" style="width:auto">
+                    <option>Active</option><option>Draft</option><option>Inactive</option>
+                  </select>
                 </div>
-                <input type="file" id="aef-img-file-0" accept="image/*" style="display:none" onchange="aefHandleImgUpload(0,this.files[0])">
-                <input type="file" id="aef-img-file-1" accept="image/*" style="display:none" onchange="aefHandleImgUpload(1,this.files[0])">
-                <input type="file" id="aef-img-file-2" accept="image/*" style="display:none" onchange="aefHandleImgUpload(2,this.files[0])">
-                <input type="file" id="aef-img-file-3" accept="image/*" style="display:none" onchange="aefHandleImgUpload(3,this.files[0])">
-                <input type="hidden" id="aef-img-0">
-                <input type="hidden" id="aef-img-1">
-                <input type="hidden" id="aef-img-2">
-                <input type="hidden" id="aef-img-3">
               </div>
-              <div class="fg"><label>Status</label>
-                <select class="fi" id="aef-status" style="width:auto">
-                  <option>Active</option><option>Draft</option><option>Inactive</option>
-                </select>
-              </div>
+
               <div style="display:flex;gap:9px">
                 <button class="btn bp bsm" onclick="admSaveExp()"><i class="fa fa-check"></i> Save experience</button>
                 <button class="btn bg bsm" onclick="admHideExpForm()">Cancel</button>
@@ -19577,6 +19670,8 @@ function ppPreviewExperience() {
   var type     = document.getElementById('pp-new-type')?.value          || 'activity';
   var desc     = document.getElementById('pp-new-desc')?.value?.trim()  || '';
   var price    = document.getElementById('pp-new-price')?.value         || '';
+  var wowPrice = document.getElementById('pp-new-wow-price')?.value         || '';
+  var wowPricingType = document.getElementById('pp-new-wow-pricing-type')?.value || 'per_person';
   var city     = document.getElementById('pp-new-city')?.value?.trim()  || '';
   var province = document.getElementById('pp-new-province')?.value      || '';
   var capacity = document.getElementById('pp-new-capacity')?.value      || '2';
@@ -19715,6 +19810,8 @@ function ppPreviewExperience() {
 }
   var desc     = document.getElementById('pp-new-desc')?.value?.trim()       || '';
   var price    = document.getElementById('pp-new-price')?.value              || '';
+  var wowPrice = document.getElementById('pp-new-wow-price')?.value              || '';
+  var wowPricingType = document.getElementById('pp-new-wow-pricing-type')?.value || 'per_person';
   var city     = document.getElementById('pp-new-city')?.value?.trim()       || '';
   var province = document.getElementById('pp-new-province')?.value           || '';
   var capacity = document.getElementById('pp-new-capacity')?.value           || '2';
@@ -19759,6 +19856,8 @@ async function submitNewExp() {
   const lng      = parseFloat((document.getElementById('pp-new-lng')||{value:''}).value) || null;
   const capacity = parseInt((document.getElementById('pp-new-capacity')    ||{value:''}).value) || null;
   const price    = parseInt((document.getElementById('pp-new-price')       ||{value:''}).value) || null;
+  const wowPrice = parseInt((document.getElementById('pp-new-wow-price')||{value:''}).value) || null;
+  const wowPricingType = (document.getElementById('pp-new-wow-pricing-type')||{value:'per_person'}).value || 'per_person';
   const province    = (document.getElementById('pp-new-province')    ||{value:''}).value;
   const bookingType = (document.getElementById('pp-new-booking-type')||{value:'on_site'}).value||'on_site';
   const category    = (document.getElementById('pp-new-category')   ||{value:''}).value || rt;
@@ -19789,6 +19888,8 @@ async function submitNewExp() {
       address:            address || '',
       phone:              phone   || '',
       lat, lng, capacity, price,
+      ...(wowPrice ? { wow_price: wowPrice } : {}),
+      wow_pricing_type:   wowPricingType,
       booking_type:       bookingType,
       duration_nights:    nights,
       weekend_type:       weekendType,
@@ -19808,7 +19909,7 @@ async function submitNewExp() {
   }
 
   // Success — clear form and show confirmation
-  ['pp-new-name','pp-new-desc','pp-new-img-0','pp-new-img-1','pp-new-img-2','pp-new-city','pp-new-capacity','pp-new-price','pp-new-certification','pp-new-nights'].forEach(function(id){ var el=document.getElementById(id); if(el) el.value=''; });
+  ['pp-new-name','pp-new-desc','pp-new-img-0','pp-new-img-1','pp-new-img-2','pp-new-city','pp-new-capacity','pp-new-price','pp-new-wow-price','pp-new-certification','pp-new-nights'].forEach(function(id){ var el=document.getElementById(id); if(el) el.value=''; });
   ['pp-new-accessible','pp-new-insolite'].forEach(function(id){ var el=document.getElementById(id); if(el) el.checked=false; });
   [0,1,2].forEach(function(i){ var s=document.getElementById('pp-img-slot-'+i); if(s){ s.style.backgroundImage=''; s.style.backgroundSize=''; s.innerHTML='<i class="fa fa-image" style="font-size:1.4rem;color:var(--b400);margin-bottom:4px"></i>'+(i===0?'Main image':'Photo '+(i+1)); } });
   ppImgUrls=['','',''];
@@ -19997,6 +20098,8 @@ async function loadPartnerExperiences() {
         + ' data-ical="'     + (e.ical_url||'').replace(/"/g,'&quot;')            + '"'
         + ' data-programme="'  + JSON.stringify(e.programme||[]).replace(/"/g,'&quot;')  + '"'
         + ' data-amenities="'  + JSON.stringify(e.amenities||[]).replace(/"/g,'&quot;')   + '"'
+        + ' data-wow-price="'  + (e.wow_price||'')                                        + '"'
+        + ' data-wow-pricing="'+ (e.wow_pricing_type||'per_person')                       + '"'
         + '><i class="fa fa-pen"></i> Edit</button>'
         + '</div>'
         + '</div>';
@@ -20053,7 +20156,9 @@ async function loadPartnerExperiences() {
           this.dataset.insolite === '1',
           this.dataset.ical || '',
           this.dataset.programme ? JSON.parse(this.dataset.programme) : [],
-          this.dataset.amenities ? JSON.parse(this.dataset.amenities) : []
+          this.dataset.amenities ? JSON.parse(this.dataset.amenities) : [],
+          parseFloat(this.dataset.wowPrice) || 0,
+          this.dataset.wowPricing || 'per_person'
         );
       });
     });
@@ -20064,7 +20169,7 @@ async function loadPartnerExperiences() {
 }
 
 // ── Partner: edit a published experience ──
-function ppEditExperience(expId, expName, expDesc, expType, expCity, expCap, expProvince, expBooking, expNights, expCategory, expWeekend, expAccom, expCert, expAccessible, expInsolite, expIcal, expProgramme, expAmenities) {
+function ppEditExperience(expId, expName, expDesc, expType, expCity, expCap, expProvince, expBooking, expNights, expCategory, expWeekend, expAccom, expCert, expAccessible, expInsolite, expIcal, expProgramme, expAmenities, expWowPrice, expWowPricing) {
   var modal = document.getElementById('adm-modal');
   var typeOpts = ['accommodation','dining','wellness','activity','rental','event','culture','nature'].map(function(t){
     return '<option value="'+t+'"'+(expType===t?' selected':'')+'>'+t.charAt(0).toUpperCase()+t.slice(1)+'</option>';
@@ -20107,6 +20212,9 @@ function ppEditExperience(expId, expName, expDesc, expType, expCity, expCap, exp
     + '<div class="fg" style="display:flex;align-items:center;gap:10px"><input type="checkbox" id="pp-edit-insolite"'+(expInsolite?' checked':'')+' style="width:16px;height:16px;cursor:pointer"><label for="pp-edit-insolite" style="cursor:pointer;font-size:.82rem;color:var(--navy)">🌟 Insolite</label></div>'
     + '</div>'
     + '<div class="fg"><label>🔗 iCal sync URL <span style="font-weight:400;color:var(--muted)">(optional)</span></label><input class="fi" id="pp-edit-ical" value="'+(expIcal||'')+'" placeholder="webcal:// or https://... .ics link"><div style="font-size:.68rem;color:var(--muted);margin-top:3px">Blocked dates will grey out in the booking date picker.</div></div>'
+    + '<div class="fg-row"><div class="fg"><label>WowBox value (R)</label><input class="fi" id="pp-edit-price" type="number" min="0" placeholder="e.g. 850" value=""></div>'
+    + '<div class="fg"><label>Direct booking price /wow/ (R)</label><input class="fi" id="pp-edit-wow-price" type="number" min="0" placeholder="e.g. 500" value="'+(expWowPrice||'')+'"><div style="font-size:.68rem;color:var(--muted);margin-top:3px">Price on your partner page for direct bookings.</div></div>'
+    + '<div class="fg"><label>Direct pricing type</label><select class="fi" id="pp-edit-wow-pricing"><option value="per_person"'+(expWowPricing==='per_person'?' selected':'')+'>Per person</option><option value="fixed"'+(expWowPricing==='fixed'?' selected':'')+'>Fixed (whole group)</option></select></div></div>'
     + '<div class="fg"><label>Programme <span style="font-weight:400;color:var(--muted)">(up to 4 steps)</span></label><div id="pp-edit-programme-wrap">' + buildProgrammeFields('pp-edit', expProgramme||[]) + '</div></div>'
     + '<div class="fg"><label>Amenities</label><div id="pp-edit-amenities-wrap">' + buildAmenitiesCheckboxes('pp-edit', expAmenities||[]) + '</div></div>'
     + '<div style="display:flex;gap:9px;margin-top:18px;padding-top:14px;border-top:1px solid var(--border);position:sticky;bottom:0;background:var(--white)">'
@@ -20132,6 +20240,8 @@ async function ppSubmitEdit(expId) {
   var accessible = !!(document.getElementById('pp-edit-accessible')||{checked:false}).checked;
   var insolite   = !!(document.getElementById('pp-edit-insolite') ||{checked:false}).checked;
   var icalUrl    = (document.getElementById('pp-edit-ical')       ||{value:''}).value.trim() || null;
+  var wowPrice   = parseInt((document.getElementById('pp-edit-wow-price')||{value:''}).value) || null;
+  var wowPricingType = (document.getElementById('pp-edit-wow-pricing')||{value:'per_person'}).value || 'per_person';
   var programme  = collectProgramme('pp-edit');
   var amenitiesList = collectAmenities('pp-edit');
 
@@ -20166,6 +20276,8 @@ async function ppSubmitEdit(expId) {
       accessible,
       insolite,
       ...(icalUrl ? { ical_url: icalUrl } : {}),
+      ...(wowPrice ? { wow_price: wowPrice } : {}),
+      wow_pricing_type:   wowPricingType,
       programme:          programme,
       amenities:          amenitiesList,
       previous_data:      prevData,
