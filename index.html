@@ -17196,7 +17196,7 @@ async function loadPartnerStorefront(slug) {
     var descEl = document.getElementById('ps-desc'); if (descEl) descEl.textContent = p.page_description || '';
     var rawExp = p.page_experiences || [];
     var expIds = rawExp.map(function(x){ return typeof x==='string'?x:(x&&x.id?x.id:null); }).filter(Boolean);
-    var query = db_client.from('experiences').select('id,name,category,city,price,image_url,image_urls,images,description').eq('is_active', true);
+    var query = db_client.from('experiences').select('id,name,category,city,price,wow_price,wow_pricing_type,image_url,image_urls,images,description').eq('is_active', true);
     if (expIds.length) query = query.in('id', expIds);
     var expRes = await query;
     var exps = expRes.data || [];
@@ -17222,7 +17222,7 @@ async function loadPartnerStorefront(slug) {
         + (e.city ? '<div style="font-size:.76rem;color:var(--muted);margin-bottom:6px"><i class="fa fa-location-dot" style="color:'+color+'"></i> '+e.city+'</div>' : '')
         + (e.description ? '<div style="font-size:.78rem;color:#6b7280;line-height:1.6;margin-bottom:10px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">'+e.description+'</div>' : '')
         + '<div style="display:flex;align-items:center;justify-content:space-between;margin-top:8px">'
-        + (e.price ? '<div style="font-size:1.05rem;font-weight:700;color:var(--navy)">R'+Number(e.price).toLocaleString()+'</div>' : '<div></div>')
+        + (e.wow_price ? '<div><div style="font-size:1.05rem;font-weight:700;color:var(--navy)">R'+Number(e.wow_price).toLocaleString()+'</div><div style="font-size:.68rem;color:var(--muted)">'+(e.wow_pricing_type==='fixed'?'Fixed price':'per person')+'</div></div>' : '<div></div>')
         + '<button onclick="psBookExperience(this.dataset.eid)" data-eid="'+e.id+'" style="background:'+color+';color:#fff;border:none;border-radius:8px;padding:7px 16px;font-size:.78rem;font-weight:700;cursor:pointer">Book now</button>'
         + '</div></div></div>';
     }
@@ -17236,7 +17236,7 @@ async function loadPartnerStorefront(slug) {
         + (e.city ? '<div style="font-size:.75rem;color:var(--muted);margin-bottom:4px"><i class="fa fa-location-dot" style="color:'+color+'"></i> '+e.city+'</div>' : '')
         + (e.description ? '<div style="font-size:.78rem;color:#6b7280;line-height:1.5;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">'+e.description+'</div>' : '')
         + '</div><div style="display:flex;align-items:center;justify-content:space-between;margin-top:10px">'
-        + (e.price ? '<div style="font-size:1rem;font-weight:700;color:var(--navy)">R'+Number(e.price).toLocaleString()+'</div>' : '<div></div>')
+        + (e.wow_price ? '<div><div style="font-size:1rem;font-weight:700;color:var(--navy)">R'+Number(e.wow_price).toLocaleString()+'</div><div style="font-size:.68rem;color:var(--muted)">'+(e.wow_pricing_type==='fixed'?'Fixed price':'per person')+'</div></div>' : '<div></div>')
         + '<button onclick="psBookExperience(this.dataset.eid)" data-eid="'+e.id+'" style="background:'+color+';color:#fff;border:none;border-radius:8px;padding:7px 16px;font-size:.78rem;font-weight:700;cursor:pointer">Book now</button>'
         + '</div></div></div>';
     }
@@ -20323,23 +20323,30 @@ async function loadPartnerBookings() {
     }
     var statusColors = { pending_confirmation:'#d97706', confirmed:'#16a34a', used:'#64748b', cancelled:'#dc2626' };
     listEl.innerHTML = bookings.map(function(b) {
-      var date = b.created_at ? new Date(b.created_at).toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'}) : '—';
-      var bDate = b.booking_date ? new Date(b.booking_date).toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'}) : '—';
+      var date = b.created_at ? new Date(b.created_at).toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'}) : '\u2014';
+      var bDate = b.booking_date ? new Date(b.booking_date).toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'}) : '\u2014';
       var sColor = statusColors[b.status] || '#64748b';
       var canValidate = b.status === 'pending_confirmation' || b.status === 'confirmed';
-      var guestDisplay = b.guest_name && b.guest_name !== b.customer_name ? b.guest_name : (b.customer_name||'—');
-      var timeDisplay  = b.booking_time ? ' · ' + b.booking_time : '';
-      return '<div style="background:#fff;border:1px solid var(--border);border-radius:var(--r);padding:16px;margin-bottom:10px">'
+      var guestDisplay = b.guest_name && b.guest_name !== b.customer_name ? b.guest_name : (b.customer_name||'\u2014');
+      var timeDisplay  = b.booking_time ? ' \u00b7 ' + b.booking_time : '';
+      var isWow = b.flow === 'wow';
+      var det = (typeof b.booking_details === 'object' && b.booking_details) ? b.booking_details : {};
+      var detLines = [det.occasion?'\uD83C\uDF89 '+det.occasion:'', det.dietary?'\uD83E\uDD57 '+det.dietary:'', det.notes?'\uD83D\uDCDD '+det.notes:'', det.endDate?'\u2194 Check-out: '+det.endDate:''].filter(Boolean);
+      return '<div style="background:#fff;border:1px solid var(--border);border-radius:var(--r);padding:16px;margin-bottom:10px'+(isWow?';border-left:3px solid var(--b500)':'')+'">'
         + '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">'
-        + '<div><div style="font-weight:700;font-size:.88rem;color:var(--navy)">' + (b.experience_name||'—') + '</div>'
-        + '<div style="font-size:.75rem;color:var(--muted)">For ' + bDate + timeDisplay + ' · ' + (b.guests||'2') + ' guest' + ((b.guests||2)!=1?'s':'') + '</div></div>'
+        + '<div><div style="display:flex;align-items:center;gap:8px;margin-bottom:2px">'
+        + '<span style="font-weight:700;font-size:.88rem;color:var(--navy)">' + (b.experience_name||'\u2014') + '</span>'
+        + (isWow ? '<span style="font-size:.6rem;font-weight:700;background:var(--b500);color:#fff;padding:2px 7px;border-radius:99px">WOW</span>' : '')
+        + '</div>'
+        + '<div style="font-size:.75rem;color:var(--muted)">For ' + bDate + timeDisplay + ' \u00b7 ' + (b.guests||'2') + ' guest' + ((b.guests||2)!=1?'s':'') + '</div></div>'
         + '<span style="font-size:.7rem;font-weight:700;color:' + sColor + ';background:' + sColor + '18;padding:3px 10px;border-radius:99px;flex-shrink:0">' + (b.status||'').replace('_',' ') + '</span>'
         + '</div>'
-        + '<div style="display:flex;gap:16px;margin-bottom:10px;flex-wrap:wrap">'
+        + '<div style="display:flex;gap:16px;margin-bottom:8px;flex-wrap:wrap">'
         + '<div style="font-size:.78rem"><span style="color:var(--muted)">Guest: </span><strong>' + guestDisplay + '</strong></div>'
-        + '<div style="font-size:.78rem"><span style="color:var(--muted)">Contact: </span>' + (b.customer_name||'') + (b.customer_email ? ' · ' + b.customer_email : '') + '</div>'
+        + '<div style="font-size:.78rem"><span style="color:var(--muted)">Contact: </span>' + (b.customer_name||'') + (b.customer_email ? ' \u00b7 ' + b.customer_email : '') + '</div>'
         + (b.booking_reference ? '<div style="font-size:.78rem"><span style="color:var(--muted)">Ref: </span><code style="color:var(--b700);font-size:.75rem">' + b.booking_reference + '</code></div>' : '')
         + '</div>'
+        + (detLines.length ? '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px">' + detLines.map(function(l){return '<span style="font-size:.75rem;color:var(--muted)">'+l+'</span>';}).join('') + '</div>' : '')
         + (canValidate ? '<button class="btn bgreen bsm" onclick="ppValidateBooking(\'' + b.id + '\',\'' + (b.voucher_code||'') + '\',this)"><i class="fa fa-qrcode"></i> Mark as used</button>' : '')
         + '</div>';
     }).join('');
