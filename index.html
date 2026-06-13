@@ -18021,7 +18021,8 @@ var BLOCK_DEFS = [
   { id:'reviews',            icon:'fa-star',          label:'Reviews',            desc:'Display guest reviews from your experiences',        booking:false },
   { id:'gift_vouchers',      icon:'fa-gift',          label:'Gift Vouchers',      desc:'Sell digital gift cards for your venue',             booking:false },
   { id:'social_media',        icon:'fa-share-nodes',    label:'Social Media',       desc:'Instagram, TikTok, Facebook, Twitter, LinkedIn',     booking:false },
-  { id:'custom_html',         icon:'fa-code',           label:'Custom HTML',        desc:'Embed maps, videos or any custom code',              booking:false }
+  { id:'custom_html',         icon:'fa-code',           label:'Custom HTML',        desc:'Embed maps, videos or any custom code',              booking:false },
+  { id:'text_block',          icon:'fa-align-left',     label:'Text Block',         desc:'Add a custom text section with formatting options',  booking:false }
 ];
 
 function ppPageLoadBlocks() {
@@ -18103,6 +18104,13 @@ function ppBlockSettingsHTML(def, sett) {
   } else if (def.id === 'custom_html') {
     html += '<div style="font-size:.7rem;color:#dc2626;background:#fef2f2;padding:6px 8px;border-radius:4px;margin-bottom:4px">⚠ Advanced only — paste trusted HTML/embeds</div>';
     html += '<textarea '+fi+' rows="4" placeholder="Paste your HTML here..." oninput="ppPageSetBlockSetting(\''+bid+'\',\'html\',this.value);ppBuilderUpdate()" style="resize:vertical;font-family:monospace;font-size:.73rem">'+(sett.html||'')+'</textarea>';
+  } else if (def.id === 'text_block') {
+    html += '<textarea '+fi+' rows=\"4\" placeholder=\"Your text here...\" oninput=\"ppPageSetBlockSetting(\\\'+bid+\'\\\',\'text\',this.value);ppBuilderUpdate()\" style=\"resize:vertical\">'+(sett.text||'')+'</textarea>';
+    var fsOpts = ['0.8rem','0.9rem','1rem','1.1rem','1.25rem','1.5rem','2rem'].map(function(s){ return '<option value=\"'+s+'\"'+(sett.fontSize===s?' selected':'')+'>'+s+'</option>'; }).join('');
+    var fontOpts = [['DM Sans, sans-serif','DM Sans'],['Cormorant Garamond, serif','Cormorant'],['Georgia, serif','Georgia'],['Helvetica, sans-serif','Helvetica']].map(function(f){ return '<option value=\"'+f[0]+'\"'+(sett.font===f[0]?' selected':'')+'>'+f[1]+'</option>'; }).join('');
+    var alignOpts = ['left','center','right'].map(function(a){ return '<option value=\"'+a+'\"'+(sett.align===a?' selected':'')+'>'+a.charAt(0).toUpperCase()+a.slice(1)+'</option>'; }).join('');
+    html += '<div style=\"display:flex;gap:8px;flex-wrap:wrap;align-items:center\">'      + '<select '+fi+' style=\"width:auto\" onchange=\"ppPageSetBlockSetting(\\\'+bid+\'\\\',\'fontSize\',this.value);ppBuilderUpdate()\">'+fsOpts+'</select>'      + '<select '+fi+' style=\"width:auto\" onchange=\"ppPageSetBlockSetting(\\\'+bid+\'\\\',\'font\',this.value);ppBuilderUpdate()\">'+fontOpts+'</select>'      + '<select '+fi+' style=\"width:auto\" onchange=\"ppPageSetBlockSetting(\\\'+bid+\'\\\',\'align\',this.value);ppBuilderUpdate()\">'+alignOpts+'</select>'      + '<label style=\"font-size:.7rem;color:var(--muted);display:flex;align-items:center;gap:4px\"><input type=\"checkbox\"'+(sett.bold?' checked':'')+' onchange=\"ppPageSetBlockSetting(\\\'+bid+\'\\\',\'bold\',this.checked);ppBuilderUpdate()\"> Bold</label>'      + '</div>';
+    html += '<div style=\"display:flex;gap:10px\">'      + '<div style=\"display:flex;align-items:center;gap:5px;font-size:.7rem;color:var(--muted)\">Bg <input type=\"color\" value=\"'+(sett.bg||'#ffffff')+'\" onchange=\"ppPageBlockColorChange(this,this.dataset.prop);ppBuilderUpdate()\" data-prop=\"bg\" data-bid=\"'+bid+'\" style=\"width:26px;height:20px;border:1px solid var(--border);border-radius:3px;padding:1px;cursor:pointer\"></div>'      + '<div style=\"display:flex;align-items:center;gap:5px;font-size:.7rem;color:var(--muted)\">Text <input type=\"color\" value=\"'+(sett.textColor||'#1a1a2e')+'\" onchange=\"ppPageSetBlockSetting(\\\'+bid+\'\\\',\'textColor\',this.value);ppBuilderUpdate()\" style=\"width:26px;height:20px;border:1px solid var(--border);border-radius:3px;padding:1px;cursor:pointer\"></div>'      + '</div>';
   } else {
     // Title + subtitle + colors
     html += '<input '+fi+' placeholder="Section title" value="'+(sett.title||'')+'" oninput="ppPageSetBlockSetting(\''+bid+'\',\'title\',this.value);ppBuilderUpdate()">';
@@ -18314,10 +18322,10 @@ function psRenderBlocks(blocks, p, color, exps, partnerContact, slug) {
     bookingEl._color   = color;
     bookingEl._catMap  = CAT_MAP;
 
-    var tabsHtml = '<div style="display:flex;gap:6px;margin-bottom:20px;flex-wrap:wrap" id="ps-tab-row">'
+    var tabsHtml = '<div style="display:flex;gap:6px;margin-bottom:20px;flex-wrap:wrap;overflow-x:auto;padding-bottom:4px;scrollbar-width:none" id="ps-tab-row">'
       + bookingBlocks.map(function(b){
           var active = b.id === bookingBlocks[0].id;
-          return '<button data-bid="'+b.id+'" onclick="psToggleBookingTab(this,this.dataset.bid)" id="ps-tab-'+b.id+'" style="background:'+(active?'#fff':'rgba(255,255,255,.15)')+';color:'+(active?color:'#fff')+';border:none;border-radius:99px;padding:9px 22px;font-size:.83rem;font-weight:700;cursor:pointer;transition:all .2s;white-space:nowrap">'+BTABS[b.id]+'</button>';
+          return '<button data-bid="'+b.id+'" onclick="psToggleBookingTab(this,this.dataset.bid)" id="ps-tab-'+b.id+'" style="background:'+(active?'#fff':'rgba(255,255,255,.15)')+';color:'+(active?color:psContrastColor(color))+';border:none;border-radius:99px;padding:9px 22px;font-size:.83rem;font-weight:700;cursor:pointer;transition:all .2s;white-space:nowrap">'+BTABS[b.id]+'</button>';
         }).join('')
       + '</div>';
 
@@ -18404,7 +18412,7 @@ function psRenderBlocks(blocks, p, color, exps, partnerContact, slug) {
     var revBg   = revBlock.bg   || '#1e1e1e';
     var revText = revBlock.text || '#ffffff';
     // Inject container first so async can find it
-    belowHtml += '<div id="ps-reviews-block" style="background:'+revBg+';padding:64px 40px">'
+    belowHtml += '<div id="ps-reviews-block" style="background:'+revBg+';padding:clamp(32px,5vw,64px) clamp(16px,4vw,40px)">'
       +'<div style="max-width:1100px;margin:0 auto">'
       +'<div style="font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.18em;color:'+color+';margin-bottom:10px;text-align:center">What our guests say</div>'
       +'<h2 style="font-family:\'Cormorant Garamond\',serif;font-size:2.4rem;font-style:italic;font-weight:400;color:'+revText+';text-align:center;margin-bottom:44px">Unforgettable moments</h2>'
@@ -18413,24 +18421,41 @@ function psRenderBlocks(blocks, p, color, exps, partnerContact, slug) {
       +'</div></div></div>';
   }
 
-  // GIFT VOUCHERS (unchanged)
+  // GIFT VOUCHERS — WowBox boxes containing partner experiences
   if (otherBlocks.some(function(b){ return b.id==='gift_vouchers'; })) {
     var gvBlock = otherBlocks.find(function(b){ return b.id==='gift_vouchers'; }) || {};
-    var gvBg = gvBlock.bg || '#fdf8f4';
-    belowHtml += '<div style="background:'+gvBg+';padding:72px 40px">'
-      +'<div style="max-width:1100px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr;gap:60px;align-items:center">'
-      +'<div><div style="font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.18em;color:'+color+';margin-bottom:14px">Gift Experiences</div>'
-      +'<h2 style="font-family:\'Cormorant Garamond\',serif;font-size:3rem;font-weight:400;color:#1a1a2e;line-height:1.15;margin-bottom:18px">The gift of an<br><em>unforgettable moment</em></h2>'
-      +'<p style="font-size:.95rem;color:#6b7280;line-height:1.85;margin-bottom:32px">Give someone special the freedom to choose their perfect experience. Digital gift cards delivered instantly by email.</p>'
-      +'<button onclick="psBookingComingSoon()" style="background:'+color+';color:#fff;border:none;border-radius:8px;padding:14px 36px;font-weight:700;font-size:.92rem;cursor:pointer">Buy a gift voucher →</button>'
-      +'</div>'
-      +'<div style="background:'+color+';border-radius:20px;padding:40px 32px;text-align:center;box-shadow:0 12px 40px rgba(0,0,0,.15);position:relative;overflow:hidden">'
-      +'<div style="position:absolute;top:-20px;right:-20px;width:120px;height:120px;border-radius:50%;background:rgba(255,255,255,.07)"></div>'
-      +'<div style="font-size:3.5rem;margin-bottom:16px">🎁</div>'
-      +'<div style="font-family:\'Cormorant Garamond\',serif;font-size:1.9rem;color:#fff;margin-bottom:8px;font-weight:600">Gift Voucher</div>'
-      +'<div style="font-size:.85rem;color:rgba(255,255,255,.8);margin-bottom:20px">Valid for all experiences</div>'
-      +'<div style="border-top:1px solid rgba(255,255,255,.2);padding-top:16px;font-size:.8rem;color:rgba(255,255,255,.6)">Powered by WowBox</div>'
-      +'</div></div></div>';
+    var gvBg  = gvBlock.bg  || '#fdf8f4';
+    var gvTxt = gvBlock.textColor || '#1a1a2e';
+    var gvId  = 'ps-gv-' + Date.now();
+    belowHtml += '<div style="background:'+gvBg+';padding:clamp(32px,5vw,64px) clamp(16px,4vw,40px)" id="'+gvId+'-wrap">'      + '<div style="max-width:1100px;margin:0 auto">'      + '<div style="font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.18em;color:'+color+';margin-bottom:10px;text-align:center">🎁 Offer as a gift</div>'      + '<h2 style="font-family:\'Cormorant Garamond\',serif;font-size:clamp(1.6rem,4vw,2.4rem);font-style:italic;font-weight:400;color:'+gvTxt+';text-align:center;margin-bottom:8px">Give this experience as a gift</h2>'      + '<p style="text-align:center;font-size:.88rem;color:#6b7280;margin-bottom:32px;max-width:560px;margin-left:auto;margin-right:auto">This experience is included in the following WowBox gift boxes. Choose one and offer it to someone special.</p>'      + '<div id="'+gvId+'-boxes" style="display:flex;gap:20px;overflow-x:auto;padding-bottom:12px;scrollbar-width:none;-ms-overflow-style:none">'      + '<div style="color:#9ca3af;font-size:.82rem;padding:20px">Loading gift boxes…</div>'      + '</div></div></div>';
+    (function(gvIdLocal, colorLocal, expsList) {
+      setTimeout(async function() {
+        try {
+          var expIds = (expsList||[]).map(function(e){ return e.id; }).filter(Boolean);
+          if (!expIds.length) {
+            var el = document.getElementById(gvIdLocal+'-boxes');
+            if (el) el.innerHTML = '<div style="color:#9ca3af;font-size:.82rem;font-style:italic">No gift boxes available yet.</div>';
+            return;
+          }
+          var linkRes = await db_client.from('experience_database_links').select('database_id').in('experience_id', expIds);
+          var dbIds = [...new Set((linkRes.data||[]).map(function(r){ return r.database_id; }))];
+          if (!dbIds.length) {
+            var el = document.getElementById(gvIdLocal+'-boxes');
+            if (el) el.innerHTML = '<div style="color:#9ca3af;font-size:.82rem;font-style:italic">No WowBox gift boxes available yet for this experience.</div>';
+            return;
+          }
+          var boxRes = await db_client.from('experience_databases').select('id,name,price,image_url,description').in('id', dbIds).limit(10);
+          var boxes = boxRes.data || [];
+          var el = document.getElementById(gvIdLocal+'-boxes');
+          if (!el) return;
+          if (!boxes.length) { el.innerHTML = '<div style="color:#9ca3af;font-size:.82rem;font-style:italic">No gift boxes found.</div>'; return; }
+          el.innerHTML = boxes.map(function(b) {
+            var img = b.image_url || '';
+            return '<div style="flex:0 0 220px;border:1px solid #e5e7eb;border-radius:14px;overflow:hidden;background:#fff;box-shadow:0 4px 16px rgba(0,0,0,.06)">'              + (img ? '<img src="'+img+'" style="width:100%;height:140px;object-fit:cover">' : '<div style="height:140px;background:#f3f4f6;display:flex;align-items:center;justify-content:center;font-size:2rem">🎁</div>')              + '<div style="padding:14px">'              + '<div style="font-size:.85rem;font-weight:700;color:#1a1a2e;margin-bottom:4px">'+b.name+'</div>'              + (b.description ? '<div style="font-size:.72rem;color:#6b7280;margin-bottom:8px;line-height:1.5;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">'+b.description+'</div>' : '')              + (b.price ? '<div style="font-size:1.05rem;font-weight:700;color:'+colorLocal+';margin-bottom:10px">R'+Number(b.price).toLocaleString()+'</div>' : '')              + '<button onclick="go(\'allboxes\')" style="width:100%;background:'+colorLocal+';color:#fff;border:none;border-radius:8px;padding:9px;font-size:.78rem;font-weight:700;cursor:pointer">Buy as a gift →</button>'              + '</div></div>';
+          }).join('');
+        } catch(err) { console.warn('Gift boxes load:', err.message); }
+      }, 150);
+    })(gvId, color, exps);
   }
 
   // SOCIAL MEDIA (unchanged)
@@ -18455,7 +18480,7 @@ function psRenderBlocks(blocks, p, color, exps, partnerContact, slug) {
     var htmlBlock = otherBlocks.find(function(b){ return b.id==='custom_html'; }) || {};
     if (htmlBlock.html) {
       belowHtml += '<div style="background:'+(htmlBlock.bg||'#fff')+';padding:32px 40px">'
-        +'<div style="max-width:1100px;margin:0 auto">'+htmlBlock.html+'</div></div>';
+        +'<div style="max-width:1100px;margin:0 auto;max-width:100%;overflow-x:auto">'+htmlBlock.html+'</div></div>';
     }
   }
 
@@ -18469,7 +18494,7 @@ function psRenderBlocks(blocks, p, color, exps, partnerContact, slug) {
     var email   = partnerContact.contact_email || '';
     var mapsUrl = loc ? 'https://maps.google.com/?q='+encodeURIComponent(loc+(region?', '+region:'')) : '';
     belowHtml += '<div style="background:'+mcBg+';padding:64px 40px;border-top:1px solid #f3f4f6">'
-      +'<div style="max-width:1100px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr;gap:60px;align-items:start">'
+      +'<div style="max-width:1100px;margin:0 auto;display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:40px;align-items:start">'
       +'<div>'
       +'<div style="font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.18em;color:'+color+';margin-bottom:14px">Visit Us</div>'
       +'<h2 style="font-family:\'Cormorant Garamond\',serif;font-size:2.6rem;font-weight:400;color:#1a1a2e;margin-bottom:20px;line-height:1.2">Come &amp; experience<br>something remarkable</h2>'
@@ -18485,7 +18510,23 @@ function psRenderBlocks(blocks, p, color, exps, partnerContact, slug) {
       +'</div></div></div>';
   }
 
-  belowEl.innerHTML = belowHtml;
+  // TEXT BLOCK
+  otherBlocks.filter(function(b){ return b.id==='text_block'; }).forEach(function(tb) {
+    var tbBg    = tb.bg        || '#ffffff';
+    var tbColor = tb.textColor || '#1a1a2e';
+    var tbText  = tb.text      || '';
+    var tbSize  = tb.fontSize  || '1rem';
+    var tbAlign = tb.align     || 'left';
+    var tbBold  = tb.bold      ? 'font-weight:700;' : '';
+    var tbFont  = tb.font      || 'DM Sans, sans-serif';
+    var tbPad   = 'padding:clamp(24px,4vw,48px) clamp(16px,4vw,40px)';
+    belowHtml += '<div style="background:'+tbBg+';'+tbPad+'">'
+      + '<div style="max-width:1100px;margin:0 auto">'
+      + '<p style="font-size:'+tbSize+';color:'+tbColor+';text-align:'+tbAlign+';'+tbBold+'font-family:'+tbFont+';line-height:1.8;margin:0;white-space:pre-wrap">'+tbText+'</p>'
+      + '</div></div>';
+  });
+
+    belowEl.innerHTML = belowHtml;
 
   // Async: load real reviews after DOM is ready
   if (otherBlocks.some(function(b){ return b.id==='reviews'; })) {
@@ -18529,6 +18570,19 @@ var _psAllExps = [];
 var _psPageLayout = 'grid';
 var _psFeaturedId = null;
 var _psPageColor  = '#b45309';
+
+// Returns white or dark color for best contrast against a hex background
+function psContrastColor(hex) {
+  try {
+    hex = hex.replace('#','');
+    if (hex.length === 3) hex = hex.split('').map(function(c){return c+c;}).join('');
+    var r = parseInt(hex.substr(0,2),16);
+    var g = parseInt(hex.substr(2,2),16);
+    var b = parseInt(hex.substr(4,2),16);
+    var lum = (0.299*r + 0.587*g + 0.114*b) / 255;
+    return lum > 0.55 ? '#1a1a2e' : '#ffffff';
+  } catch(e) { return '#ffffff'; }
+}
 
 function psSyncSlider(isMobile) {
   var sfx = isMobile ? '-m' : '';
