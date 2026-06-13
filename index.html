@@ -6778,8 +6778,38 @@ tr:hover td{background:var(--b50)}
               </div>
               <div id="pp-pg-slug-status" style="font-size:.72rem;margin-top:4px"></div>
             </div>
-            <div class="fg"><label>Tagline</label><input class="fi" id="pp-pg-tagline" placeholder="e.g. Unforgettable dining in the heart of Cape Town"></div>
-            <div class="fg"><label>Description</label><textarea class="fi" id="pp-pg-desc" rows="4" placeholder="Tell visitors about your experiences…" style="resize:vertical"></textarea></div>
+            <div class="fg"><label>Tagline</label>
+              <input class="fi" id="pp-pg-tagline" placeholder="e.g. Unforgettable dining in the heart of Cape Town">
+              <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:6px">
+                <select class="fi" id="pp-pg-tagline-size" style="width:auto;padding:4px 8px;font-size:.72rem" oninput="ppBuilderUpdate()">
+                  <option value="0.9rem">Small</option><option value="1.1rem" selected>Normal</option><option value="1.4rem">Large</option><option value="1.8rem">XL</option>
+                </select>
+                <select class="fi" id="pp-pg-tagline-font" style="width:auto;padding:4px 8px;font-size:.72rem" oninput="ppBuilderUpdate()">
+                  <option value="Cormorant Garamond,serif" selected>Cormorant</option><option value="DM Sans,sans-serif">DM Sans</option><option value="Georgia,serif">Georgia</option><option value="Helvetica,sans-serif">Helvetica</option>
+                </select>
+                <select class="fi" id="pp-pg-tagline-align" style="width:auto;padding:4px 8px;font-size:.72rem" oninput="ppBuilderUpdate()">
+                  <option value="left" selected>Left</option><option value="center">Center</option><option value="right">Right</option>
+                </select>
+                <input type="color" id="pp-pg-tagline-color" value="#ffffff" title="Text colour" style="width:28px;height:24px;border:1px solid var(--border);border-radius:4px;cursor:pointer;padding:1px" oninput="ppBuilderUpdate()">
+                <label style="font-size:.7rem;color:var(--muted);display:flex;align-items:center;gap:3px"><input type="checkbox" id="pp-pg-tagline-bold" oninput="ppBuilderUpdate()"> Bold</label>
+              </div>
+            </div>
+            <div class="fg"><label>Description</label>
+              <textarea class="fi" id="pp-pg-desc" rows="4" placeholder="Tell visitors about your experiences…" style="resize:vertical"></textarea>
+              <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:6px">
+                <select class="fi" id="pp-pg-desc-size" style="width:auto;padding:4px 8px;font-size:.72rem" oninput="ppBuilderUpdate()">
+                  <option value="0.8rem">Small</option><option value="0.95rem" selected>Normal</option><option value="1.1rem">Large</option>
+                </select>
+                <select class="fi" id="pp-pg-desc-font" style="width:auto;padding:4px 8px;font-size:.72rem" oninput="ppBuilderUpdate()">
+                  <option value="Cormorant Garamond,serif">Cormorant</option><option value="DM Sans,sans-serif" selected>DM Sans</option><option value="Georgia,serif">Georgia</option><option value="Helvetica,sans-serif">Helvetica</option>
+                </select>
+                <select class="fi" id="pp-pg-desc-align" style="width:auto;padding:4px 8px;font-size:.72rem" oninput="ppBuilderUpdate()">
+                  <option value="left" selected>Left</option><option value="center">Center</option><option value="right">Right</option>
+                </select>
+                <input type="color" id="pp-pg-desc-color" value="#4b5563" title="Text colour" style="width:28px;height:24px;border:1px solid var(--border);border-radius:4px;cursor:pointer;padding:1px" oninput="ppBuilderUpdate()">
+                <label style="font-size:.7rem;color:var(--muted);display:flex;align-items:center;gap:3px"><input type="checkbox" id="pp-pg-desc-bold" oninput="ppBuilderUpdate()"> Bold</label>
+              </div>
+            </div>
             <div style="display:flex;gap:10px;justify-content:flex-end">
               <button class="btn bp bsm" onclick="ppPageSave();ppPageGoStep(2)">Save & Next →</button>
             </div>
@@ -6822,6 +6852,14 @@ tr:hover td{background:var(--b50)}
                   <div style="display:flex;align-items:center;gap:10px">
                     <label style="font-size:.72rem;color:var(--muted)">Accent colour</label>
                     <input type="color" id="pp-pg-color" value="#b45309" style="width:36px;height:28px;border:1px solid var(--border);border-radius:5px;cursor:pointer;padding:2px" oninput="ppBuilderUpdate()">
+                  </div>
+                  <div style="display:flex;align-items:center;gap:10px">
+                    <label style="font-size:.72rem;color:var(--muted)">Search bar colour</label>
+                    <input type="color" id="pp-pg-bar-color" value="#3d2314" style="width:36px;height:28px;border:1px solid var(--border);border-radius:5px;cursor:pointer;padding:2px" oninput="ppBuilderUpdate()">
+                  </div>
+                  <div style="display:flex;align-items:center;gap:10px">
+                    <label style="font-size:.72rem;color:var(--muted)">Page background</label>
+                    <input type="color" id="pp-pg-bg-color" value="#f9fafb" style="width:36px;height:28px;border:1px solid var(--border);border-radius:5px;cursor:pointer;padding:2px" oninput="ppBuilderUpdate()">
                   </div>
                   <div>
                     <label style="font-size:.72rem;color:var(--muted);display:block;margin-bottom:6px">Layout</label>
@@ -17419,7 +17457,7 @@ async function loadPartnerStorefront(slug) {
   try {
     // Fetch page config + partner contact info in parallel
     var [res, partnerRes] = await Promise.all([
-      db_client.from('user_profiles').select('partner_name,full_name,page_tagline,page_description,page_logo,page_cover,page_cover_position,page_color,page_experiences,page_status,page_layout,page_blocks,partner_address').eq('page_slug', slug).maybeSingle(),
+      db_client.from('user_profiles').select('partner_name,full_name,page_tagline,page_description,page_logo,page_cover,page_cover_position,page_color,page_bar_color,page_bg_color,page_tagline_style,page_desc_style,page_experiences,page_status,page_layout,page_blocks,partner_address').eq('page_slug', slug).maybeSingle(),
       db_client.from('partners').select('location,region,website_url,contact_email,business_name').eq('page_slug', slug).maybeSingle()
     ]);
     var p = res.data;
@@ -17430,12 +17468,37 @@ async function loadPartnerStorefront(slug) {
       document.getElementById('ps-exp-grid').innerHTML = '<div style="text-align:center;padding:60px;color:var(--muted);grid-column:1/-1"><i class="fa fa-circle-exclamation" style="font-size:2rem;margin-bottom:10px;display:block"></i>This page is not available.</div>';
       return;
     }
-    var color = p.page_color || '#b45309';
+    var color    = p.page_color     || '#b45309';
+    var barColor = p.page_bar_color || color;
+    var bgColor  = p.page_bg_color  || '#f9fafb';
+
+    // Apply page background to experiences section
+    var psBody = document.getElementById('ps-body');
+    if (psBody) psBody.style.background = bgColor;
+
     var hero = document.getElementById('ps-hero');
     var heroCoverPos = p.page_cover_position || '50% 30%';
     if (hero) hero.style.background = (p.page_cover ? 'url('+p.page_cover+') '+heroCoverPos+'/cover' : 'linear-gradient(135deg,'+color+'cc,#1a1a2e)');
-    var tagEl  = document.getElementById('ps-tagline'); if (tagEl) tagEl.textContent = p.page_tagline || '';
-    var descEl = document.getElementById('ps-desc'); if (descEl) descEl.textContent = p.page_description || '';
+    var tagEl  = document.getElementById('ps-tagline');
+    if (tagEl) {
+      tagEl.textContent = p.page_tagline || '';
+      var ts = p.page_tagline_style || {};
+      tagEl.style.fontSize   = ts.size  || '1.1rem';
+      tagEl.style.fontFamily = ts.font  || "'Cormorant Garamond',serif";
+      tagEl.style.textAlign  = ts.align || 'left';
+      tagEl.style.color      = ts.color || 'rgba(255,255,255,.9)';
+      tagEl.style.fontWeight = ts.bold  ? '700' : '400';
+    }
+    var descEl = document.getElementById('ps-desc');
+    if (descEl) {
+      descEl.textContent = p.page_description || '';
+      var ds = p.page_desc_style || {};
+      descEl.style.fontSize   = ds.size  || '0.95rem';
+      descEl.style.fontFamily = ds.font  || "'DM Sans',sans-serif";
+      descEl.style.textAlign  = ds.align || 'left';
+      descEl.style.color      = ds.color || '#4b5563';
+      descEl.style.fontWeight = ds.bold  ? '700' : '400';
+    }
     // Populate partner header
     var hdrLogo = document.getElementById('ps-header-logo');
     var hdrName = document.getElementById('ps-header-name');
@@ -17469,7 +17532,7 @@ async function loadPartnerStorefront(slug) {
 
     psInitFilters(exps, color, pageLayout, featuredId);
     psRenderExpGrid(exps, null, pageLayout, color, featuredId);
-    psRenderBlocks(p.page_blocks || [], p, color, exps, partnerContact, slug);
+    psRenderBlocks(p.page_blocks || [], p, color, exps, partnerContact, slug, barColor);
     document.title = (p.partner_name || p.full_name || 'Partner') + ' — WowBox';
     history.replaceState(null, '', '/wow/' + slug);
   } catch(e) { console.warn('loadPartnerStorefront:', e.message); }
@@ -18375,7 +18438,8 @@ function psBuildBar(color, activeBlocks) {
     + '</div>';
 }
 
-function psRenderBlocks(blocks, p, color, exps, partnerContact, slug) {
+function psRenderBlocks(blocks, p, color, exps, partnerContact, slug, barColor) {
+  barColor = barColor || color;
   if (!blocks || !blocks.length) return;
   blocks = blocks.map(function(b){ return typeof b === 'string' ? {id:b} : b; });
   var bookingBlocks = blocks.filter(function(b){ return _psBookingBlocks.includes(b.id); });
@@ -18408,12 +18472,12 @@ function psRenderBlocks(blocks, p, color, exps, partnerContact, slug) {
         }).join('')
       + '</div>';
 
-    bookingEl.innerHTML = '<div style="background:'+color+';padding:28px 40px" id="ps-widget-inner">'
+    bookingEl.innerHTML = '<div style="background:'+barColor+';padding:28px 40px" id="ps-widget-inner">'
       + '<div style="max-width:1100px;margin:0 auto">'
       + tabsHtml
       + '<div id="ps-bar-wrap">' + psBuildBar(color, [bookingBlocks[0].id]) + '</div>'
       + '</div></div>';
-    bookingEl.dataset.color = color;
+    bookingEl.dataset.color = barColor;
 
     // Render initial tab
     psRenderFilteredExps([bookingBlocks[0].id], exps, color, CAT_MAP);
@@ -19258,7 +19322,19 @@ async function ppPageInit() {
     document.getElementById('pp-pg-tagline').value = d.page_tagline || '';
     document.getElementById('pp-pg-desc').value    = d.page_description || '';
     // Populate step 2
-    if (d.page_color) document.getElementById('pp-pg-color').value = d.page_color;
+    if (d.page_color)     document.getElementById('pp-pg-color').value = d.page_color;
+    if (d.page_bar_color) { var bc=document.getElementById('pp-pg-bar-color'); if(bc) bc.value=d.page_bar_color; }
+    if (d.page_bg_color)  { var bgcEl=document.getElementById('pp-pg-bg-color'); if(bgcEl) bgcEl.value=d.page_bg_color; }
+    if (d.page_tagline_style) {
+      var ts = d.page_tagline_style;
+      ['size','font','align','color'].forEach(function(k){ var e=document.getElementById('pp-pg-tagline-'+k); if(e&&ts[k]) e.value=ts[k]; });
+      var tb=document.getElementById('pp-pg-tagline-bold'); if(tb) tb.checked=!!ts.bold;
+    }
+    if (d.page_desc_style) {
+      var ds = d.page_desc_style;
+      ['size','font','align','color'].forEach(function(k){ var e=document.getElementById('pp-pg-desc-'+k); if(e&&ds[k]) e.value=ds[k]; });
+      var db=document.getElementById('pp-pg-desc-bold'); if(db) db.checked=!!ds.bold;
+    }
     if (d.page_layout) { ppPageSetLayout(null, d.page_layout); }
     if (d.page_blocks)  { _ppPageData.page_blocks = d.page_blocks; }
     if (d.page_logo)  { var lp = document.getElementById('pp-pg-logo-preview');  if (lp) { lp.src = d.page_logo;  lp.style.display = 'block'; } }
@@ -19865,7 +19941,23 @@ async function ppPageSave() {
       }
     }
     // Save to Supabase
-    var payload = { page_slug: slug, page_tagline: tagline, page_description: desc, page_color: color, page_experiences: selectedIds, page_layout: ppPageGetLayout() };
+    var barColor = document.getElementById('pp-pg-bar-color')?.value || '#3d2314';
+    var bgColor  = document.getElementById('pp-pg-bg-color')?.value  || '#f9fafb';
+    var taglineStyle = {
+      size:  document.getElementById('pp-pg-tagline-size')?.value  || '1.1rem',
+      font:  document.getElementById('pp-pg-tagline-font')?.value  || 'Cormorant Garamond,serif',
+      align: document.getElementById('pp-pg-tagline-align')?.value || 'left',
+      color: document.getElementById('pp-pg-tagline-color')?.value || '#ffffff',
+      bold:  document.getElementById('pp-pg-tagline-bold')?.checked || false
+    };
+    var descStyle = {
+      size:  document.getElementById('pp-pg-desc-size')?.value  || '0.95rem',
+      font:  document.getElementById('pp-pg-desc-font')?.value  || 'DM Sans,sans-serif',
+      align: document.getElementById('pp-pg-desc-align')?.value || 'left',
+      color: document.getElementById('pp-pg-desc-color')?.value || '#4b5563',
+      bold:  document.getElementById('pp-pg-desc-bold')?.checked || false
+    };
+    var payload = { page_slug: slug, page_tagline: tagline, page_description: desc, page_color: color, page_bar_color: barColor, page_bg_color: bgColor, page_tagline_style: taglineStyle, page_desc_style: descStyle, page_experiences: selectedIds, page_layout: ppPageGetLayout() };
     if (_ppPageData.page_logo)  payload.page_logo  = _ppPageData.page_logo;
     if (_ppPageData.page_cover) payload.page_cover = _ppPageData.page_cover;
     var uid = currentUser && currentUser.id;
