@@ -18437,6 +18437,7 @@ function psRenderBlocks(blocks, p, color, exps, partnerContact, slug) {
             if (el) el.innerHTML = '<div style="color:#9ca3af;font-size:.82rem;font-style:italic">No gift boxes available yet.</div>';
             return;
           }
+          // experience_id → database_id → box_id → boxes
           var linkRes = await db_client.from('experience_database_links').select('database_id').in('experience_id', expIds);
           var dbIds = [...new Set((linkRes.data||[]).map(function(r){ return r.database_id; }))];
           if (!dbIds.length) {
@@ -18444,7 +18445,14 @@ function psRenderBlocks(blocks, p, color, exps, partnerContact, slug) {
             if (el) el.innerHTML = '<div style="color:#9ca3af;font-size:.82rem;font-style:italic">No WowBox gift boxes available yet for this experience.</div>';
             return;
           }
-          var boxRes = await db_client.from('experience_databases').select('id,name,price,image_url,description').in('id', dbIds).limit(10);
+          var boxLinkRes = await db_client.from('box_database_links').select('box_id').in('database_id', dbIds);
+          var boxIds = [...new Set((boxLinkRes.data||[]).map(function(r){ return r.box_id; }))];
+          if (!boxIds.length) {
+            var el = document.getElementById(gvIdLocal+'-boxes');
+            if (el) el.innerHTML = '<div style="color:#9ca3af;font-size:.82rem;font-style:italic">No WowBox gift boxes available yet for this experience.</div>';
+            return;
+          }
+          var boxRes = await db_client.from('boxes').select('id,name,price,image_url,description').in('id', boxIds).eq('is_active', true).limit(10);
           var boxes = boxRes.data || [];
           var el = document.getElementById(gvIdLocal+'-boxes');
           if (!el) return;
