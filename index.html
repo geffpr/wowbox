@@ -5363,26 +5363,47 @@ tr:hover td{background:var(--b50)}
 
 <!-- ═══════════════════════ PAGE: PARTNER STOREFRONT (public /p/slug) ═══════════════════════ -->
 <div id="page-partner-storefront" class="page">
-  <!-- Partner header (replaces WowBox nav on /wow/ pages) -->
+  <!-- Mobile drawer overlay -->
+  <div id="ps-drawer-overlay" onclick="psDrawerClose()" style="display:none;position:fixed;inset:0;z-index:1099;background:rgba(0,0,0,.4)"></div>
+  <!-- Mobile drawer -->
+  <div id="ps-drawer" style="display:none;position:fixed;top:0;right:0;bottom:0;width:280px;z-index:1100;background:#fff;box-shadow:-4px 0 24px rgba(0,0,0,.18);overflow-y:auto;flex-direction:column">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:18px 20px;border-bottom:1px solid var(--border)">
+      <div id="ps-drawer-name" style="font-family:'Cormorant Garamond',serif;font-size:1rem;font-weight:700;color:var(--navy)"></div>
+      <button onclick="psDrawerClose()" style="background:none;border:none;font-size:1.3rem;color:var(--muted);cursor:pointer;padding:4px">✕</button>
+    </div>
+    <div id="ps-drawer-links" style="padding:12px 0;flex:1"></div>
+    <div style="padding:16px 20px;border-top:1px solid var(--border);text-align:center">
+      <a href="https://wowbox.co.za" target="_blank" rel="noopener" style="font-size:.72rem;color:var(--muted);text-decoration:none">
+        Powered by <strong style="color:var(--b600)">WowBox</strong>
+      </a>
+    </div>
+  </div>
+  <!-- Partner header -->
   <div id="ps-partner-header" style="background:#fff;border-bottom:1px solid var(--border);padding:0 40px;display:flex;align-items:center;justify-content:space-between;height:64px;position:sticky;top:0;z-index:900;box-shadow:0 2px 8px rgba(0,0,0,.06)">
     <div style="display:flex;align-items:center;gap:14px">
       <img id="ps-header-logo" src="" style="display:none;height:40px;width:40px;object-fit:contain;border-radius:8px">
-      <div>
-        <div id="ps-header-name" style="font-family:'Cormorant Garamond',serif;font-size:1.1rem;font-weight:700;color:var(--navy);line-height:1.1"></div>
-      </div>
+      <div id="ps-header-name" style="font-family:'Cormorant Garamond',serif;font-size:1.1rem;font-weight:700;color:var(--navy);line-height:1.1"></div>
     </div>
-    <a href="https://wowbox.co.za" target="_blank" rel="noopener" style="font-size:.72rem;color:var(--muted);text-decoration:none;display:flex;align-items:center;gap:5px">
+    <!-- Desktop: Powered by -->
+    <a id="ps-hdr-powered" href="https://wowbox.co.za" target="_blank" rel="noopener" style="font-size:.72rem;color:var(--muted);text-decoration:none;display:flex;align-items:center;gap:5px">
       Powered by <strong style="color:var(--b600);margin-left:3px">WowBox</strong>
     </a>
+    <!-- Mobile: hamburger -->
+    <button id="ps-hdr-burger" onclick="psDrawerOpen()" style="display:none;background:none;border:none;cursor:pointer;padding:8px;color:var(--navy);font-size:1.3rem">
+      <i class="fa fa-bars"></i>
+    </button>
   </div>
-  <div id="ps-hero" style="min-height:260px;background:linear-gradient(135deg,#3d2314,#1a1a2e);display:flex;align-items:flex-end;padding:32px 40px;position:relative">
+  <style>
+    @media(max-width:640px){
+      #ps-partner-header{padding:0 16px}
+      #ps-hdr-powered{display:none!important}
+      #ps-hdr-burger{display:block!important}
+    }
+  </style>
+  <div id="ps-hero" style="min-height:220px;background:linear-gradient(135deg,#3d2314,#1a1a2e);display:flex;align-items:flex-end;padding:32px 40px;position:relative">
     <div style="position:absolute;inset:0;background:rgba(0,0,0,.35)"></div>
-    <div style="position:relative;z-index:1;display:flex;align-items:center;gap:18px">
-      <img id="ps-logo" src="" style="display:none;height:72px;width:72px;object-fit:contain;border-radius:12px;background:rgba(255,255,255,.15);padding:7px;box-shadow:0 4px 16px rgba(0,0,0,.3)">
-      <div>
-        <div id="ps-name" style="font-family:'Cormorant Garamond',serif;font-size:2.4rem;font-weight:700;color:#fff;line-height:1.1;text-shadow:0 2px 8px rgba(0,0,0,.4)"></div>
-        <div id="ps-tagline" style="font-size:.92rem;color:rgba(255,255,255,.8);margin-top:6px;font-style:italic"></div>
-      </div>
+    <div style="position:relative;z-index:1">
+      <div id="ps-tagline" style="font-size:1.1rem;color:rgba(255,255,255,.9);font-style:italic;font-family:'Cormorant Garamond',serif;text-shadow:0 2px 8px rgba(0,0,0,.4)"></div>
     </div>
   </div>
   <div id="ps-booking-widget"></div>
@@ -17321,6 +17342,62 @@ async function ppSendContactMessage() {
 }
 
 // ── Public partner storefront /p/[slug] ──────────────────────────
+// ── Partner mobile drawer ─────────────────────────────────────────
+function psDrawerOpen() {
+  var overlay = document.getElementById('ps-drawer-overlay');
+  var drawer  = document.getElementById('ps-drawer');
+  if (overlay) { overlay.style.display = 'block'; }
+  if (drawer)  { drawer.style.display = 'flex'; }
+  document.body.style.overflow = 'hidden';
+}
+
+function psDrawerClose() {
+  var overlay = document.getElementById('ps-drawer-overlay');
+  var drawer  = document.getElementById('ps-drawer');
+  if (overlay) overlay.style.display = 'none';
+  if (drawer)  drawer.style.display = 'none';
+  document.body.style.overflow = '';
+}
+
+function psDrawerBuildLinks(blocks, color) {
+  var linksEl = document.getElementById('ps-drawer-links');
+  if (!linksEl) return;
+  var BLOCK_LABELS = {
+    hotel_booking:      '🛏 Stay',
+    restaurant_booking: '🍽 Dine',
+    spa_booking:        '🧖 Relax',
+    activity_booking:   '🏄 Activities',
+    photo_gallery:      '📷 Photos',
+    reviews:            '⭐ Reviews',
+    map_contact:        '📍 Contact',
+    gift_vouchers:      '🎁 Gift Boxes',
+    social_media:       '📱 Follow Us',
+    text_block:         '📝 Info'
+  };
+  var SCROLL_TARGETS = {
+    hotel_booking:      'ps-booking-widget',
+    restaurant_booking: 'ps-booking-widget',
+    spa_booking:        'ps-booking-widget',
+    activity_booking:   'ps-booking-widget',
+    photo_gallery:      'ps-blocks-below',
+    reviews:            'ps-reviews-block',
+    map_contact:        'ps-blocks-below',
+    gift_vouchers:      'ps-blocks-below',
+    social_media:       'ps-blocks-below',
+    text_block:         'ps-blocks-below'
+  };
+  // Always add Experiences link first
+  var html = '<a onclick="psDrawerClose();document.getElementById(\'ps-exp-grid\').scrollIntoView({behavior:\'smooth\'})" style="display:block;padding:13px 20px;font-size:.9rem;color:var(--navy);text-decoration:none;border-bottom:1px solid var(--border);cursor:pointer">✨ Experiences</a>';
+  (blocks||[]).forEach(function(b) {
+    var bid = typeof b === 'string' ? b : b.id;
+    var label = BLOCK_LABELS[bid];
+    var target = SCROLL_TARGETS[bid];
+    if (!label) return;
+    html += '<a onclick="psDrawerClose();var t=document.getElementById(\''+target+'\');if(t)t.scrollIntoView({behavior:\'smooth\'})" style="display:block;padding:13px 20px;font-size:.9rem;color:var(--navy);text-decoration:none;border-bottom:1px solid var(--border);cursor:pointer">'+label+'</a>';
+  });
+  linksEl.innerHTML = html;
+}
+
 // ── WOW MODE: hide WowBox nav/footer on partner pages ─────────────
 function psWowModeOn() {
   var nav = document.getElementById('site-nav');
@@ -17357,17 +17434,18 @@ async function loadPartnerStorefront(slug) {
     var hero = document.getElementById('ps-hero');
     var heroCoverPos = p.page_cover_position || '50% 30%';
     if (hero) hero.style.background = (p.page_cover ? 'url('+p.page_cover+') '+heroCoverPos+'/cover' : 'linear-gradient(135deg,'+color+'cc,#1a1a2e)');
-    var logoEl = document.getElementById('ps-logo');
-    if (logoEl && p.page_logo) { logoEl.src = p.page_logo; logoEl.style.display = 'block'; }
-    var nameEl = document.getElementById('ps-name'); if (nameEl) nameEl.textContent = p.partner_name || p.full_name || '';
     var tagEl  = document.getElementById('ps-tagline'); if (tagEl) tagEl.textContent = p.page_tagline || '';
     var descEl = document.getElementById('ps-desc'); if (descEl) descEl.textContent = p.page_description || '';
     // Populate partner header
     var hdrLogo = document.getElementById('ps-header-logo');
     var hdrName = document.getElementById('ps-header-name');
+    var drawerName = document.getElementById('ps-drawer-name');
     if (hdrLogo && p.page_logo) { hdrLogo.src = p.page_logo; hdrLogo.style.display = 'block'; }
     if (hdrName) hdrName.textContent = p.partner_name || p.full_name || '';
-    // Apply partner color to header
+    if (drawerName) drawerName.textContent = p.partner_name || p.full_name || '';
+    // Build mobile drawer links from active blocks
+    psDrawerBuildLinks(p.page_blocks || [], color);
+    // Apply partner color to header border
     var hdr = document.getElementById('ps-partner-header');
     if (hdr && color) hdr.style.borderBottomColor = color + '44';
     // Activate WOW mode (hide WowBox nav/footer)
@@ -17414,6 +17492,7 @@ async function loadBkwExp(expId, slug) {
   if (pg) pg.style.display = 'block';
   window.scrollTo(0,0);
   psWowModeOn();
+  psDrawerClose();
 
   // Store slug for back navigation
   _bkwState.partnerSlug = slug || _bkwState.partnerSlug || '';
