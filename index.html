@@ -9180,6 +9180,9 @@ function go(page) {
   }
 
   document.querySelectorAll('.page').forEach(function(p){ p.classList.remove('active'); p.style.display = ''; });
+  // Always explicitly hide partner storefront (set by /wow/ router with inline style)
+  var _pss = document.getElementById('page-partner-storefront');
+  if (_pss) _pss.style.display = 'none';
   var el = document.getElementById('page-' + page);
   if (el) { el.classList.add('active'); el.style.display = ''; }
   window.scrollTo({top:0,behavior:'smooth'});
