@@ -6807,29 +6807,31 @@ tr:hover td{background:var(--b50)}
                       </div>
                     </div>
                   </div>
-                  <div style="display:flex;align-items:center;gap:10px">
-                    <label style="font-size:.72rem;color:var(--muted)">Accent colour <span title="Buttons, prices, links &amp; slider fill" style="display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;border-radius:50%;background:var(--border);color:var(--muted);font-size:.6rem;cursor:help;font-style:normal;vertical-align:middle">ⓘ</span></label>
+                  <div style="font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:6px;padding-bottom:4px;border-bottom:1px solid var(--border)">① Header</div>
+                  <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+                    <label style="font-size:.72rem;color:var(--muted);min-width:140px">Header text colour <span title="Partner name colour in the top header" style="display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;border-radius:50%;background:var(--border);color:var(--muted);font-size:.6rem;cursor:help">ⓘ</span></label>
+                    <input type="color" id="pp-pg-header-text-color" value="#1a1a2e" style="width:36px;height:28px;border:1px solid var(--border);border-radius:5px;cursor:pointer;padding:2px" oninput="ppPreviewScrollTo('header');ppBuilderUpdate()">
+                  </div>
+                  <div style="font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-top:10px;margin-bottom:6px;padding-bottom:4px;border-bottom:1px solid var(--border)">② Search bar</div>
+                  <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:6px">
+                    <label style="font-size:.72rem;color:var(--muted);min-width:140px">Background <span title="Background colour of the Stay/Dine/Relax/Activities bar" style="display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;border-radius:50%;background:var(--border);color:var(--muted);font-size:.6rem;cursor:help">ⓘ</span></label>
+                    <input type="color" id="pp-pg-bar-color" value="#3d2314" style="width:36px;height:28px;border:1px solid var(--border);border-radius:5px;cursor:pointer;padding:2px" oninput="ppPreviewScrollTo('searchbar');ppBuilderUpdate()">
+                    <label style="font-size:.7rem;color:var(--muted);display:flex;align-items:center;gap:4px"><input type="checkbox" id="pp-pg-bar-transparent" onchange="ppBuilderUpdate();ppPreviewScrollTo('searchbar')"> Transparent</label>
+                  </div>
+                  <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+                    <label style="font-size:.72rem;color:var(--muted);min-width:140px">Tab text (inactive) <span title="Text colour on Stay/Dine/Relax/Activities tabs when not selected. Active tab uses Accent colour." style="display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;border-radius:50%;background:var(--border);color:var(--muted);font-size:.6rem;cursor:help">ⓘ</span></label>
+                    <input type="color" id="pp-pg-bar-text-color" value="#ffffff" style="width:36px;height:28px;border:1px solid var(--border);border-radius:5px;cursor:pointer;padding:2px" oninput="ppPreviewScrollTo('searchbar');ppBuilderUpdate()">
+                    <span style="font-size:.62rem;color:var(--muted);opacity:.7">Active = Accent colour</span>
+                  </div>
+                  <div style="font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-top:10px;margin-bottom:6px;padding-bottom:4px;border-bottom:1px solid var(--border)">③ Experiences &amp; buttons</div>
+                  <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+                    <label style="font-size:.72rem;color:var(--muted);min-width:140px">Accent colour <span title="Buttons, prices, links, slider fill, filter borders, Experiences label" style="display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;border-radius:50%;background:var(--border);color:var(--muted);font-size:.6rem;cursor:help">ⓘ</span></label>
                     <input type="color" id="pp-pg-color" value="#b45309" style="width:36px;height:28px;border:1px solid var(--border);border-radius:5px;cursor:pointer;padding:2px" oninput="ppPreviewScrollTo('exps');ppBuilderUpdate()">
                   </div>
-                  <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-                    <label style="font-size:.72rem;color:var(--muted)">Search bar colour <span title="Background of Stay / Dine / Relax / Activities bar" style="display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;border-radius:50%;background:var(--border);color:var(--muted);font-size:.6rem;cursor:help;font-style:normal;vertical-align:middle">ⓘ</span></label>
-                    <input type="color" id="pp-pg-bar-color" value="#3d2314" style="width:36px;height:28px;border:1px solid var(--border);border-radius:5px;cursor:pointer;padding:2px" oninput="ppPreviewScrollTo('searchbar');ppBuilderUpdate()">
-                    <label style="font-size:.7rem;color:var(--muted);display:flex;align-items:center;gap:4px">
-                      <input type="checkbox" id="pp-pg-bar-transparent" onchange="ppBuilderUpdate();ppPreviewScrollTo('searchbar')"> Transparent
-                    </label>
-                  </div>
-                  <div style="display:flex;align-items:center;gap:10px">
-                    <label style="font-size:.72rem;color:var(--muted)">Search bar text <span title="Text on inactive tabs and field labels" style="display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;border-radius:50%;background:var(--border);color:var(--muted);font-size:.6rem;cursor:help;font-style:normal;vertical-align:middle">ⓘ</span></label>
-                    <input type="color" id="pp-pg-bar-text-color" value="#ffffff" style="width:36px;height:28px;border:1px solid var(--border);border-radius:5px;cursor:pointer;padding:2px" oninput="ppPreviewScrollTo('searchbar');ppBuilderUpdate()">
-                    <span style="font-size:.65rem;color:var(--muted)">(tabs + fields)</span>
-                  </div>
-                  <div style="display:flex;align-items:center;gap:10px">
-                    <label style="font-size:.72rem;color:var(--muted)">Page background <span title="Background of experiences section and header" style="display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;border-radius:50%;background:var(--border);color:var(--muted);font-size:.6rem;cursor:help;font-style:normal;vertical-align:middle">ⓘ</span></label>
+                  <div style="font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-top:10px;margin-bottom:6px;padding-bottom:4px;border-bottom:1px solid var(--border)">④ Page</div>
+                  <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+                    <label style="font-size:.72rem;color:var(--muted);min-width:140px">Page background <span title="Background of header and experiences section" style="display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;border-radius:50%;background:var(--border);color:var(--muted);font-size:.6rem;cursor:help">ⓘ</span></label>
                     <input type="color" id="pp-pg-bg-color" value="#f9fafb" style="width:36px;height:28px;border:1px solid var(--border);border-radius:5px;cursor:pointer;padding:2px" oninput="ppPreviewScrollTo('exps');ppBuilderUpdate()">
-                  </div>
-                  <div style="display:flex;align-items:center;gap:10px">
-                    <label style="font-size:.72rem;color:var(--muted)">Header text colour <span title="Partner name colour in the top header" style="display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;border-radius:50%;background:var(--border);color:var(--muted);font-size:.6rem;cursor:help;font-style:normal;vertical-align:middle">ⓘ</span></label>
-                    <input type="color" id="pp-pg-header-text-color" value="#1a1a2e" style="width:36px;height:28px;border:1px solid var(--border);border-radius:5px;cursor:pointer;padding:2px" oninput="ppPreviewScrollTo('header');ppBuilderUpdate()">
                   </div>
                   <!-- Footer colours (fixed block, non-movable) -->
                   <div style="border-top:1px solid var(--border);padding-top:12px;margin-top:8px">
@@ -17515,9 +17517,22 @@ async function loadPartnerStorefront(slug) {
     var footerEl = document.querySelector('#page-partner-storefront footer');
     if (footerEl) {
       footerEl.style.background = footerBg;
-      footerEl.style.setProperty('--ps-footer-txt', footerTxt);
-      footerEl.querySelectorAll('a,span').forEach(function(el){ el.style.color = footerTxt; });
+      // Override all inline colors in footer
+      footerEl.querySelectorAll('*').forEach(function(el){
+        if (el.style.color) el.style.color = footerTxt;
+      });
+      // Also set links explicitly
+      footerEl.querySelectorAll('a').forEach(function(el){ el.style.color = footerTxt; });
     }
+
+    // Apply accent color to Experiences label
+    var expLabelEl = document.querySelector('#ps-body > div[style*="Experiences"]');
+    if (!expLabelEl) {
+      // Find by text content
+      var allDivs = document.querySelectorAll('#ps-body > div');
+      allDivs.forEach(function(d){ if(d.textContent.trim()==='Experiences') expLabelEl=d; });
+    }
+    if (expLabelEl) expLabelEl.style.color = color;
 
     // Apply page background to full page + header colors
     var psPage = document.getElementById('page-partner-storefront');
@@ -18537,12 +18552,12 @@ function psRenderBlocks(blocks, p, color, exps, partnerContact, slug, barColor, 
     bookingEl._catMap  = CAT_MAP;
 
     var _contrastBase = barColor==='transparent' ? bgColor : barColor;
-    var _inactiveBg  = psContrastColor(_contrastBase)==='#ffffff' ? 'rgba(255,255,255,.2)' : 'rgba(0,0,0,.12)';
+    var _inactiveBg  = barColor==='transparent' ? 'rgba(128,128,128,.15)' : (psContrastColor(_contrastBase)==='#ffffff' ? 'rgba(255,255,255,.2)' : 'rgba(0,0,0,.12)');
     var _inactiveTxt = psContrastColor(_contrastBase);
     var tabsHtml = '<div style="display:flex;gap:6px;margin-bottom:20px;flex-wrap:nowrap;overflow-x:auto;padding-bottom:4px;scrollbar-width:none;-webkit-overflow-scrolling:touch" id="ps-tab-row"><style>@media(max-width:640px){#ps-tab-row button{padding:6px 12px!important;font-size:.72rem!important}}</style>'
       + bookingBlocks.map(function(b){
           var active = b.id === bookingBlocks[0].id;
-          var _activeTxt = psContrastColor(_contrastBase)==='#1a1a2e' ? psContrastColor('#ffffff') : barColor;
+          var _activeTxt = color;  // Active tab text = Accent colour
           return '<button data-bid="'+b.id+'" onclick="psToggleBookingTab(this,this.dataset.bid)" id="ps-tab-'+b.id+'" style="background:'+(active?'#fff':_inactiveBg)+';color:'+(active?_activeTxt:_inactiveTxt)+';border:none;border-radius:99px;padding:9px 22px;font-size:.83rem;font-weight:700;cursor:pointer;transition:all .2s;white-space:nowrap" onmouseover="if(!this.dataset.active)this.style.opacity=.7" onmouseout="this.style.opacity=1">'+BTABS[b.id]+'</button>';
         }).join('')
       + '</div>';
@@ -18560,8 +18575,9 @@ function psRenderBlocks(blocks, p, color, exps, partnerContact, slug, barColor, 
     setTimeout(function() {
       var cinEl  = document.getElementById('ps-f-checkin');
       var coutEl = document.getElementById('ps-f-checkout');
-      if (cinEl && coutEl && typeof flatpickr !== 'undefined') {
-        flatpickr(cinEl, {
+      if (cinEl && coutEl && (typeof flatpickr !== 'undefined' || window.flatpickr)) {
+        var fp = window.flatpickr || flatpickr;
+        fp(cinEl, {
           mode: 'range',
           dateFormat: 'd/m/Y',
           minDate: 'today',
@@ -18569,14 +18585,14 @@ function psRenderBlocks(blocks, p, color, exps, partnerContact, slug, barColor, 
           onChange: function(dates) {
             if (dates.length === 2 && coutEl._flatpickr) {
               coutEl._flatpickr.setDate(dates[1]);
-              coutEl.value = flatpickr.formatDate(dates[1], 'd/m/Y');
+              coutEl.value = fp.formatDate ? fp.formatDate(dates[1], 'd/m/Y') : '';
             }
           },
           onReady: function(dates, s, fp) {
             fp.calendarContainer.style.zIndex = '9999';
           }
         });
-        flatpickr(coutEl, {
+        fp(coutEl, {
           dateFormat: 'd/m/Y',
           minDate: 'today',
           onReady: function(dates, s, fp) {
