@@ -19660,6 +19660,10 @@ function ppBuilderGetPreviewHTML() {
   var otherActives = activeBlockObjs.filter(function(b){ return !(_psBookingBlocks && _psBookingBlocks.includes(b.id)); });
 
   var bookingBarHtml = '';
+  // Default contrast vars (used in return even if no booking blocks active)
+  var _prevInactiveBg2 = psContrastColor(barColor)==='#ffffff' ? 'rgba(255,255,255,.2)' : 'rgba(0,0,0,.12)';
+  var _prevContrastTxt = psContrastColor(barColor);
+  var _prevActiveTxt   = psContrastColor(barColor)==='#1a1a2e' ? psContrastColor('#ffffff') : barColor;
   if (bookActives.length) {
     var BICONS = { hotel_booking:'<i class="fa fa-bed"></i> Stay', restaurant_booking:'<i class="fa fa-utensils"></i> Dine', spa_booking:'<i class="fa fa-spa"></i> Relax', activity_booking:'<i class="fa fa-person-hiking"></i> Activities' };
     var _prevInactiveBg  = barTextColor==='#ffffff' ? 'rgba(255,255,255,.2)' : 'rgba(0,0,0,.12)';
