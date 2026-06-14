@@ -5390,12 +5390,10 @@ tr:hover td{background:var(--b50)}
     <button id="ps-hdr-burger" onclick="psDrawerOpen()" style="display:none;background:none;border:none;cursor:pointer;padding:8px;color:var(--navy);font-size:1.3rem"><i class="fa fa-bars"></i></button>
   </div>
   <style>@media(max-width:640px){#ps-partner-header{padding:0 16px}#ps-hdr-powered{display:none!important}#ps-hdr-burger{display:block!important}}</style>
-  <div id="ps-hero" style="min-height:260px;background:linear-gradient(135deg,#3d2314,#1a1a2e);display:flex;align-items:flex-end;padding:32px 40px;position:relative">
+  <div id="ps-hero" style="min-height:180px;background:linear-gradient(135deg,#3d2314,#1a1a2e);position:relative">
     <div style="position:absolute;inset:0;background:rgba(0,0,0,.35)"></div>
-    <div style="position:relative;z-index:1;width:100%">
-      <div id="ps-tagline" style="font-size:1.1rem;color:rgba(255,255,255,.9);font-style:italic;font-family:'Cormorant Garamond',serif;text-shadow:0 2px 8px rgba(0,0,0,.4)"></div>
-    </div>
-  </div>
+    <div id="ps-tagline" style="display:none"></div>
+  </div></div>
   <div id="ps-booking-widget"></div>
   <div id="ps-body" style="max-width:1100px;margin:0 auto;padding:36px 40px">
     <div id="ps-desc" style="font-size:.95rem;color:#4b5563;line-height:1.9;margin-bottom:36px;max-width:720px;font-family:'Cormorant Garamond',serif;font-size:1.05rem"></div>
@@ -6813,9 +6811,12 @@ tr:hover td{background:var(--b50)}
                     <label style="font-size:.72rem;color:var(--muted)">Accent colour</label>
                     <input type="color" id="pp-pg-color" value="#b45309" style="width:36px;height:28px;border:1px solid var(--border);border-radius:5px;cursor:pointer;padding:2px" oninput="ppBuilderUpdate()">
                   </div>
-                  <div style="display:flex;align-items:center;gap:10px">
+                  <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
                     <label style="font-size:.72rem;color:var(--muted)">Search bar colour</label>
                     <input type="color" id="pp-pg-bar-color" value="#3d2314" style="width:36px;height:28px;border:1px solid var(--border);border-radius:5px;cursor:pointer;padding:2px" oninput="ppBuilderUpdate()">
+                    <label style="font-size:.7rem;color:var(--muted);display:flex;align-items:center;gap:4px">
+                      <input type="checkbox" id="pp-pg-bar-transparent" onchange="ppBuilderUpdate()"> Transparent
+                    </label>
                   </div>
                   <div style="display:flex;align-items:center;gap:10px">
                     <label style="font-size:.72rem;color:var(--muted)">Search bar text</label>
@@ -17466,7 +17467,7 @@ async function loadPartnerStorefront(slug) {
   try {
     // Fetch page config + partner contact info in parallel
     var [res, partnerRes] = await Promise.all([
-      db_client.from('user_profiles').select('partner_name,full_name,page_tagline,page_description,page_logo,page_cover,page_cover_position,page_color,page_bar_color,page_bar_text_color,page_bg_color,page_header_text_color,page_tagline_style,page_desc_style,page_experiences,page_status,page_layout,page_blocks,partner_address').eq('page_slug', slug).maybeSingle(),
+      db_client.from('user_profiles').select('partner_name,full_name,page_tagline,page_description,page_logo,page_cover,page_cover_position,page_color,page_bar_transparent,page_bar_color,page_bar_text_color,page_bg_color,page_header_text_color,page_tagline_style,page_desc_style,page_experiences,page_status,page_layout,page_blocks,partner_address').eq('page_slug', slug).maybeSingle(),
       db_client.from('partners').select('location,region,website_url,contact_email,business_name').eq('page_slug', slug).maybeSingle()
     ]);
     var p = res.data;
@@ -17478,8 +17479,9 @@ async function loadPartnerStorefront(slug) {
       return;
     }
     var color    = p.page_color             || '#b45309';
-    var barColor    = p.page_bar_color         || color;
-    var barTextColor = p.page_bar_text_color   || psContrastColor(barColor);
+    var _barTransparent = p.page_bar_transparent || false;
+    var barColor    = _barTransparent ? 'transparent' : (p.page_bar_color || color);
+    var barTextColor = p.page_bar_text_color || psContrastColor(_barTransparent ? '#ffffff' : barColor);
     var bgColor  = p.page_bg_color          || '#f9fafb';
     var hdrTxt   = p.page_header_text_color || '#1a1a2e';
 
@@ -18287,8 +18289,7 @@ function ppBlockSettingsHTML(def, sett) {
       + '<div style="display:flex;align-items:center;gap:4px;font-size:.7rem;color:var(--muted)">Text <input type="color" value="'+(sett.textColor||'#1a1a2e')+'" onchange="ppPageSetBlockSetting(\''+bid+'\',\'textColor\',this.value);ppBuilderUpdate()" style="width:24px;height:20px;border:1px solid var(--border);border-radius:3px;padding:1px;cursor:pointer"></div>'
       + '</div>';
   } else {
-    // Title + subtitle + colors
-    html += '<input '+fi+' placeholder="Section title" value="'+(sett.title||'')+'" oninput="ppPageSetBlockSetting(\''+bid+'\',\'title\',this.value);ppBuilderUpdate()">';
+    // Colors only for most blocks (title/subtitle removed — not used in live render)
     if (['reviews','gift_vouchers','map_contact'].includes(def.id)) {
       html += '<input '+fi+' placeholder="Subtitle / tagline" value="'+(sett.subtitle||'')+'" oninput="ppPageSetBlockSetting(\''+bid+'\',\'subtitle\',this.value);ppBuilderUpdate()">';
     }
@@ -18504,11 +18505,12 @@ function psRenderBlocks(blocks, p, color, exps, partnerContact, slug, barColor, 
     var tabsHtml = '<div style="display:flex;gap:6px;margin-bottom:20px;flex-wrap:nowrap;overflow-x:auto;padding-bottom:4px;scrollbar-width:none;-webkit-overflow-scrolling:touch" id="ps-tab-row"><style>@media(max-width:640px){#ps-tab-row button{padding:6px 12px!important;font-size:.72rem!important}}</style>'
       + bookingBlocks.map(function(b){
           var active = b.id === bookingBlocks[0].id;
-          return '<button data-bid="'+b.id+'" onclick="psToggleBookingTab(this,this.dataset.bid)" id="ps-tab-'+b.id+'" style="background:'+(active?'#fff':_inactiveBg)+';color:'+(active?barColor:_inactiveTxt)+';border:none;border-radius:99px;padding:9px 22px;font-size:.83rem;font-weight:700;cursor:pointer;transition:all .2s;white-space:nowrap">'+BTABS[b.id]+'</button>';
+          var _activeTxt = psContrastColor(barColor)==='#1a1a2e' ? psContrastColor('#ffffff') : barColor;
+          return '<button data-bid="'+b.id+'" onclick="psToggleBookingTab(this,this.dataset.bid)" id="ps-tab-'+b.id+'" style="background:'+(active?'#fff':_inactiveBg)+';color:'+(active?_activeTxt:_inactiveTxt)+';border:none;border-radius:99px;padding:9px 22px;font-size:.83rem;font-weight:700;cursor:pointer;transition:all .2s;white-space:nowrap">'+BTABS[b.id]+'</button>';
         }).join('')
       + '</div>';
 
-    var _barExtra=psContrastColor(barColor)==='#1a1a2e'?'box-shadow:0 2px 12px rgba(0,0,0,.1);border-bottom:1px solid #e5e7eb;':'';
+    var _barExtra = (barColor==='transparent'||psContrastColor(barColor)==='#1a1a2e') && barColor!=='transparent' ? 'box-shadow:0 2px 12px rgba(0,0,0,.1);border-bottom:1px solid #e5e7eb;' : '';
     bookingEl.innerHTML = '<div style="background:'+barColor+';padding:28px 40px;'+_barExtra+'" id="ps-widget-inner">'
       + '<div style="max-width:1100px;margin:0 auto">'
       + tabsHtml
@@ -18525,6 +18527,27 @@ function psRenderBlocks(blocks, p, color, exps, partnerContact, slug, barColor, 
   var belowEl = document.getElementById('ps-blocks-below');
   if (!belowEl || !otherBlocks.length) return;
   var belowHtml = '';
+
+  // Render blocks in ORDER
+  otherBlocks.forEach(function(blk) {
+
+  // TEXT BLOCK (inline, preserves order)
+  if (blk.id === 'text_block') {
+    var tbBg    = blk.bg        || '#ffffff';
+    var tbColor = psBlockTextColor(tbBg, blk.textColor);
+    var tbText  = blk.text      || '';
+    var tbSize  = blk.fontSize  || '1rem';
+    var tbAlign = blk.align     || 'left';
+    var tbBold  = blk.bold      ? 'font-weight:700;' : '';
+    var tbFont  = blk.font      || 'DM Sans,sans-serif';
+    var tbPad   = 'clamp(24px,4vw,48px) clamp(16px,4vw,40px)';
+    belowHtml += '<div style="background:'+tbBg+';padding:'+tbPad+'">'
+      + '<div style="max-width:1100px;margin:0 auto">'
+      + '<p style="font-size:'+tbSize+';color:'+tbColor+';text-align:'+tbAlign+';'+tbBold+'font-family:'+tbFont+';line-height:1.8;margin:0;white-space:pre-wrap">'+tbText+'</p>'
+      + '</div></div>';
+  }
+
+  }); // end otherBlocks.forEach
 
   // PHOTO GALLERY
   if (otherBlocks.some(function(b){ return b.id==='photo_gallery'; })) {
@@ -18556,7 +18579,7 @@ function psRenderBlocks(blocks, p, color, exps, partnerContact, slug, barColor, 
 
       belowHtml += '<div style="background:'+galleryBg+';padding:64px 40px" id="'+gid+'-wrap">'
         + '<div style="max-width:1100px;margin:0 auto">'
-        + '<div style="font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.18em;color:'+color+';margin-bottom:10px;text-align:center">Photo Gallery</div>'
+        + '<div style="font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.18em;color:'+galleryTxt+';margin-bottom:10px;text-align:center">Photo Gallery</div>'
         + '<h2 style="font-family:\'Cormorant Garamond\',serif;font-size:2.2rem;font-style:italic;font-weight:400;color:'+galleryTxt+';text-align:center;margin-bottom:32px">Our venues &amp; experiences</h2>'
         // Desktop: masonry 4-col, Mobile: 2-col grid
         + '<div id="'+gid+'-grid" style="column-count:4;column-gap:10px;column-fill:balance">'
@@ -18596,7 +18619,7 @@ function psRenderBlocks(blocks, p, color, exps, partnerContact, slug, barColor, 
     // Inject container first so async can find it
     belowHtml += '<div id="ps-reviews-block" style="background:'+revBg+';padding:64px 40px">'
       +'<div style="max-width:1100px;margin:0 auto">'
-      +'<div style="font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.18em;color:'+color+';margin-bottom:10px;text-align:center">What our guests say</div>'
+      +'<div style="font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.18em;color:'+revText+';opacity:.7;margin-bottom:10px;text-align:center">What our guests say</div>'
       +'<h2 style="font-family:\'Cormorant Garamond\',serif;font-size:2.4rem;font-style:italic;font-weight:400;color:'+revText+';text-align:center;margin-bottom:44px">Unforgettable moments</h2>'
       +'<div id="ps-reviews-list" style="display:flex;gap:20px;overflow-x:auto;padding-bottom:12px;scrollbar-width:none">'
       +'<div style="color:'+revText+'66;font-size:.82rem;padding:20px">Loading reviews…</div>'
@@ -18713,22 +18736,6 @@ function psRenderBlocks(blocks, p, color, exps, partnerContact, slug, barColor, 
       +'<div style="margin-top:20px"><button onclick="psBookingComingSoon()" style="'+(psContrastColor(color)==='#1a1a2e'?'background:#fff;color:'+color+';border:2px solid '+color:'background:'+color+';color:#fff;border:none')+';border-radius:8px;padding:11px 24px;font-weight:700;font-size:.84rem;cursor:pointer">Book now →</button></div>'
       +'</div></div></div>';
   }
-
-  // TEXT BLOCK
-  otherBlocks.filter(function(b){ return b.id==='text_block'; }).forEach(function(tb) {
-    var tbBg    = tb.bg        || '#ffffff';
-    var tbColor = tb.textColor || '#1a1a2e';
-    var tbText  = tb.text      || '';
-    var tbSize  = tb.fontSize  || '1rem';
-    var tbAlign = tb.align     || 'left';
-    var tbBold  = tb.bold      ? 'font-weight:700;' : '';
-    var tbFont  = tb.font      || 'DM Sans,sans-serif';
-    var tbPad   = 'clamp(24px,4vw,48px) clamp(16px,4vw,40px)';
-    belowHtml += '<div style="background:'+tbBg+';padding:'+tbPad+'">'
-      + '<div style="max-width:1100px;margin:0 auto">'
-      + '<p style="font-size:'+tbSize+';color:'+tbColor+';text-align:'+tbAlign+';'+tbBold+'font-family:'+tbFont+';line-height:1.8;margin:0;white-space:pre-wrap">'+tbText+'</p>'
-      + '</div></div>';
-  });
 
   belowEl.innerHTML = belowHtml;
 
@@ -19133,8 +19140,9 @@ function psToggleBookingTab(btn, blockId) {
     var _bc2 = _bw?.dataset.color || color;
     var _btc = _bw?.dataset.textColor || psContrastColor(_bc2);
     var _ib2 = _btc === '#ffffff' ? 'rgba(255,255,255,.2)' : 'rgba(0,0,0,.12)';
+    var _atc2 = psContrastColor(_bc2)==='#1a1a2e' ? psContrastColor('#ffffff') : _bc2;
     b.style.background = isOn ? '#fff' : _ib2;
-    b.style.color = isOn ? _bc2 : _btc;
+    b.style.color = isOn ? _atc2 : _btc;
     b.style.boxShadow = isOn ? '0 2px 8px rgba(0,0,0,.15)' : 'none';
   });
   // Rebuild bar with fields for the active tab only
@@ -19370,6 +19378,7 @@ async function ppPageInit() {
     document.getElementById('pp-pg-desc').value    = d.page_description || '';
     // Populate step 2
     if (d.page_color)              document.getElementById('pp-pg-color').value = d.page_color;
+    if (d.page_bar_transparent)    { var e=document.getElementById('pp-pg-bar-transparent'); if(e) e.checked=d.page_bar_transparent; }
     if (d.page_bar_color)          { var e=document.getElementById('pp-pg-bar-color');          if(e) e.value=d.page_bar_color; }
     if (d.page_bar_text_color)     { var e=document.getElementById('pp-pg-bar-text-color');     if(e) e.value=d.page_bar_text_color; }
     if (d.page_bg_color)           { var e=document.getElementById('pp-pg-bg-color');           if(e) e.value=d.page_bg_color; }
@@ -19620,7 +19629,10 @@ function ppBuilderGetPreviewHTML() {
   if (bookActives.length) {
     var BICONS = { hotel_booking:'<i class="fa fa-bed"></i> Stay', restaurant_booking:'<i class="fa fa-utensils"></i> Dine', spa_booking:'<i class="fa fa-spa"></i> Relax', activity_booking:'<i class="fa fa-person-hiking"></i> Activities' };
     var _prevInactiveBg  = barTextColor==='#ffffff' ? 'rgba(255,255,255,.2)' : 'rgba(0,0,0,.12)';
-    bookingBarHtml = '<div style="background:'+barColor+';padding:16px 20px">'
+    var _isBarTrans=document.getElementById('pp-pg-bar-transparent')?.checked||false;
+    var _prevBarBg=_isBarTrans?'transparent':barColor;
+    var _prevBarShadow=(!_isBarTrans&&psContrastColor(barColor)==='#1a1a2e')?'box-shadow:0 2px 8px rgba(0,0,0,.1);border-bottom:1px solid #e5e7eb;':'';
+    bookingBarHtml = '<div style="background:'+_prevBarBg+';padding:16px 20px;'+_prevBarShadow+'">'
       + '<div style="display:flex;gap:5px;margin-bottom:12px">'+bookActives.map(function(b,i){ return '<span style="background:'+(i===0?'#fff':_prevInactiveBg)+';color:'+(i===0?barColor:barTextColor)+';border-radius:99px;padding:6px 16px;font-size:.76rem;font-weight:700">'+(BICONS[b.id]||b.id)+'</span>'; }).join('')+'</div>'
       + '<div style="background:#fff;border-radius:9px;padding:12px 16px;font-size:.78rem;color:#9ca3af;font-style:italic">Search bar with '+bookActives.map(function(b){ return (BICONS[b.id]||b.id).replace(/<[^>]+>/g,''); }).join(' + ')+'  fields</div>'
       + '</div>';
@@ -20015,6 +20027,7 @@ async function ppPageSave() {
       }
     }
     // Save to Supabase
+    var _barTrans   = document.getElementById('pp-pg-bar-transparent')?.checked || false;
     var barColor    = document.getElementById('pp-pg-bar-color')?.value     || '#3d2314';
     var barTextColor = document.getElementById('pp-pg-bar-text-color')?.value || '';
     var bgColor  = document.getElementById('pp-pg-bg-color')?.value  || '#f9fafb';
@@ -20033,7 +20046,7 @@ async function ppPageSave() {
       color: document.getElementById('pp-pg-desc-color')?.value || '#4b5563',
       bold:  document.getElementById('pp-pg-desc-bold')?.checked || false
     };
-    var payload = { page_slug: slug, page_tagline: tagline, page_description: desc, page_color: color, page_bar_color: barColor, page_bar_text_color: barTextColor, page_bg_color: bgColor, page_header_text_color: hdrTxtColor, page_tagline_style: taglineStyle, page_desc_style: descStyle, page_experiences: selectedIds, page_layout: ppPageGetLayout() };
+    var payload = { page_slug: slug, page_tagline: tagline, page_description: desc, page_color: color, page_bar_transparent: _barTrans, page_bar_color: barColor, page_bar_text_color: barTextColor, page_bg_color: bgColor, page_header_text_color: hdrTxtColor, page_tagline_style: taglineStyle, page_desc_style: descStyle, page_experiences: selectedIds, page_layout: ppPageGetLayout() };
     if (_ppPageData.page_logo)  payload.page_logo  = _ppPageData.page_logo;
     if (_ppPageData.page_cover) payload.page_cover = _ppPageData.page_cover;
     var uid = currentUser && currentUser.id;
