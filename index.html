@@ -9298,6 +9298,10 @@ function go(page) {
 function goFromHash() {
   var path = window.location.pathname;
 
+  // Always reset partner storefront display (CSS .page{display:none} needs inline reset)
+  var _psReset = document.getElementById('page-partner-storefront');
+  if (_psReset && !path.startsWith('/wow/')) _psReset.style.display = '';
+
   // ── /p/partner-slug (Partner storefront) ──
   // ── /wow/partner-slug (Partner storefront) ──
   if (path.startsWith('/wow/')) {
