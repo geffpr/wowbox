@@ -60,7 +60,7 @@ function buildOGHtml(title, desc, img, url) {
 }
 
 export const config = {
-  matcher: ['/box/:slug*', '/experience/:slug*'],
+  matcher: ['/box/:slug*', '/experience/:slug*', '/wow/:slug*'],
 };
 
 export default async function middleware(request) {
@@ -85,6 +85,29 @@ export default async function middleware(request) {
         return new Response(buildOGHtml(title, desc, img, url.toString()), {
           headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'public, max-age=3600' },
         });
+      }
+    }
+
+    if (path.startsWith('/wow/')) {
+      const slug = path.replace('/wow/', '').split('/')[0].replace(/\/+$/, '');
+      if (slug) {
+        const res = await fetch(
+          `${SUPABASE_URL}/rest/v1/user_profiles?page_slug=eq.${encodeURIComponent(slug)}&select=partner_name,full_name,page_tagline,page_description,page_cover,page_logo&limit=1`,
+          { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
+        );
+        if (res.ok) {
+          const data = await res.json();
+          const p = data?.[0];
+          if (p) {
+            const name  = p.partner_name || p.full_name || 'WowBox Partner';
+            const title = `${name} — WowBox`;
+            const desc  = p.page_tagline || p.page_description || `Book unforgettable experiences with ${name} — powered by WowBox.`;
+            const img   = p.page_cover || p.page_logo || 'https://wowbox.co.za/og-default.jpg';
+            return new Response(buildOGHtml(title, desc, img, url.toString()), {
+              headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'public, max-age=3600' },
+            });
+          }
+        }
       }
     }
 
