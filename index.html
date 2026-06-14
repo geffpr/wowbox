@@ -6809,27 +6809,41 @@ tr:hover td{background:var(--b50)}
                   </div>
                   <div style="display:flex;align-items:center;gap:10px">
                     <label style="font-size:.72rem;color:var(--muted)">Accent colour <span title="Buttons, prices, links &amp; slider fill" style="display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;border-radius:50%;background:var(--border);color:var(--muted);font-size:.6rem;cursor:help;font-style:normal;vertical-align:middle">ⓘ</span></label>
-                    <input type="color" id="pp-pg-color" value="#b45309" oninput="ppPreviewScrollTo('exps')" style="width:36px;height:28px;border:1px solid var(--border);border-radius:5px;cursor:pointer;padding:2px" oninput="ppBuilderUpdate()">
+                    <input type="color" id="pp-pg-color" value="#b45309" style="width:36px;height:28px;border:1px solid var(--border);border-radius:5px;cursor:pointer;padding:2px" oninput="ppPreviewScrollTo('exps');ppBuilderUpdate()">
                   </div>
                   <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
                     <label style="font-size:.72rem;color:var(--muted)">Search bar colour <span title="Background of Stay / Dine / Relax / Activities bar" style="display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;border-radius:50%;background:var(--border);color:var(--muted);font-size:.6rem;cursor:help;font-style:normal;vertical-align:middle">ⓘ</span></label>
-                    <input type="color" id="pp-pg-bar-color" value="#3d2314" oninput="ppPreviewScrollTo('searchbar')" style="width:36px;height:28px;border:1px solid var(--border);border-radius:5px;cursor:pointer;padding:2px" oninput="ppBuilderUpdate()">
+                    <input type="color" id="pp-pg-bar-color" value="#3d2314" style="width:36px;height:28px;border:1px solid var(--border);border-radius:5px;cursor:pointer;padding:2px" oninput="ppPreviewScrollTo('searchbar');ppBuilderUpdate()">
                     <label style="font-size:.7rem;color:var(--muted);display:flex;align-items:center;gap:4px">
                       <input type="checkbox" id="pp-pg-bar-transparent" onchange="ppBuilderUpdate();ppPreviewScrollTo('searchbar')"> Transparent
                     </label>
                   </div>
                   <div style="display:flex;align-items:center;gap:10px">
                     <label style="font-size:.72rem;color:var(--muted)">Search bar text <span title="Text on inactive tabs and field labels" style="display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;border-radius:50%;background:var(--border);color:var(--muted);font-size:.6rem;cursor:help;font-style:normal;vertical-align:middle">ⓘ</span></label>
-                    <input type="color" id="pp-pg-bar-text-color" value="#ffffff" oninput="ppPreviewScrollTo('searchbar')" style="width:36px;height:28px;border:1px solid var(--border);border-radius:5px;cursor:pointer;padding:2px" oninput="ppBuilderUpdate()">
+                    <input type="color" id="pp-pg-bar-text-color" value="#ffffff" style="width:36px;height:28px;border:1px solid var(--border);border-radius:5px;cursor:pointer;padding:2px" oninput="ppPreviewScrollTo('searchbar');ppBuilderUpdate()">
                     <span style="font-size:.65rem;color:var(--muted)">(tabs + fields)</span>
                   </div>
                   <div style="display:flex;align-items:center;gap:10px">
                     <label style="font-size:.72rem;color:var(--muted)">Page background <span title="Background of experiences section and header" style="display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;border-radius:50%;background:var(--border);color:var(--muted);font-size:.6rem;cursor:help;font-style:normal;vertical-align:middle">ⓘ</span></label>
-                    <input type="color" id="pp-pg-bg-color" value="#f9fafb" oninput="ppPreviewScrollTo('exps')" style="width:36px;height:28px;border:1px solid var(--border);border-radius:5px;cursor:pointer;padding:2px" oninput="ppBuilderUpdate()">
+                    <input type="color" id="pp-pg-bg-color" value="#f9fafb" style="width:36px;height:28px;border:1px solid var(--border);border-radius:5px;cursor:pointer;padding:2px" oninput="ppPreviewScrollTo('exps');ppBuilderUpdate()">
                   </div>
                   <div style="display:flex;align-items:center;gap:10px">
                     <label style="font-size:.72rem;color:var(--muted)">Header text colour <span title="Partner name colour in the top header" style="display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;border-radius:50%;background:var(--border);color:var(--muted);font-size:.6rem;cursor:help;font-style:normal;vertical-align:middle">ⓘ</span></label>
-                    <input type="color" id="pp-pg-header-text-color" value="#1a1a2e" oninput="ppPreviewScrollTo('header')" style="width:36px;height:28px;border:1px solid var(--border);border-radius:5px;cursor:pointer;padding:2px" oninput="ppBuilderUpdate()">
+                    <input type="color" id="pp-pg-header-text-color" value="#1a1a2e" style="width:36px;height:28px;border:1px solid var(--border);border-radius:5px;cursor:pointer;padding:2px" oninput="ppPreviewScrollTo('header');ppBuilderUpdate()">
+                  </div>
+                  <!-- Footer colours (fixed block, non-movable) -->
+                  <div style="border-top:1px solid var(--border);padding-top:12px;margin-top:8px">
+                    <div style="font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:8px">📌 Page Footer <span style="font-size:.6rem;font-weight:400;opacity:.6">(always at bottom)</span></div>
+                    <div style="display:flex;gap:10px;flex-wrap:wrap">
+                      <div style="display:flex;align-items:center;gap:8px">
+                        <label style="font-size:.72rem;color:var(--muted)">Footer background <span title="Background colour of the footer area" style="display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;border-radius:50%;background:var(--border);color:var(--muted);font-size:.6rem;cursor:help">ⓘ</span></label>
+                        <input type="color" id="pp-pg-footer-bg" value="#1a1a2e" style="width:36px;height:28px;border:1px solid var(--border);border-radius:5px;cursor:pointer;padding:2px" oninput="ppPreviewScrollTo('footer');ppBuilderUpdate()">
+                      </div>
+                      <div style="display:flex;align-items:center;gap:8px">
+                        <label style="font-size:.72rem;color:var(--muted)">Footer text <span title="Colour of links and text in the footer" style="display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;border-radius:50%;background:var(--border);color:var(--muted);font-size:.6rem;cursor:help">ⓘ</span></label>
+                        <input type="color" id="pp-pg-footer-text" value="#ffffff" style="width:36px;height:28px;border:1px solid var(--border);border-radius:5px;cursor:pointer;padding:2px" oninput="ppPreviewScrollTo('footer');ppBuilderUpdate()">
+                      </div>
+                    </div>
                   </div>
                   <div style="border-top:1px solid var(--border);padding-top:10px;margin-top:4px">
                     <div style="font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:8px">Tagline style</div>
@@ -17477,7 +17491,7 @@ async function loadPartnerStorefront(slug) {
   try {
     // Fetch page config + partner contact info in parallel
     var [res, partnerRes] = await Promise.all([
-      db_client.from('user_profiles').select('partner_name,full_name,page_tagline,page_description,page_logo,page_cover,page_cover_position,page_color,page_bar_transparent,page_bar_color,page_bar_text_color,page_bg_color,page_header_text_color,page_tagline_style,page_desc_style,page_experiences,page_status,page_layout,page_blocks,partner_address').eq('page_slug', slug).maybeSingle(),
+      db_client.from('user_profiles').select('partner_name,full_name,page_tagline,page_description,page_logo,page_cover,page_cover_position,page_color,page_bar_transparent,page_bar_color,page_bar_text_color,page_bg_color,page_header_text_color,page_footer_bg,page_footer_text,page_tagline_style,page_desc_style,page_experiences,page_status,page_layout,page_blocks,partner_address').eq('page_slug', slug).maybeSingle(),
       db_client.from('partners').select('location,region,website_url,contact_email,business_name').eq('page_slug', slug).maybeSingle()
     ]);
     var p = res.data;
@@ -17493,7 +17507,17 @@ async function loadPartnerStorefront(slug) {
     var barColor    = _barTransparent ? 'transparent' : (p.page_bar_color || color);
     var barTextColor = p.page_bar_text_color || psContrastColor(_barTransparent ? '#ffffff' : barColor);
     var bgColor  = p.page_bg_color          || '#f9fafb';
-    var hdrTxt   = p.page_header_text_color || '#1a1a2e';
+    var hdrTxt    = p.page_header_text_color || '#1a1a2e';
+    var footerBg  = p.page_footer_bg   || '#1a1a2e';
+    var footerTxt = p.page_footer_text || '#ffffff';
+
+    // Apply footer colours
+    var footerEl = document.querySelector('#page-partner-storefront footer');
+    if (footerEl) {
+      footerEl.style.background = footerBg;
+      footerEl.style.setProperty('--ps-footer-txt', footerTxt);
+      footerEl.querySelectorAll('a,span').forEach(function(el){ el.style.color = footerTxt; });
+    }
 
     // Apply page background to full page + header colors
     var psPage = document.getElementById('page-partner-storefront');
@@ -18461,7 +18485,7 @@ function psBuildBar(color, activeBlocks) {
     var border = !isMobile && idx < fields.length - 1 ? 'border-right:1px solid #e5e7eb' : '';
     var inner = '';
     if (f.type === 'date') {
-      inner = '<input type="date" id="'+f.id+'" style="'+fi+';padding-top:2px;padding-bottom:10px">';
+      inner = '<input type="text" id="'+f.id+'" placeholder="DD/MM/YYYY" autocomplete="off" style="'+fi+';padding-top:2px;padding-bottom:10px;cursor:pointer">';
     } else {
       var opts = (f.opts||[]).map(function(o, i){ return '<option'+(i===(f.def||0)?' selected':'')+'>'+o+'</option>'; }).join('');
       inner = '<select id="'+f.id+'" style="'+fi+';padding-top:2px;padding-bottom:10px;appearance:none;cursor:pointer">'+opts+'</select>';
@@ -18523,7 +18547,7 @@ function psRenderBlocks(blocks, p, color, exps, partnerContact, slug, barColor, 
         }).join('')
       + '</div>';
 
-    var _barExtra = (barColor==='transparent'||psContrastColor(barColor)==='#1a1a2e') && barColor!=='transparent' ? 'box-shadow:0 2px 12px rgba(0,0,0,.1);border-bottom:1px solid #e5e7eb;' : '';
+    var _barExtra = barColor==='transparent' ? 'box-shadow:0 4px 16px rgba(0,0,0,.12);border-bottom:1px solid rgba(0,0,0,.08);backdrop-filter:blur(8px);' : (psContrastColor(barColor)==='#1a1a2e' ? 'box-shadow:0 2px 12px rgba(0,0,0,.1);border-bottom:1px solid #e5e7eb;' : '');
     bookingEl.innerHTML = '<div style="background:'+barColor+';padding:28px 40px;'+_barExtra+'" id="ps-widget-inner">'
       + '<div style="max-width:1100px;margin:0 auto">'
       + tabsHtml
@@ -18531,6 +18555,36 @@ function psRenderBlocks(blocks, p, color, exps, partnerContact, slug, barColor, 
       + '</div></div>';
     bookingEl.dataset.color = barColor;
     bookingEl.dataset.textColor = barTextColor;
+
+    // Init Flatpickr date range on Check-in/Check-out
+    setTimeout(function() {
+      var cinEl  = document.getElementById('ps-f-checkin');
+      var coutEl = document.getElementById('ps-f-checkout');
+      if (cinEl && coutEl && typeof flatpickr !== 'undefined') {
+        flatpickr(cinEl, {
+          mode: 'range',
+          dateFormat: 'd/m/Y',
+          minDate: 'today',
+          locale: { rangeSeparator: ' → ' },
+          onChange: function(dates) {
+            if (dates.length === 2 && coutEl._flatpickr) {
+              coutEl._flatpickr.setDate(dates[1]);
+              coutEl.value = flatpickr.formatDate(dates[1], 'd/m/Y');
+            }
+          },
+          onReady: function(dates, s, fp) {
+            fp.calendarContainer.style.zIndex = '9999';
+          }
+        });
+        flatpickr(coutEl, {
+          dateFormat: 'd/m/Y',
+          minDate: 'today',
+          onReady: function(dates, s, fp) {
+            fp.calendarContainer.style.zIndex = '9999';
+          }
+        });
+      }
+    }, 100);
 
     // Render initial tab
     psRenderFilteredExps([bookingBlocks[0].id], exps, color, CAT_MAP);
@@ -19397,6 +19451,8 @@ async function ppPageInit() {
     if (d.page_bar_text_color)     { var e=document.getElementById('pp-pg-bar-text-color');     if(e) e.value=d.page_bar_text_color; }
     if (d.page_bg_color)           { var e=document.getElementById('pp-pg-bg-color');           if(e) e.value=d.page_bg_color; }
     if (d.page_header_text_color)  { var e=document.getElementById('pp-pg-header-text-color');  if(e) e.value=d.page_header_text_color; }
+    if (d.page_footer_bg)          { var e=document.getElementById('pp-pg-footer-bg');          if(e) e.value=d.page_footer_bg; }
+    if (d.page_footer_text)        { var e=document.getElementById('pp-pg-footer-text');        if(e) e.value=d.page_footer_text; }
     if (d.page_tagline_style) {
       var ts=d.page_tagline_style;
       ['size','font','align','color'].forEach(function(k){ var e=document.getElementById('pp-pg-tagline-'+k); if(e&&ts[k]) e.value=ts[k]; });
@@ -19561,6 +19617,7 @@ function ppPreviewScrollTo(section) {
     'contact':   800,
     'social':    800,
     'text':      800,
+    'footer':    99999,
   };
   var top = targets[section] || 0;
   wrap.scrollTo({ top: top, behavior: 'smooth' });
@@ -19585,6 +19642,8 @@ function ppBuilderGetPreviewHTML() {
   var bgColor      = document.getElementById('pp-pg-bg-color')?.value           || '#f9fafb';
   var hdrTxt       = document.getElementById('pp-pg-header-text-color')?.value  || '#1a1a2e';
   var isMobilePreview = (document.getElementById('pp-builder-preview')?.style.maxWidth === '390px');
+  var footerBg2   = document.getElementById('pp-pg-footer-bg')?.value   || '#1a1a2e';
+  var footerText2 = document.getElementById('pp-pg-footer-text')?.value || '#ffffff';
   if (!barTextColor) barTextColor = (function(hex){ try{ hex=hex.replace('#',''); if(hex.length===3) hex=hex.split('').map(function(c){return c+c;}).join(''); var r=parseInt(hex.substr(0,2),16),g=parseInt(hex.substr(2,2),16),b=parseInt(hex.substr(4,2),16); return (0.299*r+0.587*g+0.114*b)/255>0.55?'#1a1a2e':'#ffffff'; }catch(e){return '#ffffff';} })(barColor);
   var tsSize   = document.getElementById('pp-pg-tagline-size')?.value  || '1.1rem';
   var tsFont   = document.getElementById('pp-pg-tagline-font')?.value  || 'Cormorant Garamond,serif';
@@ -19669,7 +19728,7 @@ function ppBuilderGetPreviewHTML() {
     var _prevInactiveBg  = barTextColor==='#ffffff' ? 'rgba(255,255,255,.2)' : 'rgba(0,0,0,.12)';
     var _isBarTrans=document.getElementById('pp-pg-bar-transparent')?.checked||false;
     var _prevBarBg=_isBarTrans?'transparent':barColor;
-    var _prevBarShadow=(!_isBarTrans&&psContrastColor(barColor)==='#1a1a2e')?'box-shadow:0 2px 8px rgba(0,0,0,.1);border-bottom:1px solid #e5e7eb;':'';
+    var _prevBarShadow=_isBarTrans?'box-shadow:0 4px 16px rgba(0,0,0,.12);border-bottom:1px solid rgba(0,0,0,.08);':(!_isBarTrans&&psContrastColor(barColor)==='#1a1a2e'?'box-shadow:0 2px 8px rgba(0,0,0,.1);border-bottom:1px solid #e5e7eb;':'');
     bookingBarHtml = '<div style="background:'+_prevBarBg+';padding:16px 20px;'+_prevBarShadow+'">'
       + '<div style="display:flex;gap:5px;margin-bottom:12px">'+bookActives.map(function(b,i){ return '<span style="background:'+(i===0?'#fff':_prevInactiveBg2)+';color:'+(i===0?_prevActiveTxt:_prevContrastTxt)+';border-radius:99px;padding:6px 16px;font-size:.76rem;font-weight:700">'+(BICONS[b.id]||b.id)+'</span>'; }).join('')+'</div>'
       + '<div style="background:#fff;border-radius:9px;padding:12px 16px;font-size:.78rem;color:#9ca3af;font-style:italic">Search bar with '+bookActives.map(function(b){ return (BICONS[b.id]||b.id).replace(/<[^>]+>/g,''); }).join(' + ')+'  fields</div>'
