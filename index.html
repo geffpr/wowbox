@@ -6818,6 +6818,11 @@ tr:hover td{background:var(--b50)}
                     <input type="color" id="pp-pg-bar-color" value="#3d2314" style="width:36px;height:28px;border:1px solid var(--border);border-radius:5px;cursor:pointer;padding:2px" oninput="ppBuilderUpdate()">
                   </div>
                   <div style="display:flex;align-items:center;gap:10px">
+                    <label style="font-size:.72rem;color:var(--muted)">Search bar text</label>
+                    <input type="color" id="pp-pg-bar-text-color" value="#ffffff" style="width:36px;height:28px;border:1px solid var(--border);border-radius:5px;cursor:pointer;padding:2px" oninput="ppBuilderUpdate()">
+                    <span style="font-size:.65rem;color:var(--muted)">(tabs + fields)</span>
+                  </div>
+                  <div style="display:flex;align-items:center;gap:10px">
                     <label style="font-size:.72rem;color:var(--muted)">Page background</label>
                     <input type="color" id="pp-pg-bg-color" value="#f9fafb" style="width:36px;height:28px;border:1px solid var(--border);border-radius:5px;cursor:pointer;padding:2px" oninput="ppBuilderUpdate()">
                   </div>
@@ -17452,7 +17457,7 @@ async function loadPartnerStorefront(slug) {
   try {
     // Fetch page config + partner contact info in parallel
     var [res, partnerRes] = await Promise.all([
-      db_client.from('user_profiles').select('partner_name,full_name,page_tagline,page_description,page_logo,page_cover,page_cover_position,page_color,page_bar_color,page_bg_color,page_header_text_color,page_tagline_style,page_desc_style,page_experiences,page_status,page_layout,page_blocks,partner_address').eq('page_slug', slug).maybeSingle(),
+      db_client.from('user_profiles').select('partner_name,full_name,page_tagline,page_description,page_logo,page_cover,page_cover_position,page_color,page_bar_color,page_bar_text_color,page_bg_color,page_header_text_color,page_tagline_style,page_desc_style,page_experiences,page_status,page_layout,page_blocks,partner_address').eq('page_slug', slug).maybeSingle(),
       db_client.from('partners').select('location,region,website_url,contact_email,business_name').eq('page_slug', slug).maybeSingle()
     ]);
     var p = res.data;
@@ -17464,13 +17469,16 @@ async function loadPartnerStorefront(slug) {
       return;
     }
     var color    = p.page_color             || '#b45309';
-    var barColor = p.page_bar_color         || color;
+    var barColor    = p.page_bar_color         || color;
+    var barTextColor = p.page_bar_text_color   || psContrastColor(barColor);
     var bgColor  = p.page_bg_color          || '#f9fafb';
     var hdrTxt   = p.page_header_text_color || '#1a1a2e';
 
-    // Apply page background + header colors
+    // Apply page background to full page + header colors
+    var psPage = document.getElementById('page-partner-storefront');
+    if (psPage) psPage.style.background = bgColor;
     var psBody = document.getElementById('ps-body');
-    if (psBody) psBody.style.background = bgColor;
+    if (psBody) psBody.style.background = 'transparent';
     var hdrEl = document.getElementById('ps-partner-header');
     if (hdrEl) { hdrEl.style.background = bgColor; hdrEl.style.borderBottomColor = color + '44'; }
     var hdrNameEl = document.getElementById('ps-header-name');
@@ -17539,7 +17547,7 @@ async function loadPartnerStorefront(slug) {
 
     psInitFilters(exps, color, pageLayout, featuredId);
     psRenderExpGrid(exps, null, pageLayout, color, featuredId);
-    psRenderBlocks(p.page_blocks || [], p, color, exps, partnerContact, slug, barColor);
+    psRenderBlocks(p.page_blocks || [], p, color, exps, partnerContact, slug, barColor, barTextColor);
     document.title = (p.partner_name || p.full_name || 'Partner') + ' — WowBox';
     var _sp=document.getElementById('wow-splash');if(_sp){_sp.style.opacity='0';_sp.style.transition='opacity .3s';setTimeout(function(){_sp.style.display='none';document.documentElement.style.overflow='';},320);}
     var _sp=document.getElementById('wow-splash');if(_sp){_sp.style.opacity='0';_sp.style.transition='opacity .3s';setTimeout(function(){_sp.style.display='none';document.documentElement.style.overflow='';},320);}
@@ -18454,8 +18462,9 @@ function psBuildBar(color, activeBlocks) {
     + '</div>';
 }
 
-function psRenderBlocks(blocks, p, color, exps, partnerContact, slug, barColor) {
-  barColor = barColor || color;
+function psRenderBlocks(blocks, p, color, exps, partnerContact, slug, barColor, barTextColor) {
+  barColor     = barColor     || color;
+  barTextColor = barTextColor || psContrastColor(barColor);
   if (!blocks || !blocks.length) return;
   blocks = blocks.map(function(b){ return typeof b === 'string' ? {id:b} : b; });
   var bookingBlocks = blocks.filter(function(b){ return _psBookingBlocks.includes(b.id); });
@@ -18481,10 +18490,12 @@ function psRenderBlocks(blocks, p, color, exps, partnerContact, slug, barColor) 
     bookingEl._color   = color;
     bookingEl._catMap  = CAT_MAP;
 
-    var tabsHtml = '<div style="display:flex;gap:6px;margin-bottom:20px;flex-wrap:wrap" id="ps-tab-row">'
+    var _inactiveBg  = psContrastColor(barColor)==='#ffffff' ? 'rgba(255,255,255,.2)' : 'rgba(0,0,0,.12)';
+    var _inactiveTxt = psContrastColor(barColor);
+    var tabsHtml = '<div style="display:flex;gap:6px;margin-bottom:20px;flex-wrap:wrap;overflow-x:auto;padding-bottom:4px;scrollbar-width:none" id="ps-tab-row">'
       + bookingBlocks.map(function(b){
           var active = b.id === bookingBlocks[0].id;
-          return '<button data-bid="'+b.id+'" onclick="psToggleBookingTab(this,this.dataset.bid)" id="ps-tab-'+b.id+'" style="background:'+(active?'#fff':'rgba(255,255,255,.15)')+';color:'+(active?color:'#fff')+';border:none;border-radius:99px;padding:9px 22px;font-size:.83rem;font-weight:700;cursor:pointer;transition:all .2s;white-space:nowrap">'+BTABS[b.id]+'</button>';
+          return '<button data-bid="'+b.id+'" onclick="psToggleBookingTab(this,this.dataset.bid)" id="ps-tab-'+b.id+'" style="background:'+(active?'#fff':_inactiveBg)+';color:'+(active?barColor:_inactiveTxt)+';border:none;border-radius:99px;padding:9px 22px;font-size:.83rem;font-weight:700;cursor:pointer;transition:all .2s;white-space:nowrap">'+BTABS[b.id]+'</button>';
         }).join('')
       + '</div>';
 
@@ -18494,6 +18505,7 @@ function psRenderBlocks(blocks, p, color, exps, partnerContact, slug, barColor) 
       + '<div id="ps-bar-wrap">' + psBuildBar(color, [bookingBlocks[0].id]) + '</div>'
       + '</div></div>';
     bookingEl.dataset.color = barColor;
+    bookingEl.dataset.textColor = barTextColor;
 
     // Render initial tab
     psRenderFilteredExps([bookingBlocks[0].id], exps, color, CAT_MAP);
@@ -19064,8 +19076,12 @@ function psToggleBookingTab(btn, blockId) {
   document.querySelectorAll('[id^="ps-tab-"]').forEach(function(b){
     var bid = b.id.replace('ps-tab-','');
     var isOn = !!_psActiveBlocks[bid];
-    b.style.background = isOn ? '#fff' : 'rgba(255,255,255,.15)';
-    b.style.color = isOn ? color : '#fff';
+    var _bw = document.getElementById('ps-booking-widget');
+    var _bc2 = _bw?.dataset.color || color;
+    var _btc = _bw?.dataset.textColor || psContrastColor(_bc2);
+    var _ib2 = _btc === '#ffffff' ? 'rgba(255,255,255,.2)' : 'rgba(0,0,0,.12)';
+    b.style.background = isOn ? '#fff' : _ib2;
+    b.style.color = isOn ? _bc2 : _btc;
     b.style.boxShadow = isOn ? '0 2px 8px rgba(0,0,0,.15)' : 'none';
   });
   // Rebuild bar with fields for the active tab only
@@ -19302,6 +19318,7 @@ async function ppPageInit() {
     // Populate step 2
     if (d.page_color)              document.getElementById('pp-pg-color').value = d.page_color;
     if (d.page_bar_color)          { var e=document.getElementById('pp-pg-bar-color');          if(e) e.value=d.page_bar_color; }
+    if (d.page_bar_text_color)     { var e=document.getElementById('pp-pg-bar-text-color');     if(e) e.value=d.page_bar_text_color; }
     if (d.page_bg_color)           { var e=document.getElementById('pp-pg-bg-color');           if(e) e.value=d.page_bg_color; }
     if (d.page_header_text_color)  { var e=document.getElementById('pp-pg-header-text-color');  if(e) e.value=d.page_header_text_color; }
     if (d.page_tagline_style) {
@@ -19467,9 +19484,12 @@ function ppBuilderGetPreviewHTML() {
   var tagline  = document.getElementById('pp-pg-tagline')?.value    || '';
   var desc     = document.getElementById('pp-pg-desc')?.value       || '';
   var color    = document.getElementById('pp-pg-color')?.value      || '#b45309';
-  var barColor = document.getElementById('pp-pg-bar-color')?.value  || color;
-  var bgColor  = document.getElementById('pp-pg-bg-color')?.value   || '#f9fafb';
-  var hdrTxt   = document.getElementById('pp-pg-header-text-color')?.value || '#1a1a2e';
+  var barColor    = document.getElementById('pp-pg-bar-color')?.value          || color;
+  var barTextColor = document.getElementById('pp-pg-bar-text-color')?.value     || '';
+  var bgColor      = document.getElementById('pp-pg-bg-color')?.value           || '#f9fafb';
+  var hdrTxt       = document.getElementById('pp-pg-header-text-color')?.value  || '#1a1a2e';
+  var isMobilePreview = (document.getElementById('pp-builder-preview')?.style.maxWidth === '390px');
+  if (!barTextColor) barTextColor = (function(hex){ try{ hex=hex.replace('#',''); if(hex.length===3) hex=hex.split('').map(function(c){return c+c;}).join(''); var r=parseInt(hex.substr(0,2),16),g=parseInt(hex.substr(2,2),16),b=parseInt(hex.substr(4,2),16); return (0.299*r+0.587*g+0.114*b)/255>0.55?'#1a1a2e':'#ffffff'; }catch(e){return '#ffffff';} })(barColor);
   var tsSize   = document.getElementById('pp-pg-tagline-size')?.value  || '1.1rem';
   var tsFont   = document.getElementById('pp-pg-tagline-font')?.value  || 'Cormorant Garamond,serif';
   var tsAlign  = document.getElementById('pp-pg-tagline-align')?.value || 'left';
@@ -19546,8 +19566,9 @@ function ppBuilderGetPreviewHTML() {
   var bookingBarHtml = '';
   if (bookActives.length) {
     var BICONS = { hotel_booking:'<i class="fa fa-bed"></i> Stay', restaurant_booking:'<i class="fa fa-utensils"></i> Dine', spa_booking:'<i class="fa fa-spa"></i> Relax', activity_booking:'<i class="fa fa-person-hiking"></i> Activities' };
+    var _prevInactiveBg  = barTextColor==='#ffffff' ? 'rgba(255,255,255,.2)' : 'rgba(0,0,0,.12)';
     bookingBarHtml = '<div style="background:'+barColor+';padding:16px 20px">'
-      + '<div style="display:flex;gap:5px;margin-bottom:12px">'+bookActives.map(function(b,i){ return '<span style="background:'+(i===0?'#fff':'rgba(255,255,255,.2)')+';color:'+(i===0?barColor:"#fff")+';border-radius:99px;padding:6px 16px;font-size:.76rem;font-weight:700">'+(BICONS[b.id]||b.id)+'</span>'; }).join('')+'</div>'
+      + '<div style="display:flex;gap:5px;margin-bottom:12px">'+bookActives.map(function(b,i){ return '<span style="background:'+(i===0?'#fff':_prevInactiveBg)+';color:'+(i===0?barColor:barTextColor)+';border-radius:99px;padding:6px 16px;font-size:.76rem;font-weight:700">'+(BICONS[b.id]||b.id)+'</span>'; }).join('')+'</div>'
       + '<div style="background:#fff;border-radius:9px;padding:12px 16px;font-size:.78rem;color:#9ca3af;font-style:italic">Search bar with '+bookActives.map(function(b){ return (BICONS[b.id]||b.id).replace(/<[^>]+>/g,''); }).join(' + ')+'  fields</div>'
       + '</div>';
   }
@@ -19581,11 +19602,30 @@ function ppBuilderGetPreviewHTML() {
     }
   });
 
-  return '<div style="font-family:\'DM Sans\',sans-serif;min-height:300px">'    // Partner header
+    // Mobile 1-col grid for preview
+  var mobileGridHtml = '';
+  if (!selIds.length) {
+    mobileGridHtml = '<div style="text-align:center;padding:20px;color:#9ca3af;font-style:italic;font-size:.8rem">No experiences selected</div>';
+  } else {
+    mobileGridHtml = '<div style="display:flex;flex-direction:column;gap:12px">' + selIds.map(function(id){
+      var e = _ppBuilderExpData[id] || (window.expDB && Array.isArray(window.expDB) ? window.expDB.find(function(x){return x.id===id;}) : null);
+      var img = e ? (e.img||e.image_url||'') : '';
+      var nm  = e ? e.name : id;
+      var pr  = e && e.price ? 'R'+Number(e.price).toLocaleString() : '';
+      return '<div style="border:1px solid #e5e7eb;border-radius:10px;overflow:hidden;background:#fff">'
+        + (img ? '<img src="'+img+'" style="width:100%;height:160px;object-fit:cover">' : '<div style="height:120px;background:#f3f4f6;display:flex;align-items:center;justify-content:center;font-size:.75rem;color:#9ca3af">'+nm+'</div>')
+        + '<div style="padding:12px"><div style="font-weight:700;font-size:.88rem;color:#111827;margin-bottom:4px">'+nm+'</div>'
+        + (pr ? '<div style="font-size:.85rem;font-weight:700;color:'+color+';margin-bottom:8px">'+pr+'</div>' : '')
+        + '<button style="width:100%;background:'+color+';color:#fff;border:none;border-radius:7px;padding:9px;font-size:.8rem;font-weight:700;cursor:pointer">Book now</button>'
+        + '</div></div>';
+    }).join('') + '</div>';
+  }
+
+return '<div style="font-family:\'DM Sans\',sans-serif;min-height:300px">'    // Partner header
     + '<div style="background:'+bgColor+';border-bottom:2px solid '+color+'44;padding:0 14px;height:48px;display:flex;align-items:center;justify-content:space-between">'    + '<div style="display:flex;align-items:center;gap:8px">'    + (logo ? '<img src="'+logo+'" style="height:30px;width:30px;object-fit:contain;border-radius:6px;cursor:pointer">' : '')    + '<span style="font-family:\'Cormorant Garamond\',serif;font-size:.9rem;font-weight:700;color:'+hdrTxt+'">'+name+'</span>'    + '</div><span style="font-size:.58rem;color:#9ca3af">Powered by WowBox</span></div>'    // Hero — tagline only
     + '<div style="min-height:120px;background:'+coverBg+';display:flex;align-items:flex-end;padding:16px;position:relative">'    + '<div style="position:absolute;inset:0;background:rgba(0,0,0,.3)"></div>'    + '<div style="position:relative;z-index:1;width:100%">'    + (tagline ? '<div style="font-size:'+tsSize+';color:'+tsColor+';font-style:italic;font-family:'+tsFont+';font-weight:'+(tsBold?'700':'400')+';text-align:'+tsAlign+'">'+tagline+'</div>' : '')    + '</div></div>'    // Booking widget
     + bookingBarHtml    // Body
-    + '<div style="padding:20px;background:'+bgColor+'">'    + (desc ? '<p style="font-size:'+dsSize+';color:'+dsColor+';line-height:1.75;margin-bottom:20px;font-family:'+dsFont+';font-weight:'+(dsBold?'700':'400')+';text-align:'+dsAlign+'">'+desc+'</p>' : '')    + '<div style="font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.14em;color:#9ca3af;margin-bottom:12px">Experiences</div>'    + gridHtml    + '</div>'
+    + '<div style="padding:20px;background:'+bgColor+'">'    + (desc ? '<p style="font-size:'+dsSize+';color:'+dsColor+';line-height:1.75;margin-bottom:20px;font-family:'+dsFont+';font-weight:'+(dsBold?'700':'400')+';text-align:'+dsAlign+'">'+desc+'</p>' : '')    + '<div style="font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.14em;color:#9ca3af;margin-bottom:12px">Experiences</div>'    + (isMobilePreview ? mobileGridHtml : gridHtml)    + '</div>'
     // Other blocks
     + blocksHtml
     + '<div style="text-align:center;padding:16px;font-size:.7rem;color:#9ca3af;border-top:1px solid #e5e7eb">Powered by <strong style="color:'+color+'">WowBox</strong></div>'
@@ -19921,7 +19961,8 @@ async function ppPageSave() {
       }
     }
     // Save to Supabase
-    var barColor = document.getElementById('pp-pg-bar-color')?.value || '#3d2314';
+    var barColor    = document.getElementById('pp-pg-bar-color')?.value     || '#3d2314';
+    var barTextColor = document.getElementById('pp-pg-bar-text-color')?.value || '';
     var bgColor  = document.getElementById('pp-pg-bg-color')?.value  || '#f9fafb';
     var hdrTxtColor = document.getElementById('pp-pg-header-text-color')?.value || '#1a1a2e';
     var taglineStyle = {
@@ -19938,7 +19979,7 @@ async function ppPageSave() {
       color: document.getElementById('pp-pg-desc-color')?.value || '#4b5563',
       bold:  document.getElementById('pp-pg-desc-bold')?.checked || false
     };
-    var payload = { page_slug: slug, page_tagline: tagline, page_description: desc, page_color: color, page_bar_color: barColor, page_bg_color: bgColor, page_header_text_color: hdrTxtColor, page_tagline_style: taglineStyle, page_desc_style: descStyle, page_experiences: selectedIds, page_layout: ppPageGetLayout() };
+    var payload = { page_slug: slug, page_tagline: tagline, page_description: desc, page_color: color, page_bar_color: barColor, page_bar_text_color: barTextColor, page_bg_color: bgColor, page_header_text_color: hdrTxtColor, page_tagline_style: taglineStyle, page_desc_style: descStyle, page_experiences: selectedIds, page_layout: ppPageGetLayout() };
     if (_ppPageData.page_logo)  payload.page_logo  = _ppPageData.page_logo;
     if (_ppPageData.page_cover) payload.page_cover = _ppPageData.page_cover;
     var uid = currentUser && currentUser.id;
