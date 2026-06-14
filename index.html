@@ -17398,6 +17398,9 @@ function psWowModeOff() {
   if (nav) nav.style.display = '';
   if (footer) footer.style.display = '';
   document.body.classList.remove('wow-mode');
+  // Reset inline display on partner storefront so CSS .page{display:none} takes over
+  var ps = document.getElementById('page-partner-storefront');
+  if (ps) ps.style.display = '';
 }
 
 // ── Partner mobile drawer ─────────────────────────────────────────
