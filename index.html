@@ -18539,7 +18539,9 @@ function psBuildBar(color, activeBlocks) {
       inner = '<select id="'+f.id+'" style="'+fi+';padding-top:2px;padding-bottom:10px;appearance:none;cursor:pointer">'+opts+'</select>';
     }
     var flex = isMobile ? '1 1 100%' : f.flex;
-    return '<div style="flex:'+flex+';min-width:80px;'+border+'"><div style="font-size:.58rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#9ca3af;padding:10px 14px 2px">'+f.label+'</div>'+inner+'</div>';
+    // On mobile, hide checkout field (range picker on checkin handles both)
+    var fieldDisplay = (isMobile && f.id === 'ps-f-checkout') ? 'display:none;' : '';
+    return '<div style="flex:'+flex+';min-width:80px;'+border+';'+fieldDisplay+'"><div style="font-size:.58rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#9ca3af;padding:10px 14px 2px">'+f.label+'</div>'+inner+'</div>';
   }).join('');
 
   var wrapStyle = isMobile
