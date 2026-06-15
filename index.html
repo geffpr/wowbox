@@ -17549,13 +17549,13 @@ async function loadPartnerStorefront(slug) {
     var footerBg  = p.page_footer_bg   || '#1a1a2e';
     var footerTxt = p.page_footer_text || '#ffffff';
 
-    // Apply footer colours
+    // Apply footer colours via injected style (overrides all inline styles)
     var footerEl = document.getElementById('ps-partner-footer');
     if (footerEl) {
       footerEl.style.background = footerBg;
-      // Force color on ALL descendant elements regardless of inline styles
-      var footerEls = footerEl.querySelectorAll('*');
-      footerEls.forEach(function(el) { el.style.setProperty('color', footerTxt, 'important'); });
+      var fstEl = document.getElementById('ps-footer-style');
+      if (!fstEl) { fstEl = document.createElement('style'); fstEl.id='ps-footer-style'; document.head.appendChild(fstEl); }
+      fstEl.textContent = '#ps-partner-footer,#ps-partner-footer *{color:'+footerTxt+'!important}#ps-partner-footer a{color:'+footerTxt+'!important}';
     }
 
     // Apply accent color to Experiences label
@@ -18596,11 +18596,12 @@ function psRenderBlocks(blocks, p, color, exps, partnerContact, slug, barColor, 
       + '</div>';
 
     var _barExtra = barColor==='transparent' ? 'box-shadow:0 4px 16px rgba(0,0,0,.12);border-bottom:1px solid rgba(0,0,0,.08);backdrop-filter:blur(8px);' : (psContrastColor(barColor)==='#1a1a2e' ? 'box-shadow:0 2px 12px rgba(0,0,0,.1);border-bottom:1px solid #e5e7eb;' : '');
-    bookingEl.innerHTML = '<div style="background:'+barColor+';padding:28px 40px;'+_barExtra+'" id="ps-widget-inner">'
+    var _tabsBg = barColor==='transparent' ? 'transparent' : barColor;
+    bookingEl.innerHTML = '<div style="background:'+_tabsBg+';padding:16px 40px 0" id="ps-widget-inner">'
       + '<div style="max-width:1100px;margin:0 auto">'
       + tabsHtml
-      + '<div id="ps-bar-wrap">' + psBuildBar(color, [bookingBlocks[0].id]) + '</div>'
-      + '</div></div>';
+      + '</div></div>'
+      + '<div style="background:rgba(0,0,0,.15);padding:0 40px 24px"><div style="max-width:1100px;margin:0 auto"><div id="ps-bar-wrap" style="background:#fff;border-radius:12px;box-shadow:0 4px 20px rgba(0,0,0,.12);overflow:hidden">' + psBuildBar(color, [bookingBlocks[0].id]) + '</div></div></div>';
     bookingEl.dataset.color = barColor;
     bookingEl.dataset.textColor = barTextColor;
 
@@ -18644,10 +18645,10 @@ function psRenderBlocks(blocks, p, color, exps, partnerContact, slug, barColor, 
   if (!belowEl || !otherBlocks.length) return;
   var belowHtml = '';
 
-  // Render blocks in ORDER
+  // Render blocks in ORDER (follows page_blocks array order)
   otherBlocks.forEach(function(blk) {
 
-  // TEXT BLOCK (inline, preserves order)
+  // TEXT BLOCK
   if (blk.id === 'text_block') {
     var tbBg    = blk.bg        || '#ffffff';
     var tbColor = psBlockTextColor(tbBg, blk.textColor);
@@ -18663,11 +18664,9 @@ function psRenderBlocks(blocks, p, color, exps, partnerContact, slug, barColor, 
       + '</div></div>';
   }
 
-  }); // end otherBlocks.forEach
-
-  // PHOTO GALLERY
-  if (otherBlocks.some(function(b){ return b.id==='photo_gallery'; })) {
-    var galleryBlock = otherBlocks.find(function(b){ return b.id==='photo_gallery'; }) || {};
+// PHOTO GALLERY
+  if (blk.id === 'photo_gallery') {
+    var galleryBlock = blk;
     var galleryBg  = galleryBlock.bg || '#1a1a2e';
     var galleryTxt = psBlockTextColor(galleryBg, galleryBlock.textColor);
     var allImgs = [];
@@ -18728,8 +18727,8 @@ function psRenderBlocks(blocks, p, color, exps, partnerContact, slug, barColor, 
   }
 
   // REVIEWS
-  if (otherBlocks.some(function(b){ return b.id==='reviews'; })) {
-    var revBlock = otherBlocks.find(function(b){ return b.id==='reviews'; }) || {};
+  if (blk.id === 'reviews') {
+    var revBlock = blk;
     var revBg   = revBlock.bg   || '#1e1e1e';
     var revText = psBlockTextColor(revBg, revBlock.text || revBlock.textColor);
     // Inject container first so async can find it
@@ -18743,8 +18742,8 @@ function psRenderBlocks(blocks, p, color, exps, partnerContact, slug, barColor, 
   }
 
   // GIFT VOUCHERS — WowBox boxes
-  if (otherBlocks.some(function(b){ return b.id==='gift_vouchers'; })) {
-    var gvBlock = otherBlocks.find(function(b){ return b.id==='gift_vouchers'; }) || {};
+  if (blk.id === 'gift_vouchers') {
+    var gvBlock = blk;
     var gvBg  = gvBlock.bg || '#fdf8f4';
     var gvTxt = psBlockTextColor(gvBg, gvBlock.textColor);
     var gvId  = 'ps-gv-' + Date.now();
@@ -18800,8 +18799,8 @@ function psRenderBlocks(blocks, p, color, exps, partnerContact, slug, barColor, 
   }
 
     // SOCIAL MEDIA (unchanged)
-  if (otherBlocks.some(function(b){ return b.id==='social_media'; })) {
-    var socBlock = otherBlocks.find(function(b){ return b.id==='social_media'; }) || {};
+  if (blk.id === 'social_media') {
+    var socBlock = blk;
     var socBg    = socBlock.bg    || '#fff';
     var socTxt   = psBlockTextColor(socBg, socBlock.textColor);
     var socTitle = socBlock.title || 'Follow Us';
@@ -18818,8 +18817,8 @@ function psRenderBlocks(blocks, p, color, exps, partnerContact, slug, barColor, 
   }
 
   // CUSTOM HTML (unchanged)
-  if (otherBlocks.some(function(b){ return b.id==='custom_html'; })) {
-    var htmlBlock = otherBlocks.find(function(b){ return b.id==='custom_html'; }) || {};
+  if (blk.id === 'custom_html') {
+    var htmlBlock = blk;
     if (htmlBlock.html) {
       belowHtml += '<div style="background:'+(htmlBlock.bg||'#fff')+';padding:32px 40px">'
         +'<div style="max-width:1100px;margin:0 auto">'+htmlBlock.html+'</div></div>';
@@ -18827,8 +18826,8 @@ function psRenderBlocks(blocks, p, color, exps, partnerContact, slug, barColor, 
   }
 
   // MAP & CONTACT (dynamic from partners table)
-  if (otherBlocks.some(function(b){ return b.id==='map_contact'; })) {
-    var mcBlock = otherBlocks.find(function(b){ return b.id==='map_contact'; }) || {};
+  if (blk.id === 'map_contact') {
+    var mcBlock = blk;
     var mcBg = mcBlock.bg || '#fff';
     var mcTxt = psBlockTextColor(mcBg, mcBlock.textColor);
     var loc  = partnerContact.location || '';
@@ -18837,7 +18836,7 @@ function psRenderBlocks(blocks, p, color, exps, partnerContact, slug, barColor, 
     var email   = partnerContact.contact_email || '';
     var mapsUrl = loc ? 'https://maps.google.com/?q='+encodeURIComponent(loc+(region?', '+region:'')) : '';
     belowHtml += '<div style="background:'+mcBg+';padding:64px 40px;border-top:1px solid #f3f4f6">'
-      +'<div style="max-width:1100px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr;gap:60px;align-items:start">'
+      +'<div style="max-width:1100px;margin:0 auto;display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:clamp(24px,4vw,48px);align-items:start">'
       +'<div>'
       +'<div style="font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.18em;color:'+color+';margin-bottom:14px">Visit Us</div>'
       +'<h2 style="font-family:\'Cormorant Garamond\',serif;font-size:2.6rem;font-weight:400;color:'+mcTxt+';margin-bottom:20px;line-height:1.2">Come &amp; experience<br>something remarkable</h2>'
@@ -18852,6 +18851,8 @@ function psRenderBlocks(blocks, p, color, exps, partnerContact, slug, barColor, 
       +'<div style="margin-top:20px"><button onclick="psBookingComingSoon()" style="'+(psContrastColor(color)==='#1a1a2e'?'background:#fff;color:'+color+';border:2px solid '+color:'background:'+color+';color:#fff;border:none')+';border-radius:8px;padding:11px 24px;font-weight:700;font-size:.84rem;cursor:pointer">Book now →</button></div>'
       +'</div></div></div>';
   }
+
+  }); // end otherBlocks.forEach
 
   belowEl.innerHTML = belowHtml;
 
@@ -18942,7 +18943,7 @@ function psSyncSlider(isMobile) {
 function psInitFilters(exps, color, layout, featuredId) {
   var fst=document.getElementById('ps-filter-css');
   if(!fst){fst=document.createElement('style');fst.id='ps-filter-css';document.head.appendChild(fst);}
-  fst.textContent='.ps-range-input::-webkit-slider-thumb{background:'+color+'!important}.ps-range-input::-moz-range-thumb{background:'+color+'!important}#ps-range-fill,#ps-range-fill-m{background:'+color+'!important}';
+  fst.textContent='.ps-range-input::-webkit-slider-thumb{background:'+color+'!important}.ps-range-input::-moz-range-thumb{background:'+color+'!important}#ps-range-fill,#ps-range-fill-m{background:'+color+'!important}#ps-filter-desktop select,#ps-filter-mobile select{border-color:'+color+'44!important}';
   _psPageLayout = layout || 'grid';
   _psFeaturedId = featuredId;
   _psPageColor  = color || '#b45309';
@@ -19076,6 +19077,10 @@ function psSectionHeader(title, count, color) {
 }
 
 function psRenderExpGrid(exps, matchedExps, layout, color, featuredId) {
+  // Inject exp card border color
+  var ecst = document.getElementById('ps-expcard-style');
+  if (!ecst) { ecst = document.createElement('style'); ecst.id='ps-expcard-style'; document.head.appendChild(ecst); }
+  ecst.textContent = '#ps-exp-grid .ps-exp-card{border-color:'+color+'22!important}';
   var grid = document.getElementById('ps-exp-grid');
   if (!grid) return;
   var isMobile = window.innerWidth < 640;
@@ -19905,7 +19910,8 @@ return '<div style="font-family:\'DM Sans\',sans-serif;min-height:300px">'    //
     + '<div style="padding:20px;background:'+bgColor+'">'    + (desc ? '<p style="font-size:'+dsSize+';color:'+dsColor+';line-height:1.75;margin-bottom:20px;font-family:'+dsFont+';font-weight:'+(dsBold?'700':'400')+';text-align:'+dsAlign+'">'+desc+'</p>' : '')    + '<div style="font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.14em;color:#9ca3af;margin-bottom:12px">Experiences</div>'    + (isMobilePreview ? mobileGridHtml : gridHtml)    + '</div>'
     // Other blocks
     + blocksHtml
-    + '<div style="text-align:center;padding:16px;font-size:.7rem;color:#9ca3af;border-top:1px solid #e5e7eb">Powered by <strong style="color:'+color+'">WowBox</strong></div>'
+    + '<div style="text-align:center;padding:16px;font-size:.7rem;color:'+footerText2+';border-top:1px solid #e5e7eb">Powered by <strong>WowBox</strong></div>'
+    + '<div style="background:'+footerBg2+';padding:12px;text-align:center;font-size:.65rem;color:'+footerText2+'88">Powered by WowBox · Terms · Privacy</div>'
     + '</div>';
 }
 
