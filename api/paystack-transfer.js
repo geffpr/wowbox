@@ -48,11 +48,14 @@ export default async function handler(req, res) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
 
-  const { commission_id, partner_email, paystack_account_id, amount, reason } = req.body || {};
+  const { commission_id, partner_email, paystack_account_id, paystack_recipient_code, amount, reason } = req.body || {};
 
-  if (!commission_id || !paystack_account_id || !amount) {
-    return res.status(400).json({ error: 'Missing required fields: commission_id, paystack_account_id, amount' });
+  if (!commission_id || (!paystack_recipient_code && !paystack_account_id) || !amount) {
+    return res.status(400).json({ error: 'Missing required fields: commission_id, paystack_recipient_code (or paystack_account_id), amount' });
   }
+
+  // Prefer recipient_code (RCP_xxx) over subaccount_code (ACCT_xxx)
+  const recipient = paystack_recipient_code || paystack_account_id;
 
   try {
     const amount_kobo = Math.round(Number(amount) * 100); // ZAR → kobo
@@ -61,7 +64,7 @@ export default async function handler(req, res) {
 
     const transfer = await paystackTransfer({
       amount_kobo,
-      recipient_code: paystack_account_id,
+      recipient_code: recipient,
       reason: transfer_reason,
       reference,
     });

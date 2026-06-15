@@ -56,13 +56,44 @@ export default async function handler(req, res) {
       const subaccount_code = psData.data.subaccount_code;
       const account_name    = psData.data.account_name || business_name;
 
-      // 2. Save subaccount_code to Supabase user_profiles
+      // 2. Create transfer recipient (needed for explicit payouts)
+      const rcpRes = await fetch('https://api.paystack.co/transferrecipient', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${secretKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          type:           'nuban',
+          name:           account_name,
+          account_number,
+          bank_code:      settlement_bank,
+          currency:       'ZAR',
+        }),
+      });
+
+      const rcpData = await rcpRes.json();
+
+      if (!rcpData.status) {
+        console.error('Transfer recipient creation failed:', rcpData.message);
+        // Non-blocking: subaccount still created, log and continue
+      }
+
+      const recipient_code = rcpData?.data?.recipient_code || null;
+
+      // 3. Save both codes to Supabase user_profiles
       const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
       const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY;
 
       if (!supabaseUrl || !supabaseKey) {
         return res.status(500).json({ error: 'Supabase env vars not configured' });
       }
+
+      const sbBody = {
+        paystack_account_id:   subaccount_code,
+        paystack_connected_at: new Date().toISOString(),
+      };
+      if (recipient_code) sbBody.paystack_recipient_code = recipient_code;
 
       const sbRes = await fetch(
         `${supabaseUrl}/rest/v1/user_profiles?id=eq.${encodeURIComponent(user_id)}`,
@@ -74,10 +105,7 @@ export default async function handler(req, res) {
             'Content-Type': 'application/json',
             Prefer: 'return=minimal',
           },
-          body: JSON.stringify({
-            paystack_account_id:    subaccount_code,
-            paystack_connected_at:  new Date().toISOString(),
-          }),
+          body: JSON.stringify(sbBody),
         }
       );
 
@@ -90,6 +118,7 @@ export default async function handler(req, res) {
       return res.status(200).json({
         success:          true,
         subaccount_code,
+        recipient_code,
         account_name,
       });
 
