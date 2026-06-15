@@ -554,34 +554,54 @@ var APP_URL = (window.location.hostname === 'localhost' || window.location.hostn
 // WOW splash
 (function(){if(window.location.pathname.startsWith('/wow/')){var s=document.getElementById('wow-splash');if(s){s.style.display='flex';document.documentElement.style.overflow='hidden';}}})();
 
-// ─── PAYSTACK CONFIG ──────────────────────────────────────────
-// Toggle: set PAYSTACK_LIVE = true to switch to live key
-var PAYSTACK_LIVE = false;
-var PAYSTACK_PUBLIC_KEY = PAYSTACK_LIVE
-  ? 'pk_live_110bc53756122b71d39a7f1c44f8b51407d1a632'
-  : 'pk_test_af150d9b155e6462903561ae77752440ae7a4548';
-// PAYFAST_TEST_MODE kept as alias so no other refs break
-var PAYFAST_TEST_MODE = false;
+// ─── PAYFAST TEST MODE ────────────────────────────────────────
+// Set to true to show a mock payment modal instead of real Payfast
+// Switch to false when prod account is approved
+var PAYFAST_TEST_MODE = true;
 
-// Helper: open Paystack inline popup
-// amount in ZAR (converted to kobo internally)
-function openPaystackPopup(opts) {
-  // opts: { email, amount, ref, label, onSuccess, onCancel }
-  var handler = PaystackPop.setup({
-    key:      PAYSTACK_PUBLIC_KEY,
-    email:    opts.email || 'customer@wowbox.co.za',
-    amount:   Math.round(Number(opts.amount) * 100), // ZAR → kobo
-    currency: 'ZAR',
-    ref:      opts.ref,
-    label:    opts.label || 'WowBox',
-    onSuccess: function(transaction) {
-      if (typeof opts.onSuccess === 'function') opts.onSuccess(transaction);
-    },
-    onCancel: function() {
-      if (typeof opts.onCancel === 'function') opts.onCancel();
+function showPayfastTestModal(pfRef, total, discount, delivFee, onAccept) {
+  var existing = document.getElementById('pf-test-modal');
+  if (existing) existing.remove();
+
+  var modal = document.createElement('div');
+  modal.id = 'pf-test-modal';
+  modal.style.cssText = 'position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(2,45,45,.7);backdrop-filter:blur(4px)';
+  modal.innerHTML = `
+    <div style="background:#fff;border-radius:16px;padding:32px;max-width:400px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.3);font-family:sans-serif">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px">
+        <img src="https://content.payfast.io/assets/images/logos/ni_payfast_logo.png" style="height:32px" alt="Payfast">
+        <span style="font-size:.75rem;background:#fff3cd;color:#856404;padding:3px 8px;border-radius:20px;font-weight:600">SANDBOX TEST</span>
+      </div>
+      <div style="background:#f8f9fa;border-radius:10px;padding:16px;margin-bottom:20px;text-align:center">
+        <div style="font-size:.8rem;color:#666;margin-bottom:4px">Payment total</div>
+        <div style="font-size:1.8rem;font-weight:700;color:#022d2d">R ${parseFloat(total).toLocaleString('en-ZA',{minimumFractionDigits:2})}</div>
+        <div style="font-size:.72rem;color:#999;margin-top:4px">Ref: ${pfRef}</div>
+      </div>
+      <div style="font-size:.78rem;color:#666;text-align:center;margin-bottom:18px">Simulate a payment outcome for testing:</div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <button id="pf-test-accept" style="background:#022d2d;color:#dee965;border:none;border-radius:8px;padding:14px;font-size:.95rem;font-weight:600;cursor:pointer">✓ Payment Accepted</button>
+        <button id="pf-test-decline" style="background:#fee2e2;color:#dc2626;border:none;border-radius:8px;padding:12px;font-size:.9rem;font-weight:600;cursor:pointer">✕ Payment Declined</button>
+        <button id="pf-test-cancel" style="background:#f3f4f6;color:#6b7280;border:none;border-radius:8px;padding:12px;font-size:.9rem;cursor:pointer">Cancel</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+
+  document.getElementById('pf-test-accept').onclick = function() {
+    modal.remove();
+    if (typeof onAccept === 'function') {
+      onAccept();
+    } else {
+      completeOrderConfirm(pfRef, total, discount, delivFee);
     }
-  });
-  handler.openIframe();
+  };
+  document.getElementById('pf-test-decline').onclick = function() {
+    modal.remove();
+    admToast('Payment declined. Please try a different payment method.');
+  };
+  document.getElementById('pf-test-cancel').onclick = function() {
+    modal.remove();
+    admToast('Payment cancelled. Your cart is still saved.');
+  };
 }
 // ─────────────────────────────────────────────────────────────
 
@@ -1369,8 +1389,8 @@ db_client.auth.onAuthStateChange(function(event, session) {
 // Session check now in DOMContentLoaded
 </script>
 
-<!-- Paystack Inline Payments -->
-<script src="https://js.paystack.co/v1/inline.js"></script>
+<!-- Payfast Onsite Payments -->
+<script src="https://sandbox.payfast.co.za/onsite/engine.js"></script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <meta name="description" content="WowBox — Curated gift experience boxes for couples, adventurers and dreamers across South Africa. Give the gift of unforgettable moments.">
@@ -1926,15 +1946,25 @@ async function ppConfirmPool(price) {
     } catch(e) { admToast('Payment received but activation failed. Ref: ' + ref); }
   }
 
+  // ── TEST MODE ──
+  if (PAYFAST_TEST_MODE) {
+    showPayfastTestModal(ref, price, 0, 0, activateBoost);
+    return;
+  }
+
   admToast('<i class="fa fa-spinner fa-spin"></i> Opening payment…');
-  openPaystackPopup({
-    email:     email,
-    amount:    price,
-    ref:       ref,
-    label:     'WowBox Featured Pool — ' + expName,
-    onSuccess: function() { activateBoost(); },
-    onCancel:  function() { admToast('Payment cancelled.'); }
-  });
+  try {
+    var pfRes = await fetch('/api/payfast-initiate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ amount: price, email: email, name_first: expName.split(' ')[0] || expName, name_last: expName.split(' ').slice(1).join(' ') || '', item_name: 'WowBox Featured Pool — ' + expName, m_payment_id: ref })
+    });
+    var pfData = await pfRes.json();
+    if (!pfData.uuid) throw new Error(pfData.error || 'Payment initiation failed');
+    window.payfast_do_onsite_payment(pfData.uuid, async function(result) {
+      if (result === true) activateBoost();
+    }, function() { admToast('Payment cancelled.'); });
+  } catch(e) { admToast('Could not open payment. Please try again.'); console.error('Payfast error:', e); }
 }
 
 
@@ -1978,14 +2008,22 @@ async function ppRenewBoost(btn, price) {
     } catch(e) { admToast('Renewal failed: ' + e.message); }
   };
 
-  openPaystackPopup({
-    email:     email,
-    amount:    price,
-    ref:       ref,
-    label:     'WowBox Featured Pool Renewal — ' + expName,
-    onSuccess: function() { onAccept(); },
-    onCancel:  function() { admToast('Payment cancelled.'); }
-  });
+  if (typeof PAYFAST_TEST_MODE !== 'undefined' && PAYFAST_TEST_MODE) {
+    showPayfastTestModal(ref, price, 0, 0, onAccept);
+  } else {
+    try {
+      var pfRes = await fetch('/api/payfast-initiate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ amount: price, email: email, name_first: expName.split(' ')[0] || expName, item_name: 'WowBox Featured Pool Renewal — ' + expName, m_payment_id: ref })
+      });
+      var pfData = await pfRes.json();
+      if (!pfData.uuid) throw new Error(pfData.error || 'Payment initiation failed');
+      window.payfast_do_onsite_payment(pfData.uuid, function(result) {
+        if (result === true) onAccept();
+      }, function() { admToast('Payment cancelled.'); });
+    } catch(e) { admToast('Could not open payment. Please try again.'); }
+  }
 }
 
 
@@ -4132,7 +4170,7 @@ tr:hover td{background:var(--b50)}
     <div class="faq-cat"><h3 class="faq-cat-title">🛒 Purchase &amp; Boxes</h3>
       <div class="faq-item"><button class="faq-q" onclick="wbFaqToggle(this)">How do I buy a gift box? <i class="fa fa-chevron-down"></i></button><div class="faq-a">Browse our collection, choose a box, add to cart and complete checkout. Your digital gift box is delivered immediately by email.</div></div>
       <div class="faq-item"><button class="faq-q" onclick="wbFaqToggle(this)">Can I schedule delivery for a specific date? <i class="fa fa-chevron-down"></i></button><div class="faq-a">Yes! During checkout you can send immediately or schedule for a specific date — perfect for birthdays and anniversaries.</div></div>
-      <div class="faq-item"><button class="faq-q" onclick="wbFaqToggle(this)">What payment methods do you accept? <i class="fa fa-chevron-down"></i></button><div class="faq-a">All major credit and debit cards (Visa, Mastercard, Amex) via Paystack. All transactions are secure and encrypted.</div></div>
+      <div class="faq-item"><button class="faq-q" onclick="wbFaqToggle(this)">What payment methods do you accept? <i class="fa fa-chevron-down"></i></button><div class="faq-a">All major credit and debit cards (Visa, Mastercard, Amex) via Payfast. All transactions are secure and encrypted.</div></div>
       <div class="faq-item"><button class="faq-q" onclick="wbFaqToggle(this)">Can I add a personal message? <i class="fa fa-chevron-down"></i></button><div class="faq-a">Yes! During checkout add a personalised text message, or add a video message as an optional extra for an even more special touch.</div></div>
     </div>
     <div class="faq-cat"><h3 class="faq-cat-title">📦 E-Box Delivery</h3>
@@ -4969,7 +5007,7 @@ tr:hover td{background:var(--b50)}
         <!-- Secure payment note -->
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;padding:10px 14px;background:var(--b50);border-radius:var(--rs);border:1px solid var(--b200)">
           <i class="fa fa-shield-halved" style="color:var(--b500);font-size:1.1rem"></i>
-          <span style="font-size:.75rem;color:var(--slate)">Your payment is processed securely by <strong>Paystack</strong>. WowBox never stores your card details.</span>
+          <span style="font-size:.75rem;color:var(--slate)">Your payment is processed securely by <strong>Payfast</strong>. WowBox never stores your card details.</span>
         </div>
 
         <div style="display:flex;gap:12px">
@@ -13130,17 +13168,42 @@ async function completeOrder() {
   const boxNames  = appState.cart.filter(c=>c.id!=='video-message'&&c.id!=='chance-boost').map(i=>i.name).join(', ');
   const delivDesc = ct === 'ebox' ? 'E-Box (instant email)' : getDeliveryLabel() + ' — R' + delivFee.toLocaleString();
 
-  // Open Paystack Inline popup
+  // Open Payfast Onsite popup
   const pfRef = 'WB-' + Date.now();
 
-  openPaystackPopup({
-    email:     senderEmail,
-    amount:    total,
-    ref:       pfRef,
-    label:     'WowBox — ' + boxNames,
-    onSuccess: function() { completeOrderConfirm(pfRef, total, discount, delivFee); },
-    onCancel:  function() { admToast('Payment cancelled. Your cart is still saved.'); }
-  });
+  // ── TEST MODE: show mock modal instead of real Payfast ──
+  if (PAYFAST_TEST_MODE) {
+    showPayfastTestModal(pfRef, total, discount, delivFee);
+    return;
+  }
+  // ────────────────────────────────────────────────────────
+  try {
+    const pfRes = await fetch('/api/payfast-initiate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        amount:           total,
+        email:            senderEmail,
+        name_first:       senderName.split(' ')[0] || senderName,
+        name_last:        senderName.split(' ').slice(1).join(' ') || '',
+        item_name:        'WowBox — ' + boxNames,
+        item_description: delivDesc,
+        m_payment_id:     pfRef
+      })
+    });
+    const pfData = await pfRes.json();
+    if (!pfData.uuid) throw new Error(pfData.error || 'Payment initiation failed');
+    window.payfast_do_onsite_payment(pfData.uuid, function(result) {
+      if (result === true) {
+        completeOrderConfirm(pfRef, total, discount, delivFee);
+      }
+    }, function() {
+      admToast('Payment cancelled. Your cart is still saved.');
+    });
+  } catch(e) {
+    admToast('Could not open payment. Please try again.');
+    console.error('Payfast error:', e);
+  }
 }
 
 async function completeOrderConfirm(pfRef, total, discount, delivFee) {
@@ -18195,21 +18258,42 @@ async function bkwSubmitPayment() {
   if(btn){ btn.disabled=true; btn.innerHTML='<i class="fa fa-spinner fa-spin"></i> Processing…'; }
   if(statusEl) statusEl.textContent = 'Opening payment…';
 
-  openPaystackPopup({
-    email:     email,
-    amount:    s.total,
-    ref:       bkwRef,
-    label:     'WowBox — ' + s.exp.name,
-    onSuccess: async function() {
-      await bkwCompleteBooking(bkwRef);
+  if (PAYFAST_TEST_MODE) {
+    await bkwCompleteBooking(bkwRef);
+    if(btn){ btn.disabled=false; btn.innerHTML='<i class="fa fa-lock" style="margin-right:8px"></i>Pay securely — R'+(s.total||0).toLocaleString(); }
+    if(statusEl) statusEl.textContent='';
+    return;
+  }
+
+  try {
+    var pfRes = await fetch('/api/payfast-initiate', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        amount: s.total, email: email,
+        name_first: name.split(' ')[0]||name, name_last: name.split(' ').slice(1).join(' ')||'',
+        item_name: 'WowBox — '+s.exp.name,
+        item_description: (s.formData.guests||1)+' guest(s) · '+(s.formData.date||''),
+        m_payment_id: bkwRef
+      })
+    });
+    var pfData = await pfRes.json();
+    if (!pfData.uuid) throw new Error(pfData.error||'Payment failed');
+    window.payfast_do_onsite_payment(pfData.uuid, async function(result){
+      if (result === true) {
+        await bkwCompleteBooking(bkwRef);
+      } else {
+        if(btn){ btn.disabled=false; btn.innerHTML='<i class="fa fa-lock" style="margin-right:8px"></i>Pay securely — R'+(s.total||0).toLocaleString(); }
+        if(statusEl) statusEl.textContent='';
+      }
+    }, function(){
       if(btn){ btn.disabled=false; btn.innerHTML='<i class="fa fa-lock" style="margin-right:8px"></i>Pay securely — R'+(s.total||0).toLocaleString(); }
       if(statusEl) statusEl.textContent='';
-    },
-    onCancel: function() {
-      if(btn){ btn.disabled=false; btn.innerHTML='<i class="fa fa-lock" style="margin-right:8px"></i>Pay securely — R'+(s.total||0).toLocaleString(); }
-      if(statusEl) statusEl.textContent='';
-    }
-  });
+    });
+  } catch(err) {
+    if(statusEl) statusEl.textContent='Payment error. Please try again.';
+    if(btn){ btn.disabled=false; btn.innerHTML='<i class="fa fa-lock" style="margin-right:8px"></i>Pay securely — R'+(s.total||0).toLocaleString(); }
+    console.error('BKW payment error:', err);
+  }
 }
 
 async function bkwCompleteBooking(bkwRef) {
@@ -20424,11 +20508,11 @@ async function ppCheckOnboarding() {
     var hasProf  = !!(prof.full_name && prof.phone);
 
     // Step 4 (calendar): check if any availability exists
-    var calRes   = await db_client.from('availability').select('id').eq('partner_email', email).limit(1);
+    var calRes   = await db_client.from('partner_availability').select('id').eq('partner_email', email).limit(1);
     var hasCal   = !!(calRes.data && calRes.data.length);
 
     // Step 3 (payout): check user_profiles bank info
-    var hasPayout = !!(prof.bank_account_number || prof.payfast_connected);
+    var hasPayout = !!(prof.bank_account_number || prof.payfast_connected || prof.paystack_account_id);
 
     var steps = [
       { id: 'pp-ob-step-profile',  done: hasProf },
@@ -20492,6 +20576,45 @@ function ppShowWelcomeModal() {
     + '</div>';
   document.body.appendChild(m);
   m.onclick = function(e){ if (e.target === m) m.remove(); };
+}
+
+function ppFilterRecentByMonth(year, month) {
+  // Highlight selected bar
+  document.querySelectorAll('#pp-revenue-chart .pp-bar').forEach(function(b){ b.classList.remove('active-bar'); });
+  var bars = document.querySelectorAll('#pp-revenue-chart .pp-bar');
+  // Find index: chartData is built i=5..0, so index = 5 - monthsAgo
+  var now = new Date();
+  var monthsAgo = (now.getFullYear() - year) * 12 + (now.getMonth() - month);
+  var idx = 5 - monthsAgo;
+  if (bars[idx]) bars[idx].classList.add('active-bar');
+
+  // Filter recent validations table
+  var mS = new Date(year, month, 1).toISOString();
+  var mE = new Date(year, month+1, 1).toISOString();
+  var tbody = document.getElementById('pp-recent-tbody');
+  if (!tbody) return;
+  var rows = tbody.querySelectorAll('tr[data-date]');
+  if (!rows.length) { loadPartnerPortalData(); return; }
+  rows.forEach(function(row) {
+    var d = row.dataset.date || '';
+    row.style.display = (d >= mS.slice(0,10) && d < mE.slice(0,10)) ? '' : 'none';
+  });
+  // Show reset hint
+  var hint = document.getElementById('pp-recent-filter-hint');
+  if (!hint) {
+    hint = document.createElement('div');
+    hint.id = 'pp-recent-filter-hint';
+    hint.style.cssText = 'font-size:.72rem;color:var(--b600);margin-bottom:6px;cursor:pointer';
+    hint.innerHTML = '⬡ Filtered by month — <u>show all</u>';
+    hint.onclick = function() {
+      rows.forEach(function(r){ r.style.display=''; });
+      hint.remove();
+      document.querySelectorAll('#pp-revenue-chart .pp-bar').forEach(function(b){ b.classList.remove('active-bar'); });
+      var lastBar = document.querySelectorAll('#pp-revenue-chart .pp-bar');
+      if (lastBar[5]) lastBar[5].classList.add('active-bar');
+    };
+    tbody.parentElement.insertBefore(hint, tbody.parentElement.querySelector('thead').nextSibling || tbody);
+  }
 }
 
 async function loadPartnerPortalData() {
@@ -20562,23 +20685,29 @@ async function loadPartnerPortalData() {
       set('pp-kpi-revenue-chg', revTotal > 0 ? 'This month' : 'No revenue yet');
     }
 
-    // Revenue chart: last 6 months by booking count
+    // Revenue chart: last 6 months by ZAR payout + booking count
     const chartData = [];
     for (let i = 5; i >= 0; i--) {
       const d = new Date(now.getFullYear(), now.getMonth()-i, 1);
       const mS = d.toISOString();
       const mE = new Date(d.getFullYear(), d.getMonth()+1, 1).toISOString();
-      const mR = await db_client.from('bookings').select('id').eq('partner_email',email).gte('created_at',mS).lt('created_at',mE);
-      chartData.push({label:d.toLocaleString('en-ZA',{month:'short'}), val:(mR.data||[]).length, active:i===0});
+      const ceR = await db_client.from('commission_entries').select('partner_payout').eq('partner_email',email).gte('validated_at',mS).lt('validated_at',mE);
+      const revenue = (ceR.data||[]).reduce(function(s,r){ return s+(Number(r.partner_payout)||0); }, 0);
+      const bkR = await db_client.from('bookings').select('id').eq('partner_email',email).gte('created_at',mS).lt('created_at',mE);
+      const bookings = (bkR.data||[]).length;
+      chartData.push({ label: d.toLocaleString('en-ZA',{month:'short'}), revenue, bookings, active: i===0, mYear: d.getFullYear(), mMonth: d.getMonth() });
     }
-    const maxV = Math.max(...chartData.map(function(b){ return b.val; }), 1);
+    const maxV = Math.max(...chartData.map(function(b){ return b.revenue; }), 1);
     const chartEl = document.getElementById('pp-revenue-chart');
     const labelsEl = document.getElementById('pp-bar-labels');
     if (chartEl) chartEl.innerHTML = chartData.map(function(b){
-      const h = Math.max(Math.round((b.val/maxV)*100), 2);
-      return '<div class="pp-bar'+(b.active?' active-bar':'')+'" style="height:'+h+'%" title="'+b.val+' bookings"></div>';
+      const h = Math.max(Math.round((b.revenue/maxV)*100), 2);
+      const tooltip = 'R' + b.revenue.toLocaleString('en-ZA') + ' · ' + b.bookings + ' booking' + (b.bookings!==1?'s':'');
+      return '<div class="pp-bar'+(b.active?' active-bar':'')+'" style="height:'+h+'%;cursor:pointer" title="'+tooltip+'" onclick="ppFilterRecentByMonth('+b.mYear+','+b.mMonth+')"></div>';
     }).join('');
-    if (labelsEl) labelsEl.innerHTML = chartData.map(function(b){ return '<div class="pp-bar-lbl">'+b.label+'</div>'; }).join('');
+    if (labelsEl) labelsEl.innerHTML = chartData.map(function(b){
+      return '<div class="pp-bar-lbl">'+b.label+'<br><span style="font-size:.6rem;color:var(--muted)">'+b.bookings+'</span></div>';
+    }).join('');
   } catch(e) { console.warn('loadPartnerPortalData KPIs:', e.message); }
 
   // ── Rating + top experience ──
@@ -20639,7 +20768,8 @@ async function loadPartnerPortalData() {
         const ce  = payoutMap[b.booking_reference] || null;
         const payoutDisp = ce ? '<span style="color:var(--green);font-weight:600">R'+Number(ce.partner_payout).toLocaleString('en-ZA',{minimumFractionDigits:2})+'</span>' : '<span style="color:var(--muted)">—</span>';
         const paid = ce ? ce.payout_status==='paid' : false;
-        return '<tr>'
+        const rowDate = (b.created_at||'').slice(0,10);
+        return '<tr data-date="'+rowDate+'">'
           +'<td><code style="font-size:.75rem">'+ref+'</code></td>'
           +'<td>'+(b.customer_name||b.customer_email||'—')+'</td>'
           +'<td>'+(b.experience_name||'—')+'</td>'
@@ -21712,34 +21842,50 @@ async function processProSubscription() {
   admToast('Opening secure payment...');
 
   const proRef = 'PRO-' + Date.now();
-  openPaystackPopup({
-    email:     email,
-    amount:    APP_PRICES.partner_pro,
-    ref:       proRef,
-    label:     'WowBox Pro Plan — Monthly Subscription',
-    onSuccess: function() {
-      const now = new Date();
-      const end = new Date(now);
-      end.setMonth(end.getMonth() + 1);
-      partnerSubscription.status             = 'active';
-      partnerSubscription.plan               = 'pro';
-      partnerSubscription.period_start       = now.toISOString().slice(0,10);
-      partnerSubscription.period_end         = end.toISOString().slice(0,10);
-      partnerSubscription.cancel_at_period_end = false;
-      partnerSubscription.payfast_reference  = proRef;
+  try {
+    const pfRes = await fetch('/api/payfast-initiate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        amount:       APP_PRICES.partner_pro,
+        email:        email,
+        name_first:   name.split(' ')[0] || name,
+        name_last:    name.split(' ').slice(1).join(' ') || '',
+        item_name:    'WowBox Pro Plan — Monthly Subscription',
+        m_payment_id: proRef
+      })
+    });
+    const pfData = await pfRes.json();
+    if (!pfData.uuid) throw new Error(pfData.error || 'Payment initiation failed');
+    window.payfast_do_onsite_payment(pfData.uuid, function(result) {
+      if (result === true) {
+        const now = new Date();
+        const end = new Date(now);
+        end.setMonth(end.getMonth() + 1);
+        partnerSubscription.status             = 'active';
+        partnerSubscription.plan               = 'pro';
+        partnerSubscription.period_start       = now.toISOString().slice(0,10);
+        partnerSubscription.period_end         = end.toISOString().slice(0,10);
+        partnerSubscription.cancel_at_period_end = false;
+        partnerSubscription.payfast_reference  = proRef;
 
-      hideProPaymentForm();
-      renderSubscriptionUI();
-      updatePartnerSidebar();
-      updatePlanLockedUI();
-      renderPlanPage();
-      admToast('Pro activated! Payment ref: ' + proRef);
-      setTimeout(() => {
-        switchPP(document.querySelector('[onclick*=pp-plan]'), 'pp-plan');
-      }, 400);
-    },
-    onCancel: function() { admToast('Payment cancelled.'); }
-  });
+        hideProPaymentForm();
+        renderSubscriptionUI();
+        updatePartnerSidebar();
+        updatePlanLockedUI();
+        renderPlanPage();
+        admToast('Pro activated! Payment ref: ' + proRef);
+        setTimeout(() => {
+          switchPP(document.querySelector('[onclick*=pp-plan]'), 'pp-plan');
+        }, 400);
+      }
+    }, function() {
+      admToast('Payment cancelled.');
+    });
+  } catch(e) {
+    admToast('Could not open payment. Please try again.');
+    console.error('Payfast error:', e);
+  }
 }
 
 
