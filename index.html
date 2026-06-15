@@ -632,6 +632,41 @@ function authShowSuccess(msg) {
   if (el) { el.textContent = msg; el.classList.add('show'); }
 }
 
+function initResetPassword() {
+  // Supabase puts the session tokens in the URL hash after redirect
+  // supabase-js v2 handles this automatically via onAuthStateChange
+  // Just clear any error messages
+  var e = document.getElementById('rp-error');
+  var s = document.getElementById('rp-success');
+  if (e) e.textContent = '';
+  if (s) s.textContent = '';
+  var btn = document.getElementById('rp-submit-btn');
+  if (btn) { btn.disabled = false; btn.textContent = 'Set new password'; }
+}
+
+async function submitResetPassword() {
+  var pw  = document.getElementById('rp-password')?.value || '';
+  var pw2 = document.getElementById('rp-confirm')?.value  || '';
+  var errEl = document.getElementById('rp-error');
+  var sucEl = document.getElementById('rp-success');
+  var btn   = document.getElementById('rp-submit-btn');
+  if (errEl) errEl.textContent = '';
+  if (sucEl) sucEl.textContent = '';
+  if (!pw)          { if (errEl) errEl.textContent = 'Please enter a new password.'; return; }
+  if (pw.length < 6){ if (errEl) errEl.textContent = 'Password must be at least 6 characters.'; return; }
+  if (pw !== pw2)   { if (errEl) errEl.textContent = 'Passwords do not match.'; return; }
+  if (btn) { btn.disabled = true; btn.textContent = 'Saving...'; }
+  try {
+    var result = await db_client.auth.updateUser({ password: pw });
+    if (result.error) throw result.error;
+    if (sucEl) sucEl.textContent = '✅ Password updated! Redirecting...';
+    setTimeout(function() { go('home'); }, 2000);
+  } catch(e) {
+    if (errEl) errEl.textContent = e.message || 'Error updating password. Please try again.';
+    if (btn) { btn.disabled = false; btn.textContent = 'Set new password'; }
+  }
+}
+
 function authTogglePw(inputId, btn) {
   var input = document.getElementById(inputId);
   if (!input) return;
@@ -690,7 +725,7 @@ async function authForgot() {
   var email = document.getElementById('auth-email') ? document.getElementById('auth-email').value.trim() : '';
   if (!email) { authShowError('Enter your email address first.'); return; }
   try {
-    var result = await db_client.auth.resetPasswordForEmail(email, { redirectTo: APP_URL });
+    var result = await db_client.auth.resetPasswordForEmail(email, { redirectTo: 'https://wowbox.co.za/reset-password' });
     if (result.error) throw result.error;
     authShowSuccess('Password reset email sent! Check your inbox.');
   } catch(e) { authShowError(e.message); }
@@ -5541,6 +5576,34 @@ tr:hover td{background:var(--b50)}
   </footer>
 </div>
 
+<!-- ═══════════════════════ PAGE: RESET PASSWORD ═══════════════════════ -->
+<div id="page-reset-password" class="page">
+  <div class="login-wrap">
+    <div class="lc">
+      <div style="font-family:'Cormorant Garamond',serif;font-size:1.9rem;font-weight:700;color:var(--b600);margin-bottom:7px">WowBox</div>
+      <h2 style="font-size:1.1rem;font-weight:700;color:var(--navy);margin:0 0 6px">Set a new password</h2>
+      <p style="font-size:.82rem;color:var(--muted);margin:0 0 20px">Choose a new password for your account.</p>
+      <div class="auth-error"   id="rp-error"></div>
+      <div class="auth-success" id="rp-success"></div>
+      <div class="fg" style="text-align:left;margin-bottom:10px">
+        <label>New password *</label>
+        <div style="position:relative">
+          <input class="fi" id="rp-password" type="password" placeholder="Min. 6 characters" style="padding-right:40px">
+          <button type="button" onclick="authTogglePw('rp-password',this)" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--muted);font-size:.9rem;padding:0"><i class="fa fa-eye"></i></button>
+        </div>
+      </div>
+      <div class="fg" style="text-align:left;margin-bottom:18px">
+        <label>Confirm new password *</label>
+        <div style="position:relative">
+          <input class="fi" id="rp-confirm" type="password" placeholder="Repeat password" style="padding-right:40px">
+          <button type="button" onclick="authTogglePw('rp-confirm',this)" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--muted);font-size:.9rem;padding:0"><i class="fa fa-eye"></i></button>
+        </div>
+      </div>
+      <button class="btn bp block" id="rp-submit-btn" onclick="submitResetPassword()">Set new password</button>
+    </div>
+  </div>
+</div>
+
 <!-- ═══════════════════════ PAGE: PARTNER LANDING ═══════════════════════ -->
 <div id="page-partner-landing" class="page">
 
@@ -9138,6 +9201,7 @@ const PAGE_HASH = {
   login:'/login',dashboard:'/my-account',activation:'/activate',
   'partner-landing':'/partners',partner:'/partner',admin:'/admin',browse:'/browse',roulette:'/surprise',
   'partner-storefront':'/wow',
+  'reset-password':'/reset-password',
   giftvideo:'/gift-video',
   faq:'/faq',contact:'/contact',
   terms:'/terms',privacy:'/privacy',refund:'/refund-policy'
@@ -9422,6 +9486,17 @@ function goFromHash() {
       loadPartnerStorefront(partnerSlug);
       return;
     }
+  }
+
+  // ── /reset-password ──
+  if (path === '/reset-password') {
+    document.querySelectorAll('.page').forEach(function(p){ p.classList.remove('active'); p.style.display=''; });
+    var _pss = document.getElementById('page-partner-storefront');
+    if (_pss) _pss.style.display = 'none';
+    var rpEl = document.getElementById('page-reset-password');
+    if (rpEl) { rpEl.classList.add('active'); rpEl.style.display=''; }
+    initResetPassword();
+    return;
   }
 
   // ── /experience/kruger-game-drive ──
