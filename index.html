@@ -609,8 +609,10 @@ function authSwitchTab(tab) {
   const isUp = tab === 'up';
   document.getElementById('auth-tab-in').classList.toggle('on', !isUp);
   document.getElementById('auth-tab-up').classList.toggle('on',  isUp);
-  document.getElementById('auth-name-field').style.display = isUp ? 'block' : 'none';
-  document.getElementById('auth-forgot').style.display     = isUp ? 'none'  : 'block';
+  document.getElementById('auth-name-field').style.display        = isUp ? 'block' : 'none';
+  document.getElementById('auth-confirm-pw-field').style.display  = isUp ? 'block' : 'none';
+  document.getElementById('auth-cgu-field').style.display         = isUp ? 'block' : 'none';
+  document.getElementById('auth-forgot').style.display            = isUp ? 'none'  : 'block';
   var submitLabel = document.getElementById('auth-submit-label');
   if (submitLabel) submitLabel.textContent = isUp ? 'Create account' : 'Sign in';
   authClearMessages();
@@ -630,6 +632,15 @@ function authShowSuccess(msg) {
   if (el) { el.textContent = msg; el.classList.add('show'); }
 }
 
+function authTogglePw(inputId, btn) {
+  var input = document.getElementById(inputId);
+  if (!input) return;
+  var isHidden = input.type === 'password';
+  input.type = isHidden ? 'text' : 'password';
+  var icon = btn.querySelector('i');
+  if (icon) { icon.className = isHidden ? 'fa fa-eye-slash' : 'fa fa-eye'; }
+}
+
 async function authSubmit() {
   var email    = document.getElementById('auth-email') ? document.getElementById('auth-email').value.trim() : '';
   var password = document.getElementById('auth-password') ? document.getElementById('auth-password').value : '';
@@ -640,6 +651,13 @@ async function authSubmit() {
   if (!email || !password) { authShowError('Please enter your email and password.'); return; }
   if (isSignUp && !name)   { authShowError('Please enter your full name.'); return; }
   if (password.length < 6) { authShowError('Password must be at least 6 characters.'); return; }
+  if (isSignUp) {
+    var confirmPw = document.getElementById('auth-confirm-pw') ? document.getElementById('auth-confirm-pw').value : '';
+    if (!confirmPw) { authShowError('Please confirm your password.'); return; }
+    if (confirmPw !== password) { authShowError('Passwords do not match.'); return; }
+    var cgu = document.getElementById('auth-cgu');
+    if (!cgu || !cgu.checked) { authShowError('Please agree to the Terms of Use and Privacy Policy.'); return; }
+  }
   if (btn) { btn.disabled = true; btn.textContent = 'Please wait...'; }
   try {
     if (isSignUp) {
