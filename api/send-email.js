@@ -3,7 +3,8 @@
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
 const FROM           = 'WowBox <hello@wowbox.co.za>';
-const ADMIN_EMAIL    = 'geff.pr@gmail.com';
+const ADMIN_EMAIL    = 'hello@wowbox.co.za';
+const ADMIN_CC       = 'geff.pr@gmail.com';
 const SITE_URL       = 'https://wowbox.co.za';
 
 // ── Brand colours (warm brown palette matching the site) ────────────────────
@@ -136,10 +137,217 @@ const highlight = (content, bg, border) =>
     border-radius:0 10px 10px 0;padding:16px 20px;margin:20px 0;
     font-size:14px;color:${C.muted};line-height:1.6">${content}</div>`;
 
+
+// ── Admin simple email layout (no hero, just info) ───────────────────────────
+function adminLayout(content) {
+  return `<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><title>WowBox Admin</title></head>
+<body style="margin:0;padding:20px;background:#f9fafb;font-family:Arial,sans-serif">
+<table width="600" cellpadding="0" cellspacing="0" style="margin:0 auto;background:#fff;border-radius:8px;border:1px solid #e5e7eb;overflow:hidden">
+  <tr><td style="background:#3d1008;padding:16px 24px">
+    <span style="font-family:Georgia,serif;font-size:18px;font-weight:700;color:#fff;letter-spacing:2px">WowBox</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.5);margin-left:8px">Admin Notification</span>
+  </td></tr>
+  <tr><td style="padding:24px">${content}</td></tr>
+  <tr><td style="background:#f3f4f6;padding:12px 24px;font-size:11px;color:#6b7280;text-align:center">
+    WowBox · RC Tradeworx Holdings (Pty) Ltd · admin@wowbox.co.za
+  </td></tr>
+</table>
+</body></html>`;
+}
+
+function adminInfoTable(rows) {
+  return `<table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e5e7eb;border-radius:6px;overflow:hidden;margin:12px 0">${rows}</table>`;
+}
+function adminRow(label, value) {
+  return `<tr><td style="padding:8px 12px;font-size:13px;color:#6b7280;background:#f9fafb;width:40%;border-bottom:1px solid #e5e7eb">${label}</td><td style="padding:8px 12px;font-size:13px;color:#111827;font-weight:600;border-bottom:1px solid #e5e7eb">${value||'—'}</td></tr>`;
+}
+function adminBtn(label, url) {
+  return `<a href="${url}" style="display:inline-block;margin-top:16px;background:#3d1008;color:#fff;padding:10px 20px;border-radius:6px;font-size:13px;font-weight:600;text-decoration:none">${label} →</a>`;
+}
+
+// ── NEW: New partner application (admin) ─────────────────────────────────────
+function tplAdminNewPartner(o) {
+  return {
+    subject: `🆕 New partner application — ${o.bizName || o.name}`,
+    html: adminLayout(`
+      <h2 style="margin:0 0 4px;font-size:18px;color:#111827">New Partner Application</h2>
+      <p style="margin:0 0 16px;font-size:13px;color:#6b7280">Received ${new Date().toLocaleDateString('en-ZA',{day:'numeric',month:'long',year:'numeric'})}</p>
+      ${adminInfoTable(
+        adminRow('Business name', o.bizName) +
+        adminRow('Contact name', o.name) +
+        adminRow('Email', o.email) +
+        adminRow('Phone', o.phone) +
+        adminRow('Location', o.location) +
+        adminRow('Type', o.type)
+      )}
+      ${adminBtn('Review in Admin', 'https://wowbox.co.za/admin#adm-partners')}
+    `),
+  };
+}
+
+// ── NEW: New experience submitted (admin) ─────────────────────────────────────
+function tplAdminExpSubmitted(o) {
+  return {
+    subject: `📋 New experience to review — "${o.experienceName}"`,
+    html: adminLayout(`
+      <h2 style="margin:0 0 4px;font-size:18px;color:#111827">New Experience Submitted</h2>
+      <p style="margin:0 0 16px;font-size:13px;color:#6b7280">Requires approval before going live</p>
+      ${adminInfoTable(
+        adminRow('Experience', o.experienceName) +
+        adminRow('Partner', o.partnerName) +
+        adminRow('Partner email', o.partnerEmail) +
+        adminRow('Category', o.category) +
+        adminRow('Location', o.location) +
+        adminRow('Price', o.price ? 'R' + o.price : '—')
+      )}
+      ${adminBtn('Review in Admin', 'https://wowbox.co.za/admin#adm-exp-requests')}
+    `),
+  };
+}
+
+// ── NEW: Experience edit submitted (admin) ────────────────────────────────────
+function tplAdminExpEdited(o) {
+  return {
+    subject: `✏️ Experience edit to review — "${o.experienceName}"`,
+    html: adminLayout(`
+      <h2 style="margin:0 0 4px;font-size:18px;color:#111827">Experience Edit Submitted</h2>
+      <p style="margin:0 0 16px;font-size:13px;color:#6b7280">Partner has submitted an update — requires re-approval</p>
+      ${adminInfoTable(
+        adminRow('Experience', o.experienceName) +
+        adminRow('Partner', o.partnerName) +
+        adminRow('Partner email', o.partnerEmail)
+      )}
+      ${adminBtn('Review in Admin', 'https://wowbox.co.za/admin#adm-exp-requests')}
+    `),
+  };
+}
+
+// ── NEW: BKW booking confirmation (customer) ──────────────────────────────────
+function tplBkwBookingCustomer(o) {
+  const dateDisplay = o.bookingDate
+    ? new Date(o.bookingDate).toLocaleDateString('en-ZA',{weekday:'long',day:'numeric',month:'long',year:'numeric'})
+    : 'To be confirmed with the partner';
+  return {
+    subject: `✅ Booking confirmed — ${o.experienceName} (${o.bookingRef})`,
+    html: layout(`
+      ${badge('✅ Booking Confirmed', '#059669')}
+      ${h1("You're booked, " + (o.guestName || o.customerName) + '!')}
+      ${p('Your direct booking for <strong>' + o.experienceName + '</strong> with <strong>' + o.partnerName + '</strong> is confirmed.')}
+      ${infoTable(
+        infoRow('Experience', o.experienceName || '—') +
+        infoRow('Partner', o.partnerName || '—') +
+        infoRow('Date', dateDisplay) +
+        (o.bookingTime ? infoRow('Time', o.bookingTime) : '') +
+        infoRow('Guests', o.guests || '1') +
+        infoRow('Total paid', o.total ? 'R' + o.total : '—') +
+        infoRow('Booking Reference', o.bookingRef || '—')
+      )}
+      ${codeBox(o.bookingRef || '—')}
+      ${hr()}
+      ${highlight('<strong>📞 What to do next:</strong><br>Present your booking reference <strong>' + (o.bookingRef||'—') + '</strong> when you arrive. The partner will validate your visit.')}
+      ${btn('View My Account', SITE_URL + '/my-account')}
+      ${sm('Need help? <a href="mailto:support@wowbox.co.za" style="color:' + C.goldDark + '">support@wowbox.co.za</a>')}
+    `, HEROES.booking, 'Your ' + o.experienceName + ' booking is confirmed'),
+  };
+}
+
+// ── NEW: BKW booking notification (partner) ───────────────────────────────────
+function tplBkwBookingPartner(o) {
+  const dateDisplay = o.bookingDate
+    ? new Date(o.bookingDate).toLocaleDateString('en-ZA',{weekday:'long',day:'numeric',month:'long',year:'numeric'})
+    : 'To be confirmed';
+  return {
+    subject: `🔔 New direct booking — ${o.experienceName} (${o.bookingRef})`,
+    html: layout(`
+      ${badge('🔔 New Direct Booking', C.gold)}
+      ${h1('You have a new booking!')}
+      ${p('A customer has booked <strong>' + o.experienceName + '</strong> directly through your WowBox page.')}
+      ${infoTable(
+        infoRow('Experience', o.experienceName || '—') +
+        infoRow('Customer', o.customerName || '—') +
+        infoRow('Customer email', o.customerEmail || '—') +
+        infoRow('Date requested', dateDisplay) +
+        infoRow('Guests', o.guests || '1') +
+        infoRow('Booking Reference', o.bookingRef || '—') +
+        infoRow('Amount', o.total ? 'R' + o.total : '—')
+      )}
+      ${hr()}
+      ${highlight('<strong>Action required:</strong> When the guest arrives, validate their visit in your Partner Portal using the booking reference <strong>' + (o.bookingRef||'—') + '</strong>.')}
+      ${btn('Open Partner Portal', SITE_URL + '/partner')}
+      ${sm('Questions? <a href="mailto:support@wowbox.co.za" style="color:' + C.goldDark + '">support@wowbox.co.za</a>')}
+    `, HEROES.booking, 'New direct booking for ' + o.experienceName),
+  };
+}
+
+// ── NEW: Experience rejected (partner) ────────────────────────────────────────
+// Already exists as tplExperienceRejected — reusing it
+
+// ── NEW: Payout processed (partner) ──────────────────────────────────────────
+function tplPayoutProcessed(o) {
+  return {
+    subject: `💰 Payout processed — R${o.amount} for ${o.period || 'your bookings'}`,
+    html: layout(`
+      ${badge('💰 Payout Processed', '#059669')}
+      ${h1('Your payout is on its way, ' + o.name + '!')}
+      ${p('We have processed your payout for validated experiences. The amount will appear in your bank account within 1–2 business days.')}
+      ${infoTable(
+        infoRow('Amount', o.amount ? 'R' + Number(o.amount).toLocaleString() : '—') +
+        infoRow('Period', o.period || '—') +
+        infoRow('Bookings', o.bookingCount || '—') +
+        infoRow('Transfer ref', o.transferRef || '—') +
+        infoRow('Date', new Date().toLocaleDateString('en-ZA',{day:'numeric',month:'long',year:'numeric'}))
+      )}
+      ${hr()}
+      ${btn('View Payout History', SITE_URL + '/partner#pp-payouts')}
+      ${sm('Questions? <a href="mailto:support@wowbox.co.za" style="color:' + C.goldDark + '">support@wowbox.co.za</a>')}
+    `, HEROES.partner, 'Your WowBox payout has been processed'),
+  };
+}
+
+// ── NEW: Review request (customer J+1) ────────────────────────────────────────
+function tplReviewRequest(o) {
+  return {
+    subject: `⭐ How was your experience at ${o.experienceName}?`,
+    html: layout(`
+      ${badge('⭐ Share Your Experience', C.gold)}
+      ${h1('How was it, ' + (o.guestName || o.customerName) + '?')}
+      ${p('We hope you had an amazing time at <strong>' + o.experienceName + '</strong>. Your review helps other WowBox customers discover great experiences.')}
+      ${hr()}
+      ${p('It only takes 30 seconds — share your rating and a few words about your visit.')}
+      ${btn('Leave a Review', SITE_URL + '/my-account')}
+      ${sm('Thank you for being part of the WowBox community!')}
+    `, HEROES.booking, 'Share your experience at ' + o.experienceName),
+  };
+}
+
+// ── NEW: Review notification (partner — new review received) ──────────────────
+function tplPartnerNewReview(o) {
+  const stars = '★'.repeat(o.rating||5) + '☆'.repeat(5-(o.rating||5));
+  return {
+    subject: `⭐ New review for "${o.experienceName}" — ${stars}`,
+    html: layout(`
+      ${badge('⭐ New Review', C.gold)}
+      ${h1('You have a new review!')}
+      ${p('A WowBox customer has left a review for <strong>' + o.experienceName + '</strong>.')}
+      ${infoTable(
+        infoRow('Experience', o.experienceName || '—') +
+        infoRow('Rating', stars + ' (' + (o.rating||5) + '/5)') +
+        infoRow('Reviewer', o.reviewerName || 'Anonymous') +
+        (o.reviewText ? infoRow('Review', '"' + o.reviewText + '"') : '')
+      )}
+      ${hr()}
+      ${btn('View in Partner Portal', SITE_URL + '/partner#pp-reviews')}
+      ${sm('Reviews are moderated before going live. <a href="mailto:support@wowbox.co.za" style="color:' + C.goldDark + '">Contact us</a> if you have concerns.')}
+    `, HEROES.partner, 'New review for ' + o.experienceName),
+  };
+}
+
 // ── Send via Resend ─────────────────────────────────────────────────────────
-async function sendEmail({ to, subject, html, replyTo }) {
+async function sendEmail({ to, subject, html, replyTo, cc }) {
   const body = { from: FROM, to: Array.isArray(to) ? to : [to], subject, html };
   if (replyTo) body.reply_to = replyTo;
+  if (cc) body.cc = Array.isArray(cc) ? cc : [cc];
   const res = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: { 'Authorization': `Bearer ${RESEND_API_KEY}`, 'Content-Type': 'application/json' },
@@ -702,7 +910,7 @@ export default async function handler(req, res) {
         break;
       }
       case 'partner_application': {
-        emailJobs.push({ to: ADMIN_EMAIL, ...tplPartnerApplication(o) });
+        emailJobs.push({ to: ADMIN_EMAIL, cc: ADMIN_CC, ...tplPartnerApplication(o) });
         break;
       }
       case 'contact_form': {
@@ -737,6 +945,35 @@ export default async function handler(req, res) {
       }
       case 'boost_expired': {
         if (o.partnerEmail) emailJobs.push({ to: o.partnerEmail, ...tplBoostExpired(o) });
+        break;
+      }
+      case 'admin_new_partner': {
+        emailJobs.push({ to: ADMIN_EMAIL, cc: ADMIN_CC, ...tplAdminNewPartner(o) });
+        break;
+      }
+      case 'admin_exp_submitted': {
+        emailJobs.push({ to: ADMIN_EMAIL, cc: ADMIN_CC, ...tplAdminExpSubmitted(o) });
+        break;
+      }
+      case 'admin_exp_edited': {
+        emailJobs.push({ to: ADMIN_EMAIL, cc: ADMIN_CC, ...tplAdminExpEdited(o) });
+        break;
+      }
+      case 'bkw_booking_confirmation': {
+        if (o.customerEmail) emailJobs.push({ to: o.customerEmail, ...tplBkwBookingCustomer(o) });
+        if (o.partnerEmail)  emailJobs.push({ to: o.partnerEmail,  ...tplBkwBookingPartner(o) });
+        break;
+      }
+      case 'payout_processed': {
+        if (o.partnerEmail) emailJobs.push({ to: o.partnerEmail, ...tplPayoutProcessed(o) });
+        break;
+      }
+      case 'review_request': {
+        if (o.customerEmail) emailJobs.push({ to: o.customerEmail, ...tplReviewRequest(o) });
+        break;
+      }
+      case 'partner_new_review': {
+        if (o.partnerEmail) emailJobs.push({ to: o.partnerEmail, ...tplPartnerNewReview(o) });
         break;
       }
       default:
