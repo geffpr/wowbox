@@ -5485,7 +5485,7 @@ tr:hover td{background:var(--b50)}
   </div>
   <div id="ps-blocks-below"></div>
   <!-- Mandatory partner footer -->
-  <footer style="background:#1a1a2e;padding:36px 40px;margin-top:0">
+  <footer id="ps-partner-footer" style="background:#1a1a2e;padding:36px 40px;margin-top:0">
     <div style="max-width:1100px;margin:0 auto">
       <div style="display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:16px">
         <span style="font-family:'Cormorant Garamond',serif;font-size:1.1rem;font-weight:700;color:#fff;letter-spacing:2px">WowBox</span>
@@ -5882,6 +5882,35 @@ tr:hover td{background:var(--b50)}
 </div>
 
 <!-- Page Partner (existing portal) -->
+
+<!-- Connect Your Domain Modal -->
+<div id="ps-domain-modal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.5);align-items:center;justify-content:center">
+  <div style="background:#fff;border-radius:16px;padding:32px;max-width:520px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,.3);position:relative;max-height:80vh;overflow-y:auto">
+    <button onclick="document.getElementById('ps-domain-modal').style.display='none'" style="position:absolute;top:16px;right:16px;background:none;border:none;font-size:1.2rem;cursor:pointer;color:var(--muted)">✕</button>
+    <div style="font-size:1.1rem;font-weight:700;color:var(--navy);margin-bottom:6px">🌐 Connect your own domain</div>
+    <p style="font-size:.82rem;color:var(--muted);margin-bottom:20px">Buy a domain (e.g. <strong>experiences.yourbrand.com</strong>) and redirect it to your WowBox page. Visitors who go to your domain will be taken to your WowBox page.</p>
+    <div style="margin-bottom:16px">
+      <label style="font-size:.72rem;font-weight:700;color:var(--navy);display:block;margin-bottom:6px">Your WowBox page URL</label>
+      <div style="background:#f9fafb;border:1px solid var(--border);border-radius:8px;padding:10px 14px;font-size:.82rem;color:var(--b600);font-weight:600;font-family:monospace" id="ps-domain-modal-url"></div>
+    </div>
+    <div style="margin-bottom:20px">
+      <label style="font-size:.72rem;font-weight:700;color:var(--navy);display:block;margin-bottom:8px">Select your domain provider</label>
+      <select id="ps-domain-provider" onchange="psDomainShowInstructions()" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;font-size:.85rem">
+        <option value="">— Choose your provider —</option>
+        <option value="namecheap">Namecheap</option>
+        <option value="godaddy">GoDaddy</option>
+        <option value="google">Google Domains / Squarespace Domains</option>
+        <option value="ovh">OVH</option>
+        <option value="ionos">IONOS (1&1)</option>
+        <option value="wix">Wix</option>
+        <option value="cloudflare">Cloudflare</option>
+        <option value="other">Other provider</option>
+      </select>
+    </div>
+    <div id="ps-domain-instructions" style="display:none;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:16px;font-size:.8rem;color:#166534;line-height:1.8"></div>
+    <p style="font-size:.72rem;color:var(--muted);margin-top:16px">⏱ DNS changes can take up to 48 hours to propagate worldwide.</p>
+  </div>
+</div>
 <div id="page-partner" class="page">
   <div class="pp-layout">
 
@@ -6736,6 +6765,7 @@ tr:hover td{background:var(--b50)}
                 <a id="pp-summary-view" href="#" target="_blank" class="btn bg bsm" style="font-size:.78rem;display:none"><i class="fa fa-arrow-up-right-from-square"></i> View live</a>
                 <button onclick="ppPageShareModal()" class="btn bg bsm" style="font-size:.78rem"><i class="fa fa-share-nodes"></i> Share</button>
                 <button onclick="ppPageEnterEdit()" class="btn bp bsm" style="font-size:.78rem"><i class="fa fa-pen"></i> Edit page</button>
+                <button onclick="psOpenDomainModal(_ppPageData.page_slug||'')" class="btn bo bsm" style="font-size:.78rem"><i class="fa fa-globe"></i> Connect domain</button>
               </div>
             </div>
           </div>
@@ -6984,6 +7014,12 @@ tr:hover td{background:var(--b50)}
                   <button class="btn bg bsm" onclick="ppPageDownloadQR()"><i class="fa fa-download"></i> Download QR</button>
                 </div>
               </div>
+            </div>
+            <!-- Connect your domain -->
+            <div style="margin-top:16px;padding:16px;background:#f0f9ff;border:1px solid #bae6fd;border-radius:10px">
+              <div style="font-size:.78rem;font-weight:700;color:#0369a1;margin-bottom:4px">🌐 Use your own domain</div>
+              <p style="font-size:.75rem;color:#0369a1;margin-bottom:10px;opacity:.8">Redirect <em>experiences.yourbrand.com</em> to your WowBox page — step-by-step instructions for all providers.</p>
+              <button class="btn bsm" onclick="psOpenDomainModal(_ppPageData.page_slug||'')" style="background:#0369a1;color:#fff;border:none;font-size:.75rem"><i class="fa fa-globe"></i> Connect your domain</button>
             </div>
             <div style="margin-top:12px">
               <button class="btn bg bsm" onclick="ppPageGoStep(2)">← Back to Builder</button>
@@ -17514,15 +17550,12 @@ async function loadPartnerStorefront(slug) {
     var footerTxt = p.page_footer_text || '#ffffff';
 
     // Apply footer colours
-    var footerEl = document.querySelector('#page-partner-storefront footer');
+    var footerEl = document.getElementById('ps-partner-footer');
     if (footerEl) {
       footerEl.style.background = footerBg;
-      // Override all inline colors in footer
-      footerEl.querySelectorAll('*').forEach(function(el){
-        if (el.style.color) el.style.color = footerTxt;
-      });
-      // Also set links explicitly
-      footerEl.querySelectorAll('a').forEach(function(el){ el.style.color = footerTxt; });
+      // Force color on ALL descendant elements regardless of inline styles
+      var footerEls = footerEl.querySelectorAll('*');
+      footerEls.forEach(function(el) { el.style.setProperty('color', footerTxt, 'important'); });
     }
 
     // Apply accent color to Experiences label
@@ -19231,7 +19264,40 @@ function psToggleBookingTab(btn, blockId) {
   });
   // Rebuild bar with fields for the active tab only
   var barWrap = document.getElementById('ps-bar-wrap');
-  if (barWrap) barWrap.innerHTML = psBuildBar(color, [blockId]);
+  if (barWrap) {
+    barWrap.innerHTML = psBuildBar(color, [blockId]);
+    // Reinit Flatpickr on all date fields after bar rebuild
+    setTimeout(function() {
+      var fp = window.flatpickr || (typeof flatpickr !== 'undefined' ? flatpickr : null);
+      if (!fp) return;
+      var dateFields = ['ps-f-checkin','ps-f-checkout','ps-f-dine-date','ps-f-spa-date','ps-f-act-date'];
+      dateFields.forEach(function(fid) {
+        var el = document.getElementById(fid);
+        if (!el) return;
+        if (el._flatpickr) el._flatpickr.destroy();
+        if (fid === 'ps-f-checkin') {
+          fp(el, { mode:'range', dateFormat:'d/m/Y', minDate:'today',
+            locale:{ rangeSeparator:' → ' },
+            onChange: function(dates) {
+              var co = document.getElementById('ps-f-checkout');
+              if (dates.length===2 && co) {
+                if (co._flatpickr) co._flatpickr.setDate(dates[1]);
+              }
+            },
+            onReady: function(d,s,inst){ inst.calendarContainer.style.zIndex='9999'; }
+          });
+        } else if (fid === 'ps-f-checkout') {
+          fp(el, { dateFormat:'d/m/Y', minDate:'today',
+            onReady: function(d,s,inst){ inst.calendarContainer.style.zIndex='9999'; }
+          });
+        } else {
+          fp(el, { dateFormat:'d/m/Y', minDate:'today',
+            onReady: function(d,s,inst){ inst.calendarContainer.style.zIndex='9999'; }
+          });
+        }
+      });
+    }, 80);
+  }
 }
 
 
@@ -19618,25 +19684,57 @@ async function ppBuilderInit() {
   ppBuilderUpdate();
 }
 
+function psDomainShowInstructions() {
+  var provider = document.getElementById('ps-domain-provider')?.value;
+  var box = document.getElementById('ps-domain-instructions');
+  if (!box) return;
+  var instructions = {
+    namecheap: '<strong>Namecheap → Domain List → Manage → Redirect Domain</strong><br>1. Go to <em>Domain List</em> and click <em>Manage</em> next to your domain<br>2. Click <em>Redirect Domain</em> in the left menu<br>3. Set <em>Source URL</em> to your domain and <em>Destination URL</em> to your WowBox page<br>4. Save changes',
+    godaddy: '<strong>GoDaddy → My Products → DNS → Forwarding</strong><br>1. Go to <em>My Products</em> → click <em>DNS</em> next to your domain<br>2. Scroll down to <em>Forwarding</em> and click <em>Add</em><br>3. Set type to <em>Permanent (301)</em> and paste your WowBox URL<br>4. Save',
+    google: '<strong>Google Domains → DNS → Synthetic records</strong><br>1. Go to <em>My Domains</em> → click your domain → <em>DNS</em><br>2. Under <em>Synthetic records</em>, choose <em>Subdomain forward</em><br>3. Enter your subdomain and paste your WowBox URL<br>4. Save',
+    ovh: '<strong>OVH → Domain → Redirection</strong><br>1. Log in to OVH Control Panel<br>2. Go to <em>Web Cloud → Domain names</em> → select your domain<br>3. Click <em>Redirection</em> tab → <em>Add a redirection</em><br>4. Paste your WowBox URL and confirm',
+    ionos: '<strong>IONOS → Domains → Redirects</strong><br>1. Log in to IONOS → click <em>Domains & SSL</em><br>2. Click the ⚙️ gear icon next to your domain → <em>Redirects</em><br>3. Click <em>Add redirect</em> and paste your WowBox page URL<br>4. Save',
+    wix: '<strong>Wix → Domains → Connect</strong><br>1. Go to <em>wix.com/upgrade/domains</em><br>2. Select your domain → <em>Advanced</em> → <em>Redirects</em><br>3. Add a redirect from / to your WowBox URL<br>4. Save',
+    cloudflare: '<strong>Cloudflare → Rules → Redirects</strong><br>1. Go to <em>Rules → Redirect Rules</em><br>2. Create a new rule: if hostname matches your domain<br>3. Action: Static Redirect (301) → paste your WowBox URL<br>4. Deploy',
+    other: 'In your domain provider control panel, look for <em>Forwarding</em>, <em>Redirect</em>, or <em>URL redirect</em>.<br>Set a <strong>301 permanent redirect</strong> from your domain to:<br><strong id="ps-domain-other-url"></strong>',
+  };
+  if (!provider || !instructions[provider]) { box.style.display='none'; return; }
+  var url = document.getElementById('ps-domain-modal-url')?.textContent || '';
+  box.innerHTML = instructions[provider].replace('your WowBox URL', '<strong>'+url+'</strong>').replace('your WowBox page', '<strong>'+url+'</strong>');
+  if (provider==='other') { var el=document.getElementById('ps-domain-other-url'); if(el) el.textContent=url; }
+  box.style.display = 'block';
+}
+
+function psOpenDomainModal(slug) {
+  var modal = document.getElementById('ps-domain-modal');
+  var urlEl = document.getElementById('ps-domain-modal-url');
+  if (urlEl) urlEl.textContent = 'https://wowbox.co.za/wow/' + (slug||'');
+  var sel = document.getElementById('ps-domain-provider');
+  if (sel) sel.value = '';
+  var inst = document.getElementById('ps-domain-instructions');
+  if (inst) inst.style.display = 'none';
+  if (modal) modal.style.display = 'flex';
+}
+
 function ppPreviewScrollTo(section) {
-  // Scroll the preview iframe/div to a section
-  var wrap = document.getElementById('pp-builder-preview');
-  if (!wrap) return;
+  // Scroll the OUTER scrollable container, not the inner preview div
+  var outer = document.getElementById('pp-builder-preview-outer');
+  if (!outer) return;
   var targets = {
     'header':    0,
-    'hero':      60,
-    'searchbar': 200,
-    'exps':      500,
-    'reviews':   800,
-    'gallery':   800,
-    'gift':      800,
-    'contact':   800,
-    'social':    800,
-    'text':      800,
+    'hero':      80,
+    'searchbar': 240,
+    'exps':      520,
+    'reviews':   900,
+    'gallery':   900,
+    'gift':      900,
+    'contact':   900,
+    'social':    900,
+    'text':      900,
     'footer':    99999,
   };
   var top = targets[section] || 0;
-  wrap.scrollTo({ top: top, behavior: 'smooth' });
+  outer.scrollTo({ top: top, behavior: 'smooth' });
 }
 
 function ppBuilderUpdate() {
