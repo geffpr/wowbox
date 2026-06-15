@@ -12757,6 +12757,12 @@ async function plSubmitPartner() {
         })
       });
     } catch(e3) { console.warn('notification email:', e3.message); }
+    // Also send structured admin notification
+    fetch('/api/send-email', { method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ type:'admin_new_partner', data:{
+        bizName: bizName, name: contact, email: email, phone: phone, location: city, type: type
+      }})
+    }).catch(function(){});
 
     if (sucEl) {
       sucEl.innerHTML = '<strong>Application submitted!</strong> We will review your listing within 24 hours and contact you at <strong>' + email + '</strong>.';
@@ -16357,7 +16363,15 @@ async function admRejectRequest(btn) {
     var b1 = document.getElementById('adm-req-badge'); if (b1) b1.textContent = pending || '';
     var b2 = document.getElementById('adm-req-count-badge'); if (b2) { b2.textContent = pending + ' pending review'; b2.style.display = pending ? '' : 'none'; }
 
-    admToast('Request rejected.');
+    if (req && req.partner_email) { fetch('/api/send-email', { method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ type:'experience_rejected', data:{
+        email: req.partner_email,
+        name: req.partner_name||'Partner',
+        experienceName: req.experience_name||'',
+        rejectionNote: ''
+      }})
+    }).catch(function(){}); }
+    admToast('Request rejected — partner notified.');
   } catch(e) {
     btn.disabled = false; btn.innerHTML = '<i class="fa fa-xmark-circle"></i> Reject';
     admToast('Error: ' + (e.message||'unknown'));
@@ -18217,13 +18231,14 @@ async function bkwCompleteBooking(bkwRef) {
     try {
       await fetch('/api/send-email', {
         method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({
-          type:'booking_confirmation', customerEmail:s.payerEmail, customerName:s.payerName,
-          partnerEmail:s.exp.partner_email||'', experienceName:s.exp.name,
-          bookingRef:bkwRef, bookingDate:s.formData.date||'',
-          guestName:s.formData.guest1||'', guests:s.formData.guests||1,
-          total:s.total, serviceFee:s.feeAmt
-        })
+        body: JSON.stringify({ type:'bkw_booking_confirmation', data:{
+          customerEmail: s.payerEmail, customerName: s.payerName,
+          partnerEmail:  s.exp.partner_email||'', partnerName: s.exp.partner_name||'',
+          experienceName: s.exp.name, bookingRef: bkwRef,
+          bookingDate: s.formData.date||'', bookingTime: s.formData.time||'',
+          guestName: s.formData.guest1||'', guests: s.formData.guests||1,
+          total: s.expAmt, serviceFee: s.feeAmt||0
+        }})
       });
     } catch(e){}
 
@@ -20788,10 +20803,31 @@ async function admMarkPaid(ids, btn) {
   if (!ids || !ids.length) return;
   if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i>'; }
   try {
+    // Fetch entries to get partner details for emails
+    var paidEntries = await db_client.from('commission_entries').select('id,partner_email,partner_name,partner_payout,booking_reference').in('id', ids);
     await db_client.from('commission_entries')
       .update({ payout_status: 'paid', paid_at: new Date().toISOString() })
       .in('id', ids);
-    admToast('Payouts marked as paid: ' + ids.length);
+    // Group by partner and send payout email
+    if (paidEntries.data) {
+      var byPartner = {};
+      paidEntries.data.forEach(function(e) {
+        if (!byPartner[e.partner_email]) byPartner[e.partner_email] = { name: e.partner_name, total: 0, count: 0, email: e.partner_email };
+        byPartner[e.partner_email].total += Number(e.partner_payout||0);
+        byPartner[e.partner_email].count++;
+      });
+      Object.values(byPartner).forEach(function(p) {
+        fetch('/api/send-email', { method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ type:'payout_processed', data:{
+            partnerEmail: p.email, name: p.name||'Partner',
+            amount: p.total.toFixed(2), bookingCount: p.count,
+            period: new Date().toLocaleDateString('en-ZA',{month:'long',year:'numeric'}),
+            transferRef: 'PAY-' + Date.now()
+          }})
+        }).catch(function(){});
+      });
+    }
+    admToast('Payouts marked as paid: ' + ids.length + ' — emails sent to partners');
     loadAdminCommissionPayouts();
   } catch(e) {
     admToast('Error: ' + e.message);
@@ -21072,6 +21108,16 @@ async function submitNewExp() {
   var typeEl = document.getElementById('pp-new-type'); if(typeEl) typeEl.value='';
 
   admToast('✅ Experience submitted — admin will review within 1–2 business days');
+  fetch('/api/send-email', { method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ type:'admin_exp_submitted', data:{
+      experienceName: document.getElementById('pp-new-name')?.value||'',
+      partnerName: currentUser?.partnerName||currentUser?.displayName||'',
+      partnerEmail: currentUser?.email||'',
+      category: document.getElementById('pp-new-type')?.value||'',
+      location: document.getElementById('pp-new-city')?.value||'',
+      price: document.getElementById('pp-new-price')?.value||''
+    }})
+  }).catch(function(){});
   if (form) form.innerHTML = [
     '<div style="text-align:center;padding:24px 0">',
     '<div style="font-size:2rem;margin-bottom:10px">✅</div>',
@@ -21453,6 +21499,14 @@ async function ppSubmitEdit(expId) {
     });
     if (err.error) throw err.error;
     admToast('✅ Edit submitted for review — WowBox admin will review within 1–2 days');
+    // Notify admin
+    fetch('/api/send-email', { method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ type:'admin_exp_edited', data:{
+        experienceName: document.getElementById('pp-edit-name')?.value || '',
+        partnerName: currentUser?.partnerName || currentUser?.displayName || '',
+        partnerEmail: currentUser?.email || ''
+      }})
+    }).catch(function(){});
     loadPartnerExperiences();
   } catch(e) {
     admToast('Error submitting edit: ' + (e.message||'unknown'));
