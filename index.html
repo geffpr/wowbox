@@ -18544,7 +18544,7 @@ function psBuildBar(color, activeBlocks) {
 
   var wrapStyle = isMobile
     ? 'display:flex;flex-direction:column;background:#fff;border-radius:12px;box-shadow:0 4px 24px rgba(0,0,0,.2);overflow:hidden;width:100%'
-    : 'display:flex;align-items:center;background:#fff;border-radius:12px;box-shadow:0 4px 24px rgba(0,0,0,.2);overflow:hidden;max-width:960px';
+    : 'display:flex;align-items:center;background:#fff;border-radius:12px;box-shadow:0 4px 24px rgba(0,0,0,.2);overflow:hidden;width:100%';
 
   var btnStyle = isMobile
     ? 'padding:12px;margin:8px;border-radius:8px;width:calc(100% - 16px)'
@@ -18599,7 +18599,7 @@ function psRenderBlocks(blocks, p, color, exps, partnerContact, slug, barColor, 
     bookingEl.innerHTML = '<div style="background:'+barColor+';padding:20px 40px 32px;'+_barExtra+'" id="ps-widget-inner">'
       + '<div style="max-width:1100px;margin:0 auto">'
       + tabsHtml
-      + '<div id="ps-bar-wrap" style="background:#fff;border-radius:12px;box-shadow:0 4px 16px rgba(0,0,0,.1);overflow:hidden">' + psBuildBar(color, [bookingBlocks[0].id]) + '</div>'
+      + '<div id="ps-bar-wrap">' + psBuildBar(color, [bookingBlocks[0].id]) + '</div>'
       + '</div></div>';
     bookingEl.dataset.color = barColor;
     bookingEl.dataset.textColor = barTextColor;
