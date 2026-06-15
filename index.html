@@ -18596,12 +18596,11 @@ function psRenderBlocks(blocks, p, color, exps, partnerContact, slug, barColor, 
       + '</div>';
 
     var _barExtra = barColor==='transparent' ? 'box-shadow:0 4px 16px rgba(0,0,0,.12);border-bottom:1px solid rgba(0,0,0,.08);backdrop-filter:blur(8px);' : (psContrastColor(barColor)==='#1a1a2e' ? 'box-shadow:0 2px 12px rgba(0,0,0,.1);border-bottom:1px solid #e5e7eb;' : '');
-    var _tabsBg = barColor==='transparent' ? 'transparent' : barColor;
-    bookingEl.innerHTML = '<div style="background:'+_tabsBg+';padding:16px 40px 0" id="ps-widget-inner">'
+    bookingEl.innerHTML = '<div style="background:'+barColor+';padding:20px 40px 32px;'+_barExtra+'" id="ps-widget-inner">'
       + '<div style="max-width:1100px;margin:0 auto">'
       + tabsHtml
-      + '</div></div>'
-      + '<div style="background:rgba(0,0,0,.15);padding:0 40px 24px"><div style="max-width:1100px;margin:0 auto"><div id="ps-bar-wrap" style="background:#fff;border-radius:12px;box-shadow:0 4px 20px rgba(0,0,0,.12);overflow:hidden">' + psBuildBar(color, [bookingBlocks[0].id]) + '</div></div></div>';
+      + '<div id="ps-bar-wrap" style="background:#fff;border-radius:12px;box-shadow:0 4px 16px rgba(0,0,0,.1);overflow:hidden">' + psBuildBar(color, [bookingBlocks[0].id]) + '</div>'
+      + '</div></div>';
     bookingEl.dataset.color = barColor;
     bookingEl.dataset.textColor = barTextColor;
 
