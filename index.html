@@ -13472,6 +13472,7 @@ async function completeOrderConfirm(pfRef, total, discount, delivFee) {
     }
   })();
 
+  go('checkout');
   nextStep(4);
   appState.cart = []; activeCoupon = null; appState.termsAcceptedAt = null; updateCartBadge(); saveCartToStorage();
   var tc = document.getElementById('ck-terms-check'); if (tc) tc.checked = false;
