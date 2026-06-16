@@ -12717,7 +12717,7 @@ function showCartReplaceModal(newBoxId, newType, existingItem) {
     + '<h3 style="font-size:1rem;color:var(--navy);margin-bottom:8px">Replace your E-Box?</h3>'
     + '<p style="font-size:.85rem;color:var(--muted);margin-bottom:20px">You already have <strong>' + existingItem.name + '</strong> in your cart. Each order is for one E-Box gift. Replace it with <strong>' + (b ? b.name : newBoxId) + '</strong>?</p>'
     + '<div style="display:flex;gap:10px">'
-    +   '<button onclick="cartReplaceConfirm(\''+newBoxId+'\',\''+newType+'\')" style="flex:1;background:var(--b600);color:#fff;border:none;border-radius:8px;padding:12px;font-size:.9rem;font-weight:600;cursor:pointer">Replace</button>'
+    +   '<button class="wb-replace-btn" data-boxid="'+newBoxId+'" data-type="'+newType+'" onclick="cartReplaceFromBtn(this)" style="flex:1;background:var(--b600);color:#fff;border:none;border-radius:8px;padding:12px;font-size:.9rem;font-weight:600;cursor:pointer">Replace</button>'
     +   '<button onclick="cartCloseReplaceModal()" style="flex:1;background:var(--bg2);color:var(--navy);border:none;border-radius:8px;padding:12px;font-size:.9rem;cursor:pointer">View cart</button>'
     + '</div>'
     + '<p style="font-size:.75rem;color:var(--muted);margin-top:12px;text-align:center">To send multiple gifts, place separate orders.</p>'
@@ -12730,6 +12730,12 @@ function cartCloseReplaceModal() {
   var m = document.getElementById('wb-cart-replace-modal');
   if (m) m.remove();
   go('cart');
+}
+
+function cartReplaceFromBtn(btn) {
+  var boxId = btn.getAttribute('data-boxid');
+  var type  = btn.getAttribute('data-type');
+  cartReplaceConfirm(boxId, type);
 }
 
 function cartReplaceConfirm(newBoxId, newType) {
