@@ -20940,7 +20940,7 @@ async function ppCheckOnboarding() {
 
   try {
     var [profRes, expRes] = await Promise.all([
-      db_client.from('user_profiles').select('full_name,partner_name,phone').eq('id', currentUser.id).maybeSingle(),
+      db_client.from('user_profiles').select('full_name,partner_name,phone,paystack_account_id').eq('id', currentUser.id).maybeSingle(),
       db_client.from('experiences').select('id').eq('partner_email', email).eq('is_active', true).limit(1)
     ]);
 
@@ -20953,7 +20953,7 @@ async function ppCheckOnboarding() {
     var hasCal   = !!(calRes.data && calRes.data.length);
 
     // Step 3 (payout): check user_profiles bank info
-    var hasPayout = !!(prof.bank_account_number || prof.payfast_connected);
+    var hasPayout = !!(prof.bank_account_number || prof.payfast_connected || prof.paystack_account_id);
 
     var steps = [
       { id: 'pp-ob-step-profile',  done: hasProf },
