@@ -11170,7 +11170,7 @@ async function ppSyncIcal() {
   var url  = (document.getElementById('pp-ical-url')||{value:''}).value.trim();
   var expId= (document.getElementById('cal-exp-select')||{value:''}).value;
   var stat = document.getElementById('pp-ical-status');
-  if (!url) { showToast('Please enter an iCal URL','warning'); return; }
+  if (!url) { admToast('Please enter an iCal URL'); return; }
   if (stat) stat.textContent = '⏳ Syncing…';
   try {
     var res = await fetch('/api/ical-sync', {
@@ -11181,10 +11181,10 @@ async function ppSyncIcal() {
     var data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Sync failed');
     if (stat) stat.textContent = '✅ Synced — ' + (data.count||0) + ' dates imported · ' + new Date().toLocaleTimeString();
-    showToast('✅ Calendar synced — ' + (data.count||0) + ' dates blocked','success');
+    admToast('✅ Calendar synced — ' + (data.count||0) + ' dates blocked');
   } catch(e) {
     if (stat) stat.textContent = '❌ Sync failed: ' + e.message;
-    showToast('Sync failed: ' + e.message,'error');
+    admToast('Sync failed: ' + e.message);
   }
 }
 
