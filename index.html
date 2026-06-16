@@ -557,7 +557,8 @@ var APP_URL = (window.location.hostname === 'localhost' || window.location.hostn
 // ─── PAYFAST TEST MODE ────────────────────────────────────────
 // Set to true to show a mock payment modal instead of real Payfast
 // Switch to false when prod account is approved
-var PAYFAST_TEST_MODE = true;
+var PAYFAST_TEST_MODE = false;
+var PAYSTACK_PUBLIC_KEY = 'pk_test_af150d9b155e6462903561ae77752440ae7a4548';
 
 function showPayfastTestModal(pfRef, total, discount, delivFee, onAccept) {
   var existing = document.getElementById('pf-test-modal');
@@ -1390,7 +1391,7 @@ db_client.auth.onAuthStateChange(function(event, session) {
 </script>
 
 <!-- Payfast Onsite Payments -->
-<script src="https://sandbox.payfast.co.za/onsite/engine.js"></script>
+<script src="https://js.paystack.co/v1/inline.js"></script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <meta name="description" content="WowBox — Curated gift experience boxes for couples, adventurers and dreamers across South Africa. Give the gift of unforgettable moments.">
@@ -1946,25 +1947,21 @@ async function ppConfirmPool(price) {
     } catch(e) { admToast('Payment received but activation failed. Ref: ' + ref); }
   }
 
-  // ── TEST MODE ──
-  if (PAYFAST_TEST_MODE) {
-    showPayfastTestModal(ref, price, 0, 0, activateBoost);
-    return;
-  }
-
+  // ── Paystack Inline ──
   admToast('<i class="fa fa-spinner fa-spin"></i> Opening payment…');
   try {
-    var pfRes = await fetch('/api/payfast-initiate', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ amount: price, email: email, name_first: expName.split(' ')[0] || expName, name_last: expName.split(' ').slice(1).join(' ') || '', item_name: 'WowBox Featured Pool — ' + expName, m_payment_id: ref })
+    var handler = PaystackPop.setup({
+      key: PAYSTACK_PUBLIC_KEY,
+      email: email,
+      amount: Math.round(price * 100),
+      currency: 'ZAR',
+      ref: ref,
+      metadata: { item_name: 'WowBox Featured Pool — ' + expName },
+      onSuccess: function(transaction) { activateBoost(); },
+      onClose: function() { admToast('Payment cancelled.'); }
     });
-    var pfData = await pfRes.json();
-    if (!pfData.uuid) throw new Error(pfData.error || 'Payment initiation failed');
-    window.payfast_do_onsite_payment(pfData.uuid, async function(result) {
-      if (result === true) activateBoost();
-    }, function() { admToast('Payment cancelled.'); });
-  } catch(e) { admToast('Could not open payment. Please try again.'); console.error('Payfast error:', e); }
+    handler.openIframe();
+  } catch(e) { admToast('Could not open payment. Please try again.'); console.error('Paystack error:', e); }
 }
 
 
@@ -2008,22 +2005,19 @@ async function ppRenewBoost(btn, price) {
     } catch(e) { admToast('Renewal failed: ' + e.message); }
   };
 
-  if (typeof PAYFAST_TEST_MODE !== 'undefined' && PAYFAST_TEST_MODE) {
-    showPayfastTestModal(ref, price, 0, 0, onAccept);
-  } else {
-    try {
-      var pfRes = await fetch('/api/payfast-initiate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ amount: price, email: email, name_first: expName.split(' ')[0] || expName, item_name: 'WowBox Featured Pool Renewal — ' + expName, m_payment_id: ref })
-      });
-      var pfData = await pfRes.json();
-      if (!pfData.uuid) throw new Error(pfData.error || 'Payment initiation failed');
-      window.payfast_do_onsite_payment(pfData.uuid, function(result) {
-        if (result === true) onAccept();
-      }, function() { admToast('Payment cancelled.'); });
-    } catch(e) { admToast('Could not open payment. Please try again.'); }
-  }
+  try {
+    var handler = PaystackPop.setup({
+      key: PAYSTACK_PUBLIC_KEY,
+      email: email,
+      amount: Math.round(price * 100),
+      currency: 'ZAR',
+      ref: ref,
+      metadata: { item_name: 'WowBox Featured Pool Renewal — ' + expName },
+      onSuccess: function(transaction) { onAccept(); },
+      onClose: function() { admToast('Payment cancelled.'); }
+    });
+    handler.openIframe();
+  } catch(e) { admToast('Could not open payment. Please try again.'); }
 }
 
 
@@ -4182,7 +4176,7 @@ tr:hover td{background:var(--b50)}
     <div class="faq-cat"><h3 class="faq-cat-title">🛒 Purchase &amp; Boxes</h3>
       <div class="faq-item"><button class="faq-q" onclick="wbFaqToggle(this)">How do I buy a gift box? <i class="fa fa-chevron-down"></i></button><div class="faq-a">Browse our collection, choose a box, add to cart and complete checkout. Your digital gift box is delivered immediately by email.</div></div>
       <div class="faq-item"><button class="faq-q" onclick="wbFaqToggle(this)">Can I schedule delivery for a specific date? <i class="fa fa-chevron-down"></i></button><div class="faq-a">Yes! During checkout you can send immediately or schedule for a specific date — perfect for birthdays and anniversaries.</div></div>
-      <div class="faq-item"><button class="faq-q" onclick="wbFaqToggle(this)">What payment methods do you accept? <i class="fa fa-chevron-down"></i></button><div class="faq-a">All major credit and debit cards (Visa, Mastercard, Amex) via Payfast. All transactions are secure and encrypted.</div></div>
+      <div class="faq-item"><button class="faq-q" onclick="wbFaqToggle(this)">What payment methods do you accept? <i class="fa fa-chevron-down"></i></button><div class="faq-a">All major credit and debit cards (Visa, Mastercard, Amex) via Paystack. All transactions are secure and encrypted.</div></div>
       <div class="faq-item"><button class="faq-q" onclick="wbFaqToggle(this)">Can I add a personal message? <i class="fa fa-chevron-down"></i></button><div class="faq-a">Yes! During checkout add a personalised text message, or add a video message as an optional extra for an even more special touch.</div></div>
     </div>
     <div class="faq-cat"><h3 class="faq-cat-title">📦 E-Box Delivery</h3>
@@ -5019,7 +5013,7 @@ tr:hover td{background:var(--b50)}
         <!-- Secure payment note -->
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;padding:10px 14px;background:var(--b50);border-radius:var(--rs);border:1px solid var(--b200)">
           <i class="fa fa-shield-halved" style="color:var(--b500);font-size:1.1rem"></i>
-          <span style="font-size:.75rem;color:var(--slate)">Your payment is processed securely by <strong>Payfast</strong>. WowBox never stores your card details.</span>
+          <span style="font-size:.75rem;color:var(--slate)">Your payment is processed securely by <strong>Paystack</strong>. WowBox never stores your card details.</span>
         </div>
 
         <div style="display:flex;gap:12px">
@@ -7220,11 +7214,11 @@ tr:hover td{background:var(--b50)}
         <!-- Payments & Payouts -->
         <div class="pp-card">
           <h3 style="font-size:1rem;color:var(--navy);margin-bottom:6px"><i class="fa fa-money-bill-transfer" style="color:var(--b500)"></i> Payments &amp; Payouts</h3>
-          <p style="font-size:.8rem;color:var(--muted);margin-bottom:18px">Payouts are processed via Payfast within 2 business days of experience validation.</p>
+          <p style="font-size:.8rem;color:var(--muted);margin-bottom:18px">Payouts are processed via Paystack within 2 business days of experience validation.</p>
           <div style="display:flex;align-items:center;gap:12px;padding:14px;background:var(--bg);border-radius:var(--rs);border:1px solid var(--border)">
             <div style="width:36px;height:36px;background:#f0fdf4;border-radius:50%;display:flex;align-items:center;justify-content:center"><i class="fa fa-circle-check" style="color:#16a34a"></i></div>
             <div style="flex:1">
-              <div style="font-size:.85rem;font-weight:600;color:var(--navy)">Payfast payouts enabled</div>
+              <div style="font-size:.85rem;font-weight:600;color:var(--navy)">Paystack payouts enabled</div>
               <div style="font-size:.73rem;color:var(--muted)">To update your payout bank details, contact <a href="mailto:support@wowbox.co.za" style="color:var(--b600)">support@wowbox.co.za</a></div>
             </div>
           </div>
@@ -13179,38 +13173,22 @@ async function completeOrder() {
   // Open Payfast Onsite popup
   const pfRef = 'WB-' + Date.now();
 
-  // ── TEST MODE: show mock modal instead of real Payfast ──
-  if (PAYFAST_TEST_MODE) {
-    showPayfastTestModal(pfRef, total, discount, delivFee);
-    return;
-  }
-  // ────────────────────────────────────────────────────────
+  // ── Paystack Inline ──
   try {
-    const pfRes = await fetch('/api/payfast-initiate', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        amount:           total,
-        email:            senderEmail,
-        name_first:       senderName.split(' ')[0] || senderName,
-        name_last:        senderName.split(' ').slice(1).join(' ') || '',
-        item_name:        'WowBox — ' + boxNames,
-        item_description: delivDesc,
-        m_payment_id:     pfRef
-      })
+    var handler = PaystackPop.setup({
+      key: PAYSTACK_PUBLIC_KEY,
+      email: senderEmail,
+      amount: Math.round(total * 100),
+      currency: 'ZAR',
+      ref: pfRef,
+      metadata: { item_name: 'WowBox — ' + boxNames, item_description: delivDesc },
+      onSuccess: function(transaction) { completeOrderConfirm(pfRef, total, discount, delivFee); },
+      onClose: function() { admToast('Payment cancelled. Your cart is still saved.'); }
     });
-    const pfData = await pfRes.json();
-    if (!pfData.uuid) throw new Error(pfData.error || 'Payment initiation failed');
-    window.payfast_do_onsite_payment(pfData.uuid, function(result) {
-      if (result === true) {
-        completeOrderConfirm(pfRef, total, discount, delivFee);
-      }
-    }, function() {
-      admToast('Payment cancelled. Your cart is still saved.');
-    });
+    handler.openIframe();
   } catch(e) {
     admToast('Could not open payment. Please try again.');
-    console.error('Payfast error:', e);
+    console.error('Paystack error:', e);
   }
 }
 
@@ -18353,41 +18331,25 @@ async function bkwSubmitPayment() {
   if(btn){ btn.disabled=true; btn.innerHTML='<i class="fa fa-spinner fa-spin"></i> Processing…'; }
   if(statusEl) statusEl.textContent = 'Opening payment…';
 
-  if (PAYFAST_TEST_MODE) {
-    await bkwCompleteBooking(bkwRef);
-    if(btn){ btn.disabled=false; btn.innerHTML='<i class="fa fa-lock" style="margin-right:8px"></i>Pay securely — R'+(s.total||0).toLocaleString(); }
-    if(statusEl) statusEl.textContent='';
-    return;
-  }
-
   try {
-    var pfRes = await fetch('/api/payfast-initiate', {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({
-        amount: s.total, email: email,
-        name_first: name.split(' ')[0]||name, name_last: name.split(' ').slice(1).join(' ')||'',
-        item_name: 'WowBox — '+s.exp.name,
-        item_description: (s.formData.guests||1)+' guest(s) · '+(s.formData.date||''),
-        m_payment_id: bkwRef
-      })
-    });
-    var pfData = await pfRes.json();
-    if (!pfData.uuid) throw new Error(pfData.error||'Payment failed');
-    window.payfast_do_onsite_payment(pfData.uuid, async function(result){
-      if (result === true) {
-        await bkwCompleteBooking(bkwRef);
-      } else {
+    var handler = PaystackPop.setup({
+      key: PAYSTACK_PUBLIC_KEY,
+      email: email,
+      amount: Math.round((s.total||0) * 100),
+      currency: 'ZAR',
+      ref: bkwRef,
+      metadata: { item_name: 'WowBox — '+s.exp.name, guests: s.formData.guests||1, date: s.formData.date||'' },
+      onSuccess: async function(transaction) { await bkwCompleteBooking(bkwRef); },
+      onClose: function() {
         if(btn){ btn.disabled=false; btn.innerHTML='<i class="fa fa-lock" style="margin-right:8px"></i>Pay securely — R'+(s.total||0).toLocaleString(); }
         if(statusEl) statusEl.textContent='';
       }
-    }, function(){
-      if(btn){ btn.disabled=false; btn.innerHTML='<i class="fa fa-lock" style="margin-right:8px"></i>Pay securely — R'+(s.total||0).toLocaleString(); }
-      if(statusEl) statusEl.textContent='';
     });
+    handler.openIframe();
   } catch(err) {
     if(statusEl) statusEl.textContent='Payment error. Please try again.';
     if(btn){ btn.disabled=false; btn.innerHTML='<i class="fa fa-lock" style="margin-right:8px"></i>Pay securely — R'+(s.total||0).toLocaleString(); }
-    console.error('BKW payment error:', err);
+    console.error('Paystack BKW error:', err);
   }
 }
 
@@ -21892,48 +21854,37 @@ async function processProSubscription() {
 
   const proRef = 'PRO-' + Date.now();
   try {
-    const pfRes = await fetch('/api/payfast-initiate', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        amount:       APP_PRICES.partner_pro,
-        email:        email,
-        name_first:   name.split(' ')[0] || name,
-        name_last:    name.split(' ').slice(1).join(' ') || '',
-        item_name:    'WowBox Pro Plan — Monthly Subscription',
-        m_payment_id: proRef
-      })
-    });
-    const pfData = await pfRes.json();
-    if (!pfData.uuid) throw new Error(pfData.error || 'Payment initiation failed');
-    window.payfast_do_onsite_payment(pfData.uuid, function(result) {
-      if (result === true) {
+    var handler = PaystackPop.setup({
+      key: PAYSTACK_PUBLIC_KEY,
+      email: email,
+      amount: Math.round(APP_PRICES.partner_pro * 100),
+      currency: 'ZAR',
+      ref: proRef,
+      metadata: { item_name: 'WowBox Pro Plan — Monthly Subscription' },
+      onSuccess: function(transaction) {
         const now = new Date();
         const end = new Date(now);
         end.setMonth(end.getMonth() + 1);
-        partnerSubscription.status             = 'active';
-        partnerSubscription.plan               = 'pro';
-        partnerSubscription.period_start       = now.toISOString().slice(0,10);
-        partnerSubscription.period_end         = end.toISOString().slice(0,10);
+        partnerSubscription.status               = 'active';
+        partnerSubscription.plan                 = 'pro';
+        partnerSubscription.period_start         = now.toISOString().slice(0,10);
+        partnerSubscription.period_end           = end.toISOString().slice(0,10);
         partnerSubscription.cancel_at_period_end = false;
-        partnerSubscription.payfast_reference  = proRef;
-
+        partnerSubscription.payfast_reference    = proRef;
         hideProPaymentForm();
         renderSubscriptionUI();
         updatePartnerSidebar();
         updatePlanLockedUI();
         renderPlanPage();
         admToast('Pro activated! Payment ref: ' + proRef);
-        setTimeout(() => {
-          switchPP(document.querySelector('[onclick*=pp-plan]'), 'pp-plan');
-        }, 400);
-      }
-    }, function() {
-      admToast('Payment cancelled.');
+        setTimeout(() => { switchPP(document.querySelector('[onclick*=pp-plan]'), 'pp-plan'); }, 400);
+      },
+      onClose: function() { admToast('Payment cancelled.'); }
     });
+    handler.openIframe();
   } catch(e) {
     admToast('Could not open payment. Please try again.');
-    console.error('Payfast error:', e);
+    console.error('Paystack error:', e);
   }
 }
 
@@ -23809,7 +23760,7 @@ async function admRunSchemaDiag() {
       <div><h3 style="color:var(--navy);font-size:1rem;margin-bottom:6px">2. Booking Cancellation</h3><p>You may cancel a confirmed booking up to <strong>24 hours before</strong> the scheduled experience. Cancellations made within 24 hours of the experience are non-refundable. When you cancel a booking, your voucher is automatically reactivated and you can rebook a different experience or date.</p></div>
       <div><h3 style="color:var(--navy);font-size:1rem;margin-bottom:6px">3. Refund Eligibility</h3><p>Refunds may be considered in the following circumstances: the experience is cancelled by the Participating Partner with no suitable alternative; the experience delivered was materially different from its description; a technical error on our platform resulted in a duplicate charge. Refunds are not available for: change of mind after purchase; failure to cancel within the permitted window; vouchers that have been fully redeemed; expired vouchers.</p></div>
       <div><h3 style="color:var(--navy);font-size:1rem;margin-bottom:6px">4. Refusal of Admission</h3><p>No refund will be issued if a Participating Partner refuses admission for any lawful reason including but not limited to: age restrictions; intoxication; inappropriate behaviour; failure to present valid identification; medical or safety concerns. This is a condition of purchase agreed to at checkout.</p></div>
-      <div><h3 style="color:var(--navy);font-size:1rem;margin-bottom:6px">5. How to Request a Refund</h3><p>To request a refund, contact us at <a href="mailto:support@wowbox.co.za" style="color:var(--b600)">support@wowbox.co.za</a> with your order number and a description of the issue. We aim to respond within 2 business days. Approved refunds are processed within 5–10 business days and credited to your original payment method via Payfast.</p></div>
+      <div><h3 style="color:var(--navy);font-size:1rem;margin-bottom:6px">5. How to Request a Refund</h3><p>To request a refund, contact us at <a href="mailto:support@wowbox.co.za" style="color:var(--b600)">support@wowbox.co.za</a> with your order number and a description of the issue. We aim to respond within 2 business days. Approved refunds are processed within 5–10 business days and credited to your original payment method via Paystack.</p></div>
       <div><h3 style="color:var(--navy);font-size:1rem;margin-bottom:6px">6. Partial Refunds</h3><p>Where an order contains multiple boxes, refunds may be issued for individual boxes. The remaining boxes in the order are unaffected.</p></div>
       <div><h3 style="color:var(--navy);font-size:1rem;margin-bottom:6px">7. Consumer Protection Act</h3><p>Nothing in this policy limits your rights under the Consumer Protection Act 68 of 2008 or any other applicable South African legislation.</p></div>
     </div>
