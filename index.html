@@ -21386,6 +21386,20 @@ async function loadAdminCommissionPayouts() {
       if (!groups[key]) groups[key] = { name: r.partner_name, email: r.partner_email, rows: [] };
       groups[key].rows.push(r);
     });
+    // Fetch Paystack status for each partner
+    var partnerEmails = Object.keys(groups);
+    if (partnerEmails.length) {
+      try {
+        var profRes = await db_client.from('user_profiles')
+          .select('email,paystack_recipient_code,paystack_account_id')
+          .in('email', partnerEmails);
+        (profRes.data || []).forEach(function(p) {
+          if (groups[p.email]) {
+            groups[p.email].hasPaystack = !!(p.paystack_recipient_code || p.paystack_account_id);
+          }
+        });
+      } catch(e) { console.warn('paystack profile fetch:', e.message); }
+    }
     if (!Object.keys(groups).length) {
       if (tbody) tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:28px;color:var(--muted)">No commission entries found.</td></tr>';
       if (summary) summary.innerHTML = '';
@@ -21406,7 +21420,9 @@ async function loadAdminCommissionPayouts() {
       const statusHtml  = allPaid ? '<span class="sbadge sb-a">Paid</span>' : anyPending ? '<span class="sbadge sb-p">Pending</span>' : '<span class="sbadge sb-w">On hold</span>';
       const pendingIds  = g.rows.filter(function(r){return r.payout_status==='pending';}).map(function(r){return r.id;});
       const actionBtn   = pendingIds.length
-        ? '<button class="btn bg bsm adm-mark-paid-btn" data-ids="'+encodeURIComponent(JSON.stringify(pendingIds))+'" onclick="admMarkPaidFromBtn(this)" style="font-size:.72rem"><i class="fa fa-check"></i> Mark paid</button>'
+        ? (g.hasPaystack
+            ? '<button class="btn bg bsm adm-mark-paid-btn" data-ids="'+encodeURIComponent(JSON.stringify(pendingIds))+'" onclick="admMarkPaidFromBtn(this)" style="font-size:.72rem"><i class="fa fa-check"></i> Mark paid</button>'
+            : '<span title="Partner has no Paystack account connected" style="font-size:.72rem;color:#ef4444;cursor:help"><i class="fa fa-triangle-exclamation"></i> No Paystack account</span>')
         : '<span style="color:var(--muted);font-size:.75rem">-</span>';
       totalGross    += gross;
       totalPlatform += platformAmt;
