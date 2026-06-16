@@ -3624,8 +3624,8 @@ tr:hover td{background:var(--b50)}
   .browse-sidebar { display: none; }
   .browse-filter-drawer-body .browse-sidebar { display: block !important; height: auto; position: static; overflow-y: visible; border: none; padding: 0; }
   .browse-filter-btn { display: flex !important; }
-  .browse-filter-drawer { display: flex; flex-direction: column; position: fixed; bottom: 0; left: 0; right: 0; max-height: 80vh; background: #fff; border-radius: 20px 20px 0 0; z-index: 8000; transform: translateY(100%); transition: transform .3s ease; overflow: hidden; box-shadow: 0 -4px 32px rgba(0,0,0,.18); }
-  .browse-filter-drawer.open { transform: translateY(0); }
+  .browse-filter-drawer { display: none; flex-direction: column; position: fixed; bottom: 0; left: 0; right: 0; max-height: 80vh; background: #fff; border-radius: 20px 20px 0 0; z-index: 8000; transform: translateY(100%); transition: transform .3s ease; overflow: hidden; box-shadow: 0 -4px 32px rgba(0,0,0,.18); }
+  .browse-filter-drawer.open { display: flex; transform: translateY(0); }
   .browse-filter-overlay { display: none; position: fixed; inset: 0; background: rgba(5,15,40,.5); z-index: 7999; }
   .browse-filter-overlay.open { display: block; }
   .browse-filter-drawer-body { overflow-y: auto; padding: 20px; flex: 1; }
@@ -4665,18 +4665,6 @@ tr:hover td{background:var(--b50)}
   </div>
 </div>
 
-<!-- Browse filter drawer (mobile) -->
-<div class="browse-filter-overlay" id="browse-filter-overlay" onclick="browseCloseFilters()"></div>
-<div class="browse-filter-drawer" id="browse-filter-drawer">
-  <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px 0;flex-shrink:0">
-    <strong style="font-size:1rem;color:var(--navy)"><i class="fa fa-sliders" style="color:var(--b500);margin-right:6px"></i>Filters</strong>
-    <div style="display:flex;gap:8px">
-      <button class="btn bg bsm" onclick="browseClearFilters()"><i class="fa fa-xmark"></i> Clear all</button>
-      <button class="btn bp bsm" onclick="browseCloseFilters()">Done</button>
-    </div>
-  </div>
-  <div class="browse-filter-drawer-body" id="browse-filter-drawer-body"></div>
-</div>
 
 <!-- ═══════════════════════ PAGE: BKW EXP DETAIL ═══════════════════════ -->
 <div id="page-bkw-exp" class="page" style="display:none">
@@ -9724,7 +9712,27 @@ function getBrowseFiltered() {
 }
 
 function browseOpenFilters() {
-  // Move sidebar into drawer (don't clone — keep live elements)
+  // Create drawer dynamically if not exists
+  if (!document.getElementById('browse-filter-drawer')) {
+    var ov = document.createElement('div');
+    ov.id = 'browse-filter-overlay';
+    ov.className = 'browse-filter-overlay';
+    ov.onclick = browseCloseFilters;
+    document.body.appendChild(ov);
+
+    var dr = document.createElement('div');
+    dr.id = 'browse-filter-drawer';
+    dr.className = 'browse-filter-drawer';
+    dr.innerHTML = '<div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px 0;flex-shrink:0">'
+      + '<strong style="font-size:1rem;color:var(--navy)"><i class="fa fa-sliders" style="color:var(--b500);margin-right:6px"></i>Filters</strong>'
+      + '<div style="display:flex;gap:8px">'
+      + '<button class="btn bg bsm" onclick="browseClearFilters()"><i class="fa fa-xmark"></i> Clear all</button>'
+      + '<button class="btn bp bsm" onclick="browseCloseFilters()">Done</button>'
+      + '</div></div>'
+      + '<div class="browse-filter-drawer-body" id="browse-filter-drawer-body"></div>';
+    document.body.appendChild(dr);
+  }
+  // Move sidebar into drawer
   var sidebar = document.querySelector('.browse-sidebar');
   var body = document.getElementById('browse-filter-drawer-body');
   if (sidebar && body && !body.contains(sidebar)) body.appendChild(sidebar);
@@ -9738,8 +9746,10 @@ function browseCloseFilters() {
   var sidebar = document.querySelector('.browse-sidebar');
   var layout = document.querySelector('.browse-layout');
   if (sidebar && layout) layout.insertBefore(sidebar, layout.firstChild);
-  document.getElementById('browse-filter-drawer').classList.remove('open');
-  document.getElementById('browse-filter-overlay').classList.remove('open');
+  var dr = document.getElementById('browse-filter-drawer');
+  var ov = document.getElementById('browse-filter-overlay');
+  if (dr) dr.classList.remove('open');
+  if (ov) ov.classList.remove('open');
   document.body.style.overflow = '';
   renderBrowse();
 }
