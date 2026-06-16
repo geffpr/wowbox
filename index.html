@@ -12265,6 +12265,85 @@ async function ppLoadReporting() {
   }
 }
 
+async function ppConnectPaystack() {
+  // Remove existing modal if any
+  var existing = document.getElementById('pp-paystack-modal');
+  if (existing) existing.remove();
+
+  // Create modal
+  var modal = document.createElement('div');
+  modal.id = 'pp-paystack-modal';
+  modal.style.cssText = 'position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(5,15,40,.6);backdrop-filter:blur(4px)';
+  modal.innerHTML = '<div style="background:#fff;border-radius:16px;padding:28px;max-width:420px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.25)">'
+    + '<h3 style="font-size:1.1rem;color:var(--navy);margin-bottom:6px"><i class="fa fa-building-columns" style="color:var(--b500);margin-right:8px"></i>Connect bank account</h3>'
+    + '<p style="font-size:.78rem;color:var(--muted);margin-bottom:20px">Your payout will be sent to this account after each validated experience.</p>'
+    + '<div class="fg" style="margin-bottom:14px"><label>Business name *</label><input class="fi" id="pps-biz" placeholder="Your business or trading name"></div>'
+    + '<div class="fg" style="margin-bottom:14px"><label>Bank *</label><select class="fi" id="pps-bank"><option value="">Loading banks…</option></select></div>'
+    + '<div class="fg" style="margin-bottom:14px"><label>Account number *</label><input class="fi" id="pps-acc" placeholder="e.g. 1234567890" maxlength="20"></div>'
+    + '<div id="pps-status" style="font-size:.78rem;margin-bottom:14px;min-height:18px"></div>'
+    + '<div style="display:flex;gap:10px">'
+    + '<button class="btn bp" style="flex:1" onclick="ppSubmitPaystack()"><i class="fa fa-link"></i> Connect</button>'
+    + '<button class="btn bg" style="flex:1" onclick="calCloseModal(\'pp-paystack-modal\')">Cancel</button>'
+    + '</div></div>';
+  document.body.appendChild(modal);
+  modal.addEventListener('click', function(e){ if(e.target===modal) modal.remove(); });
+
+  // Load banks
+  try {
+    var r = await fetch('/api/paystack-connect');
+    var d = await r.json();
+    var sel = document.getElementById('pps-bank');
+    if (d.data && d.data.length) {
+      sel.innerHTML = '<option value="">Select your bank…</option>'
+        + d.data.map(function(b){ return '<option value="'+b.code+'">'+b.name+'</option>'; }).join('');
+    } else {
+      sel.innerHTML = '<option value="">Could not load banks</option>';
+    }
+  } catch(e) {
+    var sel = document.getElementById('pps-bank');
+    if (sel) sel.innerHTML = '<option value="">Could not load banks</option>';
+  }
+}
+
+async function ppSubmitPaystack() {
+  var bizEl  = document.getElementById('pps-biz');
+  var bankEl = document.getElementById('pps-bank');
+  var accEl  = document.getElementById('pps-acc');
+  var statEl = document.getElementById('pps-status');
+
+  var biz  = bizEl  ? bizEl.value.trim()  : '';
+  var bank = bankEl ? bankEl.value        : '';
+  var acc  = accEl  ? accEl.value.trim()  : '';
+
+  if (!biz)  { if(statEl) statEl.innerHTML = '<span style="color:#ef4444">Please enter your business name.</span>'; return; }
+  if (!bank) { if(statEl) statEl.innerHTML = '<span style="color:#ef4444">Please select your bank.</span>'; return; }
+  if (!acc || acc.length < 6) { if(statEl) statEl.innerHTML = '<span style="color:#ef4444">Please enter a valid account number.</span>'; return; }
+
+  if (statEl) statEl.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Connecting…';
+
+  try {
+    var userId = currentUser && currentUser.id;
+    if (!userId) throw new Error('Not logged in');
+
+    var r = await fetch('/api/paystack-connect', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ business_name: biz, settlement_bank: bank, account_number: acc, user_id: userId })
+    });
+    var d = await r.json();
+    if (!r.ok || !d.success) throw new Error(d.error || 'Connection failed');
+
+    if (statEl) statEl.innerHTML = '<span style="color:var(--green)"><i class="fa fa-check-circle"></i> Connected successfully!</span>';
+    setTimeout(function() {
+      var modal = document.getElementById('pp-paystack-modal');
+      if (modal) modal.remove();
+      ppLoadSettings();
+    }, 1500);
+  } catch(e) {
+    if (statEl) statEl.innerHTML = '<span style="color:#ef4444"><i class="fa fa-xmark"></i> ' + e.message + '</span>';
+  }
+}
+
 async function ppLoadSettings() {
   if (!currentUser) return;
   // Fill email (readonly)
