@@ -12304,10 +12304,74 @@ function addToCart(boxId, type) {
   const b = boxDB[boxId];
   if (!b) return;
   const id = boxId + '-' + type;
+
+  // ── Cart rules ──
+  // Rule 1: max 1 E-Box per order
+  if (type === 'ebox') {
+    const existingEbox = appState.cart.find(function(c){ return c.type === 'ebox'; });
+    if (existingEbox) {
+      // Same box → just increment (already in cart)
+      if (existingEbox.id === id) { existingEbox.qty++; updateCartBadge(); return; }
+      // Different E-Box → ask to replace
+      showCartReplaceModal(boxId, type, existingEbox);
+      return;
+    }
+  }
+
   const existing = appState.cart.find(c => c.id === id);
   if (existing) { existing.qty++; }
   else appState.cart.push({ id, boxId, name: b.name, type, price: b.price + (type==='physical'?99:0), qty: 1, img: b.img });
   updateCartBadge();
+}
+
+function showCartReplaceModal(newBoxId, newType, existingItem) {
+  var existing = document.getElementById('wb-cart-replace-modal');
+  if (existing) existing.remove();
+  var b = boxDB[newBoxId];
+  var modal = document.createElement('div');
+  modal.id = 'wb-cart-replace-modal';
+  modal.style.cssText = 'position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(5,15,40,.6);backdrop-filter:blur(4px)';
+  modal.innerHTML = '<div style="background:#fff;border-radius:16px;padding:28px;max-width:380px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.25);font-family:var(--sans)">'
+    + '<div style="font-size:1.4rem;margin-bottom:10px">🎁</div>'
+    + '<h3 style="font-size:1rem;color:var(--navy);margin-bottom:8px">Replace your E-Box?</h3>'
+    + '<p style="font-size:.85rem;color:var(--muted);margin-bottom:20px">You already have <strong>' + existingItem.name + '</strong> in your cart. Each order is for one E-Box gift. Replace it with <strong>' + (b ? b.name : newBoxId) + '</strong>?</p>'
+    + '<div style="display:flex;gap:10px">'
+    +   '<button onclick="cartReplaceConfirm('+JSON.stringify(newBoxId)+','+JSON.stringify(newType)+')" style="flex:1;background:var(--b600);color:#fff;border:none;border-radius:8px;padding:12px;font-size:.9rem;font-weight:600;cursor:pointer">Replace</button>'
+    +   '<button onclick="cartCloseReplaceModal()" style="flex:1;background:var(--bg2);color:var(--navy);border:none;border-radius:8px;padding:12px;font-size:.9rem;cursor:pointer">View cart</button>'
+    + '</div>'
+    + '<p style="font-size:.75rem;color:var(--muted);margin-top:12px;text-align:center">To send multiple gifts, place separate orders.</p>'
+    + '</div>';
+  document.body.appendChild(modal);
+  modal.addEventListener('click', function(e){ if(e.target===modal) modal.remove(); });
+}
+
+function cartCloseReplaceModal() {
+  var m = document.getElementById('wb-cart-replace-modal');
+  if (m) m.remove();
+  go('cart');
+}
+
+function cartReplaceConfirm(newBoxId, newType) {
+  var modal = document.getElementById('wb-cart-replace-modal');
+  if (modal) modal.remove();
+  // Remove existing ebox from cart
+  appState.cart = appState.cart.filter(function(c){ return c.type !== 'ebox'; });
+  // Also clear message/video if any
+  appState.lastOrderMsg = '';
+  appState.videoFile = null;
+  var tog = document.getElementById('tog-vid'); if (tog) tog.classList.remove('on');
+  var av = document.getElementById('area-vid'); if (av) av.style.display = 'none';
+  var togMsg = document.getElementById('tog-msg'); if (togMsg) togMsg.classList.remove('on');
+  var am = document.getElementById('area-msg'); if (am) am.style.display = 'none';
+  var pm = document.getElementById('ck-personal-msg'); if (pm) pm.value = '';
+  // Add new ebox
+  var b = boxDB[newBoxId];
+  if (!b) return;
+  var id = newBoxId + '-' + newType;
+  appState.cart.push({ id, boxId: newBoxId, name: b.name, type: newType, price: b.price, qty: 1, img: b.img });
+  updateCartBadge();
+  saveCartToStorage();
+  admToast('Your E-Box has been updated.');
 }
 function addCurrentToCart() {
   addToCart(appState.currentBoxId, appState.deliveryType);
