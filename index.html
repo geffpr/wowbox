@@ -12752,6 +12752,7 @@ function cartReplaceConfirm(newBoxId, newType) {
   appState.cart.push({ id, boxId: newBoxId, name: b.name, type: newType, price: b.price, qty: 1, img: b.img });
   updateCartBadge();
   saveCartToStorage();
+  if (typeof renderCart === 'function') renderCart();
   admToast('Your E-Box has been updated.');
 }
 function addCurrentToCart() {
