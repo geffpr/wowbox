@@ -9448,6 +9448,7 @@ function go(page) {
     history.pushState(null, '', cleanPath);
   }
   if (page === 'allboxes' || page === 'home') {
+    loadActiveBadgeCoupons().then(function(){ renderBoxGrid(); });
     renderBoxGrids().then(function() {
       var savedScroll  = sessionStorage.getItem('wowbox_allboxes_scroll');
       var savedBoxId   = sessionStorage.getItem('wowbox_allboxes_lastbox');
@@ -13673,7 +13674,6 @@ function filterChip(el) {
 }
 
 function renderBoxGrid() {
-  if (!_activeBadgeCoupons.length) { loadActiveBadgeCoupons().then(function(){ renderBoxGrid(); }); return; }
   const sortVal   = document.getElementById('box-sort-select')?.value || 'bestsellers';
   const activeChip = document.querySelector('.fbar .chip.on');
   const filterKey = activeChip?.dataset.filter || 'all';
@@ -22432,12 +22432,13 @@ function admToggleCouponBadge() {
 function admRenderCouponBoxes(selected) {
   var wrap = document.getElementById('acf-boxes-list');
   if (!wrap) return;
-  var boxes = Object.values(boxDB || {});
-  if (!boxes.length) { wrap.innerHTML = '<span style="font-size:.78rem;color:var(--muted)">No boxes found</span>'; return; }
-  wrap.innerHTML = boxes.map(function(b) {
-    var checked = selected && selected.includes(b.id) ? 'checked' : '';
+  var entries = Object.entries(boxDB || {});
+  if (!entries.length) { wrap.innerHTML = '<span style="font-size:.78rem;color:var(--muted)">No boxes found</span>'; return; }
+  wrap.innerHTML = entries.map(function(entry) {
+    var key = entry[0]; var b = entry[1];
+    var checked = selected && selected.includes(key) ? 'checked' : '';
     return '<label style="display:flex;align-items:center;gap:6px;background:var(--white);border:1.5px solid var(--border);border-radius:var(--rs);padding:6px 10px;cursor:pointer;font-size:.78rem">'
-      + '<input type="checkbox" class="acf-box-chk" value="' + b.id + '" ' + checked + '>'
+      + '<input type="checkbox" class="acf-box-chk" value="' + key + '" ' + checked + '>'
       + b.name + '</label>';
   }).join('');
 }
