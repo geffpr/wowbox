@@ -1957,7 +1957,7 @@ async function ppConfirmPool(price) {
       currency: 'ZAR',
       ref: ref,
       metadata: { item_name: 'WowBox Featured Pool — ' + expName },
-      onSuccess: function(transaction) { activateBoost(); },
+      callback: function(response) { activateBoost(); },
       onClose: function() { admToast('Payment cancelled.'); }
     });
     handler.openIframe();
@@ -2013,7 +2013,7 @@ async function ppRenewBoost(btn, price) {
       currency: 'ZAR',
       ref: ref,
       metadata: { item_name: 'WowBox Featured Pool Renewal — ' + expName },
-      onSuccess: function(transaction) { onAccept(); },
+      callback: function(response) { onAccept(); },
       onClose: function() { admToast('Payment cancelled.'); }
     });
     handler.openIframe();
@@ -13182,7 +13182,7 @@ async function completeOrder() {
       currency: 'ZAR',
       ref: pfRef,
       metadata: { item_name: 'WowBox — ' + boxNames, item_description: delivDesc },
-      onSuccess: function(transaction) { completeOrderConfirm(pfRef, total, discount, delivFee); },
+      callback: function(response) { completeOrderConfirm(pfRef, total, discount, delivFee); },
       onClose: function() { admToast('Payment cancelled. Your cart is still saved.'); }
     });
     handler.openIframe();
@@ -18340,7 +18340,7 @@ async function bkwSubmitPayment() {
       currency: 'ZAR',
       ref: bkwRef,
       metadata: { item_name: 'WowBox — '+s.exp.name, guests: s.formData.guests||1, date: s.formData.date||'' },
-      onSuccess: async function(transaction) { await bkwCompleteBooking(bkwRef); },
+      callback: async function(response) { await bkwCompleteBooking(bkwRef); },
       onClose: function() {
         if(btn){ btn.disabled=false; btn.innerHTML='<i class="fa fa-lock" style="margin-right:8px"></i>Pay securely — R'+(s.total||0).toLocaleString(); }
         if(statusEl) statusEl.textContent='';
@@ -21862,7 +21862,7 @@ async function processProSubscription() {
       currency: 'ZAR',
       ref: proRef,
       metadata: { item_name: 'WowBox Pro Plan — Monthly Subscription' },
-      onSuccess: function(transaction) {
+      callback: function(response) {
         const now = new Date();
         const end = new Date(now);
         end.setMonth(end.getMonth() + 1);
