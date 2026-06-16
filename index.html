@@ -1707,9 +1707,12 @@ var calBookedDates = {};
 
 async function renderCalendar() {
   const email = appState.partnerEmail || (currentUser && currentUser.email) || '';
-  if (email && !calState._loaded) {
+  const expId = (document.getElementById('cal-exp-select') || {value:''}).value || '';
+  // Reset state when experience changes
+  calState = { _loaded: false };
+  if (email && expId) {
     try {
-      var res = await db_client.from('partner_availability').select('date,status,capacity').eq('partner_email', email);
+      var res = await db_client.from('partner_availability').select('date,status,capacity').eq('partner_email', email).eq('experience_id', expId);
       calState = {};
       (res.data || []).forEach(function(r){ calState[r.date] = { status: r.status, cap: r.capacity }; });
       calState._loaded = true;
@@ -1719,7 +1722,9 @@ async function renderCalendar() {
     try {
       var now2 = new Date();
       var monthStart = new Date(calYear || now2.getFullYear(), calMonth !== undefined ? calMonth : now2.getMonth(), 1).toISOString().slice(0,10);
-      var bkRes = await db_client.from('bookings').select('booking_date,checkin_date,checkout_date,guest_count').eq('partner_email', email).neq('status','cancelled').or('booking_date.gte.'+monthStart+',checkin_date.gte.'+monthStart);
+      var bkQ = db_client.from('bookings').select('booking_date,checkin_date,checkout_date,guest_count').eq('partner_email', email).neq('status','cancelled').or('booking_date.gte.'+monthStart+',checkin_date.gte.'+monthStart);
+      if (expId) bkQ = bkQ.eq('experience_id', expId);
+      var bkRes = await bkQ;
       calBookedDates = {};
       (bkRes.data || []).forEach(function(b) {
         var dates = [];
@@ -1771,10 +1776,11 @@ async function calToggleDay(key, d) {
   if (detail) detail.innerHTML = '<strong>'+key+'</strong><br>Status: <strong>'+(state?state.status:'Open (default)')+'</strong>'+(booked?'<br><span style="color:#1d4ed8;font-weight:600">'+booked+' booking(s) confirmed</span>':'');
   renderCalendarGrid();
   const email = appState.partnerEmail||(currentUser&&currentUser.email)||'';
-  if (!email) return;
+  const expId = (document.getElementById('cal-exp-select')||{value:''}).value||'';
+  if (!email || !expId) return;
   try {
-    if (state) await db_client.from('partner_availability').upsert({partner_email:email,date:key,status:state.status,capacity:state.cap},{onConflict:'partner_email,date'});
-    else await db_client.from('partner_availability').delete().eq('partner_email',email).eq('date',key);
+    if (state) await db_client.from('partner_availability').upsert({partner_email:email,experience_id:expId,date:key,status:state.status,capacity:state.cap},{onConflict:'partner_email,experience_id,date'});
+    else await db_client.from('partner_availability').delete().eq('partner_email',email).eq('experience_id',expId).eq('date',key);
   } catch(e) { console.warn('calSave:',e.message); }
 }
 
@@ -1788,7 +1794,11 @@ async function calBlockRange() {
   var rows=[];
   for(let d=new Date(s);d<=new Date(e);d.setDate(d.getDate()+1)){var key=d.toISOString().slice(0,10);calState[key]={status:'blocked',cap:0};if(email)rows.push({partner_email:email,date:key,status:'blocked',capacity:0});}
   renderCalendarGrid();
-  if(rows.length&&email){try{await db_client.from('partner_availability').upsert(rows,{onConflict:'partner_email,date'});}catch(ex){}}
+  const expId2 = (document.getElementById('cal-exp-select')||{value:''}).value||'';
+  if(rows.length&&email&&expId2){
+    rows = rows.map(function(r){ return Object.assign({}, r, {experience_id:expId2}); });
+    try{await db_client.from('partner_availability').upsert(rows,{onConflict:'partner_email,experience_id,date'});}catch(ex){}
+  }
   admToast('Date range blocked.');
 }
 
@@ -1796,7 +1806,8 @@ async function calClearAll() {
   if(!confirm('Reset all calendar dates to default?')) return;
   const email=appState.partnerEmail||(currentUser&&currentUser.email)||'';
   calState={_loaded:true}; renderCalendarGrid();
-  if(email){try{await db_client.from('partner_availability').delete().eq('partner_email',email);}catch(e){}}
+  const expId3 = (document.getElementById('cal-exp-select')||{value:''}).value||'';
+  if(email&&expId3){try{await db_client.from('partner_availability').delete().eq('partner_email',email).eq('experience_id',expId3);}catch(e){}}
   admToast('Calendar reset.');
 }
 
@@ -10974,7 +10985,7 @@ async function loadBlockedDates(expId) {
     var exp = expDB.find(function(x){ return x.id === expId; });
     if (exp && (exp.partnerEmail || exp.partner_email)) {
       var pe = exp.partnerEmail || exp.partner_email;
-      var partRes = await db_client.from('partner_availability').select('date').eq('partner_email', pe).eq('status', 'blocked').gte('date', today);
+      var partRes = await db_client.from('partner_availability').select('date').eq('partner_email', pe).eq('experience_id', expId).eq('status', 'blocked').gte('date', today);
       (partRes.data || []).forEach(function(r){ if (!blocked.includes(r.date)) blocked.push(r.date); });
     }
     var capacity = exp ? parseInt(exp.capacity) || 999 : 999;
