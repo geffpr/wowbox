@@ -9712,29 +9712,20 @@ function getBrowseFiltered() {
 }
 
 function browseOpenFilters() {
-  // Clone sidebar content into drawer
+  // Move sidebar into drawer (don't clone — keep live elements)
   var sidebar = document.querySelector('.browse-sidebar');
   var body = document.getElementById('browse-filter-drawer-body');
-  if (sidebar && body) body.innerHTML = sidebar.innerHTML;
+  if (sidebar && body && !body.contains(sidebar)) body.appendChild(sidebar);
   document.getElementById('browse-filter-drawer').classList.add('open');
   document.getElementById('browse-filter-overlay').classList.add('open');
   document.body.style.overflow = 'hidden';
 }
 
 function browseCloseFilters() {
-  // Sync any filter changes back to sidebar before closing
-  var drawerBody = document.getElementById('browse-filter-drawer-body');
+  // Move sidebar back into browse-layout
   var sidebar = document.querySelector('.browse-sidebar');
-  if (drawerBody && sidebar) {
-    // Sync checkbox states from drawer to sidebar
-    drawerBody.querySelectorAll('input[type=checkbox]').forEach(function(cb) {
-      var match = sidebar.querySelector('input[value="'+cb.value+'"].'+cb.className.split(' ')[0]);
-      if (match) match.checked = cb.checked;
-    });
-    var drawerSearch = drawerBody.querySelector('#browse-search-mobile');
-    var sideSearch = sidebar.querySelector('#browse-search');
-    if (drawerSearch && sideSearch) sideSearch.value = drawerSearch.value;
-  }
+  var layout = document.querySelector('.browse-layout');
+  if (sidebar && layout) layout.insertBefore(sidebar, layout.firstChild);
   document.getElementById('browse-filter-drawer').classList.remove('open');
   document.getElementById('browse-filter-overlay').classList.remove('open');
   document.body.style.overflow = '';
@@ -9744,7 +9735,7 @@ function browseCloseFilters() {
 function browseClearFilters() {
   document.querySelectorAll('.brtf,.brgf,.brpf,.brwf,.brnf,.braf,.brbf').forEach(function(cb){ cb.checked = false; });
   var s = document.getElementById('browse-search'); if (s) s.value = '';
-  browseCloseFilters();
+  renderBrowse();
 }
 
 function renderBrowse() {
