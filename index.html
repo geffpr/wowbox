@@ -21406,7 +21406,7 @@ async function loadAdminCommissionPayouts() {
       const statusHtml  = allPaid ? '<span class="sbadge sb-a">Paid</span>' : anyPending ? '<span class="sbadge sb-p">Pending</span>' : '<span class="sbadge sb-w">On hold</span>';
       const pendingIds  = g.rows.filter(function(r){return r.payout_status==='pending';}).map(function(r){return r.id;});
       const actionBtn   = pendingIds.length
-        ? '<button class="btn bg bsm" onclick="admMarkPaid('+JSON.stringify(pendingIds)+',this)" style="font-size:.72rem"><i class="fa fa-check"></i> Mark paid</button>'
+        ? '<button class="btn bg bsm adm-mark-paid-btn" data-ids="'+encodeURIComponent(JSON.stringify(pendingIds))+'" onclick="admMarkPaidFromBtn(this)" style="font-size:.72rem"><i class="fa fa-check"></i> Mark paid</button>'
         : '<span style="color:var(--muted);font-size:.75rem">-</span>';
       totalGross    += gross;
       totalPlatform += platformAmt;
@@ -21434,6 +21434,11 @@ async function loadAdminCommissionPayouts() {
     console.warn('loadAdminCommissionPayouts:', e.message);
     if (tbody) tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--muted)">Could not load commission data.</td></tr>';
   }
+}
+
+function admMarkPaidFromBtn(btn) {
+  var ids = JSON.parse(decodeURIComponent(btn.getAttribute('data-ids') || '[]'));
+  admMarkPaid(ids, btn);
 }
 
 async function admMarkPaid(ids, btn) {
