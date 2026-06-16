@@ -1705,6 +1705,52 @@ let calState = {};   // key: 'YYYY-MM-DD' → {status:'open'|'limited'|'blocked'
 let calYear, calMonth;
 var calBookedDates = {};
 
+async function ppInitCalendar() {
+  var email = appState.partnerEmail || (currentUser && currentUser.email) || '';
+  if (!email) return;
+  // Load partner experiences into dropdown
+  var sel = document.getElementById('cal-exp-select');
+  if (sel) {
+    try {
+      var res = await db_client.from('experiences').select('id,name,ical_url').eq('partner_email', email).eq('is_active', true).order('name');
+      var exps = res.data || [];
+      sel.innerHTML = '<option value="all">📋 All experiences</option>'
+        + exps.map(function(e){ return '<option value="'+e.id+'">'+e.name+'</option>'; }).join('');
+      // Auto-select first experience
+      if (exps.length) sel.value = exps[0].id;
+    } catch(e) { console.warn('ppInitCalendar:', e.message); }
+  }
+  // Auto-sync all experiences with ical_url silently
+  await ppAutoSyncIcal(email);
+  // Render calendar
+  renderCalendar();
+}
+
+async function ppAutoSyncIcal(email) {
+  var statusEl = document.getElementById('pp-ical-status');
+  try {
+    var res = await db_client.from('experiences').select('id,name,ical_url').eq('partner_email', email).not('ical_url','is',null).neq('ical_url','');
+    var exps = res.data || [];
+    if (!exps.length) {
+      if (statusEl) statusEl.innerHTML = 'No iCal URL configured — <a href="#" onclick="switchPP(document.querySelector(\'[onclick*=pp-experiences]\'),\'pp-experiences\');return false" style="color:var(--b500)">add one in My Experiences →</a>';
+      return;
+    }
+    if (statusEl) statusEl.textContent = '⏳ Syncing ' + exps.length + ' experience' + (exps.length>1?'s':'') + '…';
+    var total = 0;
+    for (var i = 0; i < exps.length; i++) {
+      try {
+        var r = await fetch('/api/ical-sync', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ ical_url: exps[i].ical_url, experience_id: exps[i].id }) });
+        var d = await r.json();
+        total += d.count || 0;
+      } catch(e) {}
+    }
+    var now = new Date().toLocaleTimeString();
+    if (statusEl) statusEl.textContent = '✅ Synced ' + total + ' blocked dates across ' + exps.length + ' experience'+(exps.length>1?'s':'')+' · '+now;
+  } catch(e) {
+    if (statusEl) statusEl.textContent = '❌ Sync failed: ' + e.message;
+  }
+}
+
 async function renderCalendar() {
   const email = appState.partnerEmail || (currentUser && currentUser.email) || '';
   const expId = (document.getElementById('cal-exp-select') || {value:''}).value || '';
@@ -6184,16 +6230,16 @@ tr:hover td{background:var(--b50)}
       </div>
 
       <button class="pp-nav on" onclick="switchPP(this,'pp-overview')"><i class="fa fa-gauge"></i> Overview</button>
-      <button class="pp-nav" onclick="switchPP(this,'pp-bookings');ppLoadBookings()" id="pp-nav-bookings"><i class="fa fa-calendar-check"></i> My Bookings <span id="pp-bookings-badge" style="display:none;margin-left:auto;background:#ef4444;color:#fff;border-radius:99px;padding:1px 6px;font-size:.6rem;font-weight:700"></span></button>
       <button class="pp-nav" onclick="switchPP(this,'pp-validate')"><i class="fa fa-qrcode"></i> Validate Voucher</button>
-      <button class="pp-nav" onclick="switchPP(this,'pp-payouts');ppLoadPayouts()"><i class="fa fa-money-bill-transfer"></i> My Payouts</button>
+      <button class="pp-nav" onclick="switchPP(this,'pp-bookings');ppLoadBookings()" id="pp-nav-bookings"><i class="fa fa-calendar-check"></i> My Bookings <span id="pp-bookings-badge" style="display:none;margin-left:auto;background:#ef4444;color:#fff;border-radius:99px;padding:1px 6px;font-size:.6rem;font-weight:700"></span></button>
+      <button class="pp-nav" id="pp-nav-calendar"  onclick="switchPP(this,'pp-calendar')"><i class="fa fa-calendar-days"></i> Calendar</button>
       <button class="pp-nav" onclick="switchPP(this,'pp-experiences')"><i class="fa fa-compass"></i> My Experiences</button>
       <!-- Pro nav buttons -->
       <button class="pp-nav" onclick="switchPP(this,'pp-reviews');ppLoadReviews()"><i class="fa fa-star"></i> My Reviews <span id="pp-reviews-badge" style="display:none;margin-left:auto;background:#ef4444;color:#fff;border-radius:99px;padding:1px 6px;font-size:.6rem;font-weight:700"></span></button>
       <button class="pp-nav" id="pp-nav-analytics" onclick="switchPP(this,'pp-analytics')"><i class="fa fa-chart-line"></i> Analytics</button>
-      <button class="pp-nav" id="pp-nav-calendar"  onclick="switchPP(this,'pp-calendar')"><i class="fa fa-calendar-days"></i> Calendar</button>
-      <button class="pp-nav" id="pp-nav-boost"     onclick="switchPP(this,'pp-boost')"><i class="fa fa-rocket"></i> Boost</button>
       <button class="pp-nav" id="pp-nav-reporting" onclick="switchPP(this,'pp-reporting')"><i class="fa fa-chart-bar"></i> Reporting</button>
+      <button class="pp-nav" onclick="switchPP(this,'pp-payouts');ppLoadPayouts()"><i class="fa fa-money-bill-transfer"></i> My Payouts</button>
+      <button class="pp-nav" id="pp-nav-boost"     onclick="switchPP(this,'pp-boost')"><i class="fa fa-rocket"></i> Boost</button>
 
       <button class="pp-nav" onclick="switchPP(this,'pp-page');ppPageInit()" id="pp-nav-page"><i class="fa fa-globe"></i> My Page</button>
       <button class="pp-nav" onclick="switchPP(this,'pp-settings');ppLoadSettings()"><i class="fa fa-gear"></i> Settings</button>
@@ -6374,7 +6420,7 @@ tr:hover td{background:var(--b50)}
             <p style="font-size:.75rem;color:var(--muted);margin-bottom:14px">Type or paste the booking reference from the customer's voucher.</p>
             <div class="fg">
               <label>Booking reference</label>
-              <input class="fi" id="vi-input" type="text" placeholder="WB-XXXX-XXXX"
+              <input class="fi" id="vi-input" type="text" placeholder="BK-XXXX"
                 style="font-family:'Courier New',monospace;font-size:1.05rem;letter-spacing:.13em;text-transform:uppercase;padding:12px 14px"
                 onkeydown="if(event.key==='Enter')validateVoucher()">
             </div>
@@ -6906,25 +6952,19 @@ tr:hover td{background:var(--b50)}
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:12px">
           <div><h2 style="font-size:1.75rem;color:var(--navy);margin-bottom:3px">Availability Calendar</h2><p style="color:var(--muted);font-size:.82rem">Click any date to cycle: Open → Limited → Blocked → Default.</p></div>
           <select class="fi" id="cal-exp-select" style="width:auto;padding:7px 12px;font-size:.78rem" onchange="renderCalendar()">
-            <option value="vineyard">The Vineyard Retreat</option>
-            <option value="wine">Estate Wine Tasting</option>
+            <option value="">Loading…</option>
           </select>
         </div>
 
-        <!-- iCal sync panel -->
+        <!-- iCal sync status -->
         <div class="pp-card" style="margin-bottom:18px;background:var(--b50);border:1.5px solid var(--b200)">
-          <h3 style="font-size:.9rem;color:var(--navy);margin-bottom:10px"><i class="fa fa-link" style="color:var(--b500)"></i> Sync with your calendar</h3>
-          <p style="font-size:.75rem;color:var(--muted);margin-bottom:12px">Paste your iCal link from Google Calendar, Airbnb, Booking.com or any calendar app. Blocked dates will automatically appear in the booking date picker for your guests.</p>
-          <div style="display:flex;gap:8px;flex-wrap:wrap">
-            <input class="fi" id="pp-ical-url" placeholder="webcal:// or https://... link to your .ics calendar" style="flex:1;min-width:260px">
-            <button class="btn bp bsm" onclick="ppSyncIcal()" style="flex-shrink:0"><i class="fa fa-rotate"></i> Sync now</button>
-          </div>
-          <div id="pp-ical-status" style="font-size:.73rem;margin-top:8px;color:var(--muted)">Last sync: never</div>
-          <div style="margin-top:10px;font-size:.7rem;color:var(--muted)">
-            <strong>How to get your link:</strong>
-            Google Calendar → Settings → Share → Copy iCal link ·
-            Airbnb → Calendar → Export calendar ·
-            Booking.com → Calendar → iCal export
+          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+            <i class="fa fa-link" style="color:var(--b500)"></i>
+            <div style="flex:1">
+              <div style="font-size:.82rem;font-weight:600;color:var(--navy)">Calendar sync</div>
+              <div id="pp-ical-status" style="font-size:.72rem;color:var(--muted)">Syncing…</div>
+            </div>
+            <a id="pp-ical-edit-link" href="#" onclick="switchPP(document.querySelector('[onclick*=pp-experiences]'),'pp-experiences');return false" style="font-size:.75rem;color:var(--b500)"><i class="fa fa-pen"></i> Edit iCal URL →</a>
           </div>
         </div>
         <div style="display:grid;grid-template-columns:1fr 230px;gap:18px">
@@ -14123,7 +14163,7 @@ async function validateVoucher() {
   }
   if (!raw.startsWith('BK-')) {
     resEl.style.display = 'block';
-    resEl.innerHTML = renderValidationResult('error', null, 'Please enter a valid booking reference (format: BK-XXXX-XXXX).');
+    resEl.innerHTML = renderValidationResult("error", null, "Please enter a valid booking reference (format: BK-XXXX), found on the customer's confirmation email.");
     return;
   }
 
@@ -17691,7 +17731,7 @@ function switchPP(btn, sectionId) {
   if (sectionId === 'pp-reviews')    ppLoadReviews();
   if (sectionId === 'pp-settings')   ppLoadSettings();
   if (sectionId === 'pp-analytics')  renderAnalytics('7d');
-  if (sectionId === 'pp-calendar')   renderCalendar();
+  if (sectionId === 'pp-calendar')   ppInitCalendar();
   if (sectionId === 'pp-boost')      renderBoostPage();
   if (sectionId === 'pp-reporting')  { ppLoadReporting(); }
   if (sectionId === 'pp-plan')       renderPlanPage();
@@ -17735,7 +17775,7 @@ function initPartnerPage() {
   if (ppStart === 'pp-reviews')   ppLoadReviews();
   if (ppStart === 'pp-settings')  ppLoadSettings();
   if (ppStart === 'pp-analytics') setTimeout(function(){ renderAnalytics('7d'); }, 100);
-  if (ppStart === 'pp-calendar')  setTimeout(function(){ renderCalendar(); }, 100);
+  if (ppStart === 'pp-calendar')  setTimeout(function(){ ppInitCalendar(); }, 100);
   if (ppStart === 'pp-boost')     setTimeout(function(){ renderBoostPage(); }, 100);
 }
 
