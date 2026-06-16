@@ -3622,6 +3622,12 @@ tr:hover td{background:var(--b50)}
   /* ── Browse page ── */
   .browse-layout { grid-template-columns: 1fr; }
   .browse-sidebar { display: none; }
+  .browse-filter-btn { display: flex !important; }
+  .browse-filter-drawer { display: flex; flex-direction: column; position: fixed; bottom: 0; left: 0; right: 0; max-height: 80vh; background: #fff; border-radius: 20px 20px 0 0; z-index: 8000; transform: translateY(100%); transition: transform .3s ease; overflow: hidden; box-shadow: 0 -4px 32px rgba(0,0,0,.18); }
+  .browse-filter-drawer.open { transform: translateY(0); }
+  .browse-filter-overlay { display: none; position: fixed; inset: 0; background: rgba(5,15,40,.5); z-index: 7999; }
+  .browse-filter-overlay.open { display: block; }
+  .browse-filter-drawer-body { overflow-y: auto; padding: 20px; flex: 1; }
   .browse-main { padding: 16px; }
   .browse-header { flex-wrap: wrap; gap: 10px; padding: 16px; }
   .browse-header > .vtog { width: 100%; }
@@ -4656,6 +4662,19 @@ tr:hover td{background:var(--b50)}
       </div>
     </div>
   </div>
+</div>
+
+<!-- Browse filter drawer (mobile) -->
+<div class="browse-filter-overlay" id="browse-filter-overlay" onclick="browseCloseFilters()"></div>
+<div class="browse-filter-drawer" id="browse-filter-drawer">
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px 0;flex-shrink:0">
+    <strong style="font-size:1rem;color:var(--navy)"><i class="fa fa-sliders" style="color:var(--b500);margin-right:6px"></i>Filters</strong>
+    <div style="display:flex;gap:8px">
+      <button class="btn bg bsm" onclick="browseClearFilters()"><i class="fa fa-xmark"></i> Clear all</button>
+      <button class="btn bp bsm" onclick="browseCloseFilters()">Done</button>
+    </div>
+  </div>
+  <div class="browse-filter-drawer-body" id="browse-filter-drawer-body"></div>
 </div>
 
 <!-- ═══════════════════════ PAGE: BKW EXP DETAIL ═══════════════════════ -->
@@ -8907,6 +8926,7 @@ tr:hover td{background:var(--b50)}
           <p id="browse-box-meta"></p>
         </div>
         <div style="display:flex;gap:10px;align-items:center">
+          <button class="btn bg bsm browse-filter-btn" onclick="browseOpenFilters()" style="display:none;border-color:rgba(255,255,255,.45);color:#fff"><i class="fa fa-sliders"></i> Filters</button>
           <div class="vtog">
             <button class="vbtn on" id="bvbtn-l" onclick="setBrowseView('list')"><i class="fa fa-list"></i> List</button>
             <button class="vbtn" id="bvbtn-m" onclick="setBrowseView('map')"><i class="fa fa-map"></i> Map</button>
@@ -9689,6 +9709,42 @@ function getBrowseFiltered() {
   if (sortV === 'az')      items = items.sort((a,b) => a.name.localeCompare(b.name));
   if (sortV === 'reviews') items = items.sort((a,b) => b.rv - a.rv);
   return items;
+}
+
+function browseOpenFilters() {
+  // Clone sidebar content into drawer
+  var sidebar = document.querySelector('.browse-sidebar');
+  var body = document.getElementById('browse-filter-drawer-body');
+  if (sidebar && body) body.innerHTML = sidebar.innerHTML;
+  document.getElementById('browse-filter-drawer').classList.add('open');
+  document.getElementById('browse-filter-overlay').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function browseCloseFilters() {
+  // Sync any filter changes back to sidebar before closing
+  var drawerBody = document.getElementById('browse-filter-drawer-body');
+  var sidebar = document.querySelector('.browse-sidebar');
+  if (drawerBody && sidebar) {
+    // Sync checkbox states from drawer to sidebar
+    drawerBody.querySelectorAll('input[type=checkbox]').forEach(function(cb) {
+      var match = sidebar.querySelector('input[value="'+cb.value+'"].'+cb.className.split(' ')[0]);
+      if (match) match.checked = cb.checked;
+    });
+    var drawerSearch = drawerBody.querySelector('#browse-search-mobile');
+    var sideSearch = sidebar.querySelector('#browse-search');
+    if (drawerSearch && sideSearch) sideSearch.value = drawerSearch.value;
+  }
+  document.getElementById('browse-filter-drawer').classList.remove('open');
+  document.getElementById('browse-filter-overlay').classList.remove('open');
+  document.body.style.overflow = '';
+  renderBrowse();
+}
+
+function browseClearFilters() {
+  document.querySelectorAll('.brtf,.brgf,.brpf,.brwf,.brnf,.braf,.brbf').forEach(function(cb){ cb.checked = false; });
+  var s = document.getElementById('browse-search'); if (s) s.value = '';
+  browseCloseFilters();
 }
 
 function renderBrowse() {
