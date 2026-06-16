@@ -9311,6 +9311,17 @@ function go(page) {
   if (typeof psWowModeOff === 'function') psWowModeOff();
   // Restore WowBox nav/footer when navigating away from /wow/ pages
   if (typeof psWowModeOff === 'function') psWowModeOff();
+  // Always close browse filter drawer on navigation
+  var bfd = document.getElementById('browse-filter-drawer');
+  var bfo = document.getElementById('browse-filter-overlay');
+  if (bfd && bfd.classList.contains('open')) {
+    var sidebar = document.querySelector('.browse-sidebar');
+    var layout = document.querySelector('.browse-layout');
+    if (sidebar && layout && !layout.contains(sidebar)) layout.insertBefore(sidebar, layout.firstChild);
+    bfd.classList.remove('open');
+    if (bfo) bfo.classList.remove('open');
+    document.body.style.overflow = '';
+  }
   // ── Auth guard — check BEFORE showing anything ──
   var protectedRoles = {
     'dashboard': 'any',
