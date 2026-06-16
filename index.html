@@ -9923,6 +9923,7 @@ function clearBrowseFilters(silent) {
    BOXES GRID RENDERING
 ══════════════════════════════════════════════════════════════ */
 async function renderBoxGrids() {
+  if (!_activeBadgeCoupons.length) await loadActiveBadgeCoupons();
   // Keep original images from local boxDB (Supabase image_url may be empty)
   const localImgs = {};
   Object.entries(boxDB).forEach(([id, b]) => { localImgs[id] = b.img; });
@@ -10012,7 +10013,8 @@ async function renderBoxGrids() {
       <div class="bcard-body">
         <div class="bcard-title">${b.name}</div>
         <div class="bcard-desc">${b.description.substring(0,90)}…</div>
-        <div class="bcard-foot">
+        ${renderCouponBadgeHTML(b.id)}
+        <div class="bcard-foot" style="margin-top:8px">
           <div class="price-disp"><small>From</small>R${b.price.toLocaleString()}</div>
           <button class="btn bp bsm" onclick="event.stopPropagation();loadProduct('${b.id}');go('product')">View box</button>
         </div>
