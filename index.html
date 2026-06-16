@@ -7411,11 +7411,10 @@ tr:hover td{background:var(--b50)}
         <div class="pp-card">
           <h3 style="font-size:1rem;color:var(--navy);margin-bottom:6px"><i class="fa fa-money-bill-transfer" style="color:var(--b500)"></i> Payments &amp; Payouts</h3>
           <p style="font-size:.8rem;color:var(--muted);margin-bottom:18px">Payouts are processed via Paystack within 2 business days of experience validation.</p>
-          <div style="display:flex;align-items:center;gap:12px;padding:14px;background:var(--bg);border-radius:var(--rs);border:1px solid var(--border)">
-            <div style="width:36px;height:36px;background:#f0fdf4;border-radius:50%;display:flex;align-items:center;justify-content:center"><i class="fa fa-circle-check" style="color:#16a34a"></i></div>
-            <div style="flex:1">
-              <div style="font-size:.85rem;font-weight:600;color:var(--navy)">Paystack payouts enabled</div>
-              <div style="font-size:.73rem;color:var(--muted)">To update your payout bank details, contact <a href="mailto:support@wowbox.co.za" style="color:var(--b600)">support@wowbox.co.za</a></div>
+          <div id="pp-payout-status-wrap">
+            <div style="display:flex;align-items:center;gap:12px;padding:14px;background:var(--bg);border-radius:var(--rs);border:1px solid var(--border)">
+              <div style="width:36px;height:36px;background:#f5f5f5;border-radius:50%;display:flex;align-items:center;justify-content:center"><i class="fa fa-spinner fa-spin" style="color:var(--muted)"></i></div>
+              <div style="font-size:.82rem;color:var(--muted)">Loading payout status…</div>
             </div>
           </div>
         </div>
@@ -12273,7 +12272,7 @@ async function ppLoadSettings() {
   if (emailEl) emailEl.value = currentUser.email || '';
   // Load profile from user_profiles
   var res = await db_client.from('user_profiles')
-    .select('full_name, partner_name, phone, partner_address')
+    .select('full_name, partner_name, phone, partner_address, paystack_account_id, paystack_connected_at')
     .eq('id', currentUser.id)
     .maybeSingle();
   if (res.data) {
@@ -12286,6 +12285,26 @@ async function ppLoadSettings() {
     if (bn) bn.value = d.partner_name || '';
     if (ph) ph.value = d.phone || '';
     if (ad) ad.value = d.partner_address || '';
+    // Render payout status dynamically
+    var wrap = document.getElementById('pp-payout-status-wrap');
+    if (wrap) {
+      if (d.paystack_account_id) {
+        wrap.innerHTML = '<div style="display:flex;align-items:center;gap:12px;padding:14px;background:var(--bg);border-radius:var(--rs);border:1px solid var(--border)">'
+          + '<div style="width:36px;height:36px;background:#f0fdf4;border-radius:50%;display:flex;align-items:center;justify-content:center"><i class="fa fa-circle-check" style="color:#16a34a"></i></div>'
+          + '<div style="flex:1">'
+          + '<div style="font-size:.85rem;font-weight:600;color:var(--navy)">Paystack payouts enabled</div>'
+          + '<div style="font-size:.73rem;color:var(--muted)">Connected' + (d.paystack_connected_at ? ' on ' + new Date(d.paystack_connected_at).toLocaleDateString('en-ZA') : '') + ' · To update your bank details, contact <a href="mailto:support@wowbox.co.za" style="color:var(--b600)">support@wowbox.co.za</a></div>'
+          + '</div></div>';
+      } else {
+        wrap.innerHTML = '<div style="display:flex;align-items:center;gap:12px;padding:14px;background:#fef3c7;border-radius:var(--rs);border:1px solid #fcd34d">'
+          + '<div style="width:36px;height:36px;background:#fffbeb;border-radius:50%;display:flex;align-items:center;justify-content:center"><i class="fa fa-triangle-exclamation" style="color:#d97706"></i></div>'
+          + '<div style="flex:1">'
+          + '<div style="font-size:.85rem;font-weight:600;color:var(--navy)">Bank account not connected</div>'
+          + '<div style="font-size:.73rem;color:var(--muted);margin-bottom:8px">Connect your bank account to receive payouts from WowBox.</div>'
+          + '<button class="btn bp bsm" onclick="ppConnectPaystack()"><i class="fa fa-link"></i> Connect bank account</button>'
+          + '</div></div>';
+      }
+    }
   }
 }
 
@@ -23417,7 +23436,51 @@ function admOpenPCRMDetail(partnerId) {
       </div>
       <span id="pcrm-email-msg" style="font-size:.75rem;margin-top:6px;display:block"></span>
     </div>
+
+    <!-- Paystack reset -->
+    <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border)">
+      <div style="font-size:.75rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:10px">
+        <i class="fa fa-credit-card"></i> Paystack connection
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <div id="pcrm-paystack-status" style="font-size:.8rem;color:var(--muted);flex:1">Loading…</div>
+        <button class="btn bd bsm" id="pcrm-paystack-reset-btn" onclick="admResetPartnerPaystack('${p.id}','${p.email||''}')" style="display:none"><i class="fa fa-rotate-left"></i> Reset connection</button>
+      </div>
+      <span id="pcrm-paystack-msg" style="font-size:.75rem;margin-top:6px;display:block"></span>
+    </div>
   `;
+  // Load Paystack status
+  admLoadPartnerPaystack(p.user_id || p.id, p.email);
+}
+
+async function admLoadPartnerPaystack(userId, email) {
+  var statusEl = document.getElementById('pcrm-paystack-status');
+  var resetBtn = document.getElementById('pcrm-paystack-reset-btn');
+  if (!statusEl) return;
+  try {
+    var res = await db_client.from('user_profiles').select('paystack_account_id,paystack_connected_at').eq('id', userId).maybeSingle();
+    var d = res.data;
+    if (d && d.paystack_account_id) {
+      statusEl.innerHTML = '<span style="color:var(--green)"><i class="fa fa-circle-check"></i> Connected</span> — ' + (d.paystack_connected_at ? new Date(d.paystack_connected_at).toLocaleDateString('en-ZA') : '') + ' <span style="font-size:.7rem;color:var(--muted)">(' + d.paystack_account_id + ')</span>';
+      if (resetBtn) resetBtn.style.display = 'inline-flex';
+    } else {
+      statusEl.innerHTML = '<span style="color:var(--muted)"><i class="fa fa-circle-xmark"></i> Not connected</span>';
+      if (resetBtn) resetBtn.style.display = 'none';
+    }
+  } catch(e) { if (statusEl) statusEl.textContent = 'Could not load.'; }
+}
+
+async function admResetPartnerPaystack(userId, email) {
+  if (!confirm('Reset Paystack connection for ' + (email||userId) + '? The partner will need to reconnect their bank account.')) return;
+  var msgEl = document.getElementById('pcrm-paystack-msg');
+  try {
+    var r = await db_client.from('user_profiles').update({ paystack_account_id: null, paystack_connected_at: null, paystack_recipient_code: null }).eq('id', userId);
+    if (r.error) throw r.error;
+    if (msgEl) msgEl.innerHTML = '<span style="color:var(--green)"><i class="fa fa-check-circle"></i> Paystack connection reset.</span>';
+    admLoadPartnerPaystack(userId, email);
+  } catch(e) {
+    if (msgEl) msgEl.innerHTML = '<span style="color:#ef4444">Error: ' + e.message + '</span>';
+  }
 }
 
 function admClosePCRMDetail() {
