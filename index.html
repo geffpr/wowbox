@@ -925,6 +925,14 @@ async function loadUserOrders(email) {
         vouchers: realVouchers.map(function(v){ return { code: v.code, name: v.box_name || v.box_id }; })
       }));
 
+      // Coupon line
+      var couponLine = (o.coupon_code || o.discount_amount)
+        ? '<div style="font-size:.72rem;color:var(--green);margin-bottom:6px"><i class="fa fa-tag"></i> '
+          + (o.coupon_code ? 'Code <strong>' + o.coupon_code + '</strong>' : 'Coupon')
+          + (o.discount_amount ? ' — -R' + Number(o.discount_amount).toLocaleString() : '')
+          + ' applied</div>'
+        : '';
+
       return '<div class="order-card" style="margin-bottom:14px">'
         // Header
         + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">'
@@ -935,6 +943,8 @@ async function loadUserOrders(email) {
         + '<div style="font-size:.75rem;color:var(--muted);margin-bottom:8px">'
         + date + ' · ' + amount + ' · ' + delivLabel
         + '</div>'
+        // Coupon
+        + couponLine
         // Recipient
         + recipientLine
         // Items
@@ -7868,6 +7878,7 @@ tr:hover td{background:var(--b50)}
               <div class="ord-section">
                 <h4><i class="fa fa-circle-info" style="color:var(--b400)"></i> Order summary</h4>
                 <div class="ord-kv"><dt>Total</dt><dd id="od-total" style="color:var(--b700);font-weight:700"></dd></div>
+                <div class="ord-kv" id="od-coupon-row" style="display:none"><dt>🏷️ Coupon</dt><dd id="od-coupon-info" style="color:var(--green);font-weight:600"></dd></div>
                 <div class="ord-kv"><dt>Delivery type</dt><dd id="od-type"></dd></div>
                 <div class="ord-kv"><dt>Boost</dt><dd id="od-boost"></dd></div>
                 <div class="ord-kv" id="od-msg-row" style="display:none"><dt>Gift message</dt><dd id="od-msg" style="font-style:italic;color:var(--slate)"></dd></div>
@@ -13446,12 +13457,15 @@ async function completeOrderConfirm(pfRef, total, discount, delivFee) {
     hasVideo:     appState.lastOrderVideo || false,
     schedDate:    appState.lastScheduledDate || null,
     videoToken:   null,
+    coupon_code:  activeCoupon ? activeCoupon.code : null,
+    discount:     discount || 0,
   };
   if (typeof ordersState !== 'undefined') ordersState.statuses[ref] = 'Pending';
   if (typeof renderOrdersTable === 'function') renderOrdersTable();
 
   // Capture videoFile NOW before the async IIFE runs (it gets reset to null synchronously after nextStep)
   var capturedVideoFile = appState.videoFile || null;
+  var capturedCoupon = activeCoupon ? Object.assign({}, activeCoupon) : null;
 
   // Supabase + email (non-blocking)
   (async function() {
@@ -13540,12 +13554,12 @@ async function completeOrderConfirm(pfRef, total, discount, delivFee) {
         recipient_email:   custEmail || null,
         user_email:        (typeof currentUser !== 'undefined' && currentUser && currentUser.email) ? currentUser.email : (buyerEmail || null),
         user_id:           (typeof currentUser !== 'undefined' && currentUser && currentUser.id) ? currentUser.id : null,
-        coupon_code:       activeCoupon ? activeCoupon.code : null,
+        coupon_code:       capturedCoupon ? capturedCoupon.code : null,
       });
       // Increment coupon used_count after confirmed payment
-      if (activeCoupon && activeCoupon.id) {
-        await db_client.from('coupons').rpc || await db_client.rpc('increment_coupon_usage', { coupon_id: activeCoupon.id }).catch(function(){});
-        await db_client.from('coupons').update({ used_count: (activeCoupon.used_count||0) + 1 }).eq('id', activeCoupon.id);
+      if (capturedCoupon && capturedCoupon.id) {
+        await db_client.from('coupons').rpc || await db_client.rpc('increment_coupon_usage', { coupon_id: capturedCoupon.id }).catch(function(){});
+        await db_client.from('coupons').update({ used_count: (capturedCoupon.used_count||0) + 1 }).eq('id', capturedCoupon.id);
       }
       appState.lastVideoToken = videoToken;
       if (videoToken && orderDetailDB[ref]) orderDetailDB[ref].videoToken = videoToken;
@@ -14334,6 +14348,18 @@ function admOrderDetail(orderId) {
   // Summary
   document.getElementById('od-total').textContent = o.total;
   document.getElementById('od-type').textContent  = o.type;
+  // Coupon
+  var couponRow  = document.getElementById('od-coupon-row');
+  var couponInfo = document.getElementById('od-coupon-info');
+  if (couponRow && couponInfo) {
+    if (o.coupon_code || o.discount) {
+      couponRow.style.display = 'grid';
+      var discStr = o.discount ? ' — -R' + (typeof o.discount === 'string' ? o.discount.replace('R','') : o.discount) : '';
+      couponInfo.textContent = (o.coupon_code || '—') + discStr;
+    } else {
+      couponRow.style.display = 'none';
+    }
+  }
   document.getElementById('od-boost').innerHTML   = o.boost ? '<span style="color:#d97706;font-weight:600">🚀 Chance Boost included</span>' : 'No boost';
   // Print button
   const firstCode = o.items.find(i => i.code !== '—');
