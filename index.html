@@ -4441,6 +4441,7 @@ tr:hover td{background:var(--b50)}
           <span class="txt-sm txt-muted" id="prod-rev-count-r"></span>
         </div>
         <div class="prod-price" id="prod-price-r"></div>
+        <div id="prod-coupon-badge" style="margin-top:6px"></div>
         <div class="validity"><i class="fa fa-calendar-check" style="color:var(--b500)"></i> Valid 1 year from purchase</div>
 
         <div class="pcard">
@@ -8307,6 +8308,26 @@ tr:hover td{background:var(--b50)}
               <div class="fg"><label>Per-user limit <span style="font-weight:400;color:var(--muted)">(blank = unlimited)</span></label><input class="fi" id="acf-limit-user" type="number" placeholder="e.g. 1"></div>
             </div>
 
+            <!-- Applicable boxes -->
+            <div style="background:var(--bg2);border:1.5px solid var(--border);border-radius:var(--r);padding:16px;margin-bottom:16px">
+              <div style="font-size:.85rem;font-weight:600;color:var(--navy);margin-bottom:10px">📦 Applicable boxes <span style="font-weight:400;color:var(--muted);font-size:.75rem">(leave empty = all boxes)</span></div>
+              <div id="acf-boxes-list" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:0"></div>
+            </div>
+
+            <!-- Promo badge -->
+            <div style="background:linear-gradient(135deg,#f0fdf4,#dcfce7);border:1.5px solid #86efac;border-radius:var(--r);padding:16px;margin-bottom:16px">
+              <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+                <div style="font-size:.85rem;font-weight:600;color:var(--navy)">🏷️ Show promo badge on box</div>
+                <div class="tog" id="acf-badge-tog" onclick="admToggleCouponBadge()" style="margin-left:auto"></div>
+              </div>
+              <div id="acf-badge-fields" style="display:none">
+                <div class="fg" style="margin-bottom:0">
+                  <label>Badge text <span style="font-weight:400;color:var(--muted);font-size:.75rem">(blank = "Special offer available", code always shown if % or R)</span></label>
+                  <input class="fi" id="acf-badge-text" placeholder="e.g. Launching offer, Members only…">
+                </div>
+              </div>
+            </div>
+
             <!-- Flash offer toggle -->
             <div style="background:linear-gradient(135deg,#fff1f2,#ffe4e6);border:1.5px solid #fca5a5;border-radius:var(--r);padding:16px;margin-bottom:16px">
               <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
@@ -10124,6 +10145,8 @@ function loadProduct(boxId) {
   document.getElementById('prod-bc').textContent = b.name;
   document.getElementById('prod-title-r').textContent = b.name;
   document.getElementById('prod-price-r').textContent = 'R' + b.price.toLocaleString();
+  var _pbEl = document.getElementById('prod-coupon-badge');
+  if (_pbEl) _pbEl.innerHTML = renderCouponBadgeHTML(boxId);
   document.getElementById('prod-desc').textContent = b.desc;
   document.getElementById('prod-db-badge').innerHTML = isSurprise
     ? '<i class="fa fa-dice"></i> Mystery pool · 500 curated experiences · 3 rarities'
@@ -13650,6 +13673,7 @@ function filterChip(el) {
 }
 
 function renderBoxGrid() {
+  if (!_activeBadgeCoupons.length) { loadActiveBadgeCoupons().then(function(){ renderBoxGrid(); }); return; }
   const sortVal   = document.getElementById('box-sort-select')?.value || 'bestsellers';
   const activeChip = document.querySelector('.fbar .chip.on');
   const filterKey = activeChip?.dataset.filter || 'all';
@@ -13681,7 +13705,8 @@ function renderBoxGrid() {
       <div class="bcard-body">
         <div class="bcard-title">${b.name}</div>
         <div class="bcard-desc">${b.desc.substring(0,90)}…</div>
-        <div class="bcard-foot">
+        ${renderCouponBadgeHTML(k)}
+        <div class="bcard-foot" style="margin-top:8px">
           <div class="price-disp"><small>From</small>R${b.price.toLocaleString()}</div>
           <button class="btn bp bsm" onclick="event.stopPropagation();loadProduct('${k}');go('product')">View box</button>
         </div>
@@ -22209,6 +22234,12 @@ async function validateCouponLive(code, userEmail) {
   if (now < startDate)                                        return { valid: false, reason: 'not_yet',    coupon: { ...c, start_date: startDate } };
   if (now > endDate)                                          return { valid: false, reason: 'expired',    coupon: { ...c, end_date: endDate } };
   if (c.limit_total !== null && c.used_count >= c.limit_total) return { valid: false, reason: 'exhausted', coupon: c };
+  // Check applicable boxes restriction
+  if (c.applicable_boxes && c.applicable_boxes.length > 0) {
+    var cartBoxIds = (appState.cart || []).filter(function(i){ return i.type !== 'addon'; }).map(function(i){ return i.boxId; });
+    var allowed = cartBoxIds.every(function(bid){ return c.applicable_boxes.includes(bid); });
+    if (!allowed) return { valid: false, reason: 'wrong_box', coupon: c };
+  }
   // Check per-user limit
   if (c.limit_per_user && userEmail) {
     var usedRes = await db_client.from('orders')
@@ -22233,6 +22264,7 @@ async function applyCoupon() {
       not_found:  'Code <strong>' + raw + '</strong> does not exist.',
       inactive:   'Code <strong>' + raw + '</strong> is currently inactive.',
       not_yet:    'Code <strong>' + raw + '</strong> is not active yet. Valid from ' + result.coupon?.start_date + '.',
+      wrong_box:  'Code <strong>' + raw + '</strong> is not valid for the boxes in your cart.',
       expired:    'Code <strong>' + raw + '</strong> expired on ' + result.coupon?.end_date + '.',
       exhausted:  result.coupon?.is_flash
         ? 'Flash offer <strong>' + raw + '</strong> has been fully claimed \u2014 all ' + result.coupon?.flash_max + ' spots taken!'
@@ -22311,13 +22343,24 @@ function admShowCouponForm(id) {
     tog.classList.toggle('on', admCouponFlash);
     fields.style.display = admCouponFlash ? 'block' : 'none';
     if (admCouponFlash) document.getElementById('acf-flash-max').value = c.flash_max || '';
+    // Badge
+    admCouponBadge = c.show_badge || false;
+    document.getElementById('acf-badge-tog').classList.toggle('on', admCouponBadge);
+    document.getElementById('acf-badge-fields').style.display = admCouponBadge ? 'block' : 'none';
+    document.getElementById('acf-badge-text').value = c.badge_text || '';
+    // Applicable boxes
+    admRenderCouponBoxes(c.applicable_boxes || []);
   } else {
     document.getElementById('adm-coupon-form-title').textContent = 'Create coupon';
-    ['acf-code','acf-desc','acf-value','acf-start','acf-end','acf-limit-total','acf-limit-user','acf-flash-max'].forEach(function(fid){ var el = document.getElementById(fid); if (el) el.value = ''; });
+    ['acf-code','acf-desc','acf-value','acf-start','acf-end','acf-limit-total','acf-limit-user','acf-flash-max','acf-badge-text'].forEach(function(fid){ var el = document.getElementById(fid); if (el) el.value = ''; });
     admSetCouponType('percentage');
     admCouponFlash = false;
+    admCouponBadge = false;
     document.getElementById('acf-flash-tog').classList.remove('on');
     document.getElementById('acf-flash-fields').style.display = 'none';
+    document.getElementById('acf-badge-tog').classList.remove('on');
+    document.getElementById('acf-badge-fields').style.display = 'none';
+    admRenderCouponBoxes([]);
     document.getElementById('acf-status').value = 'active';
   }
 }
@@ -22344,24 +22387,86 @@ function admUpdateFlashPreview() {
   document.getElementById('acf-flash-preview-text').textContent = '0/' + max + ' used';
   document.getElementById('acf-flash-bar').style.width = '0%';
 }
+var admCouponBadge = false;
+var _activeBadgeCoupons = []; // cache for frontend badge display
+
+async function loadActiveBadgeCoupons() {
+  try {
+    var now = new Date().toISOString().slice(0,10);
+    var res = await db_client.from('coupons')
+      .select('code,type,value,applicable_boxes,show_badge,badge_text')
+      .eq('status','active')
+      .eq('show_badge', true)
+      .lte('start_date', now)
+      .gte('end_date', now);
+    _activeBadgeCoupons = (res.data || []);
+  } catch(e) { _activeBadgeCoupons = []; }
+}
+
+function getBoxBadgeCoupon(boxId) {
+  // Returns the best coupon for a given boxId (global or specific)
+  var matches = _activeBadgeCoupons.filter(function(c) {
+    return !c.applicable_boxes || c.applicable_boxes.length === 0 || c.applicable_boxes.includes(boxId);
+  });
+  if (!matches.length) return null;
+  // Prefer box-specific over global
+  var specific = matches.filter(function(c){ return c.applicable_boxes && c.applicable_boxes.includes(boxId); });
+  return specific.length ? specific[0] : matches[0];
+}
+
+function renderCouponBadgeHTML(boxId) {
+  var c = getBoxBadgeCoupon(boxId);
+  if (!c) return '';
+  var label = c.badge_text && c.badge_text.trim()
+    ? c.badge_text.trim()
+    : (c.type === 'percentage' ? '-' + c.value + '% with code ' + c.code : '-R' + c.value + ' with code ' + c.code);
+  return '<div style="background:linear-gradient(135deg,#dc2626,#b91c1c);color:#fff;font-size:.65rem;font-weight:700;padding:4px 10px;border-radius:99px;display:inline-flex;align-items:center;gap:4px;margin-top:6px"><i class="fa fa-tag"></i> ' + label + '</div>';
+}
+
+function admToggleCouponBadge() {
+  admCouponBadge = !admCouponBadge;
+  document.getElementById('acf-badge-tog').classList.toggle('on', admCouponBadge);
+  document.getElementById('acf-badge-fields').style.display = admCouponBadge ? 'block' : 'none';
+}
+
+function admRenderCouponBoxes(selected) {
+  var wrap = document.getElementById('acf-boxes-list');
+  if (!wrap) return;
+  var boxes = Object.values(boxDB || {});
+  if (!boxes.length) { wrap.innerHTML = '<span style="font-size:.78rem;color:var(--muted)">No boxes found</span>'; return; }
+  wrap.innerHTML = boxes.map(function(b) {
+    var checked = selected && selected.includes(b.id) ? 'checked' : '';
+    return '<label style="display:flex;align-items:center;gap:6px;background:var(--white);border:1.5px solid var(--border);border-radius:var(--rs);padding:6px 10px;cursor:pointer;font-size:.78rem">'
+      + '<input type="checkbox" class="acf-box-chk" value="' + b.id + '" ' + checked + '>'
+      + b.name + '</label>';
+  }).join('');
+}
+
 async function admSaveCoupon() {
   const code  = document.getElementById('acf-code')?.value?.trim()?.toUpperCase();
   const value = parseInt(document.getElementById('acf-value')?.value);
   const start = document.getElementById('acf-start')?.value;
   const end   = document.getElementById('acf-end')?.value;
   if (!code || !value || !start || !end) { admToast('Please fill in all required fields.'); return; }
+  // Collect applicable boxes
+  var checkedBoxes = [];
+  document.querySelectorAll('.acf-box-chk:checked').forEach(function(cb){ checkedBoxes.push(cb.value); });
+
   const payload = {
     code,
-    description:    document.getElementById('acf-desc')?.value || '',
-    type:           admCouponType,
+    description:      document.getElementById('acf-desc')?.value || '',
+    type:             admCouponType,
     value,
-    start_date:     start,
-    end_date:       end,
-    status:         document.getElementById('acf-status')?.value || 'active',
-    limit_total:    parseInt(document.getElementById('acf-limit-total')?.value)||null,
-    limit_per_user: parseInt(document.getElementById('acf-limit-user')?.value)||null,
-    is_flash:       admCouponFlash,
-    flash_max:      admCouponFlash ? (parseInt(document.getElementById('acf-flash-max')?.value)||null) : null,
+    start_date:       start,
+    end_date:         end,
+    status:           document.getElementById('acf-status')?.value || 'active',
+    limit_total:      parseInt(document.getElementById('acf-limit-total')?.value)||null,
+    limit_per_user:   parseInt(document.getElementById('acf-limit-user')?.value)||null,
+    is_flash:         admCouponFlash,
+    flash_max:        admCouponFlash ? (parseInt(document.getElementById('acf-flash-max')?.value)||null) : null,
+    applicable_boxes: checkedBoxes.length ? checkedBoxes : null,
+    show_badge:       admCouponBadge,
+    badge_text:       admCouponBadge ? (document.getElementById('acf-badge-text')?.value?.trim() || '') : '',
   };
   var res;
   if (admEditingCouponId) {
@@ -22410,6 +22515,7 @@ async function loadSiteSettingsOnStartup() {
     if (!heroUrls.length && settings.hero_image_url) heroUrls.push(settings.hero_image_url);
     if (!heroUrls.length) heroUrls.push('https://images.unsplash.com/photo-1571896349842-33c89424de2d?q=80&w=1920&auto=format&fit=crop');
     initHeroCarousel(heroUrls);
+    loadActiveBadgeCoupons();
     /* SEO meta tags */
     if (settings.seo_title) {
       document.title = settings.seo_title;
