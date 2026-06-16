@@ -15842,7 +15842,7 @@ function initHeroCarousel(urls) {
   if (!wrap) return;
   _heroSlides = urls;
   wrap.innerHTML = urls.map(function(u, i) {
-    return '<div class="hero-slide'+(i===0?' active':'')+'" style="background-image:url(\"'+u+'\")" data-idx="'+i+'"></div>';
+    return '<div class="hero-slide'+(i===0?' active':'')+'" style="background-image:url('+u+')" data-idx="'+i+'"></div>';
   }).join('');
   if (urls.length >= 2) {
     dots.innerHTML = urls.map(function(_, i){ return '<button class="hero-carousel-dot'+(i===0?' active':'')+'" onclick="heroCarouselGo('+i+')" aria-label="Slide '+(i+1)+'"></button>'; }).join('');
