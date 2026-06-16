@@ -9448,7 +9448,7 @@ function go(page) {
     history.pushState(null, '', cleanPath);
   }
   if (page === 'allboxes' || page === 'home') {
-    loadActiveBadgeCoupons().then(function(){ renderBoxGrid(); });
+    loadActiveBadgeCoupons().then(function(){ renderBoxGrid(); renderBoxGrids(); });
     renderBoxGrids().then(function() {
       var savedScroll  = sessionStorage.getItem('wowbox_allboxes_scroll');
       var savedBoxId   = sessionStorage.getItem('wowbox_allboxes_lastbox');
