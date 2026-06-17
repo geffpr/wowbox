@@ -23763,9 +23763,10 @@ async function admLoadReporting() {
     _rptData.boosts = bRes.data || [];
 
     // Fetch BKW bookings
-    var bkQ = db_client.from('bookings').select('id,partner_email,experience_id,booking_reference,flow,status,created_at,total_amount,guest_count').order('created_at',{ascending:false});
+    var bkQ = db_client.from('bookings').select('id,partner_email,experience_id,booking_reference,flow,status,created_at,total_amount,guest_count');
     if (since) bkQ = bkQ.gte('created_at', since);
     if (partner) bkQ = bkQ.eq('partner_email', partner);
+    bkQ = bkQ.order('created_at',{ascending:false});
     var bkRes = await bkQ;
     _rptData.bkwBookings = (bkRes.data || []).filter(function(b){ return b.status !== 'cancelled'; });
 
