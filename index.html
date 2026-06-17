@@ -23863,7 +23863,9 @@ function rptRenderPartners() {
     var pData    = partners.find(function(p){ return p.contact_email === email; }) || {};
     var pEntries = entries.filter(function(e){ return e.partner_email === email; });
     var pBoosts  = boosts.filter(function(b){ return b.partner_email === email; });
-    var bkwCount = (_rptData.bkwBookings||[]).filter(function(b){ return b.partner_email === email; }).length;
+    var partnerBookings = (_rptData.bkwBookings||[]).filter(function(b){ return b.partner_email === email; });
+    var bkwCount = partnerBookings.filter(function(b){ return (b.booking_reference||'').startsWith('BKW'); }).length;
+    var wbCount  = partnerBookings.filter(function(b){ return (b.booking_reference||'').startsWith('BK-'); }).length;
 
     var gross    = pEntries.reduce(function(s,e){ return s+Number(e.box_price||0);},0);
     var wbKeeps  = pEntries.reduce(function(s,e){ return s+Number(e.platform_amount||0);},0);
@@ -23899,7 +23901,7 @@ function rptRenderPartners() {
       +'<td style="font-size:.75rem">'+(pEntries[0]?.platform_rate||'—')+'%</td>'
       +'<td style="font-size:.75rem;text-align:center">—</td>'
       +'<td style="font-size:.75rem;text-align:center">'+total+' <span style="color:var(--muted)">('+valRate+')</span></td>'
-      +'<td style="font-size:.75rem;text-align:center">'+bkwCount+' / '+(total-bkwCount)+'</td>'
+      +'<td style="font-size:.75rem;text-align:center">'+bkwCount+' BKW / '+wbCount+' WB</td>'
       +'<td style="font-size:.75rem;text-align:center">'+pBoosts.length+(boostAmt?' ('+fmt(boostAmt)+')':'')+'</td>'
       +'<td style="font-size:.75rem">'+fmt(gross)+'</td>'
       +'<td style="font-size:.75rem;color:var(--b600)">'+fmt(wbKeeps)+'</td>'
