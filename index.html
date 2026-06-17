@@ -18589,17 +18589,13 @@ async function loadBkwExp(expId, slug) {
             var b = boxDB[bid];
             if (!b) return '';
             var img = b.img || '';
-            var desc = (b.desc || b.description || '').substring(0, 70) + '…';
-            return '<div style="background:#fff;border:1.5px solid var(--border);border-radius:var(--rl);overflow:hidden;margin-bottom:12px;box-shadow:0 2px 8px rgba(0,0,0,.06)">'
-              + (img ? '<img src="'+img+'" style="width:100%;height:130px;object-fit:cover" loading="lazy">' : '')
-              + '<div style="padding:14px">'
-              + '<div style="font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--b500);margin-bottom:3px">WowBox Gift</div>'
-              + '<div style="font-size:.95rem;font-weight:700;color:var(--navy);margin-bottom:4px">' + b.name + '</div>'
-              + '<div style="font-size:.76rem;color:var(--muted);margin-bottom:10px;line-height:1.4">' + desc + '</div>'
-              + '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">'
-              + '<div style="font-size:1rem;font-weight:700;color:var(--b700)">From R' + (b.price||0).toLocaleString() + '</div>'
-              + '<button class="btn bp bsm" data-bid="'+bid+'" onclick="loadProduct(this.dataset.bid);go(\'product\')" style="white-space:nowrap"><i class="fa fa-gift"></i> Buy now</button>'
-              + '</div></div>'
+            return '<div style="display:flex;align-items:center;gap:10px;background:#fff;border:1.5px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:10px;padding:10px">'
+              + (img ? '<img src="'+img+'" style="width:56px;height:56px;object-fit:cover;border-radius:7px;flex-shrink:0" loading="lazy">' : '<div style="width:56px;height:56px;border-radius:7px;background:var(--b50);flex-shrink:0"></div>')
+              + '<div style="flex:1;min-width:0">'
+              + '<div style="font-size:.82rem;font-weight:700;color:var(--navy);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + b.name + '</div>'
+              + '<div style="font-size:.75rem;color:var(--b600);font-weight:600">From R' + (b.price||0).toLocaleString() + '</div>'
+              + '</div>'
+              + '<button class="btn bp bsm" data-bid="'+bid+'" onclick="loadProduct(this.dataset.bid);go(\'product\')" style="white-space:nowrap;flex-shrink:0;font-size:.72rem"><i class="fa fa-gift"></i> Buy</button>'
               + '</div>';
           }).filter(Boolean).join('');
           bxWidget.innerHTML = boxRows || '<p style="color:var(--muted);font-size:.85rem">No boxes available yet.</p>';
