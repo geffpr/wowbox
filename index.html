@@ -18571,10 +18571,17 @@ async function loadBkwExp(expId, slug) {
     if (priceDisplay) priceDisplay.style.display = 'none';
     if (reserveForm)  reserveForm.style.display  = 'none';
     if (boxWidget)    boxWidget.style.display    = 'block';
-    // Load boxes that contain this experience
+    // Load boxes that contain this experience via databases
     try {
-      var boxLinks = await db_client.from('box_experiences').select('box_id').eq('experience_id', expId);
-      var boxIds = (boxLinks.data||[]).map(function(b){ return b.box_id; });
+      // Step 1: find databases this experience belongs to
+      var expDbRes = await db_client.from('experience_database_links').select('database_id').eq('experience_id', expId);
+      var dbIds = (expDbRes.data||[]).map(function(d){ return d.database_id; });
+      var boxIds = [];
+      if (dbIds.length) {
+        // Step 2: find boxes that use those databases
+        var boxDbRes = await db_client.from('box_database_links').select('box_id').in('database_id', dbIds);
+        boxIds = [...new Set((boxDbRes.data||[]).map(function(b){ return b.box_id; }))];
+      }
       var bxWidget = document.getElementById('bkw-box-widget-inner');
       if (bxWidget) {
         if (boxIds.length) {
