@@ -4916,6 +4916,16 @@ tr:hover td{background:var(--b50)}
     </div>
     <div>
       <div style="position:sticky;top:80px">
+        <!-- WowBox boxes widget (shown when no direct price) -->
+        <div id="bkw-box-widget" style="display:none">
+          <div style="background:linear-gradient(135deg,var(--b50),var(--bg));border:1.5px solid var(--b200);border-radius:var(--rl);padding:20px">
+            <div style="font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--b600);margin-bottom:10px"><i class="fa fa-gift"></i> Book via WowBox</div>
+            <p style="font-size:.82rem;color:var(--muted);margin-bottom:14px">Direct booking not available. This experience is included in the following WowBox gift boxes:</p>
+            <div id="bkw-box-widget-inner"></div>
+          </div>
+        </div>
+
+        <div id="bkw-form-wrap">
         <div class="res-form-wrap">
           <div id="bkw-price-display" style="margin-bottom:18px;padding:14px 16px;background:var(--b50);border-radius:10px;border:1px solid var(--b100)">
             <div style="font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--b600);margin-bottom:4px">Price</div>
@@ -4947,6 +4957,7 @@ tr:hover td{background:var(--b50)}
             <span style="font-size:.68rem;color:var(--muted);display:flex;align-items:center;gap:4px"><i class="fa fa-headset" style="color:var(--b400)"></i> 24/7 support</span>
           </div>
         </div>
+        </div><!-- /bkw-form-wrap -->
       </div>
     </div>
   </div>
@@ -16651,6 +16662,10 @@ async function admSaveExp() {
   const icalUrl      = document.getElementById('aef-ical')?.value?.trim() || null;
 
   if (!name) { admToast('Please enter an experience name.'); return; }
+  if (!rt)   { admToast('Please select a reservation type.'); return; }
+  if (!city) { admToast('Please enter a city.'); return; }
+  if (!province) { admToast('Please select a province.'); return; }
+  if (!cap)  { admToast('Please enter the maximum capacity.'); return; }
 
   const imgs = [];
   for (let i = 0; i < 4; i++) {
@@ -16658,6 +16673,7 @@ async function admSaveExp() {
     if (url) imgs.push(url);
   }
   const mainImg = imgs[0] || '';
+  if (imgs.length < 3) { admToast('Please upload at least 3 photos for this experience.'); return; }
 
   const payload = {
     name,
@@ -18537,9 +18553,47 @@ async function loadBkwExp(expId, slug) {
   // Price display
   bkwUpdateExpPrice(1);
 
-  // Build booking form
-  var blocked = await loadBlockedDates(expId);
-  bkwBuildExpForm(e.reservation_type, cap, blocked);
+  // Show reserve form OR "book via WowBox boxes" widget
+  var priceDisplay = document.getElementById('bkw-price-display');
+  var reserveForm  = document.getElementById('bkw-form-wrap');
+  var boxWidget    = document.getElementById('bkw-box-widget');
+
+  if (wowPrice > 0) {
+    // Direct booking available
+    if (priceDisplay) priceDisplay.style.display = 'block';
+    if (reserveForm)  reserveForm.style.display  = 'block';
+    if (boxWidget)    boxWidget.style.display    = 'none';
+    // Build booking form
+    var blocked = await loadBlockedDates(expId);
+    bkwBuildExpForm(e.reservation_type, cap, blocked);
+  } else {
+    // No direct price — show boxes that include this experience
+    if (priceDisplay) priceDisplay.style.display = 'none';
+    if (reserveForm)  reserveForm.style.display  = 'none';
+    if (boxWidget)    boxWidget.style.display    = 'block';
+    // Load boxes that contain this experience
+    try {
+      var boxLinks = await db_client.from('box_experiences').select('box_id').eq('experience_id', expId);
+      var boxIds = (boxLinks.data||[]).map(function(b){ return b.box_id; });
+      var bxWidget = document.getElementById('bkw-box-widget-inner');
+      if (bxWidget) {
+        if (boxIds.length) {
+          var boxRows = boxIds.map(function(bid) {
+            var b = boxDB[bid];
+            if (!b) return '';
+            return '<div style="display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--border)">'
+              + '<div><div style="font-size:.9rem;font-weight:600;color:var(--navy)">' + b.name + '</div>'
+              + '<div style="font-size:.78rem;color:var(--muted)">R' + (b.price||0).toLocaleString() + '</div></div>'
+              + '<button class="btn bp bsm" data-bid="'+bid+'" onclick="loadProduct(this.dataset.bid);go(\'product\')"><i class="fa fa-gift"></i> Buy now</button>'
+              + '</div>';
+          }).filter(Boolean).join('');
+          bxWidget.innerHTML = boxRows || '<p style="color:var(--muted);font-size:.85rem">No boxes available yet.</p>';
+        } else {
+          bxWidget.innerHTML = '<p style="color:var(--muted);font-size:.85rem">This experience will be available in WowBox gift boxes soon.</p>';
+        }
+      }
+    } catch(err) { console.warn('bkwLoadBoxes:', err.message); }
+  }
 }
 
 function bkwRtLabel(rt) {
@@ -22237,6 +22291,9 @@ async function ppSubmitEdit(expId) {
   var amenitiesList = collectAmenities('pp-edit');
 
   if (!name) { admToast('Please enter an experience name'); return; }
+  if (!city) { admToast('Please enter a city'); return; }
+  if (!province) { admToast('Please select a province'); return; }
+  if (!cap) { admToast('Please enter the maximum capacity'); return; }
 
   document.getElementById('adm-modal').style.display = 'none';
 
