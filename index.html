@@ -7475,6 +7475,7 @@ tr:hover td{background:var(--b50)}
       <div style="height:1px;background:rgba(255,255,255,.08);margin:10px 0"></div>
       <button class="anl"     onclick="switchAdm(this,'adm-users');admLoadUsers()"><i class="fa fa-users"></i> Users</button>
       <button class="anl"     onclick="switchAdm(this,'adm-partners-crm');admLoadPartnersCRM()"><i class="fa fa-building"></i> Partners</button>
+      <button class="anl"     onclick="switchAdm(this,'adm-reporting');admLoadReporting()"><i class="fa fa-chart-bar"></i> Reporting</button>
       <button class="anl"     onclick="switchAdm(this,'adm-access');admLoadAccessList()"><i class="fa fa-shield-halved"></i> Access Control</button>
       <button class="anl"     onclick="switchAdm(this,'adm-settings')"><i class="fa fa-gear"></i> Settings</button>
       <div style="margin-top:auto;padding-top:14px;border-top:1px solid rgba(255,255,255,.08)">
@@ -8855,6 +8856,113 @@ tr:hover td{background:var(--b50)}
       </div>
 
       <!-- ══ ACCESS CONTROL ══ -->
+      <!-- ═══ REPORTING ═══ -->
+      <div id="adm-reporting" style="display:none">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:22px">
+          <div>
+            <h2 style="font-size:1.7rem;color:var(--navy)">Reporting</h2>
+            <p style="color:var(--muted);font-size:.8rem">Full financial and partner activity overview</p>
+          </div>
+          <!-- Global filters -->
+          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+            <select class="fi" id="rpt-period" onchange="admLoadReporting()" style="padding:7px 12px;font-size:.78rem;width:auto">
+              <option value="7">Last 7 days</option>
+              <option value="30" selected>Last 30 days</option>
+              <option value="90">Last 3 months</option>
+              <option value="180">Last 6 months</option>
+              <option value="0">All time</option>
+            </select>
+            <select class="fi" id="rpt-partner" onchange="admLoadReporting()" style="padding:7px 12px;font-size:.78rem;width:auto">
+              <option value="">All partners</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Sub-tabs -->
+        <div style="display:flex;gap:4px;border-bottom:2px solid var(--border);margin-bottom:22px;overflow-x:auto">
+          <button class="rpt-tab on" onclick="switchRptTab(this,'rpt-overview')" style="padding:9px 18px;border:none;background:none;font-size:.82rem;font-weight:600;color:var(--navy);border-bottom:2px solid var(--b500);margin-bottom:-2px;cursor:pointer">Overview</button>
+          <button class="rpt-tab" onclick="switchRptTab(this,'rpt-partners')" style="padding:9px 18px;border:none;background:none;font-size:.82rem;font-weight:500;color:var(--muted);cursor:pointer">Partners</button>
+          <button class="rpt-tab" onclick="switchRptTab(this,'rpt-payouts')" style="padding:9px 18px;border:none;background:none;font-size:.82rem;font-weight:500;color:var(--muted);cursor:pointer">Payouts</button>
+          <button class="rpt-tab" onclick="switchRptTab(this,'rpt-boosts')" style="padding:9px 18px;border:none;background:none;font-size:.82rem;font-weight:500;color:var(--muted);cursor:pointer">Boosts</button>
+          <button class="rpt-tab" onclick="switchRptTab(this,'rpt-export')" style="padding:9px 18px;border:none;background:none;font-size:.82rem;font-weight:500;color:var(--muted);cursor:pointer">Export</button>
+        </div>
+
+        <!-- Overview tab -->
+        <div id="rpt-overview">
+          <div id="rpt-kpi-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px;margin-bottom:24px"></div>
+          <div id="rpt-alerts" style="margin-bottom:18px"></div>
+        </div>
+
+        <!-- Partners tab -->
+        <div id="rpt-partners" style="display:none">
+          <div style="overflow-x:auto">
+            <table>
+              <thead><tr>
+                <th>Partner</th><th>CIPC / VAT</th><th>Bank</th><th>Paystack</th>
+                <th>Rate</th><th>Exp.</th><th>Bookings</th><th>BKW/WB</th>
+                <th>Boosts</th><th>Gross</th><th>WB keeps</th><th>Payout</th>
+                <th>Pending</th><th>My Page</th><th>Last activity</th><th>Actions</th>
+              </tr></thead>
+              <tbody id="rpt-partners-tbody"><tr><td colspan="16" style="text-align:center;padding:28px;color:var(--muted)">Loading…</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Payouts tab -->
+        <div id="rpt-payouts" style="display:none">
+          <div style="overflow-x:auto">
+            <table>
+              <thead><tr>
+                <th>Partner</th><th>Booking ref</th><th>Experience</th><th>Flow</th>
+                <th>Validated</th><th>Paid at</th><th>Box price</th><th>WB keeps</th>
+                <th>Payout</th><th>Transfer ref</th><th>Status</th><th>Actions</th>
+              </tr></thead>
+              <tbody id="rpt-payouts-tbody"><tr><td colspan="12" style="text-align:center;padding:28px;color:var(--muted)">Loading…</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Boosts tab -->
+        <div id="rpt-boosts" style="display:none">
+          <div id="rpt-boost-alerts" style="margin-bottom:14px"></div>
+          <div style="overflow-x:auto">
+            <table>
+              <thead><tr>
+                <th>Partner</th><th>Experience</th><th>Purchased</th><th>Expires</th>
+                <th>Amount</th><th>Status</th><th>Actions</th>
+              </tr></thead>
+              <tbody id="rpt-boosts-tbody"><tr><td colspan="7" style="text-align:center;padding:28px;color:var(--muted)">Loading…</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Export tab -->
+        <div id="rpt-export" style="display:none">
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px">
+            <div class="atbl" style="padding:20px">
+              <div style="font-size:.9rem;font-weight:600;color:var(--navy);margin-bottom:8px"><i class="fa fa-file-csv" style="color:var(--b500)"></i> Full export</div>
+              <p style="font-size:.78rem;color:var(--muted);margin-bottom:14px">All partners, all payouts for the selected period.</p>
+              <button class="btn bp bsm" onclick="rptExportCSV('all')"><i class="fa fa-download"></i> Export CSV</button>
+            </div>
+            <div class="atbl" style="padding:20px">
+              <div style="font-size:.9rem;font-weight:600;color:var(--navy);margin-bottom:8px"><i class="fa fa-envelope" style="color:var(--b500)"></i> Monthly statements</div>
+              <p style="font-size:.78rem;color:var(--muted);margin-bottom:14px">Send a payout statement to all partners for the selected period.</p>
+              <button class="btn bp bsm" onclick="rptSendStatements()"><i class="fa fa-paper-plane"></i> Send to all partners</button>
+            </div>
+            <div class="atbl" style="padding:20px">
+              <div style="font-size:.9rem;font-weight:600;color:var(--navy);margin-bottom:8px"><i class="fa fa-credit-card" style="color:#ef4444"></i> Paystack reminder</div>
+              <p style="font-size:.78rem;color:var(--muted);margin-bottom:14px">Email partners who haven't connected their bank account yet.</p>
+              <button class="btn bd bsm" onclick="rptSendPaystackReminder()"><i class="fa fa-bell"></i> Send reminder</button>
+            </div>
+            <div class="atbl" style="padding:20px">
+              <div style="font-size:.9rem;font-weight:600;color:var(--navy);margin-bottom:8px"><i class="fa fa-store" style="color:#f59e0b"></i> My Page reminder</div>
+              <p style="font-size:.78rem;color:var(--muted);margin-bottom:14px">Email partners who haven't published their page yet.</p>
+              <button class="btn bg bsm" onclick="rptSendPageReminder()"><i class="fa fa-bell"></i> Send reminder</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div id="adm-access" style="display:none">
         <div style="margin-bottom:26px">
           <h2 style="font-size:1.7rem;color:var(--navy)">Access Control</h2>
@@ -14698,7 +14806,7 @@ function filterDashBoxes(status, btn) {
 }
 
 /* ── ADMIN ── */
-const admTabs = ['adm-dash','adm-boxes','adm-db','adm-exp','adm-requests','adm-reviews','adm-orders','adm-usage','adm-comm','adm-pricing','adm-coupons','adm-activate','adm-cities','adm-pool','adm-users','adm-partners-crm','adm-access','adm-settings'];
+const admTabs = ['adm-dash','adm-boxes','adm-db','adm-exp','adm-requests','adm-reviews','adm-orders','adm-usage','adm-comm','adm-pricing','adm-coupons','adm-activate','adm-cities','adm-pool','adm-users','adm-partners-crm','adm-reporting','adm-access','adm-settings'];
 
 /* ══════════════════════════════════════════════════════════════
    CITY ROLLOUT — GEOGRAPHIC TOGGLE + RADIUS
@@ -15105,6 +15213,7 @@ function switchAdm(btn, tab) {
   if (tab === 'adm-cities')        renderAdmCities();
   if (tab === 'adm-users')         admLoadUsers();
   if (tab === 'adm-partners-crm')  admLoadPartnersCRM();
+  if (tab === 'adm-reporting')     admLoadReporting();
   if (tab === 'adm-access')        admLoadAccessList();
 }
 
@@ -23598,6 +23707,435 @@ async function admResetPartnerPaystack(userId, email) {
     if (msgEl) msgEl.innerHTML = '<span style="color:#ef4444">Error: ' + e.message + '</span>';
   }
 }
+
+
+/* ═══════════════════════════════════════════════════════════
+   ADMIN REPORTING
+   ═══════════════════════════════════════════════════════════ */
+
+var _rptData = { entries: [], partners: [], boosts: [], profiles: {}, bkwBookings: [] };
+var _rptActiveTab = 'rpt-overview';
+
+function switchRptTab(btn, tabId) {
+  document.querySelectorAll('.rpt-tab').forEach(function(b) {
+    b.style.fontWeight = '500';
+    b.style.color = 'var(--muted)';
+    b.style.borderBottom = 'none';
+  });
+  btn.style.fontWeight = '600';
+  btn.style.color = 'var(--navy)';
+  btn.style.borderBottom = '2px solid var(--b500)';
+  ['rpt-overview','rpt-partners','rpt-payouts','rpt-boosts','rpt-export'].forEach(function(t) {
+    var el = document.getElementById(t);
+    if (el) el.style.display = t === tabId ? 'block' : 'none';
+  });
+  _rptActiveTab = tabId;
+  rptRenderActiveTab();
+}
+
+async function admLoadReporting() {
+  var days    = parseInt(document.getElementById('rpt-period')?.value || '30');
+  var partner = document.getElementById('rpt-partner')?.value || '';
+  var since   = days > 0 ? new Date(Date.now() - days * 86400000).toISOString() : null;
+  var fmt     = function(n){ return 'R' + Number(n||0).toLocaleString('en-ZA', {minimumFractionDigits:2, maximumFractionDigits:2}); };
+
+  try {
+    // Fetch commission entries
+    var ceQ = db_client.from('commission_entries').select('*').order('validated_at', {ascending: false});
+    if (since) ceQ = ceQ.gte('validated_at', since);
+    if (partner) ceQ = ceQ.eq('partner_email', partner);
+    var ceRes = await ceQ;
+    _rptData.entries = ceRes.data || [];
+
+    // Fetch all partners
+    var pRes = await db_client.from('partners').select('*');
+    _rptData.partners = pRes.data || [];
+
+    // Fetch user_profiles for Paystack + bank info
+    var upRes = await db_client.from('user_profiles').select('email,full_name,partner_name,phone,paystack_account_id,paystack_recipient_code,paystack_connected_at,bank_name,bank_account_number,bank_code,page_status,role').eq('role','partner');
+    _rptData.profiles = {};
+    (upRes.data || []).forEach(function(p){ _rptData.profiles[p.email] = p; });
+
+    // Fetch boosts
+    var bQ = db_client.from('featured_boosts').select('*').order('created_at', {ascending: false});
+    if (since) bQ = bQ.gte('created_at', since);
+    var bRes = await bQ;
+    _rptData.boosts = bRes.data || [];
+
+    // Fetch BKW bookings
+    var bkQ = db_client.from('bookings').select('id,partner_email,experience_id,booking_reference,status,created_at,total_amount,guest_count').neq('status','cancelled').order('created_at',{ascending:false});
+    if (since) bkQ = bkQ.gte('created_at', since);
+    if (partner) bkQ = bkQ.eq('partner_email', partner);
+    var bkRes = await bkQ;
+    _rptData.bkwBookings = bRes.data || [];
+
+    // Populate partner filter
+    var sel = document.getElementById('rpt-partner');
+    if (sel && sel.options.length <= 1) {
+      var seen = {};
+      _rptData.entries.forEach(function(e){
+        if (e.partner_email && !seen[e.partner_email]) {
+          seen[e.partner_email] = e.partner_name || e.partner_email;
+        }
+      });
+      Object.keys(seen).forEach(function(em) {
+        var o = document.createElement('option');
+        o.value = em; o.textContent = seen[em];
+        sel.appendChild(o);
+      });
+    }
+
+    rptRenderActiveTab();
+  } catch(e) { console.error('admLoadReporting:', e.message); admToast('Reporting load error: ' + e.message); }
+}
+
+function rptRenderActiveTab() {
+  if (_rptActiveTab === 'rpt-overview') rptRenderOverview();
+  else if (_rptActiveTab === 'rpt-partners') rptRenderPartners();
+  else if (_rptActiveTab === 'rpt-payouts') rptRenderPayouts();
+  else if (_rptActiveTab === 'rpt-boosts') rptRenderBoosts();
+}
+
+function rptRenderOverview() {
+  var entries = _rptData.entries;
+  var boosts  = _rptData.boosts;
+  var profiles = _rptData.profiles;
+
+  var gross        = entries.reduce(function(s,e){ return s + Number(e.box_price||0); }, 0);
+  var wbKeeps      = entries.reduce(function(s,e){ return s + Number(e.platform_amount||0); }, 0);
+  var totalPayout  = entries.reduce(function(s,e){ return s + Number(e.partner_payout||0); }, 0);
+  var pending      = entries.filter(function(e){ return e.payout_status==='pending'; }).reduce(function(s,e){ return s+Number(e.partner_payout||0);},0);
+  var boostRev     = boosts.reduce(function(s,b){ return s+Number(b.amount||999);},0);
+  var activeP      = Object.keys(profiles).length;
+  var publishedP   = Object.values(profiles).filter(function(p){ return p.page_status==='published';}).length;
+  var noPaystack   = Object.values(profiles).filter(function(p){ return !p.paystack_account_id;}).length;
+  var validated    = entries.filter(function(e){ return e.payout_status==='paid';}).length;
+
+  var fmt = function(n){ return 'R'+Number(n||0).toLocaleString('en-ZA',{minimumFractionDigits:2,maximumFractionDigits:2}); };
+
+  var kpis = [
+    { label:'Gross revenue', value: fmt(gross), icon:'fa-coins', color:'var(--b600)' },
+    { label:'WowBox keeps', value: fmt(wbKeeps + boostRev), icon:'fa-building', color:'var(--navy)' },
+    { label:'Partner payouts', value: fmt(totalPayout), icon:'fa-money-bill-transfer', color:'#16a34a' },
+    { label:'Pending payouts', value: fmt(pending), icon:'fa-clock', color:'#f59e0b' },
+    { label:'Boost revenue', value: fmt(boostRev), icon:'fa-rocket', color:'var(--b500)' },
+    { label:'Active partners', value: activeP, icon:'fa-handshake', color:'var(--navy)' },
+    { label:'Pages published', value: publishedP + ' / ' + activeP, icon:'fa-store', color:'#16a34a' },
+    { label:'No Paystack', value: noPaystack, icon:'fa-triangle-exclamation', color: noPaystack > 0 ? '#ef4444' : '#16a34a' },
+    { label:'Validated bookings', value: validated, icon:'fa-circle-check', color:'#16a34a' },
+  ];
+
+  var grid = document.getElementById('rpt-kpi-grid');
+  if (grid) grid.innerHTML = kpis.map(function(k) {
+    return '<div class="atbl" style="padding:18px;display:flex;align-items:center;gap:14px">'
+      + '<div style="width:40px;height:40px;border-radius:10px;background:var(--b50);display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="fa '+k.icon+'" style="color:'+k.color+';font-size:1.1rem"></i></div>'
+      + '<div><div style="font-size:1.2rem;font-weight:700;color:'+k.color+'">'+k.value+'</div><div style="font-size:.72rem;color:var(--muted)">'+k.label+'</div></div>'
+      + '</div>';
+  }).join('');
+
+  // Alerts
+  var alerts = [];
+  if (noPaystack > 0) alerts.push('<div style="background:#fef3c7;border:1.5px solid #fcd34d;border-radius:var(--r);padding:12px 16px;font-size:.8rem;display:flex;align-items:center;gap:10px"><i class="fa fa-triangle-exclamation" style="color:#d97706"></i> <strong>'+noPaystack+' partner'+(noPaystack>1?'s':'')+' without Paystack connected</strong> — payouts are blocked. <button class="btn bg bsm" style="margin-left:auto" onclick="rptSendPaystackReminder()">Send reminder</button></div>');
+
+  var expiringSoon = boosts.filter(function(b){
+    var exp = new Date(b.expires_at);
+    var diff = (exp - Date.now()) / 86400000;
+    return diff >= 0 && diff <= 7;
+  });
+  if (expiringSoon.length) alerts.push('<div style="background:#ede9fe;border:1.5px solid #a78bfa;border-radius:var(--r);padding:12px 16px;font-size:.8rem;display:flex;align-items:center;gap:10px"><i class="fa fa-rocket" style="color:#7c3aed"></i> <strong>'+expiringSoon.length+' boost'+(expiringSoon.length>1?'s':'')+' expiring within 7 days</strong></div>');
+
+  var alertsEl = document.getElementById('rpt-alerts');
+  if (alertsEl) alertsEl.innerHTML = alerts.join('<div style="height:8px"></div>');
+}
+
+function rptRenderPartners() {
+  var tbody = document.getElementById('rpt-partners-tbody');
+  if (!tbody) return;
+
+  var profiles = _rptData.profiles;
+  var entries  = _rptData.entries;
+  var boosts   = _rptData.boosts;
+  var partners = _rptData.partners;
+  var fmt      = function(n){ return 'R'+Number(n||0).toLocaleString('en-ZA',{minimumFractionDigits:2,maximumFractionDigits:2}); };
+
+  var rows = Object.values(profiles).map(function(prof) {
+    var email    = prof.email;
+    var pData    = partners.find(function(p){ return p.contact_email === email; }) || {};
+    var pEntries = entries.filter(function(e){ return e.partner_email === email; });
+    var pBoosts  = boosts.filter(function(b){ return b.partner_email === email; });
+    var bkwCount = (_rptData.bkwBookings||[]).filter(function(b){ return b.partner_email === email; }).length;
+
+    var gross    = pEntries.reduce(function(s,e){ return s+Number(e.box_price||0);},0);
+    var wbKeeps  = pEntries.reduce(function(s,e){ return s+Number(e.platform_amount||0);},0);
+    var payout   = pEntries.reduce(function(s,e){ return s+Number(e.partner_payout||0);},0);
+    var pendingAmt = pEntries.filter(function(e){ return e.payout_status==='pending';}).reduce(function(s,e){ return s+Number(e.partner_payout||0);},0);
+    var boostAmt = pBoosts.reduce(function(s,b){ return s+Number(b.amount||999);},0);
+    var validated= pEntries.filter(function(e){ return e.payout_status==='paid';}).length;
+    var total    = pEntries.length;
+    var valRate  = total ? Math.round(validated/total*100)+'%' : '—';
+    var lastAct  = pEntries.length ? pEntries[0].validated_at?.slice(0,10) : '—';
+    var pageStatus = prof.page_status === 'published'
+      ? '<span class="sbadge sb-a" style="font-size:.65rem">Published</span>'
+      : prof.page_status === 'draft'
+        ? '<span class="sbadge sb-w" style="font-size:.65rem">Draft</span>'
+        : '<span class="sbadge" style="font-size:.65rem;background:var(--bg2);color:var(--muted)">None</span>';
+    var paystackStatus = prof.paystack_account_id
+      ? '<span style="color:#16a34a;font-size:.72rem"><i class="fa fa-circle-check"></i> Connected</span>'
+      : '<span style="color:#ef4444;font-size:.72rem"><i class="fa fa-xmark"></i> Not connected</span>';
+
+    var encodedEmail = encodeURIComponent(email);
+    var actions = '<div style="display:flex;gap:4px;flex-wrap:wrap">'
+      + '<button class="btn bg bsm" style="font-size:.68rem" onclick="rptViewPartnerDetail(\''+encodedEmail+'\')"><i class="fa fa-eye"></i></button>'
+      + '<button class="btn bg bsm" style="font-size:.68rem" onclick="rptContactPartner(\''+encodedEmail+'\')"><i class="fa fa-envelope"></i></button>'
+      + '<button class="btn bg bsm" style="font-size:.68rem" onclick="rptExportCSV(\''+encodedEmail+'\')"><i class="fa fa-download"></i></button>'
+      + '<button class="btn bd bsm" style="font-size:.68rem" onclick="rptSendStatement(\''+encodedEmail+'\')"><i class="fa fa-file-invoice"></i></button>'
+      + '</div>';
+
+    return '<tr>'
+      +'<td><strong style="font-size:.82rem">'+(prof.partner_name||prof.full_name||email)+'</strong><div style="font-size:.7rem;color:var(--muted)">'+email+'</div><div style="font-size:.7rem;color:var(--muted)">'+(prof.phone||'—')+'</div></td>'
+      +'<td style="font-size:.75rem">'+(pData.registration_number||'—')+'<div style="color:var(--muted)">'+(pData.vat_number||'—')+'</div></td>'
+      +'<td style="font-size:.75rem">'+(prof.bank_name||'—')+'<div style="color:var(--muted)">'+(prof.bank_account_number ? '••'+prof.bank_account_number.slice(-4) : '—')+'</div></td>'
+      +'<td>'+paystackStatus+'<div style="font-size:.68rem;color:var(--muted)">'+(prof.paystack_account_id||'—')+'</div></td>'
+      +'<td style="font-size:.75rem">'+(pEntries[0]?.platform_rate||'—')+'%</td>'
+      +'<td style="font-size:.75rem;text-align:center">—</td>'
+      +'<td style="font-size:.75rem;text-align:center">'+total+' <span style="color:var(--muted)">('+valRate+')</span></td>'
+      +'<td style="font-size:.75rem;text-align:center">'+bkwCount+' / '+(total-bkwCount)+'</td>'
+      +'<td style="font-size:.75rem;text-align:center">'+pBoosts.length+(boostAmt?' ('+fmt(boostAmt)+')':'')+'</td>'
+      +'<td style="font-size:.75rem">'+fmt(gross)+'</td>'
+      +'<td style="font-size:.75rem;color:var(--b600)">'+fmt(wbKeeps)+'</td>'
+      +'<td style="font-size:.75rem;color:#16a34a;font-weight:600">'+fmt(payout)+'</td>'
+      +'<td style="font-size:.75rem;color:#f59e0b">'+fmt(pendingAmt)+'</td>'
+      +'<td>'+pageStatus+'</td>'
+      +'<td style="font-size:.72rem;color:var(--muted)">'+lastAct+'</td>'
+      +'<td>'+actions+'</td>'
+      +'</tr>';
+  });
+
+  tbody.innerHTML = rows.length ? rows.join('') : '<tr><td colspan="16" style="text-align:center;padding:28px;color:var(--muted)">No partner data found.</td></tr>';
+}
+
+function rptRenderPayouts() {
+  var tbody = document.getElementById('rpt-payouts-tbody');
+  if (!tbody) return;
+  var entries = _rptData.entries;
+  var fmt = function(n){ return 'R'+Number(n||0).toLocaleString('en-ZA',{minimumFractionDigits:2,maximumFractionDigits:2}); };
+
+  tbody.innerHTML = entries.map(function(e) {
+    var statusHtml = e.payout_status === 'paid'
+      ? '<span class="sbadge sb-a" style="font-size:.65rem">Paid</span>'
+      : e.payout_status === 'dispute'
+        ? '<span class="sbadge" style="font-size:.65rem;background:#fee2e2;color:#991b1b">Dispute</span>'
+        : '<span class="sbadge sb-p" style="font-size:.65rem">Pending</span>';
+    var flow = e.booking_reference?.startsWith('BKW') ? '<span style="font-size:.65rem;background:#ede9fe;color:#5b21b6;border-radius:4px;padding:2px 6px">BKW</span>' : '<span style="font-size:.65rem;background:#dcfce7;color:#166534;border-radius:4px;padding:2px 6px">WB</span>';
+    var delay = (e.validated_at && e.paid_at)
+      ? Math.round((new Date(e.paid_at) - new Date(e.validated_at)) / 86400000) + 'd'
+      : '—';
+    var actions = '<div style="display:flex;gap:4px">'
+      + (e.payout_status === 'pending' ? '<button class="btn bg bsm" style="font-size:.68rem" onclick="rptMarkEntryDispute(\''+e.id+'\')"><i class="fa fa-flag"></i></button>' : '')
+      + '</div>';
+
+    return '<tr>'
+      +'<td style="font-size:.78rem"><strong>'+(e.partner_name||e.partner_email)+'</strong></td>'
+      +'<td style="font-size:.75rem;font-family:monospace">'+(e.booking_reference||e.transaction_ref||'—')+'</td>'
+      +'<td style="font-size:.75rem">'+(e.experience_name||'—')+'</td>'
+      +'<td>'+flow+'</td>'
+      +'<td style="font-size:.72rem;color:var(--muted)">'+(e.validated_at?.slice(0,10)||'—')+'</td>'
+      +'<td style="font-size:.72rem;color:var(--muted)">'+(e.paid_at?.slice(0,10)||delay)+'</td>'
+      +'<td style="font-size:.75rem">'+fmt(e.box_price)+'</td>'
+      +'<td style="font-size:.75rem;color:var(--b600)">'+fmt(e.platform_amount)+'</td>'
+      +'<td style="font-size:.75rem;color:#16a34a;font-weight:600">'+fmt(e.partner_payout)+'</td>'
+      +'<td style="font-size:.68rem;color:var(--muted);font-family:monospace">'+(e.paystack_transfer_id||'—')+'</td>'
+      +'<td>'+statusHtml+'</td>'
+      +'<td>'+actions+'</td>'
+      +'</tr>';
+  }).join('') || '<tr><td colspan="12" style="text-align:center;padding:28px;color:var(--muted)">No payout data found.</td></tr>';
+}
+
+function rptRenderBoosts() {
+  var tbody = document.getElementById('rpt-boosts-tbody');
+  if (!tbody) return;
+  var boosts = _rptData.boosts;
+  var fmt = function(n){ return 'R'+Number(n||0).toLocaleString('en-ZA',{minimumFractionDigits:2,maximumFractionDigits:2}); };
+
+  // Alerts
+  var expiringSoon = boosts.filter(function(b){
+    var diff = (new Date(b.expires_at) - Date.now()) / 86400000;
+    return diff >= 0 && diff <= 7;
+  });
+  var alertsEl = document.getElementById('rpt-boost-alerts');
+  if (alertsEl && expiringSoon.length) {
+    alertsEl.innerHTML = '<div style="background:#ede9fe;border:1.5px solid #a78bfa;border-radius:var(--r);padding:12px 16px;font-size:.8rem"><i class="fa fa-rocket" style="color:#7c3aed;margin-right:8px"></i><strong>'+expiringSoon.length+' boost'+(expiringSoon.length>1?'s':'')+' expiring within 7 days</strong> — consider contacting these partners to renew.</div>';
+  }
+
+  tbody.innerHTML = boosts.map(function(b) {
+    var now = Date.now();
+    var exp = new Date(b.expires_at);
+    var diff = (exp - now) / 86400000;
+    var statusHtml = diff < 0
+      ? '<span class="sbadge" style="font-size:.65rem;background:#fee2e2;color:#991b1b">Expired</span>'
+      : diff <= 7
+        ? '<span class="sbadge sb-p" style="font-size:.65rem">Expires soon</span>'
+        : '<span class="sbadge sb-a" style="font-size:.65rem">Active</span>';
+    return '<tr>'
+      +'<td style="font-size:.82rem"><strong>'+(b.partner_name||b.partner_email||'—')+'</strong></td>'
+      +'<td style="font-size:.78rem">'+(b.experience_name||b.experience_id||'—')+'</td>'
+      +'<td style="font-size:.75rem;color:var(--muted)">'+(b.created_at?.slice(0,10)||'—')+'</td>'
+      +'<td style="font-size:.75rem;color:var(--muted)">'+(b.expires_at?.slice(0,10)||'—')+'</td>'
+      +'<td style="font-size:.75rem">'+fmt(b.amount||999)+'</td>'
+      +'<td>'+statusHtml+'</td>'
+      +'<td><button class="btn bg bsm" style="font-size:.68rem" onclick="rptContactPartner(\''+encodeURIComponent(b.partner_email||'')+'\')"><i class="fa fa-envelope"></i> Contact</button></td>'
+      +'</tr>';
+  }).join('') || '<tr><td colspan="7" style="text-align:center;padding:28px;color:var(--muted)">No boost data found.</td></tr>';
+}
+
+function rptViewPartnerDetail(encodedEmail) {
+  var email = decodeURIComponent(encodedEmail);
+  var prof = _rptData.profiles[email] || {};
+  var pData = _rptData.partners.find(function(p){ return p.contact_email === email; }) || {};
+  var pEntries = _rptData.entries.filter(function(e){ return e.partner_email === email; });
+  var pBoosts = _rptData.boosts.filter(function(b){ return b.partner_email === email; });
+  var fmt = function(n){ return 'R'+Number(n||0).toLocaleString('en-ZA',{minimumFractionDigits:2,maximumFractionDigits:2}); };
+
+  var modal = document.createElement('div');
+  modal.style.cssText = 'position:fixed;inset:0;z-index:9999;display:flex;align-items:flex-start;justify-content:center;padding:40px 20px;background:rgba(5,15,40,.6);backdrop-filter:blur(4px);overflow-y:auto';
+  modal.innerHTML = '<div style="background:#fff;border-radius:16px;padding:28px;max-width:640px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.25)">'
+    + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">'
+    + '<h3 style="font-size:1.1rem;color:var(--navy)">'+(prof.partner_name||prof.full_name||email)+'</h3>'
+    + '<button class="btn bg bsm" onclick="this.closest(\'div[style*=fixed]\').remove()"><i class="fa fa-xmark"></i></button>'
+    + '</div>'
+    + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:18px">'
+    + '<div class="atbl" style="padding:14px"><div style="font-size:.68rem;color:var(--muted);text-transform:uppercase;margin-bottom:4px">Email</div><div style="font-size:.82rem">'+email+'</div></div>'
+    + '<div class="atbl" style="padding:14px"><div style="font-size:.68rem;color:var(--muted);text-transform:uppercase;margin-bottom:4px">Phone</div><div style="font-size:.82rem">'+(prof.phone||'—')+'</div></div>'
+    + '<div class="atbl" style="padding:14px"><div style="font-size:.68rem;color:var(--muted);text-transform:uppercase;margin-bottom:4px">CIPC</div><div style="font-size:.82rem">'+(pData.registration_number||'—')+'</div></div>'
+    + '<div class="atbl" style="padding:14px"><div style="font-size:.68rem;color:var(--muted);text-transform:uppercase;margin-bottom:4px">VAT</div><div style="font-size:.82rem">'+(pData.vat_number||'—')+'</div></div>'
+    + '<div class="atbl" style="padding:14px"><div style="font-size:.68rem;color:var(--muted);text-transform:uppercase;margin-bottom:4px">Bank</div><div style="font-size:.82rem">'+(prof.bank_name||'—')+'</div></div>'
+    + '<div class="atbl" style="padding:14px"><div style="font-size:.68rem;color:var(--muted);text-transform:uppercase;margin-bottom:4px">Account</div><div style="font-size:.82rem">'+(prof.bank_account_number ? '••'+prof.bank_account_number.slice(-4) : '—')+'</div></div>'
+    + '<div class="atbl" style="padding:14px"><div style="font-size:.68rem;color:var(--muted);text-transform:uppercase;margin-bottom:4px">Paystack</div><div style="font-size:.82rem">'+(prof.paystack_account_id||'Not connected')+'</div></div>'
+    + '<div class="atbl" style="padding:14px"><div style="font-size:.68rem;color:var(--muted);text-transform:uppercase;margin-bottom:4px">Page</div><div style="font-size:.82rem">'+(prof.page_status||'—')+'</div></div>'
+    + '</div>'
+    + '<h4 style="font-size:.85rem;color:var(--navy);margin-bottom:10px">Payout history ('+pEntries.length+' entries)</h4>'
+    + '<div style="max-height:200px;overflow-y:auto;font-size:.75rem">'
+    + pEntries.slice(0,20).map(function(e){
+        return '<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border)">'
+          + '<span style="color:var(--muted)">'+(e.validated_at?.slice(0,10)||'—')+' · '+(e.booking_reference||'—')+'</span>'
+          + '<span style="font-weight:600;color:'+(e.payout_status==='paid'?'#16a34a':'#f59e0b')+'">'+fmt(e.partner_payout)+' · '+(e.payout_status==='paid'?'Paid':'Pending')+'</span>'
+          + '</div>';
+      }).join('')
+    + '</div>'
+    + '<div style="display:flex;gap:8px;margin-top:18px;flex-wrap:wrap">'
+    + '<button class="btn bp bsm" onclick="rptExportCSV(\''+encodeURIComponent(email)+'\')"><i class="fa fa-download"></i> Export CSV</button>'
+    + '<button class="btn bg bsm" onclick="rptSendStatement(\''+encodeURIComponent(email)+'\')"><i class="fa fa-file-invoice"></i> Send statement</button>'
+    + '<button class="btn bg bsm" onclick="rptContactPartner(\''+encodeURIComponent(email)+'\')"><i class="fa fa-envelope"></i> Contact</button>'
+    + '</div>'
+    + '</div>';
+  document.body.appendChild(modal);
+  modal.addEventListener('click', function(e){ if(e.target===modal) modal.remove(); });
+}
+
+function rptContactPartner(encodedEmail) {
+  var email = decodeURIComponent(encodedEmail);
+  var prof = _rptData.profiles[email] || {};
+  var name = prof.partner_name || prof.full_name || email;
+  window.open('mailto:'+email+'?subject=WowBox — Partner Update&body=Hi '+name+',%0D%0A%0D%0A', '_blank');
+}
+
+function rptExportCSV(encodedEmail) {
+  var email = encodedEmail === 'all' ? null : decodeURIComponent(encodedEmail);
+  var entries = email ? _rptData.entries.filter(function(e){ return e.partner_email === email; }) : _rptData.entries;
+  var headers = ['Partner','Email','Booking ref','Experience','Flow','Validated at','Paid at','Box price','WB keeps','Partner payout','Transfer ref','Status'];
+  var rows = entries.map(function(e) {
+    return [
+      e.partner_name||'', e.partner_email||'',
+      e.booking_reference||e.transaction_ref||'',
+      e.experience_name||'',
+      (e.booking_reference||'').startsWith('BKW') ? 'BKW' : 'WowBox',
+      e.validated_at?.slice(0,10)||'',
+      e.paid_at?.slice(0,10)||'',
+      e.box_price||0, e.platform_amount||0, e.partner_payout||0,
+      e.paystack_transfer_id||'', e.payout_status||''
+    ].map(function(v){ return '"'+String(v).replace(/"/g,'""')+'"'; }).join(',');
+  });
+  var csv = [headers.join(',')].concat(rows).join('\n');
+  var blob = new Blob([csv], {type:'text/csv'});
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url; a.download = 'wowbox-payouts-'+(email||'all')+'-'+new Date().toISOString().slice(0,10)+'.csv';
+  a.click(); URL.revokeObjectURL(url);
+  admToast('CSV exported.');
+}
+
+async function rptSendStatement(encodedEmail) {
+  var email = decodeURIComponent(encodedEmail);
+  var prof = _rptData.profiles[email] || {};
+  var name = prof.partner_name || prof.full_name || email;
+  var entries = _rptData.entries.filter(function(e){ return e.partner_email === email && e.payout_status === 'paid'; });
+  var total = entries.reduce(function(s,e){ return s+Number(e.partner_payout||0);},0);
+  try {
+    await fetch('/api/send-email', { method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ type:'payout_processed', data:{
+        partnerEmail: email, name: name,
+        amount: total.toFixed(2), bookingCount: entries.length,
+        period: new Date().toLocaleDateString('en-ZA',{month:'long',year:'numeric'}),
+        transferRef: 'STATEMENT-'+Date.now()
+      }})
+    });
+    admToast('Statement sent to ' + email);
+  } catch(e) { admToast('Error: ' + e.message); }
+}
+
+async function rptSendStatements() {
+  var profiles = Object.keys(_rptData.profiles);
+  if (!profiles.length) { admToast('No partners found.'); return; }
+  if (!confirm('Send monthly statements to all ' + profiles.length + ' partners?')) return;
+  var sent = 0;
+  for (var i = 0; i < profiles.length; i++) {
+    await rptSendStatement(encodeURIComponent(profiles[i]));
+    sent++;
+  }
+  admToast(sent + ' statements sent.');
+}
+
+async function rptSendPaystackReminder() {
+  var noPs = Object.values(_rptData.profiles).filter(function(p){ return !p.paystack_account_id; });
+  if (!noPs.length) { admToast('All partners have Paystack connected.'); return; }
+  if (!confirm('Send Paystack reminder to ' + noPs.length + ' partners?')) return;
+  for (var i = 0; i < noPs.length; i++) {
+    var p = noPs[i];
+    await fetch('/api/send-email', { method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ type:'admin_notification', data:{
+        to: p.email, subject: 'Connect your bank account to receive payouts',
+        message: 'Hi '+(p.partner_name||p.full_name||'Partner')+', please connect your bank account in your WowBox Partner Portal to start receiving payouts.'
+      }})
+    }).catch(function(){});
+  }
+  admToast('Paystack reminders sent to ' + noPs.length + ' partners.');
+}
+
+async function rptSendPageReminder() {
+  var noPage = Object.values(_rptData.profiles).filter(function(p){ return p.page_status !== 'published'; });
+  if (!noPage.length) { admToast('All partners have published their page.'); return; }
+  if (!confirm('Send My Page reminder to ' + noPage.length + ' partners?')) return;
+  for (var i = 0; i < noPage.length; i++) {
+    var p = noPage[i];
+    await fetch('/api/send-email', { method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ type:'admin_notification', data:{
+        to: p.email, subject: 'Publish your WowBox partner page',
+        message: 'Hi '+(p.partner_name||p.full_name||'Partner')+', publish your partner page to attract more clients on WowBox.'
+      }})
+    }).catch(function(){});
+  }
+  admToast('Page reminders sent to ' + noPage.length + ' partners.');
+}
+
+async function rptMarkEntryDispute(id) {
+  if (!confirm('Mark this payout as disputed? It will be blocked from automatic transfer.')) return;
+  try {
+    await db_client.from('commission_entries').update({payout_status:'dispute'}).eq('id', id);
+    admToast('Entry marked as disputed.');
+    admLoadReporting();
+  } catch(e) { admToast('Error: ' + e.message); }
+}
+
 
 function admClosePCRMDetail() {
   _admSelectedPartnerId = null;
