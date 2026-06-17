@@ -23713,7 +23713,7 @@ async function admResetPartnerPaystack(userId, email) {
    ADMIN REPORTING
    ═══════════════════════════════════════════════════════════ */
 
-var _rptData = { entries: [], partners: [], boosts: [], profiles: {}, bkwBookings: [] };
+var _rptData = { entries: [], partners: [], boosts: [], profiles: {}, bkwBookings: [], experiences: [] };
 var _rptActiveTab = 'rpt-overview';
 
 function switchRptTab(btn, tabId) {
@@ -23769,6 +23769,10 @@ async function admLoadReporting() {
     bkQ = bkQ.order('created_at',{ascending:false});
     var bkRes = await bkQ;
     _rptData.bkwBookings = (bkRes.data || []).filter(function(b){ return b.status !== 'cancelled'; });
+
+    // Fetch active experiences per partner
+    var expRes = await db_client.from('experiences').select('partner_email,is_active').eq('is_active', true);
+    _rptData.experiences = expRes.data || [];
 
     // Populate partner filter
     var sel = document.getElementById('rpt-partner');
@@ -23864,6 +23868,7 @@ function rptRenderPartners() {
     var pData    = partners.find(function(p){ return p.contact_email === email; }) || {};
     var pEntries = entries.filter(function(e){ return e.partner_email === email; });
     var pBoosts  = boosts.filter(function(b){ return b.partner_email === email; });
+    var pExps    = (_rptData.experiences||[]).filter(function(e){ return e.partner_email === email; }).length;
     var partnerBookings = (_rptData.bkwBookings||[]).filter(function(b){ return b.partner_email === email; });
     var bkwCount = partnerBookings.filter(function(b){ return b.flow === 'bkw' || b.flow === 'wow' || (b.booking_reference||'').startsWith('BKW'); }).length;
     var wbCount  = partnerBookings.filter(function(b){ return b.flow === 'wowbox' || (b.booking_reference||'').startsWith('BK-'); }).length;
@@ -23887,12 +23892,17 @@ function rptRenderPartners() {
       : '<span style="color:#ef4444;font-size:.72rem"><i class="fa fa-xmark"></i> Not connected</span>';
 
     var encodedEmail = encodeURIComponent(email);
-    var actions = '<div style="display:flex;gap:4px;flex-wrap:wrap">'
-      + '<button class="btn bg bsm" style="font-size:.68rem" onclick="rptViewPartnerDetail(\''+encodedEmail+'\')"><i class="fa fa-eye"></i></button>'
-      + '<button class="btn bg bsm" style="font-size:.68rem" onclick="rptContactPartner(\''+encodedEmail+'\')"><i class="fa fa-envelope"></i></button>'
-      + '<button class="btn bg bsm" style="font-size:.68rem" onclick="rptExportCSV(\''+encodedEmail+'\')"><i class="fa fa-download"></i></button>'
-      + '<button class="btn bd bsm" style="font-size:.68rem" onclick="rptSendStatement(\''+encodedEmail+'\')"><i class="fa fa-file-invoice"></i></button>'
-      + '</div>';
+    var menuId = 'rptm_'+Math.random().toString(36).slice(2,7);
+    var actions = '<div style="position:relative;display:inline-block">'
+      + '<button class="btn bg bsm" style="font-size:.9rem;padding:5px 10px;letter-spacing:2px" onclick="rptToggleMenu(\''+menuId+'\',event)">···</button>'
+      + '<div id="'+menuId+'" style="display:none;position:absolute;right:0;top:110%;z-index:600;background:#fff;border:1.5px solid var(--border);border-radius:10px;box-shadow:0 4px 20px rgba(0,0,0,.15);min-width:190px;overflow:hidden">'
+      + '<button data-action="detail" data-email="'+encodedEmail+'" onclick="rptViewPartnerDetail(this.dataset.email);rptCloseMenus()" style="display:block;width:100%;text-align:left;padding:10px 14px;border:none;background:none;font-size:.8rem;cursor:pointer;color:var(--navy)"><i class="fa fa-eye" style="margin-right:8px;width:14px"></i>View detail</button>'
+      + '<button data-action="statement" data-email="'+encodedEmail+'" onclick="rptSendStatement(this.dataset.email);rptCloseMenus()" style="display:block;width:100%;text-align:left;padding:10px 14px;border:none;background:none;font-size:.8rem;cursor:pointer;color:var(--navy)"><i class="fa fa-file-invoice" style="margin-right:8px;width:14px"></i>Send statement</button>'
+      + '<button data-action="export" data-email="'+encodedEmail+'" onclick="rptExportCSV(this.dataset.email);rptCloseMenus()" style="display:block;width:100%;text-align:left;padding:10px 14px;border:none;background:none;font-size:.8rem;cursor:pointer;color:var(--navy)"><i class="fa fa-download" style="margin-right:8px;width:14px"></i>Export CSV</button>'
+      + '<button data-action="contact" data-email="'+encodedEmail+'" onclick="rptContactPartner(this.dataset.email);rptCloseMenus()" style="display:block;width:100%;text-align:left;padding:10px 14px;border:none;background:none;font-size:.8rem;cursor:pointer;color:var(--navy)"><i class="fa fa-envelope" style="margin-right:8px;width:14px"></i>Contact</button>'
+      + '<div style="border-top:1px solid var(--border);margin:2px 0"></div>'
+      + '<button data-action="paystack" data-email="'+encodedEmail+'" onclick="rptSendPaystackReminderOne(this.dataset.email);rptCloseMenus()" style="display:block;width:100%;text-align:left;padding:10px 14px;border:none;background:none;font-size:.8rem;cursor:pointer;color:#d97706"><i class="fa fa-credit-card" style="margin-right:8px;width:14px"></i>Paystack reminder</button>'
+      + '</div></div>';
 
     return '<tr>'
       +'<td><strong style="font-size:.82rem">'+(prof.partner_name||prof.full_name||email)+'</strong><div style="font-size:.7rem;color:var(--muted)">'+email+'</div><div style="font-size:.7rem;color:var(--muted)">'+(prof.phone||'—')+'</div></td>'
@@ -23900,7 +23910,7 @@ function rptRenderPartners() {
       +'<td style="font-size:.75rem">'+(prof.bank_name||'—')+'<div style="color:var(--muted)">'+(prof.bank_account_number ? '••'+prof.bank_account_number.slice(-4) : '—')+'</div></td>'
       +'<td>'+paystackStatus+'<div style="font-size:.68rem;color:var(--muted)">'+(prof.paystack_account_id||'—')+'</div></td>'
       +'<td style="font-size:.75rem">'+(pEntries[0]?.platform_rate||'—')+'%</td>'
-      +'<td style="font-size:.75rem;text-align:center">—</td>'
+      +'<td style="font-size:.75rem;text-align:center">'+pExps+'</td>'
       +'<td style="font-size:.75rem;text-align:center">'+total+' <span style="color:var(--muted)">('+valRate+')</span></td>'
       +'<td style="font-size:.75rem;text-align:center">'+bkwCount+' BKW / '+wbCount+' WB</td>'
       +'<td style="font-size:.75rem;text-align:center">'+pBoosts.length+(boostAmt?' ('+fmt(boostAmt)+')':'')+'</td>'
@@ -23991,6 +24001,29 @@ function rptRenderBoosts() {
   }).join('') || '<tr><td colspan="7" style="text-align:center;padding:28px;color:var(--muted)">No boost data found.</td></tr>';
 }
 
+function rptToggleMenu(menuId, e) {
+  e.stopPropagation();
+  rptCloseMenus();
+  var m = document.getElementById(menuId);
+  if (m) m.style.display = m.style.display === 'none' ? 'block' : 'none';
+}
+function rptCloseMenus() {
+  document.querySelectorAll('[id^="rptm_"]').forEach(function(m){ m.style.display = 'none'; });
+}
+document.addEventListener('click', rptCloseMenus);
+
+async function rptSendPaystackReminderOne(encodedEmail) {
+  var email = decodeURIComponent(encodedEmail);
+  var prof = _rptData.profiles[email] || {};
+  var name = prof.partner_name || prof.full_name || email;
+  try {
+    await fetch('/api/send-email', { method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ type:'partner_paystack_reminder', data:{ to: email, name: name }})
+    });
+    admToast('Paystack reminder sent to ' + email);
+  } catch(e) { admToast('Error: ' + e.message); }
+}
+
 function rptViewPartnerDetail(encodedEmail) {
   var email = decodeURIComponent(encodedEmail);
   var prof = _rptData.profiles[email] || {};
@@ -24071,15 +24104,31 @@ async function rptSendStatement(encodedEmail) {
   var email = decodeURIComponent(encodedEmail);
   var prof = _rptData.profiles[email] || {};
   var name = prof.partner_name || prof.full_name || email;
-  var entries = _rptData.entries.filter(function(e){ return e.partner_email === email && e.payout_status === 'paid'; });
-  var total = entries.reduce(function(s,e){ return s+Number(e.partner_payout||0);},0);
+  var allEntries = _rptData.entries.filter(function(e){ return e.partner_email === email; });
+  var paidEntries = allEntries.filter(function(e){ return e.payout_status === 'paid'; });
+  var pendingAmt = allEntries.filter(function(e){ return e.payout_status === 'pending'; }).reduce(function(s,e){ return s+Number(e.partner_payout||0);},0);
+  var totalPaid = paidEntries.reduce(function(s,e){ return s+Number(e.partner_payout||0);},0);
+  var grossTotal = allEntries.reduce(function(s,e){ return s+Number(e.box_price||0);},0);
+  var transactions = paidEntries.slice(0,20).map(function(e){ return {
+    date: e.validated_at?.slice(0,10)||'—',
+    experience: e.experience_name||'—',
+    booking_ref: e.booking_reference||e.transaction_ref||'—',
+    gross: e.box_price||0,
+    commission_rate: e.platform_rate||0,
+    payout: e.partner_payout||0,
+    transfer_ref: e.paystack_transfer_id||'—',
+    status: e.payout_status
+  };});
   try {
     await fetch('/api/send-email', { method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ type:'payout_processed', data:{
-        partnerEmail: email, name: name,
-        amount: total.toFixed(2), bookingCount: entries.length,
+      body: JSON.stringify({ type:'partner_monthly_statement', data:{
+        to: email, name: name,
         period: new Date().toLocaleDateString('en-ZA',{month:'long',year:'numeric'}),
-        transferRef: 'STATEMENT-'+Date.now()
+        grossTotal: grossTotal.toFixed(2),
+        totalPaid: totalPaid.toFixed(2),
+        pendingAmt: pendingAmt.toFixed(2),
+        bookingCount: allEntries.length,
+        transactions: transactions
       }})
     });
     admToast('Statement sent to ' + email);

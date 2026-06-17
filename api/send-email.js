@@ -305,6 +305,94 @@ function tplPayoutProcessed(o) {
   };
 }
 
+// ── Partner monthly statement ─────────────────────────────────────────────────
+function tplPartnerMonthlyStatement(o) {
+  const txRows = (o.transactions || []).map(t => `
+    <tr>
+      <td style="padding:8px 12px;font-size:12px;color:#374151;border-bottom:1px solid #f3f4f6">${t.date}</td>
+      <td style="padding:8px 12px;font-size:12px;color:#374151;border-bottom:1px solid #f3f4f6">${t.experience}</td>
+      <td style="padding:8px 12px;font-size:12px;color:#374151;border-bottom:1px solid #f3f4f6;font-family:monospace">${t.booking_ref}</td>
+      <td style="padding:8px 12px;font-size:12px;color:#374151;border-bottom:1px solid #f3f4f6;text-align:right">R${Number(t.gross).toLocaleString('en-ZA',{minimumFractionDigits:2})}</td>
+      <td style="padding:8px 12px;font-size:12px;color:#374151;border-bottom:1px solid #f3f4f6;text-align:right">${t.commission_rate}%</td>
+      <td style="padding:8px 12px;font-size:12px;font-weight:700;color:#16a34a;border-bottom:1px solid #f3f4f6;text-align:right">R${Number(t.payout).toLocaleString('en-ZA',{minimumFractionDigits:2})}</td>
+      <td style="padding:8px 12px;font-size:11px;color:#6b7280;border-bottom:1px solid #f3f4f6;font-family:monospace">${t.transfer_ref}</td>
+    </tr>`).join('');
+
+  return {
+    subject: `📊 WowBox Payout Statement — ${o.period}`,
+    html: layout(`
+      <h2 style="font-family:'Cormorant Garamond',Georgia,serif;font-size:26px;color:#1e1e2d;margin:0 0 6px">Payout Statement</h2>
+      <p style="color:#6b7280;font-size:14px;margin:0 0 24px">Period: <strong>${o.period}</strong></p>
+
+      <table style="width:100%;border-collapse:collapse;margin-bottom:24px">
+        <tr>
+          <td style="padding:14px;background:#f9fafb;border-radius:8px;text-align:center;width:25%">
+            <div style="font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Gross revenue</div>
+            <div style="font-size:20px;font-weight:700;color:#1e1e2d">R${o.grossTotal}</div>
+          </td>
+          <td style="width:4%"></td>
+          <td style="padding:14px;background:#f0fdf4;border-radius:8px;text-align:center;width:25%">
+            <div style="font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Total paid</div>
+            <div style="font-size:20px;font-weight:700;color:#16a34a">R${o.totalPaid}</div>
+          </td>
+          <td style="width:4%"></td>
+          <td style="padding:14px;background:#fef3c7;border-radius:8px;text-align:center;width:25%">
+            <div style="font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Pending</div>
+            <div style="font-size:20px;font-weight:700;color:#d97706">R${o.pendingAmt}</div>
+          </td>
+          <td style="width:4%"></td>
+          <td style="padding:14px;background:#ede9fe;border-radius:8px;text-align:center;width:13%">
+            <div style="font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Bookings</div>
+            <div style="font-size:20px;font-weight:700;color:#5b21b6">${o.bookingCount}</div>
+          </td>
+        </tr>
+      </table>
+
+      ${txRows ? `
+      <h3 style="font-size:14px;font-weight:700;color:#1e1e2d;margin:0 0 12px">Transaction detail</h3>
+      <div style="overflow-x:auto">
+      <table style="width:100%;border-collapse:collapse;font-size:12px">
+        <thead>
+          <tr style="background:#f9fafb">
+            <th style="padding:8px 12px;text-align:left;font-size:11px;color:#6b7280;text-transform:uppercase">Date</th>
+            <th style="padding:8px 12px;text-align:left;font-size:11px;color:#6b7280;text-transform:uppercase">Experience</th>
+            <th style="padding:8px 12px;text-align:left;font-size:11px;color:#6b7280;text-transform:uppercase">Booking ref</th>
+            <th style="padding:8px 12px;text-align:right;font-size:11px;color:#6b7280;text-transform:uppercase">Gross</th>
+            <th style="padding:8px 12px;text-align:right;font-size:11px;color:#6b7280;text-transform:uppercase">Rate</th>
+            <th style="padding:8px 12px;text-align:right;font-size:11px;color:#6b7280;text-transform:uppercase">Your payout</th>
+            <th style="padding:8px 12px;text-align:left;font-size:11px;color:#6b7280;text-transform:uppercase">Transfer ref</th>
+          </tr>
+        </thead>
+        <tbody>${txRows}</tbody>
+      </table>
+      </div>` : '<p style="color:#6b7280;font-size:14px">No transactions found for this period.</p>'}
+
+      <div style="margin-top:24px;text-align:center">
+        <a href="https://wowbox.co.za/partner#pp-payouts" style="display:inline-block;background:#8B4513;color:#fff;text-decoration:none;padding:12px 28px;border-radius:8px;font-size:14px;font-weight:600">View Payout History →</a>
+      </div>
+    `)
+  };
+}
+
+// ── Partner Paystack reminder ──────────────────────────────────────────────────
+function tplPartnerPaystackReminder(o) {
+  return {
+    subject: '💳 Connect your bank account to receive WowBox payouts',
+    html: layout(`
+      <h2 style="font-family:'Cormorant Garamond',Georgia,serif;font-size:26px;color:#1e1e2d;margin:0 0 16px">Action required</h2>
+      <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 16px">Hi ${o.name || 'Partner'},</p>
+      <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 20px">You have pending payouts waiting but your bank account is not connected yet. Connect your account to receive your earnings directly.</p>
+      <div style="background:#fef3c7;border:1.5px solid #fcd34d;border-radius:10px;padding:16px 20px;margin-bottom:24px">
+        <p style="font-size:14px;color:#92400e;margin:0"><strong>⚠️ Payouts are on hold</strong> until you connect your bank account. The process takes less than 2 minutes.</p>
+      </div>
+      <div style="text-align:center;margin-bottom:24px">
+        <a href="https://wowbox.co.za/partner#pp-settings" style="display:inline-block;background:#8B4513;color:#fff;text-decoration:none;padding:14px 32px;border-radius:8px;font-size:15px;font-weight:600">Connect bank account →</a>
+      </div>
+      <p style="font-size:13px;color:#6b7280;text-align:center">Go to Partner Portal → Settings → Payments & Payouts</p>
+    `)
+  };
+}
+
 // ── NEW: Review request (customer J+1) ────────────────────────────────────────
 function tplReviewRequest(o) {
   return {
@@ -974,6 +1062,18 @@ export default async function handler(req, res) {
       }
       case 'partner_new_review': {
         if (o.partnerEmail) emailJobs.push({ to: o.partnerEmail, ...tplPartnerNewReview(o) });
+        break;
+      }
+      case 'partner_monthly_statement': {
+        if (o.to) emailJobs.push({ to: o.to, ...tplPartnerMonthlyStatement(o) });
+        break;
+      }
+      case 'partner_paystack_reminder': {
+        if (o.to) emailJobs.push({ to: o.to, ...tplPartnerPaystackReminder(o) });
+        break;
+      }
+      case 'admin_notification': {
+        if (o.to) emailJobs.push({ to: o.to, subject: o.subject || 'WowBox Notification', html: `<p>${o.message || ''}</p>` });
         break;
       }
       default:
