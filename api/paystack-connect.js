@@ -89,9 +89,15 @@ export default async function handler(req, res) {
         return res.status(500).json({ error: 'Supabase env vars not configured' });
       }
 
+      // Resolve bank name from Paystack response
+      const bank_name_resolved = psData.data.settlement_bank || settlement_bank;
+
       const sbBody = {
         paystack_account_id:   subaccount_code,
         paystack_connected_at: new Date().toISOString(),
+        bank_name:             bank_name_resolved,
+        bank_account_number:   account_number,
+        bank_code:             settlement_bank,
       };
       if (recipient_code) sbBody.paystack_recipient_code = recipient_code;
 
