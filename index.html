@@ -21582,7 +21582,7 @@ async function admMarkPaid(ids, btn) {
     // Fetch entries to get partner details for emails
     var paidEntries = await db_client.from('commission_entries').select('id,partner_email,partner_name,partner_payout,booking_reference').in('id', ids);
     await db_client.from('commission_entries')
-      .update({ payout_status: 'paid', paid_at: new Date().toISOString() })
+      .update({ payout_status: 'paid', paid_at: new Date().toISOString(), paystack_transfer_id: 'MANUAL-'+new Date().toISOString().slice(0,10)+'-'+Date.now() })
       .in('id', ids);
     // Group by partner and send payout email
     if (paidEntries.data) {
