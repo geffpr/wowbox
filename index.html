@@ -16861,11 +16861,34 @@ async function renderAdmRequests() {
     listEl.innerHTML = '<div style="text-align:center;padding:48px;color:var(--muted)"><i class="fa fa-inbox" style="font-size:2rem;opacity:.3;display:block;margin-bottom:12px"></i>No partner requests yet.</div>';
     return;
   }
-  listEl.innerHTML = '<div class="atbl"><div class="atbl-hdr"><h3 style="font-size:.95rem;color:var(--navy)">All requests</h3>'
-    + '<input type="text" class="fi" id="adm-req-search" style="width:190px;padding:7px 11px;font-size:.76rem" placeholder="Search..." oninput="admReqFilter()"></div>'
-    + '<table><thead><tr><th>Experience</th><th>Type</th><th>Partner</th><th>Date</th><th>Status</th><th></th></tr></thead>'
-    + '<tbody id="adm-req-tbody">' + admReqDB.map(admReqRow).join('') + '</tbody></table></div>'
-    + '<div id="adm-req-detail" style="display:none;margin-top:18px"></div>';
+  var pending  = admReqDB.filter(function(r){ return r.status === 'pending'; });
+  var rejected = admReqDB.filter(function(r){ return r.status === 'rejected'; });
+  var approved = admReqDB.filter(function(r){ return r.status === 'approved'; });
+
+  var pendingHtml = pending.length
+    ? '<table><thead><tr><th>Experience</th><th>Type</th><th>Partner</th><th>Date</th><th>Status</th><th></th></tr></thead><tbody id="adm-req-tbody-pending">' + pending.map(admReqRow).join('') + '</tbody></table>'
+    : '<div style="padding:24px;text-align:center;color:var(--muted);font-size:.85rem"><i class="fa fa-check-circle" style="color:#16a34a;margin-right:6px"></i>No pending requests</div>';
+
+  var rejectedHtml = rejected.length
+    ? '<table><thead><tr><th>Experience</th><th>Type</th><th>Partner</th><th>Date</th><th>Status</th><th></th></tr></thead><tbody id="adm-req-tbody-rejected">' + rejected.map(admReqRow).join('') + '</tbody></table>'
+    : '';
+
+    var approvedHtml = approved.length
+    ? '<button onclick="admToggleReqHistory(this,' + approved.length + ')" class="btn bg bsm" style="margin-top:18px;font-size:.75rem"><i class="fa fa-clock-rotate-left"></i> Show history (' + approved.length + ')</button>'
+    + '<div id="adm-req-history" style="display:none;margin-top:10px"><table><thead><tr><th>Experience</th><th>Type</th><th>Partner</th><th>Date</th><th>Status</th><th></th></tr></thead><tbody id="adm-req-tbody-approved">' + approved.map(admReqRow).join('') + '</tbody></table></div>'
+    : '';
+
+  listEl.innerHTML = '<div class="atbl">'    + '<div class="atbl-hdr"><h3 style="font-size:.95rem;color:var(--navy)">Pending review</h3>'    + '<input type="text" class="fi" id="adm-req-search" style="width:190px;padding:7px 11px;font-size:.76rem" placeholder="Search..." oninput="admReqFilter()"></div>'    + pendingHtml    + (rejected.length ? '<div style="margin-top:18px;padding-top:14px;border-top:1px solid var(--border)"><div style="font-size:.75rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#dc2626;margin-bottom:10px"><i class="fa fa-xmark-circle"></i> Rejected</div>' + rejectedHtml + '</div>' : '')    + approvedHtml    + '</div>'    + '<div id="adm-req-detail" style="display:none;margin-top:18px"></div>';
+}
+
+function admToggleReqHistory(btn, count) {
+  var h = document.getElementById('adm-req-history');
+  if (!h) return;
+  var visible = h.style.display !== 'none';
+  h.style.display = visible ? 'none' : 'block';
+  btn.innerHTML = visible
+    ? '<i class="fa fa-clock-rotate-left"></i> Show history (' + count + ')'
+    : '<i class="fa fa-chevron-up"></i> Hide history';
 }
 
 function admReqRow(r) {
