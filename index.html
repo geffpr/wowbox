@@ -21408,35 +21408,44 @@ async function loadAdminCommissionPayouts() {
     var totalPlatform = 0, totalPayout = 0, totalGross = 0;
     var html = '';
     Object.values(groups).forEach(function(g) {
-      const validations = g.rows.length;
-      const gross       = g.rows.reduce(function(s,r){return s+Number(r.box_price);},0);
-      const platformAmt = g.rows.reduce(function(s,r){return s+Number(r.platform_amount);},0);
-      const payoutAmt   = g.rows.reduce(function(s,r){return s+Number(r.partner_payout);},0);
-      const rates       = [...new Set(g.rows.map(function(r){return Number(r.platform_rate);}))];
-      const rateLabel   = rates.length===1 ? rates[0]+'%' : rates.join('% / ')+'%';
-      const rateNote    = rates.length>1 ? ' <small style="color:var(--muted)">(mixed)</small>' : (rates[0]!==35 ? ' <small style="color:var(--muted)">(override)</small>' : ' <small style="color:var(--muted)">(global)</small>');
-      const allPaid     = g.rows.every(function(r){return r.payout_status==='paid';});
-      const anyPending  = g.rows.some(function(r){return r.payout_status==='pending';});
-      const statusHtml  = allPaid ? '<span class="sbadge sb-a">Paid</span>' : anyPending ? '<span class="sbadge sb-p">Pending</span>' : '<span class="sbadge sb-w">On hold</span>';
-      const pendingIds  = g.rows.filter(function(r){return r.payout_status==='pending';}).map(function(r){return r.id;});
-      const actionBtn   = pendingIds.length
-        ? (g.hasPaystack
-            ? '<button class="btn bg bsm adm-mark-paid-btn" data-ids="'+encodeURIComponent(JSON.stringify(pendingIds))+'" onclick="admMarkPaidFromBtn(this)" style="font-size:.72rem"><i class="fa fa-check"></i> Mark paid</button>'
-            : '<span title="Partner has no Paystack account connected" style="font-size:.72rem;color:#ef4444;cursor:help"><i class="fa fa-triangle-exclamation"></i> No Paystack account</span>')
-        : '<span style="color:var(--muted);font-size:.75rem">-</span>';
-      totalGross    += gross;
-      totalPlatform += platformAmt;
-      totalPayout   += payoutAmt;
-      html += '<tr>'
-        +'<td><strong>'+g.name+'</strong><div style="font-size:.7rem;color:var(--muted)">'+g.email+'</div></td>'
-        +'<td>'+validations+'</td>'
-        +'<td>'+fmt(gross)+'</td>'
-        +'<td style="color:var(--b600);font-weight:600">'+rateLabel+rateNote+'</td>'
-        +'<td style="color:var(--b600)">'+fmt(platformAmt)+'</td>'
-        +'<td style="color:var(--green);font-weight:700">'+fmt(payoutAmt)+'</td>'
-        +'<td>'+statusHtml+'</td>'
-        +'<td>'+actionBtn+'</td>'
-        +'</tr>';
+      // Split into paid and pending rows
+      const paidRows    = g.rows.filter(function(r){ return r.payout_status === 'paid'; });
+      const pendingRows = g.rows.filter(function(r){ return r.payout_status === 'pending'; });
+
+      function buildRow(rows, isPaid) {
+        if (!rows.length) return '';
+        const gross       = rows.reduce(function(s,r){return s+Number(r.box_price);},0);
+        const platformAmt = rows.reduce(function(s,r){return s+Number(r.platform_amount);},0);
+        const payoutAmt   = rows.reduce(function(s,r){return s+Number(r.partner_payout);},0);
+        const rates       = [...new Set(rows.map(function(r){return Number(r.platform_rate);}))];
+        const rateLabel   = rates.length===1 ? rates[0]+'%' : rates.join('% / ')+'%';
+        const rateNote    = rates.length>1 ? ' <small style="color:var(--muted)">(mixed)</small>' : (rates[0]!==35 ? ' <small style="color:var(--muted)">(override)</small>' : ' <small style="color:var(--muted)">(global)</small>');
+        const statusHtml  = isPaid
+          ? '<span class="sbadge sb-a">Paid</span>'
+          : '<span class="sbadge sb-p">Pending</span>';
+        const pendingIds  = rows.map(function(r){ return r.id; });
+        const actionBtn   = isPaid
+          ? '<span style="color:var(--muted);font-size:.75rem">-</span>'
+          : (g.hasPaystack
+              ? '<button class="btn bg bsm adm-mark-paid-btn" data-ids="'+encodeURIComponent(JSON.stringify(pendingIds))+'" onclick="admMarkPaidFromBtn(this)" style="font-size:.72rem"><i class="fa fa-check"></i> Mark paid</button>'
+              : '<span title="Partner has no Paystack account connected" style="font-size:.72rem;color:#ef4444;cursor:help"><i class="fa fa-triangle-exclamation"></i> No Paystack account</span>');
+        totalGross    += gross;
+        totalPlatform += platformAmt;
+        totalPayout   += payoutAmt;
+        return '<tr>'
+          +'<td><strong>'+g.name+'</strong><div style="font-size:.7rem;color:var(--muted)">'+g.email+'</div></td>'
+          +'<td>'+rows.length+'</td>'
+          +'<td>'+fmt(gross)+'</td>'
+          +'<td style="color:var(--b600);font-weight:600">'+rateLabel+rateNote+'</td>'
+          +'<td style="color:var(--b600)">'+fmt(platformAmt)+'</td>'
+          +'<td style="color:var(--green);font-weight:700">'+fmt(payoutAmt)+'</td>'
+          +'<td>'+statusHtml+'</td>'
+          +'<td>'+actionBtn+'</td>'
+          +'</tr>';
+      }
+
+      html += buildRow(paidRows, true);
+      html += buildRow(pendingRows, false);
     });
     if (tbody) tbody.innerHTML = html;
     const periodLabel = months===0?'All time':months===1?'This month':'Last '+months+' months';
