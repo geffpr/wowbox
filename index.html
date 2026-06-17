@@ -23767,7 +23767,7 @@ async function admLoadReporting() {
     if (since) bkQ = bkQ.gte('created_at', since);
     if (partner) bkQ = bkQ.eq('partner_email', partner);
     var bkRes = await bkQ;
-    _rptData.bkwBookings = bRes.data || [];
+    _rptData.bkwBookings = bkRes.data || [];
 
     // Populate partner filter
     var sel = document.getElementById('rpt-partner');
