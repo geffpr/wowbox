@@ -16944,15 +16944,26 @@ function admViewRequest(id) {
     + (isEdit?'<span style="font-size:.7rem;background:#dbeafe;color:#1d4ed8;padding:2px 8px;border-radius:99px;font-weight:600">Edit request</span>':'')
     + '</div><div style="display:flex;gap:8px;flex-wrap:wrap">'+actions+'</div></div>'
     + '<div class="afsec"><div class="fg-row">'
-    + dc('Name',r.experience_name,prev.experience_name)+dc('Type',typeMap[r.category]||r.category,prev.category)+dc('Partner',r.partner_name,prev.partner_name)
+    + dc('Name',r.experience_name, prev.name||prev.experience_name)
+    + dc('Type', typeMap[r.category]||r.category, typeMap[prev.reservation_type||prev.category]||(prev.reservation_type||prev.category))
+    + dc('Partner',r.partner_name, prev.partner_name)
     + '</div><div class="fg-row">'
-    + dc('City',r.city,prev.city)+dc('Province',r.province,prev.province)+dc('Capacity',r.capacity,prev.capacity)
+    + dc('City', r.city, prev.location||prev.city)
+    + dc('Province', r.province, prev.province)
+    + dc('Capacity', r.capacity, prev.capacity)
     + '</div><div class="fg-row">'
-    + dc('Booking type',r.booking_type,prev.booking_type)+dc('Nights',r.duration_nights,prev.duration_nights)+dc('Price (R)',r.price,prev.price)
+    + dc('Booking type', r.booking_type, prev.booking_type)
+    + dc('Nights', r.duration_nights, prev.duration_nights)
+    + dc('Price (R)', r.price, prev.price)
     + '</div><div class="fg-row">'
-    + dc('Phone',r.phone,prev.phone)+dc('Address',r.address,prev.address)+dc('Certification',r.certification,prev.certification)
+    + dc('WowBox price (R)', r.wow_price, prev.wow_price)
+    + dc('Pricing type', r.wow_pricing_type, prev.wow_pricing_type)
+    + dc('Phone', r.phone, prev.phone)
     + '</div><div class="fg-row">'
-    + dc('Description',r.description?(r.description.substring(0,300)+(r.description.length>300?'...':'')):'',(prev.description!==undefined?String(prev.description).substring(0,300):undefined))
+    + dc('Address', r.address, prev.address)
+    + dc('Certification', r.certification, prev.certification)
+    + '</div><div class="fg-row">'
+    + dc('Description', r.description?(r.description.substring(0,300)+(r.description.length>300?'...':'')):'',(prev.description!==undefined?String(prev.description).substring(0,300):undefined))
     + '</div>'+imgHtml+progHtml+amHtml+'</div></div>';
   detailEl.scrollIntoView({ behavior:'smooth', block:'nearest' });
 }
