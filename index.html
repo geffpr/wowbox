@@ -23757,13 +23757,13 @@ async function admLoadReporting() {
     (upRes.data || []).forEach(function(p){ _rptData.profiles[p.email] = p; });
 
     // Fetch boosts
-    var bQ = db_client.from('featured_boosts').select('*').order('created_at', {ascending: false});
+    var bQ = db_client.from('experience_boosts').select('*').order('created_at', {ascending: false});
     if (since) bQ = bQ.gte('created_at', since);
     var bRes = await bQ;
     _rptData.boosts = bRes.data || [];
 
     // Fetch BKW bookings
-    var bkQ = db_client.from('bookings').select('id,partner_email,experience_id,booking_reference,status,created_at,total_amount,guest_count').neq('status','cancelled').order('created_at',{ascending:false});
+    var bkQ = db_client.from('bookings').select('id,partner_email,experience_id,booking_reference,flow,status,created_at,total_amount,guest_count').neq('status','cancelled').order('created_at',{ascending:false});
     if (since) bkQ = bkQ.gte('created_at', since);
     if (partner) bkQ = bkQ.eq('partner_email', partner);
     var bkRes = await bkQ;
@@ -23864,14 +23864,14 @@ function rptRenderPartners() {
     var pEntries = entries.filter(function(e){ return e.partner_email === email; });
     var pBoosts  = boosts.filter(function(b){ return b.partner_email === email; });
     var partnerBookings = (_rptData.bkwBookings||[]).filter(function(b){ return b.partner_email === email; });
-    var bkwCount = partnerBookings.filter(function(b){ return (b.booking_reference||'').startsWith('BKW'); }).length;
-    var wbCount  = partnerBookings.filter(function(b){ return (b.booking_reference||'').startsWith('BK-'); }).length;
+    var bkwCount = partnerBookings.filter(function(b){ return b.flow === 'bkw' || (b.booking_reference||'').startsWith('BKW'); }).length;
+    var wbCount  = partnerBookings.filter(function(b){ return b.flow === 'wowbox' || (b.booking_reference||'').startsWith('BK-'); }).length;
 
     var gross    = pEntries.reduce(function(s,e){ return s+Number(e.box_price||0);},0);
     var wbKeeps  = pEntries.reduce(function(s,e){ return s+Number(e.platform_amount||0);},0);
     var payout   = pEntries.reduce(function(s,e){ return s+Number(e.partner_payout||0);},0);
     var pendingAmt = pEntries.filter(function(e){ return e.payout_status==='pending';}).reduce(function(s,e){ return s+Number(e.partner_payout||0);},0);
-    var boostAmt = pBoosts.reduce(function(s,b){ return s+Number(b.amount||999);},0);
+    var boostAmt = pBoosts.reduce(function(s,b){ return s+Number(b.amount_paid||b.amount||999);},0);
     var validated= pEntries.filter(function(e){ return e.payout_status==='paid';}).length;
     var total    = pEntries.length;
     var valRate  = total ? Math.round(validated/total*100)+'%' : '—';
