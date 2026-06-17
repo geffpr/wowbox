@@ -23864,7 +23864,7 @@ function rptRenderPartners() {
     var pEntries = entries.filter(function(e){ return e.partner_email === email; });
     var pBoosts  = boosts.filter(function(b){ return b.partner_email === email; });
     var partnerBookings = (_rptData.bkwBookings||[]).filter(function(b){ return b.partner_email === email; });
-    var bkwCount = partnerBookings.filter(function(b){ return b.flow === 'bkw' || (b.booking_reference||'').startsWith('BKW'); }).length;
+    var bkwCount = partnerBookings.filter(function(b){ return b.flow === 'bkw' || b.flow === 'wow' || (b.booking_reference||'').startsWith('BKW'); }).length;
     var wbCount  = partnerBookings.filter(function(b){ return b.flow === 'wowbox' || (b.booking_reference||'').startsWith('BK-'); }).length;
 
     var gross    = pEntries.reduce(function(s,e){ return s+Number(e.box_price||0);},0);
