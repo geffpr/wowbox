@@ -17133,6 +17133,8 @@ async function admConfirmApprove(id) {
     var b2 = document.getElementById('adm-req-count-badge'); if (b2) { b2.textContent = pending + ' pending review'; b2.style.display = pending ? '' : 'none'; }
 
     admToast('✅ "' + req.experience_name + '" ' + (isEdit?'edit approved':'approved and live'));
+    // Refresh the detail panel
+    setTimeout(function(){ admShowRequestDetail(id); }, 300);
   } catch(e) {
     if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa fa-check-circle"></i> Approve &amp; add to DB'; }
     admToast('Error: ' + (e.message||'unknown'));
