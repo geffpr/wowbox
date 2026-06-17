@@ -16908,7 +16908,8 @@ function admViewRequest(id) {
   var typeMap = {dining:'Dining',wellness:'Wellness',activity:'Activity',accommodation:'Accommodation',rental:'Rental',event:'Event'};
   var prev = r.previous_data || {};
   function dc(label, newVal, oldVal) {
-    var changed = isEdit && oldVal!==undefined && String(oldVal)!==String(newVal||'');
+    var nv = newVal||''; var ov = oldVal==null||oldVal===undefined?'':String(oldVal);
+    var changed = isEdit && ov!=='' && ov!==String(nv);
     var s = changed ? 'background:#fef2f2;border:1.5px solid #fca5a5;border-radius:6px;padding:4px 8px;' : '';
     var b = changed ? '<span style="font-size:.6rem;background:#dc2626;color:#fff;padding:1px 5px;border-radius:99px;margin-left:5px">CHANGED</span><div style="font-size:.7rem;color:#6b7280;text-decoration:line-through">Was: '+oldVal+'</div>' : '';
     return '<div class="fg" style="'+s+'"><label style="font-size:.65rem;font-weight:700;text-transform:uppercase;color:var(--muted)">'+label+b+'</label><div style="font-size:.85rem;color:var(--navy)">'+( newVal||'')+ '</div></div>';
