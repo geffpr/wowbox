@@ -17030,8 +17030,12 @@ async function admConfirmApprove(id) {
       await db_client.from('experiences').update({
         name:             req.experience_name,
         description:      req.description,
-        reservation_type: req.category || 'activity',
+        reservation_type: req.category || req.reservation_type || 'activity',
         location:         req.city || '',
+        address:          req.address || null,
+        phone:            req.phone || null,
+        lat:              req.lat || null,
+        lng:              req.lng || null,
         image_url:        req.image_url || '',
         image_urls:       req.image_urls || [],
         partner_email:    req.partner_email || '',
@@ -17048,6 +17052,9 @@ async function admConfirmApprove(id) {
         programme:        req.programme || [],
         amenities:        req.amenities || [],
         ...(req.ical_url ? { ical_url: req.ical_url } : {}),
+        ...(req.price ? { price: req.price } : {}),
+        ...(req.wow_price ? { wow_price: req.wow_price } : {}),
+        ...(req.wow_pricing_type ? { wow_pricing_type: req.wow_pricing_type } : {}),
       }).eq('id', req.experience_id || expId);
     } else {
       var ins = await db_client.from('experiences').insert({
@@ -22143,6 +22150,13 @@ async function loadPartnerExperiences() {
         + ' data-amenities="'  + JSON.stringify(e.amenities||[]).replace(/"/g,'&quot;')   + '"'
         + ' data-wow-price="'  + (e.wow_price||'')                                        + '"'
         + ' data-wow-pricing="'+ (e.wow_pricing_type||'per_person')                       + '"'
+        + ' data-price="'      + (e.price||'')                                            + '"'
+        + ' data-address="'    + (e.address||'').replace(/"/g,'&quot;')                   + '"'
+        + ' data-phone="'      + (e.phone||'').replace(/"/g,'&quot;')                     + '"'
+        + ' data-lat="'        + (e.lat||'')                                              + '"'
+        + ' data-lng="'        + (e.lng||'')                                              + '"'
+        + ' data-images="'     + JSON.stringify(e.image_urls||[]).replace(/"/g,'&quot;')  + '"'
+        + ' data-image="'      + (e.image_url||'').replace(/"/g,'&quot;')                 + '"'
         + '><i class="fa fa-pen"></i> Edit</button>'
         + '</div>'
         + '</div>';
@@ -22201,7 +22215,14 @@ async function loadPartnerExperiences() {
           this.dataset.programme ? JSON.parse(this.dataset.programme) : [],
           this.dataset.amenities ? JSON.parse(this.dataset.amenities) : [],
           parseFloat(this.dataset.wowPrice) || 0,
-          this.dataset.wowPricing || 'per_person'
+          this.dataset.wowPricing || 'per_person',
+          parseFloat(this.dataset.price) || 0,
+          this.dataset.address || '',
+          this.dataset.phone || '',
+          parseFloat(this.dataset.lat) || null,
+          parseFloat(this.dataset.lng) || null,
+          this.dataset.images ? JSON.parse(this.dataset.images) : [],
+          this.dataset.image || ''
         );
       });
     });
@@ -22212,7 +22233,7 @@ async function loadPartnerExperiences() {
 }
 
 // ── Partner: edit a published experience ──
-function ppEditExperience(expId, expName, expDesc, expType, expCity, expCap, expProvince, expBooking, expNights, expCategory, expWeekend, expAccom, expCert, expAccessible, expInsolite, expIcal, expProgramme, expAmenities, expWowPrice, expWowPricing) {
+function ppEditExperience(expId, expName, expDesc, expType, expCity, expCap, expProvince, expBooking, expNights, expCategory, expWeekend, expAccom, expCert, expAccessible, expInsolite, expIcal, expProgramme, expAmenities, expWowPrice, expWowPricing, expPrice, expAddress, expPhone, expLat, expLng, expImages, expImage) {
   var modal = document.getElementById('adm-modal');
   var typeOpts = ['accommodation','dining','wellness','activity','rental','event','culture','nature'].map(function(t){
     return '<option value="'+t+'"'+(expType===t?' selected':'')+'>'+t.charAt(0).toUpperCase()+t.slice(1)+'</option>';
@@ -22257,7 +22278,7 @@ function ppEditExperience(expId, expName, expDesc, expType, expCity, expCap, exp
 
     + '<div style="'+sh+'">4 · Pricing</div>'
     + '<div class="fg-row">'
-    + '<div class="fg"><label>WowBox value (R) <span style="font-weight:400;color:var(--muted);font-size:.72rem">— voucher only</span></label><div style="position:relative"><span style="position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:.85rem">R</span><input class="fi" id="pp-edit-price" type="number" min="0" placeholder="e.g. 850" value="" style="padding-left:26px"></div><div style="font-size:.68rem;color:var(--muted);margin-top:3px"><i class="fa fa-gift" style="color:var(--b500)"></i> Used by WowBox gift boxes only.</div></div>'
+    + '<div class="fg"><label>WowBox value (R) <span style="font-weight:400;color:var(--muted);font-size:.72rem">— voucher only</span></label><div style="position:relative"><span style="position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:.85rem">R</span><input class="fi" id="pp-edit-price" type="number" min="0" placeholder="e.g. 850" value="'+(expPrice||'')+'" style="padding-left:26px"></div><div style="font-size:.68rem;color:var(--muted);margin-top:3px"><i class="fa fa-gift" style="color:var(--b500)"></i> Used by WowBox gift boxes only.</div></div>'
     + '<div class="fg"><label>Direct booking price /wow/ (R) <span style="font-weight:400;color:var(--muted);font-size:.72rem">— partner page</span></label><div style="position:relative"><span style="position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:.85rem">R</span><input class="fi" id="pp-edit-wow-price" type="number" min="0" placeholder="e.g. 500" value="'+(expWowPrice||'')+'" style="padding-left:26px"></div><div style="font-size:.68rem;color:var(--muted);margin-top:3px"><i class="fa fa-link" style="color:var(--b500)"></i> Price on your partner page for direct bookings.</div></div>'
     + '<div class="fg"><label>Direct pricing type</label><select class="fi" id="pp-edit-wow-pricing"><option value="per_person"'+(expWowPricing==="per_person"?' selected':'')+'>Per person</option><option value="fixed"'+(expWowPricing==="fixed"?' selected':'')+'>Fixed (whole group)</option></select><div style="font-size:.68rem;color:var(--muted);margin-top:3px">Per person: price × guests. Fixed: same regardless of group size.</div></div>'
     + '</div>'
@@ -22298,6 +22319,7 @@ async function ppSubmitEdit(expId) {
   var icalUrl    = (document.getElementById('pp-edit-ical')       ||{value:''}).value.trim() || null;
   var wowPrice   = parseInt((document.getElementById('pp-edit-wow-price')||{value:''}).value) || null;
   var wowPricingType = (document.getElementById('pp-edit-wow-pricing')||{value:'per_person'}).value || 'per_person';
+  var price      = parseInt((document.getElementById('pp-edit-price')||{value:''}).value) || null;
   var programme  = collectProgramme('pp-edit');
   var amenitiesList = collectAmenities('pp-edit');
 
@@ -22337,8 +22359,16 @@ async function ppSubmitEdit(expId) {
       ...(icalUrl ? { ical_url: icalUrl } : {}),
       ...(wowPrice ? { wow_price: wowPrice } : {}),
       wow_pricing_type:   wowPricingType,
+      ...(price ? { price: price } : {}),
       programme:          programme,
       amenities:          amenitiesList,
+      // Preserve address/phone/lat/lng/images from existing experience
+      address:            prevData.address || null,
+      phone:              prevData.phone || null,
+      lat:                prevData.lat || null,
+      lng:                prevData.lng || null,
+      image_url:          prevData.image_url || null,
+      image_urls:         prevData.image_urls || [],
       previous_data:      prevData,
     });
     if (err.error) throw err.error;
