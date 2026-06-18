@@ -16957,7 +16957,7 @@ function admViewRequest(id) {
   var actions = isPending
     ? '<button class="btn bgreen bsm" onclick="admApproveRequest(this)" data-id="'+r.id+'"><i class="fa fa-check-circle"></i> '+(isEdit?'Approve edit':'Approve &amp; add to DB')+'</button>'
       + '<button class="btn bg bsm" onclick="admEditRequest(this)" data-id="'+r.id+'"><i class="fa fa-pen"></i> Edit first</button>'
-      + '<button class="btn bg bsm" style="color:var(--red);border-color:#fca5a5" onclick="admRejectWithNote(\''+r.id+'\')"><i class="fa fa-xmark-circle"></i> Reject</button>'
+      + '<button class="btn bg bsm" style="color:var(--red);border-color:#fca5a5" data-rejid="'+r.id+'" onclick="admRejectWithNote(this.dataset.rejid)"><i class="fa fa-xmark-circle"></i> Reject</button>'
     : isApproved
       ? '<span style="font-size:.78rem;color:var(--green);font-weight:600"><i class="fa fa-circle-check"></i> '+(isEdit?'Edit approved':'Approved and live')+'</span>'
       : '<span style="font-size:.78rem;color:#dc2626;font-weight:600"><i class="fa fa-xmark-circle"></i> Rejected'+(r.rejection_note?' - '+r.rejection_note:'')+'</span>';
@@ -17215,6 +17215,15 @@ function admEditRequest(btn) {
     + '<div class="fg"><label>Description</label><textarea class="fi" id="aedit-desc" rows="3" style="resize:vertical">' + (req.description||'') + '</textarea></div>'
     + '<div class="fg"><label>Partner name</label><input class="fi" id="aedit-partner" value="' + (req.partner_name||'') + '"></div>'
     + '<div class="fg"><label>City / Location</label><input class="fi" id="aedit-city" value="' + (req.city||'') + '"></div>'
+    + '<div class="fg-row">'
+    + '<div class="fg"><label>Province</label><select class="fi" id="aedit-province"><option value="">Select…</option>' + ['Eastern Cape','Free State','Gauteng','KwaZulu-Natal','Limpopo','Mpumalanga','Northern Cape','North West','Western Cape'].map(function(p){ return '<option value="'+p+'"'+(req.province===p?' selected':'')+'>'+p+'</option>'; }).join('') + '</select></div>'
+    + '<div class="fg"><label>Capacity</label><input class="fi" id="aedit-cap" type="number" min="1" value="' + (req.capacity||'') + '"></div>'
+    + '<div class="fg"><label>Nights (0=day trip)</label><input class="fi" id="aedit-nights" type="number" min="0" value="' + (req.duration_nights||0) + '"></div>'
+    + '</div>'
+    + '<div class="fg-row">'
+    + '<div class="fg"><label>WowBox price (R)</label><input class="fi" id="aedit-wow-price" type="number" min="0" value="' + (req.wow_price||'') + '"></div>'
+    + '<div class="fg"><label>Direct price (R)</label><input class="fi" id="aedit-price" type="number" min="0" value="' + (req.price||'') + '"></div>'
+    + '</div>'
     + '<div style="display:flex;gap:9px;margin-top:6px">'
     + '<button class="btn bp bsm" onclick="admSaveEditAndApprove(\''+ id +'\')">Save &amp; Approve</button>'
     + '<button class="btn bg bsm" onclick="document.getElementById(\'adm-modal\').style.display=\'none\'">Cancel</button>'
@@ -17230,6 +17239,11 @@ async function admSaveEditAndApprove(id) {
   req.description     = document.getElementById('aedit-desc')?.value?.trim() || req.description;
   req.partner_name    = document.getElementById('aedit-partner')?.value?.trim() || req.partner_name;
   req.city            = document.getElementById('aedit-city')?.value?.trim() || req.city;
+  req.province        = document.getElementById('aedit-province')?.value || req.province;
+  req.capacity        = parseInt(document.getElementById('aedit-cap')?.value) || req.capacity;
+  req.duration_nights = parseInt(document.getElementById('aedit-nights')?.value) || 0;
+  req.wow_price       = parseInt(document.getElementById('aedit-wow-price')?.value) || req.wow_price;
+  req.price           = parseInt(document.getElementById('aedit-price')?.value) || req.price;
 
   // Update in Supabase before approving
   await db_client.from('partner_requests').update({
@@ -17238,6 +17252,11 @@ async function admSaveEditAndApprove(id) {
     description:     req.description,
     partner_name:    req.partner_name,
     city:            req.city,
+    province:        req.province,
+    capacity:        req.capacity,
+    duration_nights: req.duration_nights,
+    wow_price:       req.wow_price || null,
+    price:           req.price || null,
   }).eq('id', id);
 
   document.getElementById('adm-modal').style.display = 'none';
