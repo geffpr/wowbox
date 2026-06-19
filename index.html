@@ -13620,10 +13620,10 @@ async function plLinkExistingAsPartner() {
   var vat     = (document.getElementById('pl-vat')||{value:''}).value.trim();
   var website = (document.getElementById('pl-website')||{value:''}).value.trim();
   var expDesc = (document.getElementById('pl-exp-desc')||{value:''}).value.trim();
-  var errEl = document.getElementById('pl-signup-error');
+  var errEl = document.getElementById('pl-error');
 
   if (!pw) {
-    if (errEl) errEl.innerHTML = 'Please enter your existing account password above, then click "Sign in and apply as partner" again.';
+    if (errEl) { errEl.innerHTML = 'Please enter your existing account password above, then click "Sign in and apply as partner" again.'; errEl.style.display = 'block'; }
     return;
   }
 
@@ -13651,14 +13651,14 @@ async function plLinkExistingAsPartner() {
       });
     } catch(e2) { console.warn('partners table:', e2.message); }
 
-    var sucEl = document.getElementById('pl-signup-success');
+    var sucEl = document.getElementById('pl-success');
     if (sucEl) {
       sucEl.innerHTML = '<strong>Application submitted!</strong> Your existing WowBox account has been linked. We will review your listing within 24 hours and contact you at <strong>' + email + '</strong>.';
       sucEl.style.display = 'block';
     }
     if (errEl) errEl.style.display = 'none';
   } catch(e) {
-    if (errEl) errEl.innerHTML = 'Sign in failed: ' + (e.message||'Incorrect password.');
+    if (errEl) { errEl.innerHTML = 'Sign in failed: ' + (e.message||'Incorrect password.'); errEl.style.display = 'block'; }
   }
 }
 
