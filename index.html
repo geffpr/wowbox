@@ -2888,6 +2888,7 @@ nav{position:sticky;top:0;z-index:300;background:rgba(255,255,255,.95);
 .t-resto{background:#d1fae5;color:#065f46}
 .t-spa{background:#ede9fe;color:#5b21b6}
 .t-act{background:var(--b100);color:var(--b800)}
+.t-combo{background:#fef3c7;color:#92400e}
 .pagination{display:flex;align-items:center;gap:6px;justify-content:center;margin-top:22px;flex-wrap:wrap}
 .pnum{width:34px;height:34px;border-radius:var(--rs);display:flex;align-items:center;
   justify-content:center;font-size:.8rem;font-weight:500;cursor:pointer;
@@ -3621,6 +3622,7 @@ tr:hover td{background:var(--b50)}
 .rt-activity{background:#fef3c7;color:#92400e}
 .rt-rental{background:#fce7f3;color:#9d174d}
 .rt-event{background:#f0fdf4;color:#166534}
+.rt-combo{background:#fef3c7;color:#92400e}
 .map-wrap-browse{border-radius:var(--rl);overflow:hidden;border:1.5px solid var(--b200);margin-bottom:16px}
 #gmap-browse{height:500px;width:100%}
 
@@ -6619,6 +6621,7 @@ tr:hover td{background:var(--b50)}
                   <option value="activity">🏄 Activity</option>
                   <option value="rental">🚗 Rental</option>
                   <option value="event">🎉 Event</option>
+                  <option value="combo">🎁 Combo</option>
                 </select>
               </div>
             </div>
@@ -7814,6 +7817,7 @@ tr:hover td{background:var(--b50)}
                       <option value="activity">🏄 Activity → activity booking form</option>
                       <option value="rental">🚗 Rental → dates + options form</option>
                       <option value="event">🎉 Event → date + notes form</option>
+                      <option value="combo">🎁 Combo → multi-service package form</option>
                     </select>
                     <div id="aef-rt-note" style="display:none;margin-top:5px;padding:8px 12px;background:var(--b50);border:1px solid var(--b200);border-radius:var(--rs);font-size:.73rem;color:var(--b700)"></div>
                   </div>
@@ -9224,6 +9228,7 @@ tr:hover td{background:var(--b50)}
         <label class="fcheck"><input type="checkbox" value="nature" onchange="renderBrowse()" class="brtf"> 🦁 Nature</label>
         <label class="fcheck"><input type="checkbox" value="event" onchange="renderBrowse()" class="brtf"> 🎉 Event</label>
         <label class="fcheck"><input type="checkbox" value="rental" onchange="renderBrowse()" class="brtf"> 🚗 Rental</label>
+        <label class="fcheck"><input type="checkbox" value="combo" onchange="renderBrowse()" class="brtf"> 🎁 Combo</label>
       </div>
 
       <h4>Group size</h4>
@@ -10934,8 +10939,8 @@ function renderExpList() {
   const perPage = appState.expPerPage;
   const start = (page - 1) * perPage;
   const pageItems = items.slice(start, start + perPage);
-  const typeLabels = {hotel:'🏨 Hotel',restaurant:'🍽️ Restaurant',spa:'🧖 Spa',activity:'🏄 Activity'};
-  const typeClass = {hotel:'t-hotel',restaurant:'t-resto',spa:'t-spa',activity:'t-act'};
+  const typeLabels = {hotel:'🏨 Hotel',restaurant:'🍽️ Restaurant',spa:'🧖 Spa',activity:'🏄 Activity',combo:'🎁 Combo'};
+  const typeClass = {hotel:'t-hotel',restaurant:'t-resto',spa:'t-spa',activity:'t-act',combo:'t-combo'};
   const listEl = document.getElementById('exp-list-items');
   if (!listEl) return;
   listEl.innerHTML = pageItems.map(e => {
@@ -11006,10 +11011,10 @@ const MAP_STYLES = [
 ];
 const RT_COLORS = {
   accommodation:'#2563eb',dining:'#059669',wellness:'#7c3aed',
-  activity:'#d97706',rental:'#db2777',event:'#16a34a',
+  activity:'#d97706',rental:'#db2777',event:'#16a34a',combo:'#b45309',
 };
 const RT_ICONS = {
-  accommodation:'🏨',dining:'🍽️',wellness:'🧖',activity:'🏄',rental:'🚗',event:'🎉',
+  accommodation:'🏨',dining:'🍽️',wellness:'🧖',activity:'🏄',rental:'🚗',event:'🎉',combo:'🎁',
 };
 
 /* Build a rich InfoWindow for an experience — shared by all maps */
@@ -11306,6 +11311,24 @@ const rtConfig = {
       </div>
       <div class="opt-section"><h5>Preferences &amp; special requests</h5>
         <div class="fg" style="margin-bottom:0"><label>Notes</label><textarea class="fi" id="bk-notes" rows="3" style="resize:vertical" placeholder="Dietary needs, accessibility, occasion details, any special requirements…"></textarea></div>
+      </div>`,
+    collect: () => ({
+      guest1:  document.getElementById('bk-g1')?.value      || '',
+      date:    document.getElementById('bk-date')?.value    || '',
+      guests:  document.getElementById('bk-guests')?.value  || '2',
+      notes:   document.getElementById('bk-notes')?.value   || '',
+    }),
+  },
+  combo: {
+    icon:'🎁', label:'Combo',  cls:'rt-combo',
+    form: (cap) => `
+      <div class="fg"><label>Name for reservation *</label><input class="fi" id="bk-g1" placeholder="Full name"></div>
+      <div class="fg-row">
+        <div class="fg"><label>Date *</label><input class="fi" type="date" id="bk-date"></div>
+        <div class="fg"><label>Number of guests *</label><select class="fi" id="bk-guests">${buildGuestOptions(cap,2)}</select></div>
+      </div>
+      <div class="opt-section"><h5>Preferences &amp; special requests</h5>
+        <div class="fg" style="margin-bottom:0"><label>Notes</label><textarea class="fi" id="bk-notes" rows="3" style="resize:vertical" placeholder="Let us know any details about the services included in this combo…"></textarea></div>
       </div>`,
     collect: () => ({
       guest1:  document.getElementById('bk-g1')?.value      || '',
@@ -11628,6 +11651,7 @@ const RT_REQUIRED_FIELDS = {
   activity:      [{id:'bk-g1',  label:'Lead participant name'}, {id:'bk-date', label:'Date'}],
   rental:        [{id:'bk-g1',  label:'Name'}, {id:'bk-ci', label:'Start date'}, {id:'bk-co', label:'End / return date'}],
   event:         [{id:'bk-g1',  label:'Name'}, {id:'bk-date', label:'Preferred date'}],
+  combo:         [{id:'bk-g1',  label:'Name for reservation'}, {id:'bk-date', label:'Date'}, {id:'bk-guests', label:'Number of guests'}],
 };
 
 function validateBookingFields(rt) {
@@ -17065,7 +17089,7 @@ function admToggleReqHistory(btn, count) {
 
 function admReqRow(r) {
   var isPending = r.status==='pending', isApproved = r.status==='approved', isEdit = r.is_edit===true;
-  var typeMap = {dining:'Dining',wellness:'Wellness',activity:'Activity',accommodation:'Accommodation',rental:'Rental',event:'Event'};
+  var typeMap = {dining:'Dining',wellness:'Wellness',activity:'Activity',accommodation:'Accommodation',rental:'Rental',event:'Event',combo:'Combo'};
   var dateStr = r.created_at ? new Date(r.created_at).toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'}) : '';
   var statusBadge = isPending
     ? (isEdit ? '<span class="sbadge" style="background:#dbeafe;color:#1d4ed8">Edit pending</span>' : '<span class="sbadge sb-p">Pending</span>')
@@ -17100,7 +17124,7 @@ function admViewRequest(id) {
   var row = document.getElementById('req-row-'+id); if (row) row.style.outline = '2px solid var(--b400)';
   var isPending = r.status==='pending', isApproved = r.status==='approved', isEdit = r.is_edit===true;
   var hdrBg = isPending ? (isEdit?'linear-gradient(135deg,#eff6ff,#dbeafe)':'linear-gradient(135deg,#fffbeb,#fef3c7)') : isApproved ? 'linear-gradient(135deg,#d1fae5,#a7f3d0)' : 'linear-gradient(135deg,#fee2e2,#fecaca)';
-  var typeMap = {dining:'Dining',wellness:'Wellness',activity:'Activity',accommodation:'Accommodation',rental:'Rental',event:'Event'};
+  var typeMap = {dining:'Dining',wellness:'Wellness',activity:'Activity',accommodation:'Accommodation',rental:'Rental',event:'Event',combo:'Combo'};
   var prev = r.previous_data || {};
   function dc(label, newVal, oldVal) {
     var nv = newVal||''; var ov = oldVal==null||oldVal===undefined?'':String(oldVal);
@@ -17377,7 +17401,7 @@ function admEditRequest(btn) {
   var req = admReqDB.find(function(r){ return r.id == id; });
   if (!req) return;
   var modal = document.getElementById('adm-modal');
-  var typeOpts = ['dining','wellness','activity','accommodation','rental','event'].map(function(t){
+  var typeOpts = ['dining','wellness','activity','accommodation','rental','event','combo'].map(function(t){
     return '<option value="' + t + '"' + (req.category===t?' selected':'') + '>' + t.charAt(0).toUpperCase()+t.slice(1) + '</option>';
   }).join('');
   document.getElementById('adm-modal-body').innerHTML =
@@ -22020,9 +22044,9 @@ function ppPreviewExperience() {
   }).join('') + '</div>' : '';
 
   var typeMap = { accommodation:'🏨 Accommodation', dining:'🍽️ Dining', wellness:'🧖 Wellness',
-    activity:'🏄 Activity', culture:'🎭 Culture', nature:'🦁 Nature', event:'🎉 Event', rental:'🚗 Rental' };
+    activity:'🏄 Activity', culture:'🎭 Culture', nature:'🦁 Nature', event:'🎉 Event', rental:'🚗 Rental', combo:'🎁 Combo' };
   var rtBadgeMap = { accommodation:'rt-accommodation', dining:'rt-dining', wellness:'rt-wellness',
-    activity:'rt-activity', culture:'rt-culture', nature:'rt-activity', event:'rt-activity', rental:'rt-accommodation' };
+    activity:'rt-activity', culture:'rt-culture', nature:'rt-activity', event:'rt-activity', rental:'rt-accommodation', combo:'rt-combo' };
   var locStr = [city, province].filter(Boolean).join(', ');
   var durLabel = nights === 0 ? '🌞 Day trip' : nights + ' night' + (nights>1?'s':'');
 
@@ -22143,7 +22167,7 @@ function ppPreviewExperience() {
 
   // Type labels
   var typeMap = { accommodation:'🏨 Accommodation', dining:'🍽️ Dining', wellness:'🧖 Wellness',
-    activity:'🏄 Activity', culture:'🎭 Culture', nature:'🦁 Nature', event:'🎉 Event', rental:'🚗 Rental' };
+    activity:'🏄 Activity', culture:'🎭 Culture', nature:'🦁 Nature', event:'🎉 Event', rental:'🚗 Rental', combo:'🎁 Combo' };
   var durLabel = nights === '0' ? '🌞 Day trip' : nights + ' night' + (parseInt(nights)>1?'s':'');
 
   var existing = document.getElementById('pp-exp-preview-modal');
@@ -22384,7 +22408,7 @@ async function loadPartnerExperiences() {
       return;
     }
 
-    var typeLabels = { dining:'🍽️ Dining', wellness:'🧖 Wellness', activity:'🏄 Activity', accommodation:'🏨 Accommodation', rental:'🚗 Rental', event:'🎉 Event' };
+    var typeLabels = { dining:'🍽️ Dining', wellness:'🧖 Wellness', activity:'🏄 Activity', accommodation:'🏨 Accommodation', rental:'🚗 Rental', event:'🎉 Event', combo:'🎁 Combo' };
 
     var html = '';
 
@@ -22511,7 +22535,7 @@ async function loadPartnerExperiences() {
 // ── Partner: edit a published experience ──
 function ppEditExperience(expId, expName, expDesc, expType, expCity, expCap, expProvince, expBooking, expNights, expCategory, expWeekend, expAccom, expCert, expAccessible, expInsolite, expIcal, expProgramme, expAmenities, expWowPrice, expWowPricing, expPrice, expAddress, expPhone, expLat, expLng, expImages, expImage) {
   var modal = document.getElementById('adm-modal');
-  var typeOpts = ['accommodation','dining','wellness','activity','rental','event','culture','nature'].map(function(t){
+  var typeOpts = ['accommodation','dining','wellness','activity','rental','event','combo','culture','nature'].map(function(t){
     return '<option value="'+t+'"'+(expType===t?' selected':'')+'>'+t.charAt(0).toUpperCase()+t.slice(1)+'</option>';
   }).join('');
   var provinceOpts = ['','Gauteng','Western Cape','KwaZulu-Natal','Eastern Cape','Limpopo','Mpumalanga','North West','Free State','Northern Cape'].map(function(p){
