@@ -722,8 +722,69 @@ async function authGoogle() {
   }
 }
 
+var PHONE_COUNTRIES = [
+  {code:'+27',  flag:'🇿🇦', name:'South Africa'},
+  {code:'+264', flag:'🇳🇦', name:'Namibia'},
+  {code:'+267', flag:'🇧🇼', name:'Botswana'},
+  {code:'+263', flag:'🇿🇼', name:'Zimbabwe'},
+  {code:'+258', flag:'🇲🇿', name:'Mozambique'},
+  {code:'+268', flag:'🇸🇿', name:'Eswatini'},
+  {code:'+266', flag:'🇱🇸', name:'Lesotho'},
+  {code:'+260', flag:'🇿🇲', name:'Zambia'},
+  {code:'+44',  flag:'🇬🇧', name:'United Kingdom'},
+  {code:'+1',   flag:'🇺🇸', name:'United States'},
+  {code:'+33',  flag:'🇫🇷', name:'France'},
+];
+
+function wbPhoneInit(inputId) {
+  var input = document.getElementById(inputId);
+  if (!input || input.dataset.phoneInit) return;
+  input.dataset.phoneInit = '1';
+
+  var wrap = document.createElement('div');
+  wrap.style.cssText = 'display:flex;gap:0;border:1.5px solid var(--border);border-radius:var(--rs);overflow:hidden;background:var(--white)';
+
+  var sel = document.createElement('select');
+  sel.id = inputId + '-cc';
+  sel.style.cssText = 'border:none;background:var(--bg2);padding:0 6px;font-size:.82rem;flex-shrink:0;width:78px;cursor:pointer';
+  sel.innerHTML = PHONE_COUNTRIES.map(function(c){ return '<option value="'+c.code+'">'+c.flag+' '+c.code+'</option>'; }).join('');
+
+  input.parentNode.insertBefore(wrap, input);
+  wrap.appendChild(sel);
+  input.style.cssText += ';border:none;flex:1;border-radius:0';
+  input.placeholder = '083 000 0000';
+  wrap.appendChild(input);
+}
+
+function wbPhoneGetFull(inputId) {
+  var input = document.getElementById(inputId);
+  var sel   = document.getElementById(inputId + '-cc');
+  if (!input) return '';
+  var raw = input.value.trim().replace(/[\s\-()]/g,'');
+  if (!raw) return '';
+  if (raw.startsWith('+')) return raw; // already international
+  if (raw.startsWith('0')) raw = raw.slice(1);
+  var cc = sel ? sel.value : '+27';
+  return cc + raw;
+}
+
+function wbPhoneSetValue(inputId, fullNumber) {
+  var input = document.getElementById(inputId);
+  var sel   = document.getElementById(inputId + '-cc');
+  if (!input || !fullNumber) return;
+  var match = PHONE_COUNTRIES.find(function(c){ return fullNumber.startsWith(c.code); });
+  if (match) {
+    if (sel) sel.value = match.code;
+    input.value = '0' + fullNumber.slice(match.code.length);
+  } else {
+    input.value = fullNumber;
+  }
+}
+
 async function authForgot() {
-  var email = document.getElementById('auth-email') ? document.getElementById('auth-email').value.trim() : '';
+  var email = (document.getElementById('auth-email')||{value:''}).value.trim()
+    || (document.getElementById('pl-signin-email')||{value:''}).value.trim()
+    || (document.getElementById('pa-signin-email')||{value:''}).value.trim();
   if (!email) { authShowError('Enter your email address first.'); return; }
   try {
     var result = await db_client.auth.resetPasswordForEmail(email, { redirectTo: 'https://wowbox.co.za/reset-password' });
@@ -6025,7 +6086,7 @@ tr:hover td{background:var(--b50)}
         <div class="fg"><label>Business name *</label><input class="fi" id="pl-biz-name" type="text" placeholder="The Vineyard Hotel"></div>
         <div class="fg"><label>Contact person *</label><input class="fi" id="pl-contact" type="text" placeholder="Your full name"></div>
         <div class="fg"><label>Email address *</label><input class="fi" id="pl-email" type="email" placeholder="hello@yourplace.co.za"></div>
-        <div class="fg"><label>Phone number *</label><input class="fi" id="pl-phone" type="tel" placeholder="+27 82 000 0000"></div>
+        <div class="fg"><label>Phone number *</label><input class="fi" id="pl-phone" type="tel" placeholder="083 000 0000"></div>
         <div class="fg">
           <label>Type of experience *</label>
           <select class="fi" id="pl-type" style="cursor:pointer">
@@ -6041,7 +6102,7 @@ tr:hover td{background:var(--b50)}
             <option>Other</option>
           </select>
         </div>
-        <div class="fg"><label>Password *</label><input class="fi" id="pl-pw" type="password" placeholder="Min. 6 characters"></div>
+        <div class="fg"><label>Password *</label><div style="position:relative"><input class="fi" id="pl-pw" type="password" placeholder="Min. 6 characters" style="padding-right:38px"><button type="button" onclick="authTogglePw('pl-pw',this)" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--muted);font-size:.9rem;padding:0"><i class="fa fa-eye"></i></button></div></div>
         <div class="fg"><label>Business registration number (CIPC) *</label><input class="fi" id="pl-reg-num" type="text" placeholder="e.g. 2023/123456/07"></div>
         <div class="fg">
           <label>Business type *</label>
@@ -6076,7 +6137,7 @@ tr:hover td{background:var(--b50)}
       <!-- SIGN IN FORM -->
       <div id="pl-form-signin" style="display:none">
         <div class="fg"><label>Email address</label><input class="fi" id="pl-signin-email" type="email" placeholder="hello@yourplace.co.za" onkeydown="if(event.key==='Enter')plSignIn()"></div>
-        <div class="fg" style="margin-bottom:8px"><label>Password</label><input class="fi" id="pl-signin-pw" type="password" placeholder="••••••••" onkeydown="if(event.key==='Enter')plSignIn()"></div>
+        <div class="fg" style="margin-bottom:8px"><label>Password</label><div style="position:relative"><input class="fi" id="pl-signin-pw" type="password" placeholder="••••••••" onkeydown="if(event.key==='Enter')plSignIn()" style="padding-right:38px"><button type="button" onclick="authTogglePw('pl-signin-pw',this)" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--muted);font-size:.9rem;padding:0"><i class="fa fa-eye"></i></button></div></div>
         <div style="text-align:right;margin-bottom:18px"><span style="font-size:.73rem;color:#2563eb;cursor:pointer" onclick="authForgot()">Forgot password?</span></div>
         <button type="button" class="btn bp block" onclick="plSignIn()"><i class="fa fa-arrow-right-to-bracket"></i> Sign in to Partner Portal</button>
         <div style="margin-top:16px;text-align:center;font-size:.78rem;color:#64748b">Not a partner yet? <span style="color:#2563eb;cursor:pointer;font-weight:600" onclick="plSwitchTab('signup')">Apply now</span></div>
@@ -6185,7 +6246,7 @@ tr:hover td{background:var(--b50)}
           </div>
           <div class="fg"><label>Contact name *</label><input class="fi" id="pl-contact" type="text" placeholder="Your full name"></div>
           <div class="fg"><label>Email *</label><input class="fi" id="pl-reg-email" type="email" placeholder="your@company.com"></div>
-          <div class="fg"><label>Phone *</label><input class="fi" id="pl-phone" type="tel" placeholder="+27 xx xxx xxxx"></div>
+          <div class="fg"><label>Phone *</label><input class="fi" id="pl-phone" type="tel" placeholder="083 000 0000"></div>
           <div class="fg"><label>Password *</label><input class="fi" id="pl-reg-password" type="password" placeholder="Min. 6 characters"></div>
           <div class="fg" style="margin-bottom:20px"><label>Tell us about your experience</label><textarea class="fi" id="pl-bio" rows="3" placeholder="Briefly describe what guests can expect..." style="resize:vertical"></textarea></div>
           <button type="button" class="btn bp block" onclick="partnerSignUp()"><i class="fa fa-paper-plane"></i> Submit application</button>
@@ -6594,7 +6655,7 @@ tr:hover td{background:var(--b50)}
               </div>
               <div class="fg">
                 <label>Venue phone number *</label>
-                <input class="fi" id="pp-new-phone" type="tel" placeholder="+27 21 000 0000">
+                <input class="fi" id="pp-new-phone" type="tel" placeholder="083 000 0000">
                 <div style="font-size:.68rem;color:var(--muted);margin-top:3px"><i class="fa fa-phone" style="color:var(--b500)"></i> Printed on the voucher — guests will call to confirm</div>
               </div>
             </div>
@@ -7391,7 +7452,7 @@ tr:hover td{background:var(--b50)}
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
             <div class="fg"><label>Full name</label><input class="fi" id="pp-set-fullname" placeholder="Your full name"></div>
             <div class="fg"><label>Business name</label><input class="fi" id="pp-set-bizname" placeholder="Your business name"></div>
-            <div class="fg"><label>Phone</label><input class="fi" id="pp-set-phone" placeholder="+27 00 000 0000"></div>
+            <div class="fg"><label>Phone</label><input class="fi" id="pp-set-phone" placeholder="083 000 0000"></div>
             <div class="fg"><label>Address <span style="font-weight:400;color:var(--muted);font-size:.75rem">(shown on your public page)</span></label><input class="fi" id="pp-set-address" placeholder="e.g. 123 Main St, Cape Town, Western Cape"></div>
             <div class="fg" style="grid-column:1/-1">
               <label>Email</label>
@@ -7808,7 +7869,7 @@ tr:hover td{background:var(--b50)}
                 <div class="fg-row">
                   <div class="fg">
                     <label>Venue phone number *</label>
-                    <input class="fi" id="aef-phone" type="tel" placeholder="+27 21 000 0000">
+                    <input class="fi" id="aef-phone" type="tel" placeholder="083 000 0000">
                     <div style="font-size:.68rem;color:var(--muted);margin-top:3px"><i class="fa fa-phone" style="color:var(--b500)"></i> Printed on the voucher so guests can call to confirm</div>
                   </div>
                 </div>
@@ -12465,6 +12526,7 @@ async function ppSubmitPaystack() {
 
 async function ppLoadSettings() {
   if (!currentUser) return;
+  wbPhoneInit('pp-set-phone');
   // Fill email (readonly)
   var emailEl = document.getElementById('pp-set-email');
   if (emailEl) emailEl.value = currentUser.email || '';
@@ -12481,7 +12543,7 @@ async function ppLoadSettings() {
     var ad = document.getElementById('pp-set-address');
     if (fn) fn.value = d.full_name || '';
     if (bn) bn.value = d.partner_name || '';
-    if (ph) ph.value = d.phone || '';
+    if (d.phone) wbPhoneSetValue('pp-set-phone', d.phone);
     if (ad) ad.value = d.partner_address || '';
     // Render payout status dynamically
     var wrap = document.getElementById('pp-payout-status-wrap');
@@ -12553,7 +12615,7 @@ async function ppSaveProfile() {
   if (!currentUser) return;
   var full_name    = document.getElementById('pp-set-fullname').value.trim();
   var partner_name = document.getElementById('pp-set-bizname').value.trim();
-  var phone        = document.getElementById('pp-set-phone').value.trim();
+  var phone        = wbPhoneGetFull('pp-set-phone');
   var partner_address = (document.getElementById('pp-set-address')?.value || '').trim();
   if (!full_name) { if(msgEl){msgEl.style.color='#ef4444';msgEl.textContent='Full name is required.';} return; }
   var res = await db_client.from('user_profiles').update({ full_name, partner_name, phone, partner_address }).eq('id', currentUser.id);
@@ -13313,6 +13375,7 @@ function renderPartnerLanding() {
 }
 
 function plSwitchTab(tab) {
+  wbPhoneInit('pl-phone');
   var signupEl = document.getElementById('pl-form-signup');
   var signinEl = document.getElementById('pl-form-signin');
   var signupTab = document.getElementById('pl-signup-tab');
@@ -13338,7 +13401,7 @@ async function plSubmitPartner() {
   var bizName  = (document.getElementById('pl-biz-name')  ||{value:''}).value.trim();
   var contact  = (document.getElementById('pl-contact')   ||{value:''}).value.trim();
   var email    = (document.getElementById('pl-email')     ||{value:''}).value.trim();
-  var phone    = (document.getElementById('pl-phone')     ||{value:''}).value.trim();
+  var phone    = wbPhoneGetFull('pl-phone');
   var type     = (document.getElementById('pl-type')      ||{value:''}).value;
   var pw       = (document.getElementById('pl-pw')        ||{value:''}).value;
   var regNum   = (document.getElementById('pl-reg-num')   ||{value:''}).value.trim();
@@ -13386,12 +13449,13 @@ async function plSubmitPartner() {
     // Create user_profile with role partner + status pending
     if (userId) {
       await db_client.from('user_profiles').insert({
-        id:           userId,
-        email:        email,
-        full_name:    contact,
-        role:         'pending_partner',
-        status:       'pending',
-        partner_name: bizName,
+        id:              userId,
+        email:           email,
+        full_name:       contact,
+        role:            'pending_partner',
+        status:          'pending',
+        partner_name:    bizName,
+        partner_address: city,
       });
     }
 
@@ -13461,10 +13525,72 @@ async function plSubmitPartner() {
 
   } catch(e) {
     var msg = e.message || 'An error occurred.';
-    if (msg.includes('already registered')) msg = 'This email is already registered. Please sign in instead.';
-    if (errEl) { errEl.textContent = msg; errEl.style.display = 'block'; }
+    if (msg.includes('already registered') || msg.includes('already been registered')) {
+      // Email already has an account — offer to link existing account as partner
+      if (errEl) {
+        errEl.innerHTML = 'This email already has a WowBox account. <button type="button" onclick="plLinkExistingAsPartner()" style="background:none;border:none;color:var(--b600);font-weight:600;text-decoration:underline;cursor:pointer;padding:0">Sign in and apply as partner →</button>';
+        errEl.style.display = 'block';
+      }
+    } else {
+      if (errEl) { errEl.textContent = msg; errEl.style.display = 'block'; }
+    }
   }
   if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa fa-paper-plane"></i> Submit application'; }
+}
+
+async function plLinkExistingAsPartner() {
+  var email = (document.getElementById('pl-email')||{value:''}).value.trim();
+  var pw    = (document.getElementById('pl-pw')||{value:''}).value;
+  var bizName = (document.getElementById('pl-biz-name')||{value:''}).value.trim();
+  var contact = (document.getElementById('pl-contact')||{value:''}).value.trim();
+  var phone   = wbPhoneGetFull('pl-phone');
+  var type    = (document.getElementById('pl-type')||{value:''}).value;
+  var city    = (document.getElementById('pl-city')||{value:''}).value.trim();
+  var regNum  = (document.getElementById('pl-reg-num')||{value:''}).value.trim();
+  var bizType = (document.getElementById('pl-biz-type')||{value:''}).value;
+  var vat     = (document.getElementById('pl-vat')||{value:''}).value.trim();
+  var website = (document.getElementById('pl-website')||{value:''}).value.trim();
+  var expDesc = (document.getElementById('pl-exp-desc')||{value:''}).value.trim();
+  var errEl = document.getElementById('pl-signup-error');
+
+  if (!pw) {
+    if (errEl) errEl.innerHTML = 'Please enter your existing account password above, then click "Sign in and apply as partner" again.';
+    return;
+  }
+
+  try {
+    var signInRes = await db_client.auth.signInWithPassword({ email: email, password: pw });
+    if (signInRes.error) throw signInRes.error;
+
+    var userId = signInRes.data.user.id;
+
+    // Update existing profile to pending_partner
+    await db_client.from('user_profiles').update({
+      role: 'pending_partner',
+      status: 'pending',
+      partner_name: bizName,
+      partner_address: city,
+    }).eq('id', userId);
+
+    // Create partners application entry
+    try {
+      await db_client.from('partners').insert({
+        name: bizName, contact: contact, email: email, phone: phone, type: type, city: city,
+        status: 'pending', registration_number: regNum, business_type: bizType,
+        vat_number: vat || null, website_url: website || null,
+        experience_description: expDesc, terms_accepted_at: new Date().toISOString(),
+      });
+    } catch(e2) { console.warn('partners table:', e2.message); }
+
+    var sucEl = document.getElementById('pl-signup-success');
+    if (sucEl) {
+      sucEl.innerHTML = '<strong>Application submitted!</strong> Your existing WowBox account has been linked. We will review your listing within 24 hours and contact you at <strong>' + email + '</strong>.';
+      sucEl.style.display = 'block';
+    }
+    if (errEl) errEl.style.display = 'none';
+  } catch(e) {
+    if (errEl) errEl.innerHTML = 'Sign in failed: ' + (e.message||'Incorrect password.');
+  }
 }
 
 async function plSignIn() {
@@ -14187,7 +14313,7 @@ async function partnerSignUp() {
   var expType  = (document.getElementById('pl-exp-type') || {value:''}).value;
   var contact  = (document.getElementById('pl-contact') || {value:''}).value.trim();
   var email    = (document.getElementById('pl-reg-email') || {value:''}).value.trim();
-  var phone    = (document.getElementById('pl-phone') || {value:''}).value.trim();
+  var phone    = wbPhoneGetFull('pl-phone');
   var pass     = (document.getElementById('pl-reg-password') || {value:''}).value;
   var bio      = (document.getElementById('pl-bio') || {value:''}).value.trim();
   var errEl    = document.getElementById('pl-error');
@@ -16542,6 +16668,7 @@ function admShowExpForm(expId) {
   const formWrap = document.getElementById('adm-exp-form');
   if (listWrap) listWrap.style.marginBottom = '20px';
   formWrap.style.display = 'block';
+  setTimeout(function(){ wbPhoneInit('aef-phone'); }, 50);
   formWrap.scrollIntoView({behavior:'smooth', block:'nearest'});
   const d = expId ? admExpData[expId] : null;
   document.getElementById('adm-exp-form-title').textContent = d ? 'Edit — ' + d.name : 'Add new experience';
@@ -16643,7 +16770,7 @@ async function admSaveExp() {
   const lat     = parseFloat(document.getElementById('aef-lat')?.value) || null;
   const lng     = parseFloat(document.getElementById('aef-lng')?.value) || null;
   const address = document.getElementById('aef-address')?.value?.trim() || '';
-  const phone   = document.getElementById('aef-phone')?.value?.trim() || '';
+  const phone   = wbPhoneGetFull('aef-phone');
   const cap     = parseInt(document.getElementById('aef-cap')?.value) || null;
   const city    = document.getElementById('aef-city')?.value?.trim() || null;
   const price   = parseInt(document.getElementById('aef-price')?.value) || null;
@@ -21771,7 +21898,7 @@ function ppPreviewExperience() {
   var city     = document.getElementById('pp-new-city')?.value?.trim()  || '';
   var province = document.getElementById('pp-new-province')?.value      || '';
   var capacity = document.getElementById('pp-new-capacity')?.value      || '2';
-  var phone    = document.getElementById('pp-new-phone')?.value?.trim() || '';
+  var phone    = wbPhoneGetFull('pp-new-phone');
   var nights   = parseInt(document.getElementById('pp-new-nights')?.value || '0');
   var cat      = document.getElementById('pp-new-category')?.value      || '';
   var bkType   = document.getElementById('pp-new-booking-type')?.value  || '';
@@ -21911,7 +22038,7 @@ function ppPreviewExperience() {
   var city     = document.getElementById('pp-new-city')?.value?.trim()       || '';
   var province = document.getElementById('pp-new-province')?.value           || '';
   var capacity = document.getElementById('pp-new-capacity')?.value           || '2';
-  var phone    = document.getElementById('pp-new-phone')?.value?.trim()      || '';
+  var phone    = wbPhoneGetFull('pp-new-phone');
   var nights   = document.getElementById('pp-new-nights')?.value             || '0';
   var cat      = document.getElementById('pp-new-category')?.value           || '';
   var bkType   = document.getElementById('pp-new-booking-type')?.value       || '';
@@ -21947,7 +22074,7 @@ async function submitNewExp() {
   const imgUrls  = [imgUrl, (document.getElementById('pp-new-img-1')||{value:''}).value.trim(), (document.getElementById('pp-new-img-2')||{value:''}).value.trim()].filter(Boolean);
   const city     = (document.getElementById('pp-new-city')        ||{value:''}).value.trim();
   const address  = (document.getElementById('pp-new-address')     ||{value:''}).value.trim();
-  const phone    = (document.getElementById('pp-new-phone')       ||{value:''}).value.trim();
+  const phone    = wbPhoneGetFull('pp-new-phone');
   const lat      = parseFloat((document.getElementById('pp-new-lat')||{value:''}).value) || null;
   const lng      = parseFloat((document.getElementById('pp-new-lng')||{value:''}).value) || null;
   const capacity = parseInt((document.getElementById('pp-new-capacity')    ||{value:''}).value) || null;
@@ -23150,6 +23277,12 @@ window.addEventListener('DOMContentLoaded', async () => {
   loadSiteSettingsOnStartup();
   renderBoxGrids();
   loadProduct('couples-retreat');
+
+  // Init phone country selectors on all known phone fields
+  ['pl-phone','pp-new-phone','pp-set-phone','aef-phone'].forEach(function(id){
+    var el = document.getElementById(id);
+    if (el) wbPhoneInit(id);
+  });
 
   var currentPath = window.location.pathname;
 
