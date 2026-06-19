@@ -625,12 +625,22 @@ function authClearMessages() {
   if (suc) { suc.textContent = ''; suc.classList.remove('show'); }
 }
 function authShowError(msg) {
-  var el = document.getElementById('auth-error');
-  if (el) { el.textContent = msg; el.classList.add('show'); }
+  var el = document.getElementById('auth-error') || document.getElementById('pl-error');
+  if (el) {
+    el.textContent = msg;
+    el.classList.add('show');
+    el.style.display = 'block';
+    el.scrollIntoView({behavior:'smooth', block:'center'});
+  }
 }
 function authShowSuccess(msg) {
-  var el = document.getElementById('auth-success');
-  if (el) { el.textContent = msg; el.classList.add('show'); }
+  var el = document.getElementById('auth-success') || document.getElementById('pl-success');
+  if (el) {
+    el.textContent = msg;
+    el.classList.add('show');
+    el.style.display = 'block';
+    el.scrollIntoView({behavior:'smooth', block:'center'});
+  }
 }
 
 function initResetPassword() {
@@ -4255,7 +4265,7 @@ tr:hover td{background:var(--b50)}
     <button class="nl" id="nl-part" onclick="go('partner');setNL('nl-part')" style="display:none">Partner Portal</button>
   </div>
   <div class="nav-right">
-    <button class="nl-cta" id="nl-list-exp" onclick="go('partner-landing');setNL('nl-list-exp')">List your experience ✦</button>
+    <button class="nl-cta" id="nl-list-exp" onclick="go('partner-landing');setNL('nl-list-exp')">Become a Partner ✦</button>
     <!-- Logged OUT -->
     <button class="bg" id="nav-signin-btn" onclick="goMyAccount()" style="font-size:.8rem;padding:8px 16px"><i class="fa fa-user"></i> Sign in</button>
     <!-- Logged IN (hidden until session loads) -->
@@ -4330,7 +4340,7 @@ tr:hover td{background:var(--b50)}
 
     <!-- List your experience — always visible, styled distinctly -->
     <button class="mob-nav-item mob-list-exp" onclick="closeMobMenu();go('partner-landing')">
-      <i class="fa fa-star"></i><span>List your experience ✦</span>
+      <i class="fa fa-star"></i><span>Become a Partner ✦</span>
     </button>
 
     <div class="mob-nav-divider"></div>
@@ -5950,8 +5960,8 @@ tr:hover td{background:var(--b50)}
     <h1>Turn your space into an<br><span>unforgettable experience</span></h1>
     <p>Join South Africa's leading gift experience platform. Reach thousands of premium customers actively seeking hotels, restaurants, spas, safaris and more.</p>
     <div class="pl-cta-row">
-      <button class="btn-w" onclick="document.getElementById('pl-signup-section').scrollIntoView({behavior:'smooth'})">List your experience <i class="fa fa-arrow-right"></i></button>
-      <button class="btn-o" onclick="document.getElementById('pl-signin-tab').click()">Partner login</button>
+      <button class="btn-w" onclick="document.getElementById('pl-signup-section').scrollIntoView({behavior:'smooth'})">Become a Partner <i class="fa fa-arrow-right"></i></button>
+      <button class="btn-o" onclick="document.getElementById('pl-signup-section').scrollIntoView({behavior:'smooth'});document.getElementById('pl-signin-tab').click()">Partner login</button>
     </div>
   </div>
 </div>
@@ -13531,15 +13541,13 @@ async function plSubmitPartner() {
     // Save partner application details
     try {
       await db_client.from('partners').insert({
-        name:                    bizName,
-        contact:                 contact,
-        email:                   email,
-        phone:                   phone,
-        type:                    type,
-        city:                    city,
-        lat:                     lat,
-        lng:                     lng,
-        status:                  'pending',
+        business_name:           bizName,
+        contact_name:            contact,
+        contact_email:           email,
+        contact_phone:           phone,
+        category:                type,
+        location:                city,
+        page_status:             'pending',
         registration_number:     regNum,
         business_type:           bizType,
         vat_number:              vat || null,
@@ -13595,11 +13603,7 @@ async function plSubmitPartner() {
   } catch(e) {
     var msg = e.message || 'An error occurred.';
     if (msg.includes('already registered') || msg.includes('already been registered')) {
-      // Email already has an account — offer to link existing account as partner
-      if (errEl) {
-        errEl.innerHTML = 'This email already has a WowBox account. <button type="button" onclick="plLinkExistingAsPartner()" style="background:none;border:none;color:var(--b600);font-weight:600;text-decoration:underline;cursor:pointer;padding:0">Sign in and apply as partner →</button>';
-        errEl.style.display = 'block';
-      }
+      plShowLinkAccountModal(email);
     } else {
       if (errEl) { errEl.textContent = msg; errEl.style.display = 'block'; }
     }
@@ -13607,9 +13611,58 @@ async function plSubmitPartner() {
   if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa fa-paper-plane"></i> Submit application'; }
 }
 
+function plShowLinkAccountModal(email) {
+  var existing = document.getElementById('pl-link-modal');
+  if (existing) existing.remove();
+  var modal = document.createElement('div');
+  modal.id = 'pl-link-modal';
+  modal.style.cssText = 'position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(5,15,40,.6);backdrop-filter:blur(4px)';
+  modal.innerHTML = '<div style="background:#fff;border-radius:16px;padding:28px;max-width:380px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.25)">'
+    + '<h3 style="font-size:1.05rem;color:var(--navy);margin-bottom:6px"><i class="fa fa-circle-info" style="color:var(--b500);margin-right:6px"></i>Account already exists</h3>'
+    + '<p style="font-size:.8rem;color:var(--muted);margin-bottom:20px"><strong>' + email + '</strong> already has a WowBox account. Sign in to continue your partner application — your application details above will be saved.</p>'
+    + '<div class="fg" style="margin-bottom:14px"><label>Password</label><input class="fi" id="pl-link-pw" type="password" placeholder="Enter your account password"></div>'
+    + '<button class="btn bp" style="width:100%;margin-bottom:10px" onclick="plLinkExistingAsPartner()"><i class="fa fa-right-to-bracket"></i> Sign in &amp; continue</button>'
+    + '<div style="text-align:center;font-size:.72rem;color:var(--muted);margin:12px 0">or</div>'
+    + '<button class="btn bg" style="width:100%;margin-bottom:14px" onclick="plLinkWithGoogle()"><img src="https://www.google.com/favicon.ico" style="width:14px;height:14px;margin-right:8px;vertical-align:-2px"> Continue with Google</button>'
+    + '<div id="pl-link-error" style="display:none;font-size:.76rem;color:#991b1b;background:#fee2e2;border-radius:8px;padding:8px 12px;margin-bottom:10px"></div>'
+    + '<button class="btn bg" style="width:100%;background:none;border:none;color:var(--muted);font-size:.78rem" onclick="document.getElementById(\'pl-link-modal\').remove()">Cancel</button>'
+    + '</div>';
+  document.body.appendChild(modal);
+  modal.addEventListener('click', function(e){ if(e.target===modal) modal.remove(); });
+}
+
+async function plLinkWithGoogle() {
+  try {
+    // Save the pending application data so we can submit it after Google redirect
+    var pendingApp = {
+      business_name: (document.getElementById('pl-biz-name')||{value:''}).value.trim(),
+      contact_name:  (document.getElementById('pl-contact')||{value:''}).value.trim(),
+      contact_phone: wbPhoneGetFull('pl-phone'),
+      category:      (document.getElementById('pl-type')||{value:''}).value,
+      location:      (document.getElementById('pl-city')||{value:''}).value.trim(),
+      page_status:   'pending',
+      registration_number: (document.getElementById('pl-reg-num')||{value:''}).value.trim(),
+      business_type: (document.getElementById('pl-biz-type')||{value:''}).value,
+      vat_number:    (document.getElementById('pl-vat')||{value:''}).value.trim() || null,
+      website_url:   (document.getElementById('pl-website')||{value:''}).value.trim() || null,
+      experience_description: (document.getElementById('pl-exp-desc')||{value:''}).value.trim(),
+      terms_accepted_at: new Date().toISOString(),
+    };
+    sessionStorage.setItem('wb_pending_partner_app', JSON.stringify(pendingApp));
+
+    await db_client.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: window.location.origin + '/partners?link=1' }
+    });
+  } catch(e) {
+    var errEl = document.getElementById('pl-link-error');
+    if (errEl) { errEl.textContent = e.message; errEl.style.display = 'block'; }
+  }
+}
+
 async function plLinkExistingAsPartner() {
   var email = (document.getElementById('pl-email')||{value:''}).value.trim();
-  var pw    = (document.getElementById('pl-pw')||{value:''}).value;
+  var pw    = (document.getElementById('pl-link-pw')||{value:''}).value;
   var bizName = (document.getElementById('pl-biz-name')||{value:''}).value.trim();
   var contact = (document.getElementById('pl-contact')||{value:''}).value.trim();
   var phone   = wbPhoneGetFull('pl-phone');
@@ -13620,10 +13673,10 @@ async function plLinkExistingAsPartner() {
   var vat     = (document.getElementById('pl-vat')||{value:''}).value.trim();
   var website = (document.getElementById('pl-website')||{value:''}).value.trim();
   var expDesc = (document.getElementById('pl-exp-desc')||{value:''}).value.trim();
-  var errEl = document.getElementById('pl-error');
+  var errEl = document.getElementById('pl-link-error');
 
   if (!pw) {
-    if (errEl) { errEl.innerHTML = 'Please enter your existing account password above, then click "Sign in and apply as partner" again.'; errEl.style.display = 'block'; }
+    if (errEl) { errEl.textContent = 'Please enter your password.'; errEl.style.display = 'block'; }
     return;
   }
 
@@ -13644,21 +13697,23 @@ async function plLinkExistingAsPartner() {
     // Create partners application entry
     try {
       await db_client.from('partners').insert({
-        name: bizName, contact: contact, email: email, phone: phone, type: type, city: city,
-        status: 'pending', registration_number: regNum, business_type: bizType,
+        business_name: bizName, contact_name: contact, contact_email: email, contact_phone: phone, category: type, location: city,
+        page_status: 'pending', registration_number: regNum, business_type: bizType,
         vat_number: vat || null, website_url: website || null,
         experience_description: expDesc, terms_accepted_at: new Date().toISOString(),
       });
     } catch(e2) { console.warn('partners table:', e2.message); }
 
+    var modal = document.getElementById('pl-link-modal');
+    if (modal) modal.remove();
     var sucEl = document.getElementById('pl-success');
     if (sucEl) {
       sucEl.innerHTML = '<strong>Application submitted!</strong> Your existing WowBox account has been linked. We will review your listing within 24 hours and contact you at <strong>' + email + '</strong>.';
       sucEl.style.display = 'block';
+      sucEl.scrollIntoView({behavior:'smooth', block:'center'});
     }
-    if (errEl) errEl.style.display = 'none';
   } catch(e) {
-    if (errEl) { errEl.innerHTML = 'Sign in failed: ' + (e.message||'Incorrect password.'); errEl.style.display = 'block'; }
+    if (errEl) { errEl.textContent = 'Sign in failed: ' + (e.message||'Incorrect password.'); errEl.style.display = 'block'; }
   }
 }
 
@@ -16947,13 +17002,13 @@ async function renderAdmPartnerApps() {
   try {
     var [profRes, partRes] = await Promise.all([
       db_client.from('user_profiles').select('id,email,full_name,partner_name,created_at,status,role').eq('role','pending_partner').order('created_at',{ascending:false}),
-      db_client.from('partners').select('email,phone,type,city,registration_number,business_type,vat_number,website_url,experience_description,terms_accepted_at').eq('status','pending')
+      db_client.from('partners').select('contact_email,contact_phone,category,location,registration_number,business_type,vat_number,website_url,experience_description,terms_accepted_at').eq('page_status','pending')
     ]);
     if (profRes.error) throw profRes.error;
     var apps = profRes.data || [];
     // Build partners map by email
     var partMap = {};
-    (partRes.data||[]).forEach(function(p){ partMap[p.email] = p; });
+    (partRes.data||[]).forEach(function(p){ partMap[p.contact_email] = p; });
 
     if (!apps.length) {
       listEl.innerHTML = '<div style="padding:24px;text-align:center;color:var(--muted);font-size:.85rem"><i class="fa fa-inbox" style="font-size:1.5rem;opacity:.3;display:block;margin-bottom:8px"></i>No pending applications.</div>';
@@ -16977,9 +17032,9 @@ async function renderAdmPartnerApps() {
         + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0 24px;margin-bottom:12px">'
         + '<div>'
         + infoRow('Email', a.email)
-        + infoRow('Phone', p.phone)
-        + infoRow('Category', p.type)
-        + infoRow('Location', p.city)
+        + infoRow('Phone', p.contact_phone)
+        + infoRow('Category', p.category)
+        + infoRow('Location', p.location)
         + infoRow('Website', p.website_url ? '<a href="'+p.website_url+'" target="_blank" style="color:var(--b600)">'+p.website_url+'</a>' : null)
         + '</div>'
         + '<div>'
@@ -23403,6 +23458,28 @@ window.addEventListener('DOMContentLoaded', async () => {
 
   var currentPath = window.location.pathname;
 
+  // Handle return from Google OAuth during partner account linking
+  if (window.location.search.includes('link=1')) {
+    setTimeout(async function() {
+      try {
+        var sessionRes = await db_client.auth.getSession();
+        if (sessionRes.data && sessionRes.data.session) {
+          var userId = sessionRes.data.session.user.id;
+          var email  = sessionRes.data.session.user.email;
+          await db_client.from('user_profiles').update({ role: 'pending_partner', status: 'pending' }).eq('id', userId);
+          var pendingApp = JSON.parse(sessionStorage.getItem('wb_pending_partner_app') || 'null');
+          if (pendingApp) {
+            try {
+              await db_client.from('partners').insert(Object.assign({}, pendingApp, { contact_email: email }));
+            } catch(e2) { console.warn('partners insert after google link:', e2.message); }
+            sessionStorage.removeItem('wb_pending_partner_app');
+          }
+          admToast('✅ Your account is now linked as a pending partner. We will review your application within 24 hours.');
+        }
+      } catch(e) { console.warn('Google link completion:', e.message); }
+    }, 800);
+  }
+
   // Check auth session FIRST — needed before routing protected pages
   try {
     var sessionResult = await db_client.auth.getSession();
@@ -24914,8 +24991,8 @@ async function plxSubmitPartner() {
       await db_client.from('user_profiles').upsert({ id: userId, email: email, full_name: contact, partner_name: bizName, role: 'pending_partner' });
     }
     await db_client.from('partners').insert({
-      name: bizName, contact: contact, email: email, phone: phone, type: type,
-      city: city, status: 'pending', registration_number: regNum, business_type: bizType,
+      business_name: bizName, contact_name: contact, contact_email: email, contact_phone: phone, category: type,
+      location: city, page_status: 'pending', registration_number: regNum, business_type: bizType,
       experience_description: expDesc, terms_accepted_at: new Date().toISOString()
     });
     if (sucEl) { sucEl.textContent = 'Application submitted! We will review it within 24 hours and contact you at ' + email + '.'; sucEl.style.display = 'block'; }
@@ -25544,7 +25621,7 @@ async function admRunSchemaDiag() {
       <button onclick="prelaunchShowMain()" style="background:none;border:none;color:rgba(255,255,255,.7);font-size:.82rem;cursor:pointer;margin-bottom:20px;display:flex;align-items:center;gap:6px"><i class="fa fa-chevron-left"></i> Back</button>
       <div style="text-align:center;margin-bottom:24px">
         <div style="font-family:'Cormorant Garamond',serif;font-size:1.8rem;font-weight:700;color:#fff">Become a WowBox Partner</div>
-        <p style="font-size:.82rem;color:rgba(255,255,255,.6);margin-top:6px">List your experience and reach thousands of gift buyers</p>
+        <p style="font-size:.82rem;color:rgba(255,255,255,.6);margin-top:6px">Become a Partner and reach thousands of gift buyers</p>
       </div>
       <div style="background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);border-radius:16px;padding:24px">
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
