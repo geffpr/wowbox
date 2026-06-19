@@ -791,16 +791,45 @@ function wbPhoneSetValue(inputId, fullNumber) {
   }
 }
 
-async function authForgot() {
-  var email = (document.getElementById('auth-email')||{value:''}).value.trim()
+function showForgotPasswordModal() {
+  var existing = document.getElementById('fp-modal');
+  if (existing) existing.remove();
+  // Pre-fill with whatever email is already typed somewhere, as a courtesy
+  var prefill = (document.getElementById('auth-email')||{value:''}).value.trim()
     || (document.getElementById('pl-signin-email')||{value:''}).value.trim()
-    || (document.getElementById('pa-signin-email')||{value:''}).value.trim();
-  if (!email) { authShowError('Enter your email address first.'); return; }
+    || (document.getElementById('pa-signin-email')||{value:''}).value.trim()
+    || '';
+  var modal = document.createElement('div');
+  modal.id = 'fp-modal';
+  modal.style.cssText = 'position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(5,15,40,.6);backdrop-filter:blur(4px)';
+  modal.innerHTML = '<div style="background:#fff;border-radius:16px;padding:28px;max-width:360px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.25)">'
+    + '<h3 style="font-size:1.05rem;color:var(--navy);margin-bottom:6px"><i class="fa fa-key" style="color:var(--b500);margin-right:6px"></i>Reset your password</h3>'
+    + '<p style="font-size:.8rem;color:var(--muted);margin-bottom:18px">Enter your email and we will send you a link to reset your password.</p>'
+    + '<div class="fg" style="margin-bottom:16px"><label>Email address</label><input class="fi" id="fp-email" type="email" placeholder="you@example.com" value="' + prefill + '" onkeydown="if(event.key===\'Enter\')authForgot()"></div>'
+    + '<div id="fp-msg" style="display:none;font-size:.78rem;border-radius:8px;padding:8px 12px;margin-bottom:14px"></div>'
+    + '<button class="btn bp" style="width:100%;margin-bottom:10px" onclick="authForgot()"><i class="fa fa-paper-plane"></i> Send reset link</button>'
+    + '<button class="btn bg" style="width:100%;background:none;border:none;color:var(--muted);font-size:.78rem" onclick="document.getElementById(\'fp-modal\').remove()">Cancel</button>'
+    + '</div>';
+  document.body.appendChild(modal);
+  modal.addEventListener('click', function(e){ if(e.target===modal) modal.remove(); });
+  setTimeout(function(){ document.getElementById('fp-email')?.focus(); }, 50);
+}
+
+async function authForgot() {
+  var email = (document.getElementById('fp-email')||{value:''}).value.trim();
+  var msgEl = document.getElementById('fp-msg');
+  if (!email) {
+    if (msgEl) { msgEl.textContent = 'Enter your email address first.'; msgEl.style.display='block'; msgEl.style.background='#fee2e2'; msgEl.style.color='#991b1b'; }
+    return;
+  }
   try {
     var result = await db_client.auth.resetPasswordForEmail(email, { redirectTo: 'https://wowbox.co.za/reset-password' });
     if (result.error) throw result.error;
-    authShowSuccess('Password reset email sent! Check your inbox.');
-  } catch(e) { authShowError(e.message); }
+    if (msgEl) { msgEl.innerHTML = '✅ Password reset email sent! Check your inbox.'; msgEl.style.display='block'; msgEl.style.background='#d1fae5'; msgEl.style.color='#065f46'; }
+    setTimeout(function(){ var m = document.getElementById('fp-modal'); if(m) m.remove(); }, 2500);
+  } catch(e) {
+    if (msgEl) { msgEl.textContent = e.message; msgEl.style.display='block'; msgEl.style.background='#fee2e2'; msgEl.style.color='#991b1b'; }
+  }
 }
 
 function showDash(tab) {
@@ -5507,7 +5536,7 @@ tr:hover td{background:var(--b50)}
         </div>
       </div>
       <div id="auth-forgot" style="text-align:right;margin-bottom:18px">
-        <span style="font-size:.73rem;color:var(--b600);cursor:pointer;font-weight:500" onclick="authForgot()">Forgot password?</span>
+        <span style="font-size:.73rem;color:var(--b600);cursor:pointer;font-weight:500" onclick="showForgotPasswordModal()">Forgot password?</span>
       </div>
       <button class="btn bp block" id="auth-submit-btn" onclick="authSubmit()" style="margin-bottom:9px">
         <i class="fa fa-arrow-right-to-bracket"></i> <span id="auth-submit-label">Sign in</span>
@@ -6150,7 +6179,7 @@ tr:hover td{background:var(--b50)}
       <div id="pl-form-signin" style="display:none">
         <div class="fg"><label>Email address</label><input class="fi" id="pl-signin-email" type="email" placeholder="hello@yourplace.co.za" onkeydown="if(event.key==='Enter')plSignIn()"></div>
         <div class="fg" style="margin-bottom:8px"><label>Password</label><div style="position:relative"><input class="fi" id="pl-signin-pw" type="password" placeholder="••••••••" onkeydown="if(event.key==='Enter')plSignIn()" style="padding-right:38px"><button type="button" onclick="authTogglePw('pl-signin-pw',this)" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--muted);font-size:.9rem;padding:0"><i class="fa fa-eye"></i></button></div></div>
-        <div style="text-align:right;margin-bottom:18px"><span style="font-size:.73rem;color:#2563eb;cursor:pointer" onclick="authForgot()">Forgot password?</span></div>
+        <div style="text-align:right;margin-bottom:18px"><span style="font-size:.73rem;color:#2563eb;cursor:pointer" onclick="showForgotPasswordModal()">Forgot password?</span></div>
         <button type="button" class="btn bp block" onclick="plSignIn()"><i class="fa fa-arrow-right-to-bracket"></i> Sign in to Partner Portal</button>
         <div style="margin-top:16px;text-align:center;font-size:.78rem;color:#64748b">Not a partner yet? <span style="color:#2563eb;cursor:pointer;font-weight:600" onclick="plSwitchTab('signup')">Apply now</span></div>
       </div>
@@ -6238,7 +6267,7 @@ tr:hover td{background:var(--b50)}
           <div class="fg"><label>Email *</label><input class="fi" id="pl-signin2-email" type="email" placeholder="your@company.com" onkeydown="if(event.key==='Enter'){event.preventDefault();partnerSignIn();}"></div>
           <div class="fg"><label>Password *</label><input class="fi" id="pl-password" type="password" placeholder="••••••••" onkeydown="if(event.key==='Enter'){event.preventDefault();partnerSignIn();}"></div>
           <button type="button" class="btn bp block" onclick="partnerSignIn()" style="margin-top:4px"><i class="fa fa-arrow-right-to-bracket"></i> Sign in</button>
-          <p style="text-align:right;margin-top:10px"><span style="font-size:.73rem;color:var(--b600);cursor:pointer" onclick="authForgot()">Forgot password?</span></p>
+          <p style="text-align:right;margin-top:10px"><span style="font-size:.73rem;color:var(--b600);cursor:pointer" onclick="showForgotPasswordModal()">Forgot password?</span></p>
         </div>
 
         <!-- Sign up form -->
@@ -13620,7 +13649,7 @@ function plShowLinkAccountModal(email) {
   modal.innerHTML = '<div style="background:#fff;border-radius:16px;padding:28px;max-width:380px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.25)">'
     + '<h3 style="font-size:1.05rem;color:var(--navy);margin-bottom:6px"><i class="fa fa-circle-info" style="color:var(--b500);margin-right:6px"></i>Account already exists</h3>'
     + '<p style="font-size:.8rem;color:var(--muted);margin-bottom:20px"><strong>' + email + '</strong> already has a WowBox account. Sign in to continue your partner application — your application details above will be saved.</p>'
-    + '<div class="fg" style="margin-bottom:14px"><label>Password</label><input class="fi" id="pl-link-pw" type="password" placeholder="Enter your account password"></div>'
+    + '<div class="fg" style="margin-bottom:14px"><label>Password</label><div style="position:relative"><input class="fi" id="pl-link-pw" type="password" placeholder="Enter your account password" style="padding-right:38px"><button type="button" onclick="authTogglePw(\'pl-link-pw\',this)" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--muted);font-size:.9rem;padding:0"><i class="fa fa-eye"></i></button></div></div>'
     + '<button class="btn bp" style="width:100%;margin-bottom:10px" onclick="plLinkExistingAsPartner()"><i class="fa fa-right-to-bracket"></i> Sign in &amp; continue</button>'
     + '<div style="text-align:center;font-size:.72rem;color:var(--muted);margin:12px 0">or</div>'
     + '<button class="btn bg" style="width:100%;margin-bottom:14px" onclick="plLinkWithGoogle()"><img src="https://www.google.com/favicon.ico" style="width:14px;height:14px;margin-right:8px;vertical-align:-2px"> Continue with Google</button>'
@@ -13705,12 +13734,13 @@ async function plLinkExistingAsPartner() {
     } catch(e2) { console.warn('partners table:', e2.message); }
 
     var modal = document.getElementById('pl-link-modal');
-    if (modal) modal.remove();
-    var sucEl = document.getElementById('pl-success');
-    if (sucEl) {
-      sucEl.innerHTML = '<strong>Application submitted!</strong> Your existing WowBox account has been linked. We will review your listing within 24 hours and contact you at <strong>' + email + '</strong>.';
-      sucEl.style.display = 'block';
-      sucEl.scrollIntoView({behavior:'smooth', block:'center'});
+    if (modal) {
+      modal.querySelector('div').innerHTML = '<div style="text-align:center;padding:10px 0">'
+        + '<div style="font-size:2.2rem;margin-bottom:10px">✅</div>'
+        + '<h3 style="font-size:1.05rem;color:var(--navy);margin-bottom:8px">Application submitted!</h3>'
+        + '<p style="font-size:.82rem;color:var(--muted)">Your existing WowBox account has been linked. We will review your listing within 24 hours and contact you at <strong>' + email + '</strong>.</p>'
+        + '</div>';
+      setTimeout(function(){ modal.remove(); }, 3000);
     }
   } catch(e) {
     if (errEl) { errEl.textContent = 'Sign in failed: ' + (e.message||'Incorrect password.'); errEl.style.display = 'block'; }
