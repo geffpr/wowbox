@@ -11621,6 +11621,47 @@ function loadExp(expId) {
   expDetailUpdateWlBtn();
 }
 
+const RT_REQUIRED_FIELDS = {
+  accommodation: [{id:'bk-g1',  label:'Guest 1 name'}, {id:'bk-ci', label:'Check-in date'}, {id:'bk-co', label:'Check-out date'}],
+  dining:        [{id:'bk-g1',  label:'Name for reservation'}, {id:'bk-date', label:'Date'}, {id:'bk-time', label:'Preferred time'}, {id:'bk-guests', label:'Number of guests'}],
+  wellness:      [{id:'bk-g1',  label:'Name'}, {id:'bk-date', label:'Date'}, {id:'bk-time', label:'Preferred time'}],
+  activity:      [{id:'bk-g1',  label:'Lead participant name'}, {id:'bk-date', label:'Date'}],
+  rental:        [{id:'bk-g1',  label:'Name'}, {id:'bk-ci', label:'Start date'}, {id:'bk-co', label:'End / return date'}],
+  event:         [{id:'bk-g1',  label:'Name'}, {id:'bk-date', label:'Preferred date'}],
+};
+
+function validateBookingFields(rt) {
+  var fields = RT_REQUIRED_FIELDS[rt] || RT_REQUIRED_FIELDS.activity;
+  var missing = [];
+  fields.forEach(function(f) {
+    var el = document.getElementById(f.id);
+    var val = el ? (el.value || '').trim() : '';
+    // Clear any previous error highlight
+    if (el) { el.style.borderColor = ''; }
+    if (!val) missing.push(f);
+  });
+  if (missing.length) {
+    missing.forEach(function(f) {
+      var el = document.getElementById(f.id);
+      if (el) el.style.borderColor = '#ef4444';
+    });
+    var firstEl = document.getElementById(missing[0].id);
+    if (firstEl) firstEl.scrollIntoView({behavior:'smooth', block:'center'});
+    admToast('Please fill in: ' + missing.map(function(f){return f.label;}).join(', '));
+    return false;
+  }
+  // Date sanity check for accommodation/rental
+  if (rt === 'accommodation' || rt === 'rental') {
+    var ci = document.getElementById('bk-ci')?.value;
+    var co = document.getElementById('bk-co')?.value;
+    if (ci && co && new Date(co) <= new Date(ci)) {
+      admToast('End date must be after start date.');
+      return false;
+    }
+  }
+  return true;
+}
+
 function calcNights() {
   const ci = document.getElementById('bk-ci')?.value;
   const co = document.getElementById('bk-co')?.value;
@@ -11629,7 +11670,7 @@ function calcNights() {
 
   // If experience has fixed nights, auto-set checkout and lock it
   const exp = appState.currentExpId ? expDB.find(e => e.id === appState.currentExpId) : null;
-  const fixedNights = exp && exp.nights > 0 ? exp.nights : 0;
+  const fixedNights = exp && exp.duration_nights > 0 ? exp.duration_nights : 0;
   const coEl = document.getElementById('bk-co');
 
   if (fixedNights > 0 && ci && coEl) {
@@ -11665,6 +11706,10 @@ async function confirmExpBooking() {
   if (!e) return;
   const b = boxDB[e.box];
   const rt = e.reservation_type || 'activity';
+
+  // ── Validate required fields before anything else ──
+  if (!validateBookingFields(rt)) return;
+
   const data = collectBookingData(rt);
 
   // ── SECURITY: require authenticated user ──
@@ -18856,8 +18901,9 @@ function bkwBuildExpForm(rt, cap, blocked) {
   var html = '';
 
   if (rt === 'accommodation') {
-    html = '<div class="fg-row"><div class="fg"><label>Check-in *</label><input class="fi" id="bkw-ci" type="date" min="'+today+'"></div>'
-         + '<div class="fg"><label>Check-out *</label><input class="fi" id="bkw-co-date" type="date" min="'+today+'"></div></div>'
+    html = '<div class="fg-row"><div class="fg"><label>Check-in *</label><input class="fi" id="bkw-ci" type="date" min="'+today+'" onchange="bkwCalcNights()"></div>'
+         + '<div class="fg"><label>Check-out *</label><input class="fi" id="bkw-co-date" type="date" min="'+today+'" onchange="bkwCalcNights()"></div></div>'
+         + '<div class="nights-calc" id="bkw-nights-disp" style="margin-bottom:14px"><i class="fa fa-calendar" style="color:var(--b400)"></i> Select check-in date to calculate duration</div>'
          + '<div class="fg"><label>Guests</label><select class="fi" id="bkw-guests" onchange="bkwUpdateExpPrice(this.value)">'+guestOpts+'</select></div>'
          + '<div class="fg"><label>Guest name *</label><input class="fi" id="bkw-g1" placeholder="Lead guest full name"></div>';
   } else if (rt === 'dining') {
@@ -18895,6 +18941,40 @@ function bkwBuildExpForm(rt, cap, blocked) {
   }, 50);
 }
 
+function bkwCalcNights() {
+  var ci = document.getElementById('bkw-ci')?.value;
+  var coEl = document.getElementById('bkw-co-date');
+  var el = document.getElementById('bkw-nights-disp');
+  if (!el || !coEl) return;
+
+  var s = _bkwState;
+  var fixedNights = (s && s.exp && s.exp.duration_nights > 0) ? s.exp.duration_nights : 0;
+
+  if (fixedNights > 0 && ci) {
+    var autoCheckout = new Date(ci);
+    autoCheckout.setDate(autoCheckout.getDate() + fixedNights);
+    var autoStr = autoCheckout.toISOString().slice(0,10);
+    coEl.value = autoStr;
+    coEl.readOnly = true;
+    coEl.style.background = '#f8fafc';
+    coEl.style.color = '#64748b';
+    coEl.title = 'Fixed to ' + fixedNights + ' night' + (fixedNights>1?'s':'') + ' for this experience';
+    el.innerHTML = '🌙 <strong>' + fixedNights + ' night' + (fixedNights>1?'s':'') + '</strong> &nbsp;·&nbsp; '
+      + new Date(ci).toLocaleDateString('en-ZA',{day:'numeric',month:'short'})
+      + ' → ' + autoCheckout.toLocaleDateString('en-ZA',{day:'numeric',month:'short'})
+      + ' <span style="font-size:.7rem;color:var(--muted)">(fixed duration)</span>';
+    return;
+  }
+
+  var co = coEl.value;
+  if (ci && co) {
+    var n = Math.round((new Date(co) - new Date(ci)) / 86400000);
+    el.innerHTML = n > 0
+      ? '🌙 <strong>' + n + ' night' + (n>1?'s':'') + '</strong> &nbsp;·&nbsp; ' + new Date(ci).toLocaleDateString('en-ZA',{day:'numeric',month:'short'}) + ' → ' + new Date(co).toLocaleDateString('en-ZA',{day:'numeric',month:'short'})
+      : '<i class="fa fa-triangle-exclamation" style="color:var(--amber)"></i> Check-out must be after check-in';
+  }
+}
+
 function bkwGoCheckout() {
   var s = _bkwState;
   if (!s.exp) return;
@@ -18902,6 +18982,19 @@ function bkwGoCheckout() {
   var date = document.getElementById('bkw-date')?.value || document.getElementById('bkw-ci')?.value || '';
   if (!g1)   { alert('Please enter the guest name.'); return; }
   if (!date) { alert('Please select a date.'); return; }
+
+  // Accommodation/rental: require checkout date + sanity check
+  var rt = s.exp.reservation_type;
+  if (rt === 'accommodation' || rt === 'rental') {
+    var coDate = document.getElementById('bkw-co-date')?.value || '';
+    if (!coDate) { alert('Please select a check-out date.'); return; }
+    if (new Date(coDate) <= new Date(date)) { alert('Check-out date must be after check-in date.'); return; }
+  }
+
+  // Dining/wellness: require time if field present
+  if (document.getElementById('bkw-time') && !document.getElementById('bkw-time').value) {
+    alert('Please select a preferred time.'); return;
+  }
 
   _bkwState.formData = {
     guest1:   g1,
