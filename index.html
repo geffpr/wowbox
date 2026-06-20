@@ -2163,7 +2163,7 @@ async function renderBoostPage() {
   var price = APP_PRICES.boost_pool_price || 999;
 
   var poolCount = 0;
-  var myBoost   = null;
+  var myBoosts  = [];
   try {
     var pRes = await db_client.from('experience_boosts')
       .select('id,experience_id,experience_name,partner_email,expires_at,status,amount_paid')
@@ -2171,7 +2171,7 @@ async function renderBoostPage() {
       .gte('expires_at', new Date().toISOString());
     var pool = pRes.data || [];
     poolCount = pool.length;
-    myBoost   = pool.find(function(b){ return b.partner_email === email; }) || null;
+    myBoosts  = pool.filter(function(b){ return b.partner_email === email; });
   } catch(e) { console.warn('boostPool:', e.message); }
 
   var myExps = [];
@@ -2191,10 +2191,11 @@ async function renderBoostPage() {
   html += '<div style="font-size:1.1rem;font-weight:800;color:#92400e">R' + price.toLocaleString() + '<span style="font-size:.65rem;font-weight:400;color:#b45309"> /30d</span></div>';
   html += '</div>';
 
-  if (myBoost) {
+  var MAX_BOOSTS = 3;
+  myBoosts.forEach(function(myBoost) {
     var expiry   = new Date(myBoost.expires_at).toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'});
     var daysLeft = Math.ceil((new Date(myBoost.expires_at) - Date.now()) / 86400000);
-    html += '<div style="background:#f0fdf4;border:1.5px solid #22c55e;border-radius:12px;padding:16px 20px;margin-bottom:20px">';
+    html += '<div style="background:#f0fdf4;border:1.5px solid #22c55e;border-radius:12px;padding:16px 20px;margin-bottom:14px">';
     html += '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">';
     html += '<div>';
     html += '<div style="font-size:.82rem;font-weight:700;color:#15803d;margin-bottom:3px"><i class="fa fa-fire"></i> Your experience is featured</div>';
@@ -2207,16 +2208,25 @@ async function renderBoostPage() {
     html += '<button class="btn bg bsm" style="color:var(--red)" data-bid="' + myBoost.id + '" data-bname="' + safeName + '" onclick="ppCancelBoost(this)"><i class="fa fa-stop-circle"></i> Leave pool</button>';
     html += '</div>';
     html += '</div></div>';
-  } else {
+  });
+
+  var boostedExpIds = myBoosts.map(function(b){ return b.experience_id; });
+  var availableExps = myExps.filter(function(e){ return !boostedExpIds.includes(e.id); });
+
+  if (myBoosts.length >= MAX_BOOSTS) {
+    html += '<div style="text-align:center;padding:16px;color:var(--muted);font-size:.8rem;background:var(--b50);border-radius:12px">You have reached the maximum of ' + MAX_BOOSTS + ' boosted experiences at once.</div>';
+  } else if (!availableExps.length) {
     if (!myExps.length) {
       html += '<div style="text-align:center;padding:32px;color:var(--muted)"><i class="fa fa-compass" style="font-size:1.5rem;margin-bottom:8px;display:block;opacity:.3"></i>No active experiences found.<br><span style="font-size:.8rem">Add experiences first to enable boosting.</span></div>';
     } else {
-      html += '<div style="background:#fff;border:1.5px solid var(--b200);border-radius:12px;padding:20px;margin-bottom:20px">';
-      html += '<div style="font-size:.85rem;font-weight:700;color:var(--navy);margin-bottom:6px">Join the Featured pool</div>';
-      html += '<div style="font-size:.75rem;color:var(--muted);margin-bottom:16px">Your experience will appear in the <strong>Featured this month</strong> section on WowBox Browse for 30 days. Rotation is based on rating.</div>';
-      html += '<button class="btn bp" onclick="ppJoinPool(' + price + ')"><i class="fa fa-rocket"></i> Join Featured pool &mdash; R' + price.toLocaleString() + '</button>';
-      html += '</div>';
+      html += '<div style="text-align:center;padding:16px;color:var(--muted);font-size:.8rem">All your experiences are already boosted.</div>';
     }
+  } else {
+    html += '<div style="background:#fff;border:1.5px solid var(--b200);border-radius:12px;padding:20px;margin-bottom:20px">';
+    html += '<div style="font-size:.85rem;font-weight:700;color:var(--navy);margin-bottom:6px">Join the Featured pool' + (myBoosts.length ? ' &mdash; add another experience' : '') + '</div>';
+    html += '<div style="font-size:.75rem;color:var(--muted);margin-bottom:16px">Your experience will appear in the <strong>Featured this month</strong> section on WowBox Browse for 30 days. Rotation is based on rating. You can feature up to ' + MAX_BOOSTS + ' experiences at once.</div>';
+    html += '<button class="btn bp" onclick="ppJoinPool(' + price + ')"><i class="fa fa-rocket"></i> Join Featured pool &mdash; R' + price.toLocaleString() + '</button>';
+    html += '</div>';
   }
 
   listEl.innerHTML = html;
@@ -2225,9 +2235,14 @@ async function renderBoostPage() {
 function ppJoinPool(price) {
   var email = appState.partnerEmail || (currentUser && currentUser.email) || '';
   if (!email) { admToast('Please sign in.'); return; }
-  db_client.from('experiences').select('id,name').eq('partner_email',email).eq('is_active',true).order('name').then(function(res) {
-    var exps = res.data || [];
-    if (!exps.length) { admToast('Add at least one experience first.'); return; }
+  Promise.all([
+    db_client.from('experiences').select('id,name').eq('partner_email',email).eq('is_active',true).order('name'),
+    db_client.from('experience_boosts').select('experience_id').eq('partner_email',email).eq('status','active').gte('expires_at', new Date().toISOString())
+  ]).then(function(results) {
+    var res = results[0];
+    var boostedIds = (results[1].data || []).map(function(b){ return b.experience_id; });
+    var exps = (res.data || []).filter(function(e){ return !boostedIds.includes(e.id); });
+    if (!exps.length) { admToast('All your experiences are already boosted, or you have none yet.'); return; }
     document.getElementById('pp-pool-modal') && document.getElementById('pp-pool-modal').remove();
     var opts = exps.map(function(e){
       return '<option value="' + e.id + '" data-name="' + e.name.replace(/"/g,'&quot;') + '">' + e.name + '</option>';
