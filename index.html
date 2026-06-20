@@ -212,18 +212,29 @@ async function generateRetailCodes() {
       if (!isNaN(lastNum)) startNum = lastNum + 1;
     }
   } catch(e) { console.warn('generateRetailCodes: could not fetch last code', e.message); }
+  function genWbCode() {
+    return 'WB-' + Math.random().toString(36).toUpperCase().slice(2,6) + '-' + Math.random().toString(36).toUpperCase().slice(2,6);
+  }
   for (let i = 0; i < qty; i++) {
-    const code = 'PHYS-'+prefix+'-'+String(startNum+i).padStart(5,'0');
-    generatedCodes.push({ code, boxId, boxName, batch, createdAt: now });
+    const code   = 'PHYS-'+prefix+'-'+String(startNum+i).padStart(5,'0');
+    const wbCode = genWbCode();
+    generatedCodes.push({ code, wbCode, boxId, boxName, batch, createdAt: now });
   }
   try {
     const expiresAt = new Date(Date.now() + 365*24*60*60*1000).toISOString();
-    const rows = generatedCodes.map(e => ({ code:e.code, box_id:e.boxId, box_name:e.boxName, status:'inactive', is_physical_box:true, retail_batch:e.batch, expires_at:expiresAt }));
-    for (let i=0;i<rows.length;i+=50) {
-      const {error} = await db_client.from('vouchers').insert(rows.slice(i,i+50));
+    // 1. Insert the PHYS codes (point-of-sale activation codes)
+    const physRows = generatedCodes.map(e => ({ code:e.code, box_id:e.boxId, box_name:e.boxName, status:'inactive', is_physical_box:true, retail_batch:e.batch, expires_at:expiresAt, linked_wb_code:e.wbCode }));
+    for (let i=0;i<physRows.length;i+=50) {
+      const {error} = await db_client.from('vouchers').insert(physRows.slice(i,i+50));
       if (error) throw error;
     }
-    admToast('✅ '+qty+' codes saved to Supabase!');
+    // 2. Insert the linked WB codes (redeemable by the gift recipient, locked until PHYS is activated)
+    const wbRows = generatedCodes.map(e => ({ code:e.wbCode, box_id:e.boxId, box_name:e.boxName, status:'locked', is_physical_box:false, retail_batch:e.batch, expires_at:expiresAt, linked_phys_code:e.code }));
+    for (let i=0;i<wbRows.length;i+=50) {
+      const {error} = await db_client.from('vouchers').insert(wbRows.slice(i,i+50));
+      if (error) throw error;
+    }
+    admToast('✅ '+qty+' PHYS codes + linked WB codes saved to Supabase!');
   } catch(e) { admToast('⚠️ Generated locally — Supabase error: '+e.message); }
   btn.disabled = false;
   btn.innerHTML = '<i class="fa fa-barcode"></i> Generate codes';
@@ -243,7 +254,7 @@ function renderGenCodes() {
   listEl.innerHTML = generatedCodes.map((e,i) => `
     <div class="gen-code-row">
       <input type="checkbox" class="gen-code-check gen-cb" data-idx="${i}" onchange="genUpdateCount()">
-      <div class="gen-code-text">${e.code}</div>
+      <div class="gen-code-text">${e.code}<div style="font-size:.65rem;color:var(--muted);font-weight:400">→ ${e.wbCode||''}</div></div>
       <div class="gen-code-box">${e.boxName}</div>
       <div class="gen-code-batch">${e.batch}</div>
       <button class="btn bg bsm" onclick="printSingleCode(${i})"><i class="fa fa-print"></i></button>
@@ -2505,7 +2516,7 @@ function physScanFrame(video, statusEl) {
 }
 
 /* ── Core activation logic ── */
-function physActivate() {
+async function physActivate() {
   const raw = (document.getElementById('phys-code-input')?.value || '').trim().toUpperCase();
   const btn = document.getElementById('phys-activate-btn');
 
@@ -2513,25 +2524,33 @@ function physActivate() {
     physShowResult('error', '<i class="fa fa-triangle-exclamation"></i> No code entered', 'Please scan a QR code or type the voucher code first.', null);
     return;
   }
+  if (!raw.startsWith('PHYS-')) {
+    physShowResult('error', '<i class="fa fa-triangle-exclamation"></i> Not a retail code', 'Please scan or enter a <strong>PHYS-XX-XXXXX</strong> code from the physical box packaging — not a WB voucher code.', null);
+    return;
+  }
 
-  // Loading state
   if (btn) { btn.disabled = true; btn.classList.add('loading'); btn.innerHTML = '<i class="fa fa-circle-notch fa-spin"></i> Checking…'; }
-
-  // Simulate network delay (50ms — instant in demo, real API would be async)
-  setTimeout(() => {
-    physDoActivate(raw);
-    if (btn) { btn.disabled = false; btn.classList.remove('loading'); btn.innerHTML = '<i class="fa fa-box-open"></i> Activate box'; }
-  }, 50);
+  await physDoActivate(raw);
+  if (btn) { btn.disabled = false; btn.classList.remove('loading'); btn.innerHTML = '<i class="fa fa-box-open"></i> Activate box'; }
 }
 
-function physDoActivate(code) {
+async function physDoActivate(code) {
   const now   = new Date();
   const nowTs = now.toISOString();
   const nowFmt = now.toLocaleDateString('en-ZA', { day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' });
-  const adminId = 'Admin · Store #01';  // in production: from auth session
+  const adminId = (currentUser && currentUser.email) ? currentUser.email : 'Admin';
 
-  /* ── 1. Does the code exist? ── */
-  const entry = codeDB[code];
+  /* ── 1. Fetch the PHYS code from Supabase ── */
+  let entry;
+  try {
+    const res = await db_client.from('vouchers').select('*').eq('code', code).maybeSingle();
+    if (res.error) throw res.error;
+    entry = res.data;
+  } catch(e) {
+    physShowResult('error', '<i class="fa fa-triangle-exclamation"></i> Error', 'Could not check this code: ' + e.message, null);
+    return;
+  }
+
   if (!entry) {
     physLogAction(code, 'not_found', adminId, nowTs);
     physShowResult('error',
@@ -2543,64 +2562,78 @@ function physDoActivate(code) {
 
   /* ── 2. Already used? ── */
   if (entry.status === 'used') {
-    physLogAction(code, 'blocked_used', adminId, nowTs);
+    physLogAction(code, 'blocked_used', adminId, nowTs, entry.box_name);
     physShowResult('error',
       '<i class="fa fa-xmark-circle"></i> Already redeemed',
-      'This box was already used on <strong>' + (entry.usedAt || 'unknown date') + '</strong>'
-        + (entry.partner ? ' at <strong>' + entry.partner + '</strong>' : '') + '. Each box can only be used once.',
-      { code, box: entry.boxName, status: 'Used', usedAt: entry.usedAt || '—', orderId: entry.orderId || '—' });
+      'This box was already used' + (entry.used_at ? ' on <strong>' + new Date(entry.used_at).toLocaleDateString('en-ZA') + '</strong>' : '') + '. Each box can only be used once.',
+      { code, box: entry.box_name, status: 'Used', usedAt: entry.used_at || '—' });
     return;
   }
 
-  /* ── 3. Already expired? (active for 1+ years) ── */
-  if (entry.status === 'active' && entry.activatedAt) {
-    const expiry = new Date(entry.activatedAt);
-    expiry.setFullYear(expiry.getFullYear() + 1);
-    if (now > expiry) {
-      physLogAction(code, 'blocked_expired', adminId, nowTs);
-      physShowResult('error',
-        '<i class="fa fa-clock"></i> Box expired',
-        'This box expired on <strong>' + expiry.toLocaleDateString('en-ZA', { day:'numeric', month:'short', year:'numeric' }) + '</strong>. Please contact WowBox support.',
-        { code, box: entry.boxName, status: 'Expired', activatedAt: entry.activatedAt });
-      return;
-    }
+  /* ── 3. Already expired? ── */
+  if (entry.expires_at && now > new Date(entry.expires_at)) {
+    physLogAction(code, 'blocked_expired', adminId, nowTs, entry.box_name);
+    physShowResult('error',
+      '<i class="fa fa-clock"></i> Box expired',
+      'This box expired on <strong>' + new Date(entry.expires_at).toLocaleDateString('en-ZA') + '</strong>. Please contact WowBox support.',
+      { code, box: entry.box_name, status: 'Expired' });
+    return;
   }
 
   /* ── 4. CRITICAL: Status inactive → activation at POS ── */
   if (entry.status === 'inactive') {
-    // THIS is the retail activation flow — activate it now
-    entry.status       = 'active';
-    entry.activatedAt  = nowTs.slice(0, 10);
-    entry.activatedBy  = adminId;
-    if (!entry.activationLog) entry.activationLog = [];
-    entry.activationLog.push({ ts: nowTs, by: adminId, ip: '(session)' });
+    try {
+      // Activate the PHYS code itself
+      await db_client.from('vouchers').update({
+        status: 'active', activated_at: nowTs, activated_by: adminId,
+      }).eq('code', code);
 
-    physLogAction(code, 'activated', adminId, nowTs);
-    physShowResult('success',
-      '<i class="fa fa-circle-check"></i> Box activated!',
-      'The box is now active and ready for the customer to use at wowbox.co.za.',
-      {
-        code,
-        box:         entry.boxName,
-        status:      'Active',
-        activatedAt: nowFmt,
-        activatedBy: adminId,
-        batch:       entry.retailBatch || '—',
-      });
+      // Unlock the linked WB code so the gift recipient can redeem it
+      let unlockedWb = null;
+      if (entry.linked_wb_code) {
+        await db_client.from('vouchers').update({ status: 'active' }).eq('code', entry.linked_wb_code);
+        unlockedWb = entry.linked_wb_code;
+      }
+
+      physLogAction(code, 'activated', adminId, nowTs, entry.box_name);
+      physShowResult('success',
+        '<i class="fa fa-circle-check"></i> Box activated!',
+        'The box is now active. ' + (unlockedWb ? 'The gift recipient can redeem voucher <strong>' + unlockedWb + '</strong> at wowbox.co.za.' : 'It is ready for the customer to use at wowbox.co.za.'),
+        {
+          code,
+          box:         entry.box_name,
+          status:      'Active',
+          activatedAt: nowFmt,
+          activatedBy: adminId,
+          linkedWb:    unlockedWb,
+          batch:       entry.retail_batch || '—',
+        });
+    } catch(e) {
+      physShowResult('error', '<i class="fa fa-triangle-exclamation"></i> Activation failed', e.message, null);
+    }
     return;
   }
 
   /* ── 5. Already active (previously activated) ── */
   if (entry.status === 'active') {
-    const activeFmt = entry.activatedAt
-      ? new Date(entry.activatedAt).toLocaleDateString('en-ZA', { day:'numeric', month:'short', year:'numeric' })
+    const activeFmt = entry.activated_at
+      ? new Date(entry.activated_at).toLocaleDateString('en-ZA', { day:'numeric', month:'short', year:'numeric' })
       : '—';
-    physLogAction(code, 'already_active', adminId, nowTs);
+    physLogAction(code, 'already_active', adminId, nowTs, entry.box_name);
     physShowResult('info',
       '<i class="fa fa-circle-info"></i> Already active',
       'This box was already activated on <strong>' + activeFmt + '</strong>'
-        + (entry.activatedBy ? ' by <strong>' + entry.activatedBy + '</strong>' : '') + '.',
-      { code, box: entry.boxName, status: 'Active', activatedAt: activeFmt, activatedBy: entry.activatedBy || '—' });
+        + (entry.activated_by ? ' by <strong>' + entry.activated_by + '</strong>' : '') + '.',
+      { code, box: entry.box_name, status: 'Active', activatedAt: activeFmt, activatedBy: entry.activated_by || '—', linkedWb: entry.linked_wb_code || null });
+    return;
+  }
+
+  /* ── 6. Locked (this is a WB code, not meant to be activated directly) ── */
+  if (entry.status === 'locked') {
+    physShowResult('error',
+      '<i class="fa fa-lock"></i> This is a gift voucher code',
+      'Code <strong>' + code + '</strong> is a WB voucher meant for the gift recipient, not a retail activation code. Scan the PHYS code printed on the box packaging instead.',
+      { code, box: entry.box_name, status: 'Locked' });
     return;
   }
 }
@@ -2652,8 +2685,8 @@ function physShowResult(type, title, message, data) {
 }
 
 /* ── Activation log ── */
-function physLogAction(code, outcome, by, ts) {
-  physActivationLog.unshift({ code, outcome, by, ts });
+function physLogAction(code, outcome, by, ts, boxName) {
+  physActivationLog.unshift({ code, outcome, by, ts, boxName });
   if (physActivationLog.length > 50) physActivationLog.pop(); // cap at 50
 }
 
@@ -2673,8 +2706,7 @@ function physRenderLog() {
   };
   body.innerHTML = physActivationLog.slice(0, 20).map(e => {
     const lbl = outcomeLabel[e.outcome] || { badge:e.outcome, color:'var(--muted)', bg:'var(--border)' };
-    const entry = codeDB[e.code];
-    const boxName = entry ? entry.boxName : e.code;
+    const boxName = e.boxName || e.code;
     const timeStr = e.ts ? new Date(e.ts).toLocaleTimeString('en-ZA', { hour:'2-digit', minute:'2-digit', second:'2-digit' }) : '—';
     return `<div class="phys-log-row">
       <span class="phys-log-code">${e.code}</span>
