@@ -3028,6 +3028,25 @@ nav{position:sticky;top:0;z-index:300;background:rgba(255,255,255,.95);
 .eg-main img{height:100%;width:100%}
 .eg-side{overflow:hidden}
 .eg-side img{height:100%;width:100%}
+
+/* ── Media carousel (Experience details — photos + optional video) ── */
+.media-carousel{position:relative;border-radius:var(--rx);overflow:hidden;margin-bottom:28px;
+  height:420px;background:#0a0a0a;touch-action:pan-y}
+.mc-track{display:flex;height:100%;transition:transform .35s cubic-bezier(.4,0,.2,1)}
+.mc-slide{flex:0 0 100%;height:100%;position:relative;display:flex;align-items:center;justify-content:center;background:#111}
+.mc-slide img,.mc-slide video{width:100%;height:100%;object-fit:cover}
+.mc-arr{position:absolute;top:50%;transform:translateY(-50%);z-index:4;background:rgba(0,0,0,.4);
+  border:none;color:#fff;width:38px;height:38px;border-radius:50%;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;font-size:1rem;transition:background .2s}
+.mc-arr:hover{background:rgba(0,0,0,.65)}
+.mc-arr.prev{left:14px}
+.mc-arr.next{right:14px}
+.mc-dots{position:absolute;bottom:14px;left:50%;transform:translateX(-50%);display:flex;gap:7px;z-index:4}
+.mc-dot{width:7px;height:7px;border-radius:50%;background:rgba(255,255,255,.45);border:none;cursor:pointer;transition:background .25s,transform .25s;padding:0}
+.mc-dot.on{background:#fff;transform:scale(1.3)}
+.mc-video-badge{position:absolute;top:12px;left:12px;background:rgba(0,0,0,.55);color:#fff;
+  font-size:.65rem;font-weight:700;padding:4px 10px;border-radius:99px;z-index:4;display:flex;align-items:center;gap:5px}
+@media(max-width:640px){.media-carousel{height:280px}.mc-arr{display:none}}
 .exp-box-link{background:linear-gradient(135deg,var(--b50),var(--b100));
   border:1.5px solid var(--b200);border-radius:var(--r);padding:20px;margin-bottom:24px}
 .exp-box-link h5{font-size:.78rem;font-weight:700;text-transform:uppercase;
@@ -4671,7 +4690,10 @@ tr:hover td{background:var(--b50)}
         <i class="fa fa-chevron-right" style="font-size:.55rem"></i>
         <span id="prod-bc">WowBox Couples Retreat</span>
       </div>
-      <div class="gallery-main" id="prod-gallery-main"><img id="prod-img" src="" alt=""></div>
+      <div class="gallery-main" id="prod-gallery-main">
+        <img id="prod-img" src="" alt="">
+        <video id="prod-video" muted loop playsinline style="display:none;width:100%;height:100%;object-fit:cover" onerror="prodVideoFallback()"></video>
+      </div>
       <div class="gallery-thumbs" id="prod-thumbs"></div>
     </div>
     <!-- LEFT (description, experiences, reviews) -->
@@ -4930,10 +4952,11 @@ tr:hover td{background:var(--b50)}
   <div class="exp-detail-layout">
     <!-- LEFT -->
     <div>
-      <div class="exp-gallery" id="exp-gallery" style="position:relative">
-        <div class="eg-main"><img id="exp-main-img" src="" alt=""></div>
-        <div class="eg-side"><img id="exp-img2" src="" alt=""></div>
-        <div class="eg-side"><img id="exp-img3" src="" alt=""></div>
+      <div class="media-carousel" id="exp-carousel" style="position:relative">
+        <div class="mc-track" id="exp-carousel-track"></div>
+        <button class="mc-arr prev" onclick="mcPrev('exp')" id="exp-carousel-prev"><i class="fa fa-chevron-left"></i></button>
+        <button class="mc-arr next" onclick="mcNext('exp')" id="exp-carousel-next"><i class="fa fa-chevron-right"></i></button>
+        <div class="mc-dots" id="exp-carousel-dots"></div>
         <button id="exp-wl-btn" onclick="expDetailToggleWl()" style="position:absolute;top:12px;right:12px;background:rgba(0,0,0,.4);border:none;border-radius:50%;width:38px;height:38px;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:5;font-size:1rem" title="Save to wishlist">
           <i class="fa fa-heart" style="color:rgba(255,255,255,.7)"></i>
         </button>
@@ -5053,10 +5076,11 @@ tr:hover td{background:var(--b50)}
   </div>
   <div class="exp-detail-layout">
     <div>
-      <div class="exp-gallery" style="position:relative">
-        <div class="eg-main"><img id="bkw-main-img" src="" alt=""></div>
-        <div class="eg-side"><img id="bkw-img2" src="" alt=""></div>
-        <div class="eg-side"><img id="bkw-img3" src="" alt=""></div>
+      <div class="media-carousel" id="bkw-carousel" style="position:relative">
+        <div class="mc-track" id="bkw-carousel-track"></div>
+        <button class="mc-arr prev" onclick="mcPrev('bkw')" id="bkw-carousel-prev"><i class="fa fa-chevron-left"></i></button>
+        <button class="mc-arr next" onclick="mcNext('bkw')" id="bkw-carousel-next"><i class="fa fa-chevron-right"></i></button>
+        <div class="mc-dots" id="bkw-carousel-dots"></div>
       </div>
       <div class="tabs" style="margin-bottom:24px">
         <button class="tab on" onclick="switchBkwTab('overview',this)">Overview</button>
@@ -6890,8 +6914,12 @@ tr:hover td{background:var(--b50)}
           <!-- §6 Media -->
           <div style="padding:18px 20px;border-bottom:1px solid var(--b100)">
             <div style="font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:var(--b600);margin-bottom:14px">6 · Media</div>
+            <div class="fg" style="margin-bottom:14px">
+              <label>Video URL <span style="font-weight:400;color:var(--muted);font-size:.72rem">(optional — YouTube, Vimeo, or direct .mp4 link)</span></label>
+              <input class="fi" id="pp-new-video-url" type="url" placeholder="https://...">
+            </div>
             <div class="fg">
-              <label style="display:block;margin-bottom:6px">Experience images <span style="font-weight:400;color:var(--muted)">(up to 3 — first is the main image)</span></label>
+              <label style="display:block;margin-bottom:6px">Experience photos <span style="font-weight:400;color:var(--muted)">(3 minimum, up to 6 — first is the main image)</span></label>
               <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px">
                 <div id="pp-img-slot-0" class="pp-img-slot" onclick="document.getElementById('pp-img-file-0').click()" style="border:2px dashed var(--b300);border-radius:var(--rs);aspect-ratio:4/3;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;background:var(--b50);transition:background .15s;font-size:.72rem;color:var(--muted);text-align:center;padding:8px">
                   <i class="fa fa-image" style="font-size:1.4rem;color:var(--b400);margin-bottom:4px"></i>Main image
@@ -6902,13 +6930,28 @@ tr:hover td{background:var(--b50)}
                 <div id="pp-img-slot-2" class="pp-img-slot" onclick="document.getElementById('pp-img-file-2').click()" style="border:2px dashed var(--b300);border-radius:var(--rs);aspect-ratio:4/3;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;background:var(--b50);transition:background .15s;font-size:.72rem;color:var(--muted);text-align:center;padding:8px">
                   <i class="fa fa-image" style="font-size:1.4rem;color:var(--b400);margin-bottom:4px"></i>Photo 3
                 </div>
+                <div id="pp-img-slot-3" class="pp-img-slot" onclick="document.getElementById('pp-img-file-3').click()" style="border:2px dashed var(--b300);border-radius:var(--rs);aspect-ratio:4/3;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;background:var(--b50);transition:background .15s;font-size:.72rem;color:var(--muted);text-align:center;padding:8px">
+                  <i class="fa fa-image" style="font-size:1.4rem;color:var(--b400);margin-bottom:4px"></i>Photo 4
+                </div>
+                <div id="pp-img-slot-4" class="pp-img-slot" onclick="document.getElementById('pp-img-file-4').click()" style="border:2px dashed var(--b300);border-radius:var(--rs);aspect-ratio:4/3;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;background:var(--b50);transition:background .15s;font-size:.72rem;color:var(--muted);text-align:center;padding:8px">
+                  <i class="fa fa-image" style="font-size:1.4rem;color:var(--b400);margin-bottom:4px"></i>Photo 5
+                </div>
+                <div id="pp-img-slot-5" class="pp-img-slot" onclick="document.getElementById('pp-img-file-5').click()" style="border:2px dashed var(--b300);border-radius:var(--rs);aspect-ratio:4/3;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;background:var(--b50);transition:background .15s;font-size:.72rem;color:var(--muted);text-align:center;padding:8px">
+                  <i class="fa fa-image" style="font-size:1.4rem;color:var(--b400);margin-bottom:4px"></i>Photo 6
+                </div>
               </div>
               <input type="file" id="pp-img-file-0" accept="image/*" style="display:none" onchange="ppHandleImgUpload(0,this.files[0])">
               <input type="file" id="pp-img-file-1" accept="image/*" style="display:none" onchange="ppHandleImgUpload(1,this.files[0])">
               <input type="file" id="pp-img-file-2" accept="image/*" style="display:none" onchange="ppHandleImgUpload(2,this.files[0])">
+              <input type="file" id="pp-img-file-3" accept="image/*" style="display:none" onchange="ppHandleImgUpload(3,this.files[0])">
+              <input type="file" id="pp-img-file-4" accept="image/*" style="display:none" onchange="ppHandleImgUpload(4,this.files[0])">
+              <input type="file" id="pp-img-file-5" accept="image/*" style="display:none" onchange="ppHandleImgUpload(5,this.files[0])">
               <input type="hidden" id="pp-new-img-0">
               <input type="hidden" id="pp-new-img-1">
               <input type="hidden" id="pp-new-img-2">
+              <input type="hidden" id="pp-new-img-3">
+              <input type="hidden" id="pp-new-img-4">
+              <input type="hidden" id="pp-new-img-5">
             </div>
           </div>
 
@@ -7754,6 +7797,15 @@ tr:hover td{background:var(--b50)}
                 ⭐ Featured box — appears first in the grid with gold border
               </label>
             </div>
+            <!-- Video (optional) -->
+            <div class="fg" style="margin-bottom:16px">
+              <label>Box video <span style="font-weight:400;color:var(--muted);font-size:.72rem">(optional — shown first in gallery)</span></label>
+              <div id="abf-video-slot" onclick="document.getElementById('abf-video-file').click()" style="border:2px dashed var(--b300);border-radius:var(--rs);height:90px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;background:var(--b50);font-size:.75rem;color:var(--muted);transition:background .15s">
+                <i class="fa fa-film" style="font-size:1.4rem;color:var(--b400);margin-bottom:4px"></i>Upload video (MP4, max 30MB)
+              </div>
+              <input type="file" id="abf-video-file" accept="video/mp4,video/webm" style="display:none" onchange="abfHandleVideoUpload(this.files[0])">
+              <input type="hidden" id="abf-video-url">
+            </div>
             <!-- Images (up to 4) -->
             <div class="fg">
               <label>Images (up to 4)</label>
@@ -8104,30 +8156,44 @@ tr:hover td{background:var(--b50)}
               <!-- §6 Media -->
               <div style="padding:0 0 18px;border-bottom:1px solid var(--b100);margin-bottom:18px">
                 <div style="font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:var(--b600);margin-bottom:14px">6 · Media</div>
+                <div class="fg" style="margin-bottom:14px">
+                  <label>Video URL <span style="font-weight:400;color:var(--muted);font-size:.72rem">(optional — YouTube, Vimeo, or direct .mp4 link)</span></label>
+                  <input class="fi" id="aef-video-url" type="url" placeholder="https://...">
+                </div>
                 <div class="fg">
-                  <label>Images (up to 4)</label>
-                  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:6px">
+                  <label>Photos (3 minimum, up to 6)</label>
+                  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:6px">
                     <div id="aef-img-slot-0" class="pp-img-slot" onclick="document.getElementById('aef-img-file-0').click()" style="border:2px dashed var(--b300);border-radius:var(--rs);aspect-ratio:4/3;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;background:var(--b50);font-size:.7rem;color:var(--muted);text-align:center;padding:8px;transition:background .15s">
                       <i class="fa fa-image" style="font-size:1.3rem;color:var(--b400);margin-bottom:4px"></i>Main *
                     </div>
                     <div id="aef-img-slot-1" class="pp-img-slot" onclick="document.getElementById('aef-img-file-1').click()" style="border:2px dashed var(--b300);border-radius:var(--rs);aspect-ratio:4/3;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;background:var(--b50);font-size:.7rem;color:var(--muted);text-align:center;padding:8px;transition:background .15s">
-                      <i class="fa fa-image" style="font-size:1.3rem;color:var(--b400);margin-bottom:4px"></i>Photo 2
+                      <i class="fa fa-image" style="font-size:1.3rem;color:var(--b400);margin-bottom:4px"></i>Photo 2 *
                     </div>
                     <div id="aef-img-slot-2" class="pp-img-slot" onclick="document.getElementById('aef-img-file-2').click()" style="border:2px dashed var(--b300);border-radius:var(--rs);aspect-ratio:4/3;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;background:var(--b50);font-size:.7rem;color:var(--muted);text-align:center;padding:8px;transition:background .15s">
-                      <i class="fa fa-image" style="font-size:1.3rem;color:var(--b400);margin-bottom:4px"></i>Photo 3
+                      <i class="fa fa-image" style="font-size:1.3rem;color:var(--b400);margin-bottom:4px"></i>Photo 3 *
                     </div>
                     <div id="aef-img-slot-3" class="pp-img-slot" onclick="document.getElementById('aef-img-file-3').click()" style="border:2px dashed var(--b300);border-radius:var(--rs);aspect-ratio:4/3;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;background:var(--b50);font-size:.7rem;color:var(--muted);text-align:center;padding:8px;transition:background .15s">
                       <i class="fa fa-image" style="font-size:1.3rem;color:var(--b400);margin-bottom:4px"></i>Photo 4
+                    </div>
+                    <div id="aef-img-slot-4" class="pp-img-slot" onclick="document.getElementById('aef-img-file-4').click()" style="border:2px dashed var(--b300);border-radius:var(--rs);aspect-ratio:4/3;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;background:var(--b50);font-size:.7rem;color:var(--muted);text-align:center;padding:8px;transition:background .15s">
+                      <i class="fa fa-image" style="font-size:1.3rem;color:var(--b400);margin-bottom:4px"></i>Photo 5
+                    </div>
+                    <div id="aef-img-slot-5" class="pp-img-slot" onclick="document.getElementById('aef-img-file-5').click()" style="border:2px dashed var(--b300);border-radius:var(--rs);aspect-ratio:4/3;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;background:var(--b50);font-size:.7rem;color:var(--muted);text-align:center;padding:8px;transition:background .15s">
+                      <i class="fa fa-image" style="font-size:1.3rem;color:var(--b400);margin-bottom:4px"></i>Photo 6
                     </div>
                   </div>
                   <input type="file" id="aef-img-file-0" accept="image/*" style="display:none" onchange="aefHandleImgUpload(0,this.files[0])">
                   <input type="file" id="aef-img-file-1" accept="image/*" style="display:none" onchange="aefHandleImgUpload(1,this.files[0])">
                   <input type="file" id="aef-img-file-2" accept="image/*" style="display:none" onchange="aefHandleImgUpload(2,this.files[0])">
                   <input type="file" id="aef-img-file-3" accept="image/*" style="display:none" onchange="aefHandleImgUpload(3,this.files[0])">
+                  <input type="file" id="aef-img-file-4" accept="image/*" style="display:none" onchange="aefHandleImgUpload(4,this.files[0])">
+                  <input type="file" id="aef-img-file-5" accept="image/*" style="display:none" onchange="aefHandleImgUpload(5,this.files[0])">
                   <input type="hidden" id="aef-img-0">
                   <input type="hidden" id="aef-img-1">
                   <input type="hidden" id="aef-img-2">
                   <input type="hidden" id="aef-img-3">
+                  <input type="hidden" id="aef-img-4">
+                  <input type="hidden" id="aef-img-5">
                 </div>
               </div>
 
@@ -10445,6 +10511,8 @@ async function renderBoxGrids() {
           name: b.name, price: b.price, db: b.database_name,
           cnt: local.cnt || b.experience_count,
           img: b.image_url || localImgs[b.id],
+          images: b.images || local.images,
+          video_url: b.video_url || null,
           badge: b.badge, rating: b.rating, sold: b.sold_count, desc: b.description,
           featured: b.is_featured || false
         };
@@ -10585,6 +10653,104 @@ function _galOnTouchEnd(e) {
     if (imgs[next]) swapImg(thumbs[next], imgs[next]);
   }
 }
+/* ══════════════════════════════════════════════════════════════
+   MEDIA CAROUSEL — generic, reusable for Experience Details
+   (WowBox flow: prefix 'exp' / BKW flow: prefix 'bkw')
+   Supports photos + 1 optional video (first slide), with fallback.
+   ══════════════════════════════════════════════════════════════ */
+var _mcState = {}; // { exp: {index:0, media:[...]}, bkw: {...} }
+
+function mcBuildMediaList(videoUrl, photos) {
+  var list = [];
+  if (videoUrl) list.push({ type: 'video', src: videoUrl });
+  (photos || []).filter(Boolean).forEach(function(p) { list.push({ type: 'image', src: p }); });
+  if (!list.length) list.push({ type: 'image', src: '' }); // never empty
+  return list;
+}
+
+function mcInit(prefix, videoUrl, photos) {
+  var media = mcBuildMediaList(videoUrl, photos);
+  _mcState[prefix] = { index: 0, media: media };
+
+  var track = document.getElementById(prefix + '-carousel-track');
+  var dotsEl = document.getElementById(prefix + '-carousel-dots');
+  if (!track) return;
+
+  track.innerHTML = media.map(function(m, i) {
+    if (m.type === 'video') {
+      return '<div class="mc-slide" data-idx="' + i + '">'
+        + '<span class="mc-video-badge"><i class="fa fa-circle-play"></i> Video</span>'
+        + '<video src="' + m.src + '" autoplay muted loop playsinline '
+        + 'onerror="mcVideoFallback(\'' + prefix + '\',' + i + ')"></video>'
+        + '</div>';
+    }
+    return '<div class="mc-slide" data-idx="' + i + '"><img src="' + m.src + '" loading="lazy" alt=""></div>';
+  }).join('');
+
+  if (dotsEl) {
+    dotsEl.innerHTML = media.length > 1
+      ? media.map(function(_, i) { return '<button class="mc-dot' + (i === 0 ? ' on' : '') + '" onclick="mcGoTo(\'' + prefix + '\',' + i + ')"></button>'; }).join('')
+      : '';
+  }
+
+  var prevBtn = document.getElementById(prefix + '-carousel-prev');
+  var nextBtn = document.getElementById(prefix + '-carousel-next');
+  if (prevBtn) prevBtn.style.display = media.length > 1 ? 'flex' : 'none';
+  if (nextBtn) nextBtn.style.display = media.length > 1 ? 'flex' : 'none';
+
+  mcAttachSwipe(prefix);
+  mcRender(prefix);
+}
+
+function mcVideoFallback(prefix, idx) {
+  // Video failed to load — replace that slide with the first available photo, or remove it
+  var state = _mcState[prefix];
+  if (!state) return;
+  var fallbackPhoto = state.media.find(function(m) { return m.type === 'image' && m.src; });
+  var track = document.getElementById(prefix + '-carousel-track');
+  if (!track) return;
+  var slide = track.querySelector('[data-idx="' + idx + '"]');
+  if (slide) {
+    slide.innerHTML = fallbackPhoto ? '<img src="' + fallbackPhoto.src + '" alt="">' : '';
+  }
+}
+
+function mcRender(prefix) {
+  var state = _mcState[prefix];
+  if (!state) return;
+  var track = document.getElementById(prefix + '-carousel-track');
+  if (track) track.style.transform = 'translateX(-' + (state.index * 100) + '%)';
+  document.querySelectorAll('#' + prefix + '-carousel-dots .mc-dot').forEach(function(d, i) {
+    d.classList.toggle('on', i === state.index);
+  });
+}
+
+function mcGoTo(prefix, idx) {
+  var state = _mcState[prefix];
+  if (!state) return;
+  state.index = ((idx % state.media.length) + state.media.length) % state.media.length;
+  mcRender(prefix);
+}
+
+function mcNext(prefix) { var s = _mcState[prefix]; if (s) mcGoTo(prefix, s.index + 1); }
+function mcPrev(prefix) { var s = _mcState[prefix]; if (s) mcGoTo(prefix, s.index - 1); }
+
+var _mcSwipeX = {};
+function mcAttachSwipe(prefix) {
+  var el = document.getElementById(prefix + '-carousel-track');
+  if (!el) return;
+  el.removeEventListener('touchstart', el._mcTouchStart);
+  el.removeEventListener('touchend', el._mcTouchEnd);
+  el._mcTouchStart = function(e) { _mcSwipeX[prefix] = e.touches[0].clientX; };
+  el._mcTouchEnd = function(e) {
+    var delta = _mcSwipeX[prefix] - e.changedTouches[0].clientX;
+    if (Math.abs(delta) < 40) return;
+    delta > 0 ? mcNext(prefix) : mcPrev(prefix);
+  };
+  el.addEventListener('touchstart', el._mcTouchStart, { passive: true });
+  el.addEventListener('touchend', el._mcTouchEnd, { passive: true });
+}
+
 function galleryAttachSwipe() {
   var el = document.getElementById('prod-gallery-main');
   if (!el) return;
@@ -10660,15 +10826,36 @@ function loadProduct(boxId) {
 
   const imgs = (b.images && b.images.length) ? b.images : (b.img ? [b.img] : []);
   window._galleryImgs = imgs; // store for swipe handler
-  // Set main image from imgs array
-  document.getElementById('prod-img').src = imgs[0] || b.img || '';
+  window._galleryVideoUrl = b.video_url || null;
+
+  // Show video first if present, else first image
+  var prodImg = document.getElementById('prod-img');
+  var prodVid = document.getElementById('prod-video');
+  if (b.video_url) {
+    prodVid.src = b.video_url;
+    prodVid.style.display = 'block';
+    prodImg.style.display = 'none';
+    prodVid.play().catch(function(){});
+  } else {
+    prodVid.style.display = 'none';
+    prodImg.style.display = 'block';
+    prodImg.src = imgs[0] || b.img || '';
+  }
+
   // Use DOM to avoid URL corruption in onclick attributes
   const thumbsEl = document.getElementById('prod-thumbs');
   thumbsEl.innerHTML = '';
+  if (b.video_url) {
+    const vDiv = document.createElement('div');
+    vDiv.className = 'gthumb on';
+    vDiv.onclick = () => prodShowVideo(vDiv);
+    vDiv.innerHTML = '<div style="width:100%;height:100%;background:#111;display:flex;align-items:center;justify-content:center;color:#fff;font-size:1.1rem"><i class="fa fa-circle-play"></i></div>';
+    thumbsEl.appendChild(vDiv);
+  }
   imgs.forEach((s, i) => {
     if (!s) return;
     const div = document.createElement('div');
-    div.className = 'gthumb' + (i === 0 ? ' on' : '');
+    div.className = 'gthumb' + (i === 0 && !b.video_url ? ' on' : '');
     div.onclick = () => swapImg(div, s);
     const img = document.createElement('img');
     // Add resize params for Unsplash, keep other URLs as-is
@@ -10703,7 +10890,34 @@ function loadProduct(boxId) {
 function swapImg(el, src) {
   document.querySelectorAll('.gthumb').forEach(t => t.classList.remove('on'));
   el.classList.add('on');
-  document.getElementById('prod-img').src = src;
+  var prodImg = document.getElementById('prod-img');
+  var prodVid = document.getElementById('prod-video');
+  if (prodVid) { prodVid.pause(); prodVid.style.display = 'none'; }
+  if (prodImg) { prodImg.style.display = 'block'; prodImg.src = src; }
+}
+
+function prodShowVideo(el) {
+  document.querySelectorAll('.gthumb').forEach(t => t.classList.remove('on'));
+  el.classList.add('on');
+  var prodImg = document.getElementById('prod-img');
+  var prodVid = document.getElementById('prod-video');
+  if (prodImg) prodImg.style.display = 'none';
+  if (prodVid && window._galleryVideoUrl) {
+    prodVid.src = window._galleryVideoUrl;
+    prodVid.style.display = 'block';
+    prodVid.play().catch(function(){});
+  }
+}
+
+function prodVideoFallback() {
+  // Video failed to load — fall back to first photo
+  var imgs = window._galleryImgs || [];
+  var prodImg = document.getElementById('prod-img');
+  var prodVid = document.getElementById('prod-video');
+  if (prodVid) prodVid.style.display = 'none';
+  if (prodImg && imgs[0]) { prodImg.style.display = 'block'; prodImg.src = imgs[0]; }
+  var firstThumb = document.querySelector('.gthumb:not(:first-child)') || document.querySelector('.gthumb');
+  document.querySelectorAll('.gthumb').forEach((t,i) => t.classList.toggle('on', i===1));
 }
 function updateQty(d) {
   const el = document.getElementById('qty-v');
@@ -10919,6 +11133,10 @@ async function fetchProductExps(boxId) {
         img:              e.image_url || (Array.isArray(e.images) && e.images[0]) || (Array.isArray(e.image_urls) && e.image_urls[0]) || 'https://images.unsplash.com/photo-1528360983277-13d401cdc186?w=800&auto=format&fit=crop',
         img2:             (e.image_urls && e.image_urls[0]) || (e.images && e.images[1]) || '',
         img3:             (e.image_urls && e.image_urls[1]) || (e.images && e.images[2]) || '',
+        img4:             (e.image_urls && e.image_urls[2]) || '',
+        img5:             (e.image_urls && e.image_urls[3]) || '',
+        img6:             (e.image_urls && e.image_urls[4]) || '',
+        video_url:        e.video_url        || null,
         partner:          e.partner_name        || '',
         partnerEmail:     e.partner_email       || '',
         tags:             e.tags                || [],
@@ -11644,10 +11862,9 @@ function loadExp(expId) {
     }
   }
 
-  // Gallery
-  document.getElementById('exp-main-img').src = e.img;
-  document.getElementById('exp-img2').src = e.img2 || e.img;
-  document.getElementById('exp-img3').src = e.img3 || e.img;
+  // Gallery / media carousel
+  var expPhotos = [e.img, e.img2, e.img3, e.img4, e.img5, e.img6].filter(Boolean);
+  mcInit('exp', e.video_url || null, expPhotos);
 
   // Overview
   document.getElementById('exp-title').textContent = e.name;
@@ -15963,6 +16180,27 @@ function abfLoadImgSlots(urls) {
   });
 }
 
+async function abfHandleVideoUpload(file) {
+  if (!file) return;
+  var slotEl   = document.getElementById('abf-video-slot');
+  var hiddenEl = document.getElementById('abf-video-url');
+  if (!file.type.startsWith('video/')) { admToast('Please upload a video file.'); return; }
+  if (file.size > 30 * 1024 * 1024)    { admToast('Video must be under 30 MB.'); return; }
+  if (slotEl) slotEl.innerHTML = '<i class="fa fa-spinner fa-spin" style="font-size:1.2rem;color:var(--b500)"></i>';
+  try {
+    var ext  = file.name.split('.').pop();
+    var path = 'boxes/video_' + Date.now() + '.' + ext;
+    var res  = await db_client.storage.from('gift-boxes').upload(path, file, { contentType: file.type, upsert: true });
+    if (res.error) throw res.error;
+    var url  = db_client.storage.from('gift-boxes').getPublicUrl(path).data.publicUrl;
+    if (hiddenEl) hiddenEl.value = url;
+    if (slotEl) slotEl.innerHTML = '<div style="display:flex;align-items:center;gap:8px;color:#16a34a;font-size:.78rem"><i class="fa fa-check-circle"></i> Video uploaded</div>';
+  } catch(e) {
+    if (slotEl) slotEl.innerHTML = '<i class="fa fa-triangle-exclamation" style="color:#dc2626"></i><div style="font-size:.65rem;color:#dc2626;margin-top:2px">Failed</div>';
+    admToast('Video upload failed: ' + (e.message || 'unknown'));
+  }
+}
+
 async function abfHandleImgUpload(slot, file) {
   if (!file) return;
   var slotEl   = document.getElementById('abf-img-slot-' + slot);
@@ -16331,6 +16569,8 @@ async function admSaveBox() {
   }
   const mainImg = allImgs[0] || '';
 
+  const videoUrl = document.getElementById('abf-video-url')?.value?.trim() || null;
+
   const payload = {
     name,
     price,
@@ -16339,6 +16579,7 @@ async function admSaveBox() {
     is_featured:   featured,
     images:        allImgs,
     ...(mainImg ? { image_url: mainImg } : {}),
+    ...(videoUrl ? { video_url: videoUrl } : {}),
   };
 
   try {
@@ -17032,12 +17273,13 @@ async function admSaveExp() {
   if (!cap)  { admToast('Please enter the maximum capacity.'); return; }
 
   const imgs = [];
-  for (let i = 0; i < 4; i++) {
+  for (let i = 0; i < 6; i++) {
     const url = document.getElementById('aef-img-' + i)?.value?.trim() || '';
     if (url) imgs.push(url);
   }
   const mainImg = imgs[0] || '';
   if (imgs.length < 3) { admToast('Please upload at least 3 photos for this experience.'); return; }
+  const videoUrl = document.getElementById('aef-video-url')?.value?.trim() || null;
 
   const payload = {
     name,
@@ -17069,6 +17311,7 @@ async function admSaveExp() {
     programme:          collectProgramme('aef'),
     amenities:          collectAmenities('aef'),
     ...(icalUrl ? { ical_url: icalUrl } : {}),
+    ...(videoUrl ? { video_url: videoUrl } : {}),
   };
 
   try {
@@ -17454,6 +17697,7 @@ async function admConfirmApprove(id) {
         ...(req.price ? { price: req.price } : {}),
         ...(req.wow_price ? { wow_price: req.wow_price } : {}),
         ...(req.wow_pricing_type ? { wow_pricing_type: req.wow_pricing_type } : {}),
+        ...(req.video_url ? { video_url: req.video_url } : {}),
       }).eq('id', req.experience_id || expId);
     } else {
       var ins = await db_client.from('experiences').insert({
@@ -17486,6 +17730,9 @@ async function admConfirmApprove(id) {
         image_urls:       req.image_urls || [],
         box_id:           resolvedBoxId || null,
         price:            req.price || null,
+        ...(req.wow_price ? { wow_price: req.wow_price } : {}),
+        ...(req.wow_pricing_type ? { wow_pricing_type: req.wow_pricing_type } : {}),
+        ...(req.video_url ? { video_url: req.video_url } : {}),
       });
       if (ins.error && !ins.error.message.includes('duplicate')) throw ins.error;
       // Link experience to selected databases
@@ -18919,14 +19166,12 @@ async function loadBkwExp(expId, slug) {
   var bcExp = document.getElementById('bkw-bc-expname');
   if (bcExp) bcExp.textContent = e.name;
 
-  // Images
+  // Images / media carousel
   var imgs = [];
   if (e.image_url) imgs.push(e.image_url);
   if (Array.isArray(e.image_urls)) e.image_urls.forEach(function(u){ if(u && !imgs.includes(u)) imgs.push(u); });
   if (Array.isArray(e.images)) e.images.forEach(function(u){ if(u && !imgs.includes(u)) imgs.push(u); });
-  var mi = document.getElementById('bkw-main-img'); if(mi){ mi.src=imgs[0]||''; mi.style.display=imgs[0]?'block':'none'; }
-  var i2 = document.getElementById('bkw-img2'); if(i2){ i2.src=imgs[1]||''; i2.style.display=imgs[1]?'block':'none'; }
-  var i3 = document.getElementById('bkw-img3'); if(i3){ i3.src=imgs[2]||''; i3.style.display=imgs[2]?'block':'none'; }
+  mcInit('bkw', e.video_url || null, imgs);
 
   // Overview
   var title = document.getElementById('bkw-exp-title'); if(title) title.textContent = e.name;
@@ -22356,7 +22601,8 @@ async function submitNewExp() {
   const rt       = (document.getElementById('pp-new-type')        ||{value:''}).value || 'activity';
   const desc     = (document.getElementById('pp-new-desc')        ||{value:''}).value.trim();
   const imgUrl   = (document.getElementById('pp-new-img-0')       ||{value:''}).value.trim();
-  const imgUrls  = [imgUrl, (document.getElementById('pp-new-img-1')||{value:''}).value.trim(), (document.getElementById('pp-new-img-2')||{value:''}).value.trim()].filter(Boolean);
+  const imgUrls  = [0,1,2,3,4,5].map(function(i){ return (document.getElementById('pp-new-img-'+i)||{value:''}).value.trim(); }).filter(Boolean);
+  const videoUrl = (document.getElementById('pp-new-video-url')   ||{value:''}).value.trim() || null;
   const city     = (document.getElementById('pp-new-city')        ||{value:''}).value.trim();
   const address  = (document.getElementById('pp-new-address')     ||{value:''}).value.trim();
   const phone    = wbPhoneGetFull('pp-new-phone');
@@ -22406,6 +22652,7 @@ async function submitNewExp() {
       accessible,
       insolite,
       ...(icalUrl ? { ical_url: icalUrl } : {}),
+      ...(videoUrl ? { video_url: videoUrl } : {}),
       programme:  programme,
       amenities:  amenitiesList,
     });
@@ -22417,7 +22664,7 @@ async function submitNewExp() {
   }
 
   // Success — clear form and show confirmation
-  ['pp-new-name','pp-new-desc','pp-new-img-0','pp-new-img-1','pp-new-img-2','pp-new-city','pp-new-capacity','pp-new-price','pp-new-wow-price','pp-new-certification','pp-new-nights'].forEach(function(id){ var el=document.getElementById(id); if(el) el.value=''; });
+  ['pp-new-name','pp-new-desc','pp-new-img-0','pp-new-img-1','pp-new-img-2','pp-new-img-3','pp-new-img-4','pp-new-img-5','pp-new-video-url','pp-new-city','pp-new-capacity','pp-new-price','pp-new-wow-price','pp-new-certification','pp-new-nights'].forEach(function(id){ var el=document.getElementById(id); if(el) el.value=''; });
   ['pp-new-accessible','pp-new-insolite'].forEach(function(id){ var el=document.getElementById(id); if(el) el.checked=false; });
   [0,1,2].forEach(function(i){ var s=document.getElementById('pp-img-slot-'+i); if(s){ s.style.backgroundImage=''; s.style.backgroundSize=''; s.innerHTML='<i class="fa fa-image" style="font-size:1.4rem;color:var(--b400);margin-bottom:4px"></i>'+(i===0?'Main image':'Photo '+(i+1)); } });
   ppImgUrls=['','',''];
@@ -22837,6 +23084,7 @@ async function ppSubmitEdit(expId) {
       lng:                prevData.lng || null,
       image_url:          prevData.image_url || null,
       image_urls:         prevData.image_urls || [],
+      ...(prevData.video_url ? { video_url: prevData.video_url } : {}),
       previous_data:      prevData,
     });
     if (err.error) throw err.error;
