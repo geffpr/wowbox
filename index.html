@@ -11948,8 +11948,8 @@ function loadExp(expId) {
     } catch(err) { console.warn('exp box links:', err.message); }
 
     // Render a card per box
-    var boxArr = Array.from(boxIds).filter(function(id){ return boxDB[id]; });
-    if (!boxArr.length && b) boxArr = [e.box];
+    var boxArr = Array.from(boxIds).filter(function(id){ return boxDB[id] && id !== 'surprise'; });
+    if (!boxArr.length && b && e.box !== 'surprise') boxArr = [e.box];
 
     cards.innerHTML = boxArr.map(function(bid) {
       var bx = boxDB[bid];
