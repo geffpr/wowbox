@@ -3047,9 +3047,12 @@ nav{position:sticky;top:0;z-index:300;background:rgba(255,255,255,.95);
 .mc-video-badge{position:absolute;top:12px;left:12px;background:rgba(0,0,0,.55);color:#fff;
   font-size:.65rem;font-weight:700;padding:4px 10px;border-radius:99px;z-index:4;display:flex;align-items:center;gap:5px}
 @media(max-width:640px){
-  .media-carousel{height:240px;width:100%;border-radius:12px}
+  .exp-detail-layout{overflow-x:hidden;width:100%;max-width:100vw;box-sizing:border-box}
+  .exp-detail-layout > div{min-width:0;max-width:100%;box-sizing:border-box}
+  .media-carousel{height:240px;width:100%;max-width:100%;border-radius:12px;box-sizing:border-box}
+  .mc-track{width:100%;max-width:100%}
   .mc-arr{display:none}
-  .exp-detail-layout{overflow-x:hidden}
+  .tabs{overflow-x:auto;max-width:100%;flex-wrap:nowrap;-webkit-overflow-scrolling:touch}
 }
 .exp-box-link{background:linear-gradient(135deg,var(--b50),var(--b100));
   border:1.5px solid var(--b200);border-radius:var(--r);padding:20px;margin-bottom:24px}
@@ -7801,11 +7804,12 @@ tr:hover td{background:var(--b50)}
             <!-- Video (optional) -->
             <div class="fg" style="margin-bottom:16px">
               <label>Box video <span style="font-weight:400;color:var(--muted);font-size:.72rem">(optional — shown first in gallery)</span></label>
-              <div id="abf-video-slot" onclick="document.getElementById('abf-video-file').click()" style="border:2px dashed var(--b300);border-radius:var(--rs);height:90px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;background:var(--b50);font-size:.75rem;color:var(--muted);transition:background .15s">
-                <i class="fa fa-film" style="font-size:1.4rem;color:var(--b400);margin-bottom:4px"></i>Upload video (MP4, max 30MB)
+              <input class="fi" id="abf-video-url" type="url" placeholder="Paste video URL (e.g. Pexels, Vimeo, .mp4 link)" style="margin-bottom:8px" oninput="abfVideoUrlChanged()">
+              <div style="text-align:center;font-size:.7rem;color:var(--muted);margin:4px 0">— or —</div>
+              <div id="abf-video-slot" onclick="document.getElementById('abf-video-file').click()" style="border:2px dashed var(--b300);border-radius:var(--rs);height:70px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;background:var(--b50);font-size:.75rem;color:var(--muted);transition:background .15s">
+                <i class="fa fa-film" style="font-size:1.4rem;color:var(--b400);margin-bottom:4px"></i>Upload video (MP4, max 100MB)
               </div>
-              <input type="file" id="abf-video-file" accept="video/mp4,video/webm" style="display:none" onchange="abfHandleVideoUpload(this.files[0])">
-              <input type="hidden" id="abf-video-url">
+              <input type="file" id="abf-video-file" accept="video/mp4,video/webm,video/quicktime" style="display:none" onchange="abfHandleVideoUpload(this.files[0])">
             </div>
             <!-- Images (up to 4) -->
             <div class="fg">
@@ -16108,6 +16112,12 @@ async function admShowBoxForm(boxId) {
     document.getElementById('abf-featured').checked = b.featured || false;
     const imgs4 = (b.images && b.images.length) ? b.images : (b.img ? [b.img] : []);
     abfLoadImgSlots(imgs4);
+    var vUrlEl = document.getElementById('abf-video-url');
+    var vSlotEl = document.getElementById('abf-video-slot');
+    if (vUrlEl) vUrlEl.value = b.video_url || '';
+    if (vSlotEl) vSlotEl.innerHTML = b.video_url
+      ? '<div style="display:flex;align-items:center;gap:8px;color:#16a34a;font-size:.78rem"><i class="fa fa-check-circle"></i> Video set</div>'
+      : '<i class="fa fa-film" style="font-size:1.4rem;color:var(--b400);margin-bottom:4px"></i>Upload video (MP4, max 100MB)';
     // Load databases from box_database_links
     if (dbSel) {
       try {
@@ -16127,6 +16137,10 @@ async function admShowBoxForm(boxId) {
     document.getElementById('abf-desc').value  = '';
     document.getElementById('abf-featured').checked = false;
     abfResetImgSlots();
+    var vUrlEl2 = document.getElementById('abf-video-url');
+    var vSlotEl2 = document.getElementById('abf-video-slot');
+    if (vUrlEl2) vUrlEl2.value = '';
+    if (vSlotEl2) vSlotEl2.innerHTML = '<i class="fa fa-film" style="font-size:1.4rem;color:var(--b400);margin-bottom:4px"></i>Upload video (MP4, max 100MB)';
   }
 }
 function admHideBoxForm() {
@@ -16179,6 +16193,14 @@ function abfLoadImgSlots(urls) {
       slot.innerHTML = '<div style="background:rgba(0,0,0,.4);border-radius:var(--rs);padding:3px 7px;font-size:.65rem;color:#fff"><i class="fa fa-check"></i> Loaded</div>';
     }
   });
+}
+
+function abfVideoUrlChanged() {
+  var slotEl = document.getElementById('abf-video-slot');
+  var urlEl = document.getElementById('abf-video-url');
+  if (slotEl && urlEl && urlEl.value.trim()) {
+    slotEl.innerHTML = '<div style="display:flex;align-items:center;gap:8px;color:#16a34a;font-size:.78rem"><i class="fa fa-check-circle"></i> Using URL</div>';
+  }
 }
 
 async function abfHandleVideoUpload(file) {
@@ -16596,6 +16618,7 @@ async function admSaveBox() {
         boxDB[savedId].featured = featured;
         if (mainImg) boxDB[savedId].img = mainImg;
         boxDB[savedId].images = allImgs.filter(function(u){ return u && u.trim(); });
+        boxDB[savedId].video_url = videoUrl;
       }
     } else {
       savedId = name.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
