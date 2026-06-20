@@ -6368,8 +6368,8 @@ tr:hover td{background:var(--b50)}
           <button class="auth-tab on" id="pl-tab-in" onclick="partnerAuthSwitchTab('in')">Sign in</button>
           <button class="auth-tab" id="pl-tab-up" onclick="partnerAuthSwitchTab('up')">Join as a partner</button>
         </div>
-        <div id="pl-error" class="auth-error"></div>
-        <div id="pl-success" class="auth-success"></div>
+        <div id="pl-signup-error" class="auth-error"></div>
+        <div id="pl-signup-success" class="auth-success"></div>
 
         <!-- Sign in form -->
         <div id="pl-signin-form">
@@ -14792,12 +14792,21 @@ async function partnerSignUp() {
   var errEl    = document.getElementById('pl-error');
   var sucEl    = document.getElementById('pl-success');
 
+  var fields = [
+    {id:'pl-company', val: company}, {id:'pl-exp-type', val: expType}, {id:'pl-contact', val: contact},
+    {id:'pl-reg-email', val: email}, {id:'pl-phone', val: phone}, {id:'pl-reg-password', val: pass}
+  ];
+  fields.forEach(function(f) {
+    var el = document.getElementById(f.id);
+    if (el) el.style.borderColor = (!f.val) ? '#ef4444' : '';
+  });
+
   if (!company || !expType || !contact || !email || !phone || !pass) {
-    if (errEl) { errEl.textContent = 'Please fill in all required fields.'; errEl.style.display = 'block'; }
+    if (errEl) { errEl.textContent = 'Please fill in all required fields.'; errEl.style.display = 'block'; errEl.scrollIntoView({behavior:'smooth', block:'center'}); }
     return;
   }
   if (pass.length < 6) {
-    if (errEl) { errEl.textContent = 'Password must be at least 6 characters.'; errEl.style.display = 'block'; }
+    if (errEl) { errEl.textContent = 'Password must be at least 6 characters.'; errEl.style.display = 'block'; errEl.scrollIntoView({behavior:'smooth', block:'center'}); }
     return;
   }
   if (errEl) errEl.style.display = 'none';
@@ -14846,10 +14855,11 @@ async function partnerSignUp() {
     if (sucEl) {
       sucEl.textContent = 'Application submitted! We will review your profile and contact you within 48 hours.';
       sucEl.style.display = 'block';
+      sucEl.scrollIntoView({behavior:'smooth', block:'center'});
     }
 
   } catch(e) {
-    if (errEl) { errEl.textContent = e.message || 'Application failed. Please try again.'; errEl.style.display = 'block'; }
+    if (errEl) { errEl.textContent = e.message || 'Application failed. Please try again.'; errEl.style.display = 'block'; errEl.scrollIntoView({behavior:'smooth', block:'center'}); }
   }
 }
 
