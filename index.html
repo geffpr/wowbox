@@ -229,7 +229,7 @@ async function generateRetailCodes() {
       if (error) throw error;
     }
     // 2. Insert the linked WB codes (redeemable by the gift recipient, locked until PHYS is activated)
-    const wbRows = generatedCodes.map(e => ({ code:e.wbCode, box_id:e.boxId, box_name:e.boxName, status:'locked', is_physical_box:false, retail_batch:e.batch, expires_at:expiresAt, linked_phys_code:e.code }));
+    const wbRows = generatedCodes.map(e => ({ code:e.wbCode, box_id:e.boxId, box_name:e.boxName, status:'inactive', is_physical_box:false, retail_batch:e.batch, expires_at:expiresAt, linked_phys_code:e.code }));
     for (let i=0;i<wbRows.length;i+=50) {
       const {error} = await db_client.from('vouchers').insert(wbRows.slice(i,i+50));
       if (error) throw error;
