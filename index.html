@@ -22851,21 +22851,14 @@ async function loadPartnerExperiences() {
   var listEl = document.getElementById('pp-exp-list');
   if (!listEl) return;
   var partnerEmail = currentUser ? currentUser.email : '';
-  var partnerName  = (currentUser && currentUser.partnerName) ? currentUser.partnerName
-                   : (currentUser && currentUser.displayName) ? currentUser.displayName : '';
 
   listEl.innerHTML = '<div style="text-align:center;padding:32px;color:var(--muted)"><i class="fa fa-spinner fa-spin" style="font-size:1.5rem"></i></div>';
 
   try {
-    // Load approved experiences — two separate queries to avoid + in email breaking .or()
-    var expByEmail = partnerEmail ? await db_client.from('experiences').select('*').eq('partner_email', partnerEmail) : { data: [] };
-    var expByName  = partnerName  ? await db_client.from('experiences').select('*').eq('partner_name',  partnerName)  : { data: [] };
-    var seenIds = new Set();
-    var mergedExps = [];
-    [(expByEmail.data||[]), (expByName.data||[])].forEach(function(arr){
-      arr.forEach(function(e){ if (!seenIds.has(e.id)) { seenIds.add(e.id); mergedExps.push(e); } });
-    });
-    var expRes = { data: mergedExps };
+    // Load approved experiences — partner_email is the only reliable unique key
+    var expRes = partnerEmail
+      ? await db_client.from('experiences').select('*').eq('partner_email', partnerEmail)
+      : { data: [] };
 
     // Load all requests by this partner (pending + approved + rejected)
     var reqRes = await db_client.from('partner_requests')
