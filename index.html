@@ -10614,7 +10614,8 @@ async function renderBoxGrids() {
       rating: b.rating,
       sold:   b.sold_count,
       desc:   b.description,
-      featured: b.is_featured || false
+      featured: b.is_featured || false,
+      video_url: b.video_url || null
     };
     // Override with real database name from Supabase databases table
     if (dbNameMap[b.id]) boxDB[b.id].db = dbNameMap[b.id];
