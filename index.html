@@ -6922,6 +6922,10 @@ tr:hover td{background:var(--b50)}
               <label>Video URL <span style="font-weight:400;color:var(--muted);font-size:.72rem">(optional — YouTube, Vimeo, or direct .mp4 link)</span></label>
               <input class="fi" id="pp-new-video-url" type="url" placeholder="https://...">
             </div>
+            <div class="fg" style="margin-bottom:14px">
+              <label>Video position <span style="font-weight:400;color:var(--muted);font-size:.72rem">(where it appears in the gallery — 1 = first)</span></label>
+              <input class="fi" id="pp-new-video-position" type="number" min="1" max="6" value="1" style="max-width:100px">
+            </div>
             <div class="fg">
               <label style="display:block;margin-bottom:6px">Experience photos <span style="font-weight:400;color:var(--muted)">(3 minimum, up to 6 — first is the main image)</span></label>
               <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px">
@@ -8164,6 +8168,10 @@ tr:hover td{background:var(--b50)}
                 <div class="fg" style="margin-bottom:14px">
                   <label>Video URL <span style="font-weight:400;color:var(--muted);font-size:.72rem">(optional — YouTube, Vimeo, or direct .mp4 link)</span></label>
                   <input class="fi" id="aef-video-url" type="url" placeholder="https://...">
+                </div>
+                <div class="fg" style="margin-bottom:14px">
+                  <label>Video position <span style="font-weight:400;color:var(--muted);font-size:.72rem">(where it appears in the gallery — 1 = first)</span></label>
+                  <input class="fi" id="aef-video-position" type="number" min="1" max="6" value="1" style="max-width:100px">
                 </div>
                 <div class="fg">
                   <label>Photos (3 minimum, up to 6)</label>
@@ -10666,16 +10674,20 @@ function _galOnTouchEnd(e) {
    ══════════════════════════════════════════════════════════════ */
 var _mcState = {}; // { exp: {index:0, media:[...]}, bkw: {...} }
 
-function mcBuildMediaList(videoUrl, photos) {
-  var list = [];
-  if (videoUrl) list.push({ type: 'video', src: videoUrl });
-  (photos || []).filter(Boolean).forEach(function(p) { list.push({ type: 'image', src: p }); });
-  if (!list.length) list.push({ type: 'image', src: '' }); // never empty
-  return list;
+function mcBuildMediaList(videoUrl, photos, videoPosition) {
+  var imgs = (photos || []).filter(Boolean).map(function(p) { return { type: 'image', src: p }; });
+  if (!videoUrl) {
+    if (!imgs.length) imgs.push({ type: 'image', src: '' }); // never empty
+    return imgs;
+  }
+  var pos = parseInt(videoPosition) || 1;
+  var idx = Math.max(0, Math.min(pos - 1, imgs.length)); // clamp into valid range
+  imgs.splice(idx, 0, { type: 'video', src: videoUrl });
+  return imgs;
 }
 
-function mcInit(prefix, videoUrl, photos) {
-  var media = mcBuildMediaList(videoUrl, photos);
+function mcInit(prefix, videoUrl, photos, videoPosition) {
+  var media = mcBuildMediaList(videoUrl, photos, videoPosition);
   _mcState[prefix] = { index: 0, media: media };
 
   var track = document.getElementById(prefix + '-carousel-track');
@@ -11143,6 +11155,7 @@ async function fetchProductExps(boxId) {
         img5:             (e.image_urls && e.image_urls[3]) || '',
         img6:             (e.image_urls && e.image_urls[4]) || '',
         video_url:        e.video_url        || null,
+        video_position:   e.video_position   || 1,
         partner:          e.partner_name        || '',
         partnerEmail:     e.partner_email       || '',
         tags:             e.tags                || [],
@@ -11870,7 +11883,7 @@ function loadExp(expId) {
 
   // Gallery / media carousel
   var expPhotos = [e.img, e.img2, e.img3, e.img4, e.img5, e.img6].filter(Boolean);
-  mcInit('exp', e.video_url || null, expPhotos);
+  mcInit('exp', e.video_url || null, expPhotos, e.video_position);
 
   // Overview
   document.getElementById('exp-title').textContent = e.name;
@@ -17305,6 +17318,7 @@ async function admSaveExp() {
   const mainImg = imgs[0] || '';
   if (imgs.length < 3) { admToast('Please upload at least 3 photos for this experience.'); return; }
   const videoUrl = document.getElementById('aef-video-url')?.value?.trim() || null;
+  const videoPosition = parseInt(document.getElementById('aef-video-position')?.value) || 1;
 
   const payload = {
     name,
@@ -17336,7 +17350,7 @@ async function admSaveExp() {
     programme:          collectProgramme('aef'),
     amenities:          collectAmenities('aef'),
     ...(icalUrl ? { ical_url: icalUrl } : {}),
-    ...(videoUrl ? { video_url: videoUrl } : {}),
+    ...(videoUrl ? { video_url: videoUrl, video_position: videoPosition } : {}),
   };
 
   try {
@@ -17722,7 +17736,7 @@ async function admConfirmApprove(id) {
         ...(req.price ? { price: req.price } : {}),
         ...(req.wow_price ? { wow_price: req.wow_price } : {}),
         ...(req.wow_pricing_type ? { wow_pricing_type: req.wow_pricing_type } : {}),
-        ...(req.video_url ? { video_url: req.video_url } : {}),
+        ...(req.video_url ? { video_url: req.video_url, video_position: req.video_position || 1 } : {}),
       }).eq('id', req.experience_id || expId);
     } else {
       var ins = await db_client.from('experiences').insert({
@@ -17757,7 +17771,7 @@ async function admConfirmApprove(id) {
         price:            req.price || null,
         ...(req.wow_price ? { wow_price: req.wow_price } : {}),
         ...(req.wow_pricing_type ? { wow_pricing_type: req.wow_pricing_type } : {}),
-        ...(req.video_url ? { video_url: req.video_url } : {}),
+        ...(req.video_url ? { video_url: req.video_url, video_position: req.video_position || 1 } : {}),
       });
       if (ins.error && !ins.error.message.includes('duplicate')) throw ins.error;
       // Link experience to selected databases
@@ -19196,7 +19210,7 @@ async function loadBkwExp(expId, slug) {
   if (e.image_url) imgs.push(e.image_url);
   if (Array.isArray(e.image_urls)) e.image_urls.forEach(function(u){ if(u && !imgs.includes(u)) imgs.push(u); });
   if (Array.isArray(e.images)) e.images.forEach(function(u){ if(u && !imgs.includes(u)) imgs.push(u); });
-  mcInit('bkw', e.video_url || null, imgs);
+  mcInit('bkw', e.video_url || null, imgs, e.video_position);
 
   // Overview
   var title = document.getElementById('bkw-exp-title'); if(title) title.textContent = e.name;
@@ -22628,6 +22642,7 @@ async function submitNewExp() {
   const imgUrl   = (document.getElementById('pp-new-img-0')       ||{value:''}).value.trim();
   const imgUrls  = [0,1,2,3,4,5].map(function(i){ return (document.getElementById('pp-new-img-'+i)||{value:''}).value.trim(); }).filter(Boolean);
   const videoUrl = (document.getElementById('pp-new-video-url')   ||{value:''}).value.trim() || null;
+  const videoPosition = parseInt((document.getElementById('pp-new-video-position')||{value:'1'}).value) || 1;
   const city     = (document.getElementById('pp-new-city')        ||{value:''}).value.trim();
   const address  = (document.getElementById('pp-new-address')     ||{value:''}).value.trim();
   const phone    = wbPhoneGetFull('pp-new-phone');
@@ -22677,7 +22692,7 @@ async function submitNewExp() {
       accessible,
       insolite,
       ...(icalUrl ? { ical_url: icalUrl } : {}),
-      ...(videoUrl ? { video_url: videoUrl } : {}),
+      ...(videoUrl ? { video_url: videoUrl, video_position: videoPosition } : {}),
       programme:  programme,
       amenities:  amenitiesList,
     });
@@ -23109,7 +23124,7 @@ async function ppSubmitEdit(expId) {
       lng:                prevData.lng || null,
       image_url:          prevData.image_url || null,
       image_urls:         prevData.image_urls || [],
-      ...(prevData.video_url ? { video_url: prevData.video_url } : {}),
+      ...(prevData.video_url ? { video_url: prevData.video_url, video_position: prevData.video_position || 1 } : {}),
       previous_data:      prevData,
     });
     if (err.error) throw err.error;
@@ -23892,6 +23907,7 @@ window.addEventListener('DOMContentLoaded', async () => {
                 duration_nights: de.duration_nights, booking_type: de.booking_type, lat: de.lat, lng: de.lng,
                 address: de.address, phone: de.phone, ical_url: de.ical_url, programme: de.programme, amenities: de.amenities,
                 video_url: de.video_url || null,
+                video_position: de.video_position || 1,
               });
               expId = de.id;
             }
