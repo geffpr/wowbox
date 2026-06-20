@@ -23878,6 +23878,25 @@ window.addEventListener('DOMContentLoaded', async () => {
       } else if (currentPath.startsWith('/experience/')) {
         var expSlug = currentPath.replace('/experience/', '').replace(/\/+$/, '');
         var expId = slugToExpId(expSlug);
+        if (!expId) {
+          // Not found locally yet — fetch directly from Supabase (handles deep links before expDB is fully populated)
+          try {
+            var directExpRes = await db_client.from('experiences').select('*').eq('id', expSlug).eq('is_active', true).maybeSingle();
+            if (directExpRes.data) {
+              var de = directExpRes.data;
+              expDB.push({
+                id: de.id, name: de.name, box: de.box_id, reservation_type: de.reservation_type,
+                desc: de.description, img: de.image_url, img2: (de.image_urls||[])[1], img3: (de.image_urls||[])[2],
+                loc: de.location, city: de.city, province: de.province, capacity: de.capacity,
+                partner_email: de.partner_email, price: de.price, wow_price: de.wow_price, wow_pricing_type: de.wow_pricing_type,
+                duration_nights: de.duration_nights, booking_type: de.booking_type, lat: de.lat, lng: de.lng,
+                address: de.address, phone: de.phone, ical_url: de.ical_url, programme: de.programme, amenities: de.amenities,
+                video_url: de.video_url || null,
+              });
+              expId = de.id;
+            }
+          } catch(e) { console.warn('Direct experience fetch:', e.message); }
+        }
         if (expId) {
           // Check if logged-in user has an active voucher for this experience's box
           var expObj = expDB.find(function(x){ return x.id === expId; });
