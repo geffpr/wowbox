@@ -22475,6 +22475,11 @@ function ppPreviewExperience() {
   var img0     = document.getElementById('pp-new-img-0')?.value         || '';
   var img1     = document.getElementById('pp-new-img-1')?.value         || '';
   var img2     = document.getElementById('pp-new-img-2')?.value         || '';
+  var img3     = document.getElementById('pp-new-img-3')?.value         || '';
+  var img4     = document.getElementById('pp-new-img-4')?.value         || '';
+  var img5     = document.getElementById('pp-new-img-5')?.value         || '';
+  var videoUrl = document.getElementById('pp-new-video-url')?.value?.trim() || '';
+  var videoPosition = parseInt(document.getElementById('pp-new-video-position')?.value) || 1;
   var partnerName = appState.partnerName || (currentUser && currentUser.email) || 'Partner';
 
   // Collect programme steps
@@ -22524,10 +22529,11 @@ function ppPreviewExperience() {
     + '<div class="exp-detail-layout">'
     // ── LEFT COLUMN ──
     + '<div>'
-    + '<div class="exp-gallery">'
-    + '<div class="eg-main"><img src="' + mainImg + '" alt="" style="width:100%;height:100%;object-fit:cover"></div>'
-    + '<div class="eg-side"><img src="' + sideImg1 + '" alt="" style="width:100%;height:100%;object-fit:cover"></div>'
-    + '<div class="eg-side"><img src="' + sideImg2 + '" alt="" style="width:100%;height:100%;object-fit:cover"></div>'
+    + '<div class="media-carousel" id="pv-carousel" style="position:relative">'
+    + '<div class="mc-track" id="pv-carousel-track"></div>'
+    + '<button class="mc-arr prev" onclick="mcPrev(\'pv\')" id="pv-carousel-prev"><i class="fa fa-chevron-left"></i></button>'
+    + '<button class="mc-arr next" onclick="mcNext(\'pv\')" id="pv-carousel-next"><i class="fa fa-chevron-right"></i></button>'
+    + '<div class="mc-dots" id="pv-carousel-dots"></div>'
     + '</div>'
     + '<div class="tabs" style="margin-bottom:0;margin-top:20px">'
     + '<button class="tab on" onclick="ppPreviewTab(this,\'pv-overview\')">Overview</button>'
@@ -22599,6 +22605,8 @@ function ppPreviewExperience() {
     + html
     + '</div>';
   document.body.appendChild(m);
+  var pvPhotos = [img0, img1, img2, img3, img4, img5].filter(Boolean);
+  if (typeof mcInit === 'function') mcInit('pv', videoUrl || null, pvPhotos, videoPosition);
 }
   var desc     = document.getElementById('pp-new-desc')?.value?.trim()       || '';
   var price    = document.getElementById('pp-new-price')?.value              || '';
