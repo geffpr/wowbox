@@ -257,7 +257,8 @@ function renderGenCodes() {
       <div class="gen-code-text">${e.code}<div style="font-size:.65rem;color:var(--muted);font-weight:400">→ ${e.wbCode||''}</div></div>
       <div class="gen-code-box">${e.boxName}</div>
       <div class="gen-code-batch">${e.batch}</div>
-      <button class="btn bg bsm" onclick="printSingleCode(${i})"><i class="fa fa-print"></i></button>
+      <button class="btn bg bsm" onclick="printSinglePhysLabel(${i})" title="Print PHYS label"><i class="fa fa-qrcode"></i></button>
+      <button class="btn bg bsm" onclick="printSingleWbCard(${i})" title="Print WB card"><i class="fa fa-gift"></i></button>
     </div>`).join('');
 }
 
@@ -282,19 +283,20 @@ function exportGenCSV() {
   admToast('Exported '+generatedCodes.length+' codes');
 }
 
-function buildPrintCards(codes) {
-  const perPage = 9;
+/* ── PHYS labels: QR code + text, for the OUTSIDE of the box ── */
+function buildPhysLabelCards(codes) {
+  const perPage = 6;
   let pages = '';
   for (let p=0;p<codes.length;p+=perPage) {
     const slice = codes.slice(p,p+perPage);
-    pages += `<div style="page-break-after:always;padding:20mm;font-family:Arial,sans-serif">
-      <div style="text-align:center;margin-bottom:8mm"><div style="font-size:18px;font-weight:700">WowBox</div><div style="font-size:10px;color:#64748b">${slice[0]?.batch||''}</div></div>
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10mm">
-        ${slice.map(e => `<div style="border:1.5px solid #0f172a;border-radius:8px;padding:12px;text-align:center">
-          <div style="font-size:13px;font-weight:700;margin-bottom:4px">WowBox</div>
-          <div style="font-size:9px;color:#64748b;margin-bottom:6px">${e.boxName}</div>
-          <div style="font-family:monospace;font-size:12px;font-weight:700;color:#2563eb;word-break:break-all;margin-bottom:4px">${e.code}</div>
-          <div style="font-size:8px;color:#94a3b8">${e.batch}</div>
+    pages += `<div style="page-break-after:always;padding:18mm;font-family:Arial,sans-serif">
+      <div style="text-align:center;margin-bottom:8mm"><div style="font-size:16px;font-weight:700;color:#1e293b">WowBox — Retail Activation</div><div style="font-size:9px;color:#64748b">${slice[0]?.batch||''}</div></div>
+      <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10mm">
+        ${slice.map((e,i) => `<div style="border:1.5px dashed #94a3b8;border-radius:8px;padding:14px;text-align:center">
+          <div style="font-size:10px;color:#64748b;margin-bottom:8px">${e.boxName}</div>
+          <div id="physqr-${p+i}" style="display:flex;justify-content:center;margin-bottom:8px"></div>
+          <div style="font-family:monospace;font-size:13px;font-weight:700;color:#1e293b;word-break:break-all">${e.code}</div>
+          <div style="font-size:7px;color:#94a3b8;margin-top:4px">Scan at point of sale to activate</div>
         </div>`).join('')}
       </div>
     </div>`;
@@ -302,27 +304,74 @@ function buildPrintCards(codes) {
   return pages;
 }
 
-function printGenCodes() {
-  if (!generatedCodes.length) { admToast('No codes to print.'); return; }
-  var w = window.open('','_blank');
-  w.document.write('<html><body>'+buildPrintCards(generatedCodes)+'</body></html>');
-  w.document.close(); w.print(); w.close();
+function printPhysLabels(codes) {
+  if (!codes || !codes.length) { admToast('No codes to print.'); return; }
+  const w = window.open('','_blank');
+  w.document.write('<html><head>'+'<sc'+'ript src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></sc'+'ript>'+'</head><body>'+buildPhysLabelCards(codes)+'</body></html>');
+  w.document.close();
+  w.onload = function() {
+    setTimeout(function() {
+      codes.forEach((e, i) => {
+        var el = w.document.getElementById('physqr-'+i);
+        if (el && w.QRCode) new w.QRCode(el, { text: e.code, width: 90, height: 90, colorDark: '#1e293b', colorLight: '#ffffff' });
+      });
+      setTimeout(() => { w.print(); }, 400);
+    }, 200);
+  };
 }
 
-function printSelectedCodes() {
+function printSelectedPhys() {
   const selected = [...document.querySelectorAll('.gen-cb:checked')].map(cb => generatedCodes[parseInt(cb.dataset.idx)]).filter(Boolean);
   if (!selected.length) { admToast('Select at least one code.'); return; }
+  printPhysLabels(selected);
+}
+
+function printSelectedWb() {
+  const selected = [...document.querySelectorAll('.gen-cb:checked')].map(cb => generatedCodes[parseInt(cb.dataset.idx)]).filter(Boolean);
+  if (!selected.length) { admToast('Select at least one code.'); return; }
+  printWbCards(selected);
+}
+
+function printSinglePhysLabel(idx) {
+  const e = generatedCodes[idx];
+  if (!e) return;
+  printPhysLabels([e]);
+}
+
+/* ── WB cards: styled, no QR, for the INSIDE of the box ── */
+function buildWbCardPages(codes) {
+  const perPage = 4;
+  let pages = '';
+  for (let p=0;p<codes.length;p+=perPage) {
+    const slice = codes.slice(p,p+perPage);
+    pages += `<div style="page-break-after:always;padding:14mm;font-family:'Cormorant Garamond',Georgia,serif">
+      <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8mm">
+        ${slice.map(e => `<div style="background:linear-gradient(135deg,#3d1008,#5c2415);border-radius:14px;padding:20px;color:#fdf6ee;text-align:center;min-height:170px;display:flex;flex-direction:column;justify-content:center">
+          <div style="font-size:11px;letter-spacing:.15em;text-transform:uppercase;color:#fcd9a8;margin-bottom:6px;font-family:Arial,sans-serif">WowBox Gift Voucher</div>
+          <div style="font-size:20px;font-weight:700;margin-bottom:10px">${e.boxName||''}</div>
+          <div style="background:rgba(255,255,255,.12);border-radius:8px;padding:10px;margin:8px 0">
+            <div style="font-family:monospace;font-size:16px;font-weight:700;letter-spacing:.05em;color:#fff">${e.wbCode||e.code}</div>
+          </div>
+          <div style="font-size:10px;color:#fcd9a8;font-family:Arial,sans-serif">Redeem at wowbox.co.za/redeem</div>
+        </div>`).join('')}
+      </div>
+    </div>`;
+  }
+  return pages;
+}
+
+function printWbCards(codes) {
+  if (!codes || !codes.length) { admToast('No codes to print.'); return; }
+  if (!codes.some(c => c.wbCode)) { admToast('These codes have no linked WB voucher to print.'); return; }
   const w = window.open('','_blank');
-  w.document.write('<html><body>'+buildPrintCards(selected)+'</body></html>');
+  w.document.write('<html><body>'+buildWbCardPages(codes)+'</body></html>');
   w.document.close(); w.print(); w.close();
 }
 
-function printSingleCode(idx) {
+function printSingleWbCard(idx) {
   const e = generatedCodes[idx];
   if (!e) return;
-  const w = window.open('','_blank');
-  w.document.write('<html><body>'+buildPrintCards([e])+'</body></html>');
-  w.document.close(); w.print(); w.close();
+  printWbCards([e]);
 }
 
 /* ── Booking → Supabase ── */
@@ -8823,9 +8872,10 @@ tr:hover td{background:var(--b50)}
               <div class="phys-log">
                 <div class="phys-log-hdr" style="flex-wrap:wrap;gap:10px">
                   <h4 id="gen-result-title"></h4>
-                  <div style="display:flex;gap:8px">
+                  <div style="display:flex;gap:8px;flex-wrap:wrap">
                     <button class="btn bg bsm" onclick="exportGenCSV()"><i class="fa fa-download"></i> Export CSV</button>
-                    <button class="btn bg bsm" onclick="printGenCodes()"><i class="fa fa-print"></i> Print all</button>
+                    <button class="btn bg bsm" onclick="printPhysLabels(generatedCodes)"><i class="fa fa-qrcode"></i> Print PHYS labels (QR)</button>
+                    <button class="btn bp bsm" onclick="printWbCards(generatedCodes)"><i class="fa fa-gift"></i> Print WB cards (styled)</button>
                   </div>
                 </div>
                 <div style="padding:10px 18px;background:var(--b50);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;flex-wrap:wrap">
@@ -8833,7 +8883,8 @@ tr:hover td{background:var(--b50)}
                     <input type="checkbox" id="gen-select-all" onchange="genToggleAll(this.checked)" style="accent-color:var(--b600)"> Select all
                   </label>
                   <span style="font-size:.73rem;color:var(--muted)" id="gen-selected-count">0 selected</span>
-                  <button class="btn bg bsm" onclick="printSelectedCodes()" style="margin-left:auto"><i class="fa fa-print"></i> Print selected</button>
+                  <button class="btn bg bsm" onclick="printSelectedPhys()" style="margin-left:auto"><i class="fa fa-qrcode"></i> Print PHYS</button>
+                  <button class="btn bp bsm" onclick="printSelectedWb()"><i class="fa fa-gift"></i> Print WB</button>
                 </div>
                 <div id="gen-codes-list"></div>
               </div>
