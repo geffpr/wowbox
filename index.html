@@ -12354,7 +12354,10 @@ function wbPayForAddons(amount) {
           confirmExpBooking();
         }
       },
-      onClose: function() { admToast('Payment cancelled — your extras were not added.'); _wbAddonsSelected = []; confirmExpBooking(); }
+      onClose: function() {
+        admToast('Payment cancelled — your booking was not confirmed.');
+        wbOpenConfirmModal();
+      }
     });
     handler.openIframe();
   } catch(err) {
