@@ -12228,20 +12228,34 @@ function wbProceedWithAddons() {
 function wbOpenConfirmModal() {
   var e = expDB.find(x => x.id === appState.currentExpId);
   if (!e) return;
-  var addonsTotal = (_wbAddonsSelected||[]).reduce(function(s,a){ return s + a.price; }, 0);
+  var addons = _wbAddonsSelected || [];
+  var addonsTotal = addons.reduce(function(s,a){ return s + a.price; }, 0);
   var existing = document.getElementById('wb-confirm-modal');
   if (existing) existing.remove();
   var modal = document.createElement('div');
   modal.id = 'wb-confirm-modal';
-  var addonsLine = addonsTotal > 0
-    ? '<div style="font-size:.78rem;color:var(--b700);margin-bottom:14px;background:var(--b50);border-radius:8px;padding:8px 12px">Extras selected: <strong>R' + addonsTotal.toLocaleString() + '</strong> — paid separately by card</div>'
-    : '';
+
+  var checkoutBlock = '';
+  if (addonsTotal > 0) {
+    var rows = addons.map(function(a) {
+      return '<div style="display:flex;justify-content:space-between;font-size:.8rem;color:var(--navy);padding:5px 0">'
+        + '<span>' + a.name + '</span><span>R' + a.price.toLocaleString() + '</span></div>';
+    }).join('');
+    checkoutBlock = '<div style="background:var(--b50);border-radius:10px;padding:14px 16px;margin-bottom:18px">'
+      + '<div style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--b600);margin-bottom:6px">Extras checkout</div>'
+      + rows
+      + '<div style="border-top:1px solid var(--b200);margin-top:8px;padding-top:8px;display:flex;justify-content:space-between;font-size:.88rem;font-weight:700;color:var(--navy)">'
+      + '<span>Total</span><span>R' + addonsTotal.toLocaleString() + '</span></div>'
+      + '<div style="font-size:.68rem;color:var(--muted);margin-top:4px">Paid separately by card, right after you confirm.</div>'
+      + '</div>';
+  }
+
   modal.style.cssText = 'position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(5,15,40,.6);backdrop-filter:blur(4px)';
   modal.innerHTML = '<div style="background:#fff;border-radius:16px;padding:28px;max-width:380px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.25)">'
     + '<div style="font-size:1.6rem;margin-bottom:10px">🔒</div>'
-    + '<h3 style="font-size:1.05rem;color:var(--navy);margin-bottom:8px">Confirm your booking</h3>'
-    + '<p style="font-size:.82rem;color:var(--muted);margin-bottom:14px">You are about to book <strong>' + e.name + '</strong>. Once confirmed, this booking will be finalized and cannot be reversed.</p>'
-    + addonsLine
+    + '<h3 style="font-size:1.05rem;color:var(--navy);margin-bottom:14px">Confirm your booking</h3>'
+    + checkoutBlock
+    + '<p style="font-size:.78rem;color:var(--muted);margin-bottom:18px">You are about to book <strong>' + e.name + '</strong>. Once confirmed, this booking will be finalized and cannot be reversed.</p>'
     + '<div style="display:flex;gap:10px">'
     + '<button class="btn bg" style="flex:1" onclick="document.getElementById(\'wb-confirm-modal\').remove()">Cancel</button>'
     + '<button class="btn bp" style="flex:1" onclick="wbConfirmAndContinue()"><i class="fa fa-check"></i> Confirm booking</button>'
