@@ -5249,7 +5249,7 @@ tr:hover td{background:var(--b50)}
         <div class="fg"><label>Full name *</label><input class="fi" id="bkw-co-name" placeholder="Your full name"></div>
         <div class="fg"><label>Email *</label><input class="fi" type="email" id="bkw-co-email" placeholder="your@email.com"></div>
         <div id="bkw-co-status" style="font-size:.8rem;color:var(--muted);text-align:center;margin-bottom:8px;min-height:18px"></div>
-        <button id="bkw-co-btn" onclick="bkwSubmitPayment()" class="btn bp block">
+        <button id="bkw-co-btn" onclick="bkwOpenConfirmModal()" class="btn bp block">
           <i class="fa fa-lock" style="margin-right:8px"></i>Pay securely — <span id="bkw-co-btn-total"></span>
         </button>
         <div style="display:flex;gap:18px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);flex-wrap:wrap">
@@ -19742,6 +19742,100 @@ async function loadMyBkwBookings(email) {
   }
 }
 
+/* ── Booking confirmation modal — opens before payment, lets the client confirm or cancel ── */
+function bkwOpenConfirmModal() {
+  var s = _bkwState;
+  var name  = document.getElementById('bkw-co-name')?.value.trim();
+  var email = document.getElementById('bkw-co-email')?.value.trim();
+  if (!name)  { alert('Please enter your full name.'); return; }
+  if (!email || !email.includes('@')) { alert('Please enter a valid email.'); return; }
+
+  var existing = document.getElementById('bkw-confirm-modal');
+  if (existing) existing.remove();
+  var modal = document.createElement('div');
+  modal.id = 'bkw-confirm-modal';
+  modal.style.cssText = 'position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(5,15,40,.6);backdrop-filter:blur(4px)';
+  modal.innerHTML = '<div style="background:#fff;border-radius:16px;padding:28px;max-width:380px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.25)">'
+    + '<div style="font-size:1.6rem;margin-bottom:10px">🔒</div>'
+    + '<h3 style="font-size:1.05rem;color:var(--navy);margin-bottom:8px">Confirm your booking</h3>'
+    + '<p style="font-size:.82rem;color:var(--muted);margin-bottom:20px">You are about to book <strong>' + s.exp.name + '</strong>. Once confirmed, this booking will be finalized and cannot be reversed.</p>'
+    + '<div style="display:flex;gap:10px">'
+    + '<button class="btn bg" style="flex:1" onclick="document.getElementById(\'bkw-confirm-modal\').remove()">Cancel</button>'
+    + '<button class="btn bp" style="flex:1" onclick="bkwConfirmAndContinue()"><i class="fa fa-check"></i> Confirm booking</button>'
+    + '</div></div>';
+  document.body.appendChild(modal);
+  modal.addEventListener('click', function(e){ if(e.target===modal) modal.remove(); });
+}
+
+function bkwConfirmAndContinue() {
+  var modal = document.getElementById('bkw-confirm-modal');
+  if (modal) modal.remove();
+  bkwOpenAddonsModal();
+}
+
+/* ── Add-ons upsell modal — optional, skippable, shown after booking confirmation ── */
+var _bkwAddonsSelected = [];
+
+async function bkwOpenAddonsModal() {
+  var existing = document.getElementById('bkw-addons-modal');
+  if (existing) existing.remove();
+
+  var addons = [];
+  try {
+    var res = await db_client.from('addons').select('*').eq('is_active', true);
+    addons = res.data || [];
+  } catch(e) { console.warn('addons fetch:', e.message); }
+
+  if (!addons.length) {
+    // No add-ons configured — skip straight to payment
+    bkwSubmitPayment();
+    return;
+  }
+
+  _bkwAddonsSelected = [];
+  var modal = document.createElement('div');
+  modal.id = 'bkw-addons-modal';
+  modal.style.cssText = 'position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(5,15,40,.6);backdrop-filter:blur(4px)';
+  modal.innerHTML = '<div style="background:#fff;border-radius:16px;padding:28px;max-width:420px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.25)">'
+    + '<h3 style="font-size:1.05rem;color:var(--navy);margin-bottom:6px">🎁 Add a touch of luxury?</h3>'
+    + '<p style="font-size:.8rem;color:var(--muted);margin-bottom:18px">Optional extras for your booking — entirely up to you.</p>'
+    + '<div id="bkw-addons-list" style="margin-bottom:18px"></div>'
+    + '<div style="display:flex;gap:10px">'
+    + '<button class="btn bg" style="flex:1" onclick="bkwSkipAddons()">Skip</button>'
+    + '<button class="btn bp" style="flex:1" onclick="bkwSubmitPayment()"><i class="fa fa-lock"></i> Continue to payment</button>'
+    + '</div></div>';
+  document.body.appendChild(modal);
+  modal.addEventListener('click', function(e){ if(e.target===modal) modal.remove(); });
+
+  var listEl = document.getElementById('bkw-addons-list');
+  listEl.innerHTML = addons.map(function(a) {
+    return '<label style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border);cursor:pointer">'
+      + '<input type="checkbox" data-addon-id="' + a.id + '" data-addon-price="' + a.price + '" data-addon-name="' + a.name.replace(/"/g,'&quot;') + '" onchange="bkwToggleAddon(this)">'
+      + '<span style="font-size:1.3rem">' + (a.icon || '🎁') + '</span>'
+      + '<div style="flex:1"><div style="font-size:.85rem;font-weight:600;color:var(--navy)">' + a.name + '</div><div style="font-size:.72rem;color:var(--muted)">' + (a.description||'') + '</div></div>'
+      + '<div style="font-size:.85rem;font-weight:700;color:var(--b700)">R' + Number(a.price).toLocaleString()  + '</div>'
+      + '</label>';
+  }).join('');
+}
+
+function bkwToggleAddon(checkbox) {
+  var id = checkbox.dataset.addonId;
+  var price = parseFloat(checkbox.dataset.addonPrice);
+  var name = checkbox.dataset.addonName;
+  if (checkbox.checked) {
+    _bkwAddonsSelected.push({ id: id, name: name, price: price });
+  } else {
+    _bkwAddonsSelected = _bkwAddonsSelected.filter(function(a){ return a.id !== id; });
+  }
+}
+
+function bkwSkipAddons() {
+  _bkwAddonsSelected = [];
+  var modal = document.getElementById('bkw-addons-modal');
+  if (modal) modal.remove();
+  bkwSubmitPayment();
+}
+
 async function bkwSubmitPayment() {
   var s = _bkwState;
   var name  = document.getElementById('bkw-co-name')?.value.trim();
@@ -19753,6 +19847,14 @@ async function bkwSubmitPayment() {
   _bkwState.payerName  = name;
   _bkwState.payerEmail = email;
 
+  var addonsModal = document.getElementById('bkw-addons-modal');
+  if (addonsModal) addonsModal.remove();
+
+  var addonsTotal = (_bkwAddonsSelected||[]).reduce(function(sum, a){ return sum + a.price; }, 0);
+  _bkwState.addonsSelected = _bkwAddonsSelected.slice();
+  _bkwState.addonsTotal = addonsTotal;
+  var paymentAmount = (s.total||0) + addonsTotal;
+
   var bkwRef = 'BKW-' + Math.random().toString(36).toUpperCase().slice(2,6) + '-' + Math.random().toString(36).toUpperCase().slice(2,6);
   _bkwState.bkwRef = bkwRef;
 
@@ -19763,7 +19865,7 @@ async function bkwSubmitPayment() {
     var handler = PaystackPop.setup({
       key: PAYSTACK_PUBLIC_KEY,
       email: email,
-      amount: Math.round((s.total||0) * 100),
+      amount: Math.round(paymentAmount * 100),
       currency: 'ZAR',
       ref: bkwRef,
       metadata: { item_name: 'WowBox — '+s.exp.name, guests: s.formData.guests||1, date: s.formData.date||'' },
@@ -19823,6 +19925,44 @@ async function bkwCompleteBooking(bkwRef) {
       partner_payout: partnerPayout, payout_status:'pending', flow:'wow'
     });
 
+    // Save selected add-ons and create commission entries + notify providers
+    var addonsList = s.addonsSelected || [];
+    if (addonsList.length) {
+      try {
+        var addonIds = addonsList.map(function(a){ return a.id; });
+        var addonDetailsRes = await db_client.from('addons').select('*').in('id', addonIds);
+        var addonDetails = addonDetailsRes.data || [];
+
+        for (var i = 0; i < addonsList.length; i++) {
+          var sel = addonsList[i];
+          var full = addonDetails.find(function(d){ return d.id === sel.id; }) || {};
+          var addonCommRate = full.commission_rate != null ? Number(full.commission_rate) : 20;
+          var addonPlatformAmt = Math.round(sel.price * addonCommRate / 100);
+          var addonProviderPayout = sel.price - addonPlatformAmt;
+
+          await db_client.from('commission_entries').insert({
+            booking_reference: bkwRef, partner_email: full.provider_email||'',
+            partner_name: full.provider_name||sel.name, experience_name: sel.name + ' (add-on)',
+            box_price: sel.price, platform_rate: addonCommRate, platform_amount: addonPlatformAmt,
+            partner_payout: addonProviderPayout, payout_status:'pending', flow:'addon'
+          });
+
+          if (full.provider_email) {
+            fetch('/api/send-email', {
+              method:'POST', headers:{'Content-Type':'application/json'},
+              body: JSON.stringify({ type:'addon_provider_notification', data:{
+                providerEmail: full.provider_email, providerName: full.provider_name||'',
+                addonName: sel.name, bookingRef: bkwRef,
+                experienceName: s.exp.name, experienceAddress: s.exp.address||s.exp.location||'',
+                customerName: s.payerName, bookingDate: s.formData.date||'',
+                providerAddress: full.provider_address||''
+              }})
+            }).catch(function(){});
+          }
+        }
+      } catch(e) { console.warn('Addon processing error:', e.message); }
+    }
+
     try {
       await fetch('/api/send-email', {
         method:'POST', headers:{'Content-Type':'application/json'},
@@ -19832,7 +19972,8 @@ async function bkwCompleteBooking(bkwRef) {
           experienceName: s.exp.name, bookingRef: bkwRef,
           bookingDate: s.formData.date||'', bookingTime: s.formData.time||'',
           guestName: s.formData.guest1||'', guests: s.formData.guests||1,
-          total: s.expAmt, serviceFee: s.feeAmt||0
+          total: s.expAmt, serviceFee: s.feeAmt||0,
+          addons: addonsList, addonsTotal: s.addonsTotal||0
         }})
       });
     } catch(e){}
