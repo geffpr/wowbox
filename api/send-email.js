@@ -293,6 +293,7 @@ function tplAddonProviderNotification(o) {
   const dateDisplay = o.bookingDate
     ? new Date(o.bookingDate).toLocaleDateString('en-ZA',{weekday:'long',day:'numeric',month:'long',year:'numeric'})
     : 'To be confirmed with the customer';
+  const isDriver = !!o.pickupAddress;
   return {
     subject: `🔔 New order for ${o.addonName} — ${o.bookingRef}`,
     html: layout(`
@@ -303,13 +304,21 @@ function tplAddonProviderNotification(o) {
         infoRow('Add-on', o.addonName || '—') +
         infoRow('Experience', o.experienceName || '—') +
         infoRow('Experience address', o.experienceAddress || '—') +
-        infoRow('Your address', o.providerAddress || '—') +
+        (isDriver ? infoRow('Pickup address', o.pickupAddress) : infoRow('Your address', o.providerAddress || '—')) +
+        (o.distanceKm != null ? infoRow('Estimated distance', o.distanceKm + ' km') : '') +
         infoRow('Customer', o.customerName || '—') +
+        (o.customerPhone ? infoRow('Customer phone', o.customerPhone) : '') +
         infoRow('Date requested', dateDisplay) +
+        (o.bookingTime ? infoRow('Time', o.bookingTime) : '') +
         infoRow('Booking Reference', o.bookingRef || '—')
       )}
       ${hr()}
-      ${highlight('<strong>Action required:</strong> Please contact WowBox to confirm delivery/service logistics for this order, using the booking reference <strong>' + (o.bookingRef||'—') + '</strong>.')}
+      ${infoTable(
+        infoRow('Your payout', o.providerPayout != null ? 'R' + o.providerPayout : '—') +
+        (o.commissionRate != null ? infoRow('WowBox commission', o.commissionRate + '%') : '')
+      )}
+      ${hr()}
+      ${highlight('<strong>Action required:</strong> Please confirm this order and contact WowBox to coordinate logistics, using the booking reference <strong>' + (o.bookingRef||'—') + '</strong>. If you are unable to fulfil this order, notify WowBox immediately — failure to deliver without notice may result in this payout being withheld.')}
       ${sm('Questions? <a href="mailto:support@wowbox.co.za" style="color:' + C.goldDark + '">support@wowbox.co.za</a>')}
     `, HEROES.booking, 'New order: ' + (o.addonName || 'add-on')),
   };
