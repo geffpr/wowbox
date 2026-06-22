@@ -5067,7 +5067,7 @@ tr:hover td{background:var(--b50)}
             </div>
             <p class="res-form-sub">Your WowBox covers the full cost. Complete the details below to confirm.</p>
             <div id="exp-bk-fields"></div>
-            <button class="btn bp block" style="margin-top:4px" onclick="wbOpenAddonsModal()">
+            <button class="btn bp block" style="margin-top:4px" onclick="wbSaveSessionState();wbOpenAddonsModal()">
               <i class="fa fa-check-circle"></i> Confirm reservation
             </button>
             <div style="display:flex;gap:18px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);flex-wrap:wrap">
@@ -9899,6 +9899,7 @@ function browseRestoreFromURL() {
         if (!vc.data) { go('account'); admToast('No active voucher found for this box.'); return; }
         appState.activatedVoucher = { code: vc.data.code };
         appState.boxActivated = true;
+        wbSaveSessionState();
       }, 800);
     }
   }
@@ -10251,6 +10252,7 @@ function openBrowsePage(boxId, expiresAt, voucherCode) {
   appState.browseVoucherExpiry = expiresAt || null;
   appState.boxActivated = true;
   if (voucherCode) appState.activatedVoucher = { code: voucherCode };
+  if (typeof wbSaveSessionState === 'function') wbSaveSessionState();
   appState.browsePage = 1;
   clearBrowseFilters(true);
   sessionStorage.setItem('wowbox_browse_box', appState.browseBoxId || '');
@@ -12099,6 +12101,62 @@ function calcNights() {
 }
 
 /* ── WowBox flow: confirmation modal + add-ons (mirrors bkw* functions) ── */
+/* ── Persist booking flow state across page refreshes (sessionStorage) ── */
+function wbSaveSessionState() {
+  try {
+    var s = {
+      activatedVoucher: appState.activatedVoucher || null,
+      currentBoxCode:   appState.currentBoxCode || null,
+      browseBoxId:      appState.browseBoxId || null,
+      currentExpId:     appState.currentExpId || null,
+      addonsSelected:   _wbAddonsSelected || [],
+      formFields:       wbCollectVisibleFormFields(),
+      savedAt:          Date.now()
+    };
+    sessionStorage.setItem('wb_booking_session', JSON.stringify(s));
+  } catch(e) { console.warn('wbSaveSessionState:', e.message); }
+}
+
+function wbCollectVisibleFormFields() {
+  var fields = {};
+  ['bk-g1','bk-g2','bk-date','bk-time','bk-guests','bk-treatment','bk-checkin','bk-checkout','bk-notes'].forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el && el.value) fields[id] = el.value;
+  });
+  return fields;
+}
+
+function wbRestoreSessionState() {
+  try {
+    var raw = sessionStorage.getItem('wb_booking_session');
+    if (!raw) return false;
+    var s = JSON.parse(raw);
+    // Expire after 2 hours to avoid stale state
+    if (!s.savedAt || (Date.now() - s.savedAt) > 2 * 60 * 60 * 1000) {
+      sessionStorage.removeItem('wb_booking_session');
+      return false;
+    }
+    if (s.activatedVoucher) appState.activatedVoucher = s.activatedVoucher;
+    if (s.currentBoxCode)   appState.currentBoxCode   = s.currentBoxCode;
+    if (s.browseBoxId)      appState.browseBoxId      = s.browseBoxId;
+    if (s.currentExpId)     appState.currentExpId     = s.currentExpId;
+    if (Array.isArray(s.addonsSelected)) _wbAddonsSelected = s.addonsSelected;
+    if (s.formFields) {
+      setTimeout(function() {
+        Object.keys(s.formFields).forEach(function(id) {
+          var el = document.getElementById(id);
+          if (el) el.value = s.formFields[id];
+        });
+      }, 300); // wait for the form to render first
+    }
+    return true;
+  } catch(e) { console.warn('wbRestoreSessionState:', e.message); return false; }
+}
+
+function wbClearSessionState() {
+  try { sessionStorage.removeItem('wb_booking_session'); } catch(e) {}
+}
+
 var _wbAddonsSelected = [];
 
 async function wbOpenAddonsModal() {
@@ -12151,6 +12209,7 @@ function wbToggleAddon(checkbox) {
   } else {
     _wbAddonsSelected = _wbAddonsSelected.filter(function(a){ return a.id !== id; });
   }
+  wbSaveSessionState();
 }
 
 function wbSkipAddons() {
@@ -12332,6 +12391,7 @@ async function confirmExpBooking() {
   }
 
   go('voucher');
+  if (typeof wbClearSessionState === 'function') wbClearSessionState();
 
   // ── Save to Supabase (non-blocking) ──
   (async function() {
@@ -24201,6 +24261,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   loadAppPrices();
   loadSiteSettingsOnStartup();
   renderBoxGrids();
+  if (typeof wbRestoreSessionState === 'function') wbRestoreSessionState();
   loadProduct('couples-retreat');
 
   // Init phone country selectors on all known phone fields
