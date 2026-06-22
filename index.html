@@ -5067,7 +5067,7 @@ tr:hover td{background:var(--b50)}
             </div>
             <p class="res-form-sub">Your WowBox covers the full cost. Complete the details below to confirm.</p>
             <div id="exp-bk-fields"></div>
-            <button class="btn bp block" style="margin-top:4px" onclick="confirmExpBooking()">
+            <button class="btn bp block" style="margin-top:4px" onclick="wbOpenConfirmModal()">
               <i class="fa fa-check-circle"></i> Confirm reservation
             </button>
             <div style="display:flex;gap:18px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);flex-wrap:wrap">
@@ -12098,6 +12098,100 @@ function calcNights() {
   }
 }
 
+/* ── WowBox flow: confirmation modal + add-ons (mirrors bkw* functions) ── */
+function wbOpenConfirmModal() {
+  var e = expDB.find(x => x.id === appState.currentExpId);
+  if (!e) return;
+  var existing = document.getElementById('wb-confirm-modal');
+  if (existing) existing.remove();
+  var modal = document.createElement('div');
+  modal.id = 'wb-confirm-modal';
+  modal.style.cssText = 'position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(5,15,40,.6);backdrop-filter:blur(4px)';
+  modal.innerHTML = '<div style="background:#fff;border-radius:16px;padding:28px;max-width:380px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.25)">'
+    + '<div style="font-size:1.6rem;margin-bottom:10px">🔒</div>'
+    + '<h3 style="font-size:1.05rem;color:var(--navy);margin-bottom:8px">Confirm your booking</h3>'
+    + '<p style="font-size:.82rem;color:var(--muted);margin-bottom:20px">You are about to book <strong>' + e.name + '</strong>. Once confirmed, this booking will be finalized and cannot be reversed.</p>'
+    + '<div style="display:flex;gap:10px">'
+    + '<button class="btn bg" style="flex:1" onclick="document.getElementById(\'wb-confirm-modal\').remove()">Cancel</button>'
+    + '<button class="btn bp" style="flex:1" onclick="wbConfirmAndContinue()"><i class="fa fa-check"></i> Confirm booking</button>'
+    + '</div></div>';
+  document.body.appendChild(modal);
+  modal.addEventListener('click', function(ev){ if(ev.target===modal) modal.remove(); });
+}
+
+function wbConfirmAndContinue() {
+  var modal = document.getElementById('wb-confirm-modal');
+  if (modal) modal.remove();
+  wbOpenAddonsModal();
+}
+
+var _wbAddonsSelected = [];
+
+async function wbOpenAddonsModal() {
+  var existing = document.getElementById('wb-addons-modal');
+  if (existing) existing.remove();
+
+  var addons = [];
+  try {
+    var res = await db_client.from('addons').select('*').eq('is_active', true);
+    addons = res.data || [];
+  } catch(e) { console.warn('addons fetch:', e.message); }
+
+  if (!addons.length) {
+    confirmExpBooking();
+    return;
+  }
+
+  _wbAddonsSelected = [];
+  var modal = document.createElement('div');
+  modal.id = 'wb-addons-modal';
+  modal.style.cssText = 'position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(5,15,40,.6);backdrop-filter:blur(4px)';
+  modal.innerHTML = '<div style="background:#fff;border-radius:16px;padding:28px;max-width:420px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.25)">'
+    + '<h3 style="font-size:1.05rem;color:var(--navy);margin-bottom:6px">🎁 Add a touch of luxury?</h3>'
+    + '<p style="font-size:.8rem;color:var(--muted);margin-bottom:18px">Optional extras for your booking — entirely up to you.</p>'
+    + '<div id="wb-addons-list" style="margin-bottom:18px"></div>'
+    + '<div style="display:flex;gap:10px">'
+    + '<button class="btn bg" style="flex:1" onclick="wbSkipAddons()">Skip</button>'
+    + '<button class="btn bp" style="flex:1" onclick="wbProceedWithAddons()"><i class="fa fa-check"></i> Continue</button>'
+    + '</div></div>';
+  document.body.appendChild(modal);
+  modal.addEventListener('click', function(ev){ if(ev.target===modal) modal.remove(); });
+
+  var listEl = document.getElementById('wb-addons-list');
+  listEl.innerHTML = addons.map(function(a) {
+    return '<label style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border);cursor:pointer">'
+      + '<input type="checkbox" data-addon-id="' + a.id + '" data-addon-price="' + a.price + '" data-addon-name="' + a.name.replace(/"/g,'&quot;') + '" onchange="wbToggleAddon(this)">'
+      + '<span style="font-size:1.3rem">' + (a.icon || '🎁') + '</span>'
+      + '<div style="flex:1"><div style="font-size:.85rem;font-weight:600;color:var(--navy)">' + a.name + '</div><div style="font-size:.72rem;color:var(--muted)">' + (a.description||'') + '</div></div>'
+      + '<div style="font-size:.85rem;font-weight:700;color:var(--b700)">R' + Number(a.price).toLocaleString()  + '</div>'
+      + '</label>';
+  }).join('');
+}
+
+function wbToggleAddon(checkbox) {
+  var id = checkbox.dataset.addonId;
+  var price = parseFloat(checkbox.dataset.addonPrice);
+  var name = checkbox.dataset.addonName;
+  if (checkbox.checked) {
+    _wbAddonsSelected.push({ id: id, name: name, price: price });
+  } else {
+    _wbAddonsSelected = _wbAddonsSelected.filter(function(a){ return a.id !== id; });
+  }
+}
+
+function wbSkipAddons() {
+  _wbAddonsSelected = [];
+  var modal = document.getElementById('wb-addons-modal');
+  if (modal) modal.remove();
+  confirmExpBooking();
+}
+
+function wbProceedWithAddons() {
+  var modal = document.getElementById('wb-addons-modal');
+  if (modal) modal.remove();
+  confirmExpBooking();
+}
+
 async function confirmExpBooking() {
   const e = expDB.find(x => x.id === appState.currentExpId);
   if (!e) return;
@@ -12271,6 +12365,44 @@ async function confirmExpBooking() {
           booked_at:  new Date().toISOString(),
           booking_id: bookingId,
         }).eq('code', finalCode);
+      }
+
+      // Save selected add-ons (WowBox flow) — commission entries + provider notifications
+      var addonsList = _wbAddonsSelected || [];
+      if (addonsList.length) {
+        try {
+          var addonIds = addonsList.map(function(a){ return a.id; });
+          var addonDetailsRes = await db_client.from('addons').select('*').in('id', addonIds);
+          var addonDetails = addonDetailsRes.data || [];
+
+          for (var i = 0; i < addonsList.length; i++) {
+            var sel = addonsList[i];
+            var full = addonDetails.find(function(d){ return d.id === sel.id; }) || {};
+            var addonCommRate = full.commission_rate != null ? Number(full.commission_rate) : 20;
+            var addonPlatformAmt = Math.round(sel.price * addonCommRate / 100);
+            var addonProviderPayout = sel.price - addonPlatformAmt;
+
+            await db_client.from('commission_entries').insert({
+              booking_reference: bkRef, partner_email: full.provider_email||'',
+              partner_name: full.provider_name||sel.name, experience_name: sel.name + ' (add-on)',
+              box_price: sel.price, platform_rate: addonCommRate, platform_amount: addonPlatformAmt,
+              partner_payout: addonProviderPayout, payout_status:'pending', flow:'addon'
+            });
+
+            if (full.provider_email) {
+              fetch('/api/send-email', {
+                method:'POST', headers:{'Content-Type':'application/json'},
+                body: JSON.stringify({ type:'addon_provider_notification', data:{
+                  providerEmail: full.provider_email, providerName: full.provider_name||'',
+                  addonName: sel.name, bookingRef: bkRef,
+                  experienceName: e.name, experienceAddress: e.address||e.loc||'',
+                  customerName: custName, bookingDate: bookingDate||'',
+                  providerAddress: full.provider_address||''
+                }})
+              }).catch(function(){});
+            }
+          }
+        } catch(addonErr) { console.warn('Addon processing error:', addonErr.message); }
       }
 
       // Send confirmation emails (customer + partner) — include booking reference
