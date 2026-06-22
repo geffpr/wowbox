@@ -12355,8 +12355,8 @@ function wbPayForAddons(amount) {
         }
       },
       onClose: function() {
-        admToast('Payment cancelled — your booking was not confirmed.');
         wbOpenConfirmModal();
+        setTimeout(function(){ admToast('Payment cancelled — your booking was not confirmed.'); }, 400);
       }
     });
     handler.openIframe();
@@ -20211,6 +20211,7 @@ async function bkwSubmitPayment() {
       onClose: function() {
         if(btn){ btn.disabled=false; btn.innerHTML='<i class="fa fa-lock" style="margin-right:8px"></i>Pay securely — R'+(s.total||0).toLocaleString(); }
         if(statusEl) statusEl.textContent='';
+        setTimeout(function(){ admToast('Payment cancelled.'); }, 400);
       }
     });
     handler.openIframe();
