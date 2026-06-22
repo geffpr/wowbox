@@ -315,6 +315,28 @@ function tplAddonProviderNotification(o) {
   };
 }
 
+// ── NEW: Add-on purchase receipt (customer) ───────────────────────────────────
+function tplAddonReceipt(o) {
+  const addons = Array.isArray(o.addons) ? o.addons : [];
+  const rows = addons.map(a => infoRow(a.name, 'R' + a.price)).join('');
+  return {
+    subject: `🧾 Receipt — your extras for ${o.experienceName} (${o.bookingRef})`,
+    html: layout(`
+      ${badge('🧾 Payment Receipt', '#059669')}
+      ${h1('Thanks for the extras, ' + (o.customerName || 'there') + '!')}
+      ${p('Here is your receipt for the extras added to your booking of <strong>' + (o.experienceName || 'your experience') + '</strong>.')}
+      ${infoTable(
+        rows +
+        infoRow('Total paid', 'R' + (o.addonsTotal || 0)) +
+        infoRow('Booking Reference', o.bookingRef || '—') +
+        (o.paymentRef ? infoRow('Payment Reference', o.paymentRef) : '')
+      )}
+      ${hr()}
+      ${sm('Questions about your order? <a href="mailto:support@wowbox.co.za" style="color:' + C.goldDark + '">support@wowbox.co.za</a>')}
+    `, HEROES.booking, 'Receipt for your WowBox extras'),
+  };
+}
+
 // ── NEW: Experience rejected (partner) ────────────────────────────────────────
 // Already exists as tplExperienceRejected — reusing it
 
@@ -1089,6 +1111,10 @@ export default async function handler(req, res) {
       }
       case 'addon_provider_notification': {
         if (o.providerEmail) emailJobs.push({ to: o.providerEmail, ...tplAddonProviderNotification(o) });
+        break;
+      }
+      case 'addon_receipt': {
+        if (o.customerEmail) emailJobs.push({ to: o.customerEmail, ...tplAddonReceipt(o) });
         break;
       }
       case 'payout_processed': {
