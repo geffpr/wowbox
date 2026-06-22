@@ -9443,10 +9443,25 @@ tr:hover td{background:var(--b50)}
             <div class="fg"><label>Provider phone</label><input class="fi" id="aaf-pphone" type="tel"></div>
             <div class="fg"><label>Provider address</label><input class="fi" id="aaf-paddress" placeholder="Select from dropdown"></div>
           </div>
-          <div style="font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:16px 0 8px">Availability</div>
           <div class="fg">
-            <label>Cities <span style="font-weight:400;color:var(--muted);font-size:.72rem">(leave empty = all cities)</span></label>
-            <input class="fi" id="aaf-cities" placeholder="e.g. Johannesburg, Cape Town, Pretoria (comma-separated)">
+            <label>Add-on type</label>
+            <select class="fi" id="aaf-type">
+              <option value="standard">Standard (champagne, flowers, photographer…)</option>
+              <option value="driver">Driver / chauffeur (requires pickup address from client)</option>
+            </select>
+          </div>
+          <div style="font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:16px 0 8px">Availability — based on the experience's location</div>
+          <div class="fg">
+            <label>Provinces <span style="font-weight:400;color:var(--muted);font-size:.72rem">(leave all unchecked = all provinces)</span></label>
+            <div id="aaf-provinces" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px">
+              <label style="display:flex;align-items:center;gap:5px;background:var(--bg2);border:1px solid var(--border);border-radius:99px;padding:4px 10px;font-size:.74rem;cursor:pointer"><input type="checkbox" class="aaf-province-chk" value="Eastern Cape" style="margin:0">Eastern Cape</label><label style="display:flex;align-items:center;gap:5px;background:var(--bg2);border:1px solid var(--border);border-radius:99px;padding:4px 10px;font-size:.74rem;cursor:pointer"><input type="checkbox" class="aaf-province-chk" value="Free State" style="margin:0">Free State</label><label style="display:flex;align-items:center;gap:5px;background:var(--bg2);border:1px solid var(--border);border-radius:99px;padding:4px 10px;font-size:.74rem;cursor:pointer"><input type="checkbox" class="aaf-province-chk" value="Gauteng" style="margin:0">Gauteng</label><label style="display:flex;align-items:center;gap:5px;background:var(--bg2);border:1px solid var(--border);border-radius:99px;padding:4px 10px;font-size:.74rem;cursor:pointer"><input type="checkbox" class="aaf-province-chk" value="KwaZulu-Natal" style="margin:0">KwaZulu-Natal</label><label style="display:flex;align-items:center;gap:5px;background:var(--bg2);border:1px solid var(--border);border-radius:99px;padding:4px 10px;font-size:.74rem;cursor:pointer"><input type="checkbox" class="aaf-province-chk" value="Limpopo" style="margin:0">Limpopo</label><label style="display:flex;align-items:center;gap:5px;background:var(--bg2);border:1px solid var(--border);border-radius:99px;padding:4px 10px;font-size:.74rem;cursor:pointer"><input type="checkbox" class="aaf-province-chk" value="Mpumalanga" style="margin:0">Mpumalanga</label><label style="display:flex;align-items:center;gap:5px;background:var(--bg2);border:1px solid var(--border);border-radius:99px;padding:4px 10px;font-size:.74rem;cursor:pointer"><input type="checkbox" class="aaf-province-chk" value="Northern Cape" style="margin:0">Northern Cape</label><label style="display:flex;align-items:center;gap:5px;background:var(--bg2);border:1px solid var(--border);border-radius:99px;padding:4px 10px;font-size:.74rem;cursor:pointer"><input type="checkbox" class="aaf-province-chk" value="North West" style="margin:0">North West</label><label style="display:flex;align-items:center;gap:5px;background:var(--bg2);border:1px solid var(--border);border-radius:99px;padding:4px 10px;font-size:.74rem;cursor:pointer"><input type="checkbox" class="aaf-province-chk" value="Western Cape" style="margin:0">Western Cape</label>
+            </div>
+          </div>
+          <div class="fg">
+            <label>Cities <span style="font-weight:400;color:var(--muted);font-size:.72rem">(leave empty = all cities — type and select from dropdown)</span></label>
+            <input class="fi" id="aaf-city-input" placeholder="Type a city and select from the dropdown…">
+            <div id="aaf-cities-chips" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px"></div>
+            <input type="hidden" id="aaf-cities">
           </div>
           <div style="display:flex;align-items:center;gap:10px;margin:14px 0">
             <label style="display:flex;align-items:center;gap:8px;font-size:.82rem;cursor:pointer">
@@ -12211,15 +12226,37 @@ function wbClearSessionState() {
 
 var _wbAddonsSelected = [];
 
+function haversineDistanceKm(lat1, lng1, lat2, lng2) {
+  if (!lat1 || !lng1 || !lat2 || !lng2) return null;
+  var R = 6371;
+  var dLat = (lat2 - lat1) * Math.PI / 180;
+  var dLng = (lng2 - lng1) * Math.PI / 180;
+  var a = Math.sin(dLat/2)*Math.sin(dLat/2) + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLng/2)*Math.sin(dLng/2);
+  var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  return Math.round(R * c);
+}
+
 async function wbOpenAddonsModal() {
   var existing = document.getElementById('wb-addons-modal');
   if (existing) existing.remove();
 
+  var e = expDB.find(x => x.id === appState.currentExpId);
   var addons = [];
   try {
     var res = await db_client.from('addons').select('*').eq('is_active', true);
     addons = res.data || [];
-  } catch(e) { console.warn('addons fetch:', e.message); }
+    // Filter by experience location (city/province), not the client's location
+    if (e) {
+      addons = addons.filter(function(a) {
+        var hasCity = Array.isArray(a.cities) && a.cities.length;
+        var hasProvince = Array.isArray(a.provinces) && a.provinces.length;
+        if (!hasCity && !hasProvince) return true; // available everywhere
+        var cityMatch = hasCity && e.city && a.cities.some(function(c){ return c.toLowerCase() === e.city.toLowerCase(); });
+        var provinceMatch = hasProvince && e.province && a.provinces.includes(e.province);
+        return cityMatch || provinceMatch;
+      });
+    }
+  } catch(err) { console.warn('addons fetch:', err.message); }
 
   if (!addons.length) {
     wbOpenConfirmModal();
@@ -12234,6 +12271,10 @@ async function wbOpenAddonsModal() {
     + '<h3 style="font-size:1.05rem;color:var(--navy);margin-bottom:6px">🎁 Add a touch of luxury?</h3>'
     + '<p style="font-size:.8rem;color:var(--muted);margin-bottom:18px">Optional extras for your booking — entirely up to you.</p>'
     + '<div id="wb-addons-list" style="margin-bottom:18px"></div>'
+    + '<div id="wb-driver-pickup-wrap" style="display:none;margin-bottom:18px">'
+    + '<label style="font-size:.78rem;font-weight:600;color:var(--navy);display:block;margin-bottom:6px">Pickup address for your driver</label>'
+    + '<input class="fi" id="wb-driver-pickup" placeholder="Select from dropdown">'
+    + '</div>'
     + '<div style="display:flex;gap:10px">'
     + '<button class="btn bg" style="flex:1" onclick="wbSkipAddons()">Skip</button>'
     + '<button class="btn bp" style="flex:1" onclick="wbProceedWithAddons()"><i class="fa fa-check"></i> Continue</button>'
@@ -12244,7 +12285,7 @@ async function wbOpenAddonsModal() {
   var listEl = document.getElementById('wb-addons-list');
   listEl.innerHTML = addons.map(function(a) {
     return '<label style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border);cursor:pointer">'
-      + '<input type="checkbox" data-addon-id="' + a.id + '" data-addon-price="' + a.price + '" data-addon-name="' + a.name.replace(/"/g,'&quot;') + '" onchange="wbToggleAddon(this)">'
+      + '<input type="checkbox" data-addon-id="' + a.id + '" data-addon-price="' + a.price + '" data-addon-name="' + a.name.replace(/"/g,'&quot;') + '" data-addon-type="' + (a.addon_type||'standard') + '" onchange="wbToggleAddon(this)">'
       + '<span style="font-size:1.3rem">' + (a.icon || '🎁') + '</span>'
       + '<div style="flex:1"><div style="font-size:.85rem;font-weight:600;color:var(--navy)">' + a.name + '</div><div style="font-size:.72rem;color:var(--muted)">' + (a.description||'') + '</div></div>'
       + '<div style="font-size:.85rem;font-weight:700;color:var(--b700)">R' + Number(a.price).toLocaleString()  + '</div>'
@@ -12256,10 +12297,33 @@ function wbToggleAddon(checkbox) {
   var id = checkbox.dataset.addonId;
   var price = parseFloat(checkbox.dataset.addonPrice);
   var name = checkbox.dataset.addonName;
+  var type = checkbox.dataset.addonType;
   if (checkbox.checked) {
-    _wbAddonsSelected.push({ id: id, name: name, price: price });
+    _wbAddonsSelected.push({ id: id, name: name, price: price, type: type });
   } else {
     _wbAddonsSelected = _wbAddonsSelected.filter(function(a){ return a.id !== id; });
+  }
+  // Show/hide pickup address field if any selected addon is a driver type
+  var hasDriver = _wbAddonsSelected.some(function(a){ return a.type === 'driver'; });
+  var wrap = document.getElementById('wb-driver-pickup-wrap');
+  if (wrap) {
+    wrap.style.display = hasDriver ? 'block' : 'none';
+    if (hasDriver) {
+      setTimeout(function() {
+        var input = document.getElementById('wb-driver-pickup');
+        if (input && typeof google !== 'undefined' && google.maps && !input.dataset.acInit) {
+          input.dataset.acInit = '1';
+          var ac = new google.maps.places.Autocomplete(input, { componentRestrictions: { country: 'za' } });
+          ac.addListener('place_changed', function() {
+            var place = ac.getPlace();
+            if (place.geometry) {
+              window._wbDriverPickupLat = place.geometry.location.lat();
+              window._wbDriverPickupLng = place.geometry.location.lng();
+            }
+          });
+        }
+      }, 50);
+    }
   }
   wbSaveSessionState();
 }
@@ -12272,6 +12336,15 @@ function wbSkipAddons() {
 }
 
 function wbProceedWithAddons() {
+  var hasDriver = _wbAddonsSelected.some(function(a){ return a.type === 'driver'; });
+  if (hasDriver) {
+    var pickupInput = document.getElementById('wb-driver-pickup');
+    if (!pickupInput || !pickupInput.value.trim()) {
+      admToast('Please select a pickup address for your driver.');
+      return;
+    }
+    window._wbDriverPickupAddress = pickupInput.value.trim();
+  }
   var modal = document.getElementById('wb-addons-modal');
   if (modal) modal.remove();
   wbOpenConfirmModal();
@@ -12561,11 +12634,19 @@ async function confirmExpBooking() {
             var addonPlatformAmt = Math.round(sel.price * addonCommRate / 100);
             var addonProviderPayout = sel.price - addonPlatformAmt;
 
+            var distanceKm = null;
+            if (sel.type === 'driver') {
+              distanceKm = haversineDistanceKm(window._wbDriverPickupLat, window._wbDriverPickupLng, e.lat, e.lng);
+            } else {
+              distanceKm = haversineDistanceKm(full.provider_lat, full.provider_lng, e.lat, e.lng);
+            }
+
             await db_client.from('commission_entries').insert({
               booking_reference: bkRef, partner_email: full.provider_email||'',
               partner_name: full.provider_name||sel.name, experience_name: sel.name + ' (add-on)',
               box_price: sel.price, platform_rate: addonCommRate, platform_amount: addonPlatformAmt,
-              partner_payout: addonProviderPayout, payout_status:'pending', flow:'addon'
+              partner_payout: addonProviderPayout, payout_status:'pending', flow:'addon',
+              notes: distanceKm != null ? ('Estimated distance: ' + distanceKm + ' km') : null
             });
 
             if (full.provider_email) {
@@ -12575,8 +12656,12 @@ async function confirmExpBooking() {
                   providerEmail: full.provider_email, providerName: full.provider_name||'',
                   addonName: sel.name, bookingRef: bkRef,
                   experienceName: e.name, experienceAddress: e.address||e.loc||'',
-                  customerName: custName, bookingDate: bookingDate||'',
-                  providerAddress: full.provider_address||''
+                  customerName: custName, customerPhone: data.guestPhone||'',
+                  bookingDate: bookingDate||'', bookingTime: bookingTime||'',
+                  providerAddress: full.provider_address||'',
+                  pickupAddress: sel.type === 'driver' ? (window._wbDriverPickupAddress||'') : '',
+                  distanceKm: distanceKm,
+                  commissionRate: addonCommRate, providerPayout: addonProviderPayout
                 }})
               }).catch(function(){});
             }
@@ -24816,17 +24901,63 @@ async function admLoadAddons() {
   }
 }
 
+var _aafCities = [];
+
+function admRenderCityChips() {
+  var el = document.getElementById('aaf-cities-chips');
+  if (!el) return;
+  el.innerHTML = _aafCities.map(function(c, i) {
+    return '<span style="background:var(--b50);border:1px solid var(--b200);border-radius:99px;padding:4px 10px;font-size:.76rem;display:flex;align-items:center;gap:6px">' + c
+      + '<button onclick="admRemoveCityChip(' + i + ')" style="background:none;border:none;cursor:pointer;color:var(--muted);font-size:.85rem;padding:0">&times;</button></span>';
+  }).join('');
+  document.getElementById('aaf-cities').value = JSON.stringify(_aafCities);
+}
+
+function admRemoveCityChip(idx) {
+  _aafCities.splice(idx, 1);
+  admRenderCityChips();
+}
+
+function admInitCityAutocomplete() {
+  var input = document.getElementById('aaf-city-input');
+  if (!input || typeof google === 'undefined' || !google.maps) return;
+  var ac = new google.maps.places.Autocomplete(input, { types: ['(cities)'], componentRestrictions: { country: 'za' } });
+  ac.addListener('place_changed', function() {
+    var place = ac.getPlace();
+    var cityName = place.name || input.value;
+    if (cityName && !_aafCities.includes(cityName)) {
+      _aafCities.push(cityName);
+      admRenderCityChips();
+    }
+    input.value = '';
+  });
+}
+
+function admSetProvinceChecks(provinces) {
+  document.querySelectorAll('.aaf-province-chk').forEach(function(chk) {
+    chk.checked = Array.isArray(provinces) && provinces.includes(chk.value);
+  });
+}
+
+function admGetCheckedProvinces() {
+  return Array.from(document.querySelectorAll('.aaf-province-chk:checked')).map(function(chk) { return chk.value; });
+}
+
 function admShowAddonForm(addonId) {
   var form = document.getElementById('adm-addon-form');
   form.style.display = 'block';
   form.scrollIntoView({ behavior: 'smooth', block: 'center' });
   if (!addonId) {
-    ['aaf-name','aaf-icon','aaf-desc','aaf-price','aaf-pname','aaf-pemail','aaf-pphone','aaf-paddress','aaf-cities','aaf-id','aaf-plat','aaf-plng'].forEach(function(id) {
+    ['aaf-name','aaf-icon','aaf-desc','aaf-price','aaf-pname','aaf-pemail','aaf-pphone','aaf-paddress','aaf-cities','aaf-id','aaf-plat','aaf-plng','aaf-city-input'].forEach(function(id) {
       var el = document.getElementById(id); if (el) el.value = '';
     });
     document.getElementById('aaf-comm').value = '20';
     document.getElementById('aaf-active').checked = true;
-    setTimeout(function() { initPlacesAC('aaf-paddress', 'aaf-plat', 'aaf-plng', 'aaf-paddress', {}); }, 100);
+    document.getElementById('aaf-type').value = 'standard';
+    _aafCities = [];
+    admRenderCityChips();
+    admSetProvinceChecks([]);
+    setTimeout(function() { initPlacesAC('aaf-paddress', 'aaf-plat', 'aaf-plng', 'aaf-paddress', {}); admInitCityAutocomplete(); }, 100);
   }
 }
 
@@ -24852,9 +24983,12 @@ async function admEditAddon(addonId) {
     document.getElementById('aaf-paddress').value= a.provider_address || '';
     document.getElementById('aaf-plat').value    = a.provider_lat || '';
     document.getElementById('aaf-plng').value    = a.provider_lng || '';
-    document.getElementById('aaf-cities').value  = Array.isArray(a.cities) ? a.cities.join(', ') : '';
+    document.getElementById('aaf-type').value    = a.addon_type || 'standard';
+    _aafCities = Array.isArray(a.cities) ? a.cities.slice() : [];
+    admRenderCityChips();
+    admSetProvinceChecks(a.provinces);
     document.getElementById('aaf-active').checked= !!a.is_active;
-    setTimeout(function() { initPlacesAC('aaf-paddress', 'aaf-plat', 'aaf-plng', 'aaf-paddress', {}); }, 100);
+    setTimeout(function() { initPlacesAC('aaf-paddress', 'aaf-plat', 'aaf-plng', 'aaf-paddress', {}); admInitCityAutocomplete(); }, 100);
   } catch(e) { admToast('Error loading add-on: ' + e.message); }
 }
 
@@ -24871,8 +25005,9 @@ async function admSaveAddon() {
   var paddr   = document.getElementById('aaf-paddress').value.trim();
   var plat    = parseFloat(document.getElementById('aaf-plat').value) || null;
   var plng    = parseFloat(document.getElementById('aaf-plng').value) || null;
-  var citiesRaw = document.getElementById('aaf-cities').value.trim();
-  var cities  = citiesRaw ? citiesRaw.split(',').map(function(c){ return c.trim(); }).filter(Boolean) : [];
+  var addonType = document.getElementById('aaf-type').value || 'standard';
+  var cities  = _aafCities.slice();
+  var provinces = admGetCheckedProvinces();
   var active  = document.getElementById('aaf-active').checked;
 
   if (!name) { admToast('Please enter a name for the add-on.'); return; }
@@ -24881,7 +25016,8 @@ async function admSaveAddon() {
   var payload = {
     name: name, icon: icon || '🎁', description: desc, price: price, commission_rate: comm,
     provider_name: pname, provider_email: pemail, provider_phone: pphone, provider_address: paddr,
-    provider_lat: plat, provider_lng: plng, cities: cities, is_active: active
+    provider_lat: plat, provider_lng: plng, cities: cities, provinces: provinces,
+    addon_type: addonType, is_active: active
   };
 
   try {
