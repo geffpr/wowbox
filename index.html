@@ -7739,6 +7739,7 @@ tr:hover td{background:var(--b50)}
       <button class="anl"     onclick="switchAdm(this,'adm-activate')"><i class="fa fa-box-open"></i> Activate Boxes <span style="background:linear-gradient(135deg,#10b981,#059669);color:#fff;border-radius:99px;padding:1px 7px;font-size:.58rem;font-weight:700;margin-left:auto">RETAIL</span></button>
       <button class="anl"     onclick="switchAdm(this,'adm-cities');renderAdmCities()"><i class="fa fa-map-location-dot"></i> Cities <span id="adm-cities-badge" style="display:none;margin-left:auto;background:var(--b600);color:#fff;border-radius:99px;padding:1px 7px;font-size:.6rem;font-weight:700"></span></button>
       <button class="anl"     onclick="switchAdm(this,'adm-pool');admLoadPoolActivity()"><i class="fa fa-rocket"></i> Pool Activity <span id="adm-pool-badge" style="display:none;margin-left:auto;background:#7c3aed;color:#fff;border-radius:99px;padding:1px 7px;font-size:.6rem;font-weight:700"></span></button>
+      <button class="anl"     onclick="switchAdm(this,'adm-addons');admLoadAddons()"><i class="fa fa-gift"></i> Add-ons</button>
       <div style="height:1px;background:rgba(255,255,255,.08);margin:10px 0"></div>
       <button class="anl"     onclick="switchAdm(this,'adm-users');admLoadUsers()"><i class="fa fa-users"></i> Users</button>
       <button class="anl"     onclick="switchAdm(this,'adm-partners-crm');admLoadPartnersCRM()"><i class="fa fa-building"></i> Partners</button>
@@ -9416,6 +9417,51 @@ tr:hover td{background:var(--b50)}
         </div>
         <div id="adm-pool-stats" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:24px"></div>
         <div id="adm-pool-body"><div style="text-align:center;padding:40px;color:var(--muted)"><i class="fa fa-spinner fa-spin" style="font-size:1.5rem"></i></div></div>
+      </div>
+
+      <div id="adm-addons" class="adm-sec" style="display:none">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:20px">
+          <h2 style="font-size:1.1rem;font-weight:700;color:var(--navy);margin:0"><i class="fa fa-gift" style="color:var(--b500)"></i> Add-ons Catalogue</h2>
+          <button class="btn bp bsm" onclick="admShowAddonForm(null)"><i class="fa fa-plus"></i> Create add-on</button>
+        </div>
+        <div id="adm-addon-form" style="display:none;background:#fff;border:1.5px solid var(--b200);border-radius:var(--r);padding:20px;margin-bottom:20px">
+          <div class="fg-row">
+            <div class="fg"><label>Name *</label><input class="fi" id="aaf-name" placeholder="e.g. Champagne bottle"></div>
+            <div class="fg"><label>Icon (emoji)</label><input class="fi" id="aaf-icon" placeholder="🍾" maxlength="4"></div>
+          </div>
+          <div class="fg"><label>Description</label><input class="fi" id="aaf-desc" placeholder="Short description shown to the customer"></div>
+          <div class="fg-row">
+            <div class="fg"><label>Price (R) *</label><input class="fi" id="aaf-price" type="number" min="0" step="0.01"></div>
+            <div class="fg"><label>Commission rate (%)</label><input class="fi" id="aaf-comm" type="number" min="0" max="100" value="20"></div>
+          </div>
+          <div style="font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:16px 0 8px">Provider</div>
+          <div class="fg-row">
+            <div class="fg"><label>Provider name</label><input class="fi" id="aaf-pname" placeholder="e.g. Cape Bubbles Co."></div>
+            <div class="fg"><label>Provider email <span style="font-weight:400;color:var(--muted);font-size:.72rem">(receives payout)</span></label><input class="fi" id="aaf-pemail" type="email"></div>
+          </div>
+          <div class="fg-row">
+            <div class="fg"><label>Provider phone</label><input class="fi" id="aaf-pphone" type="tel"></div>
+            <div class="fg"><label>Provider address</label><input class="fi" id="aaf-paddress" placeholder="Select from dropdown"></div>
+          </div>
+          <div style="font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:16px 0 8px">Availability</div>
+          <div class="fg">
+            <label>Cities <span style="font-weight:400;color:var(--muted);font-size:.72rem">(leave empty = all cities)</span></label>
+            <input class="fi" id="aaf-cities" placeholder="e.g. Johannesburg, Cape Town, Pretoria (comma-separated)">
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;margin:14px 0">
+            <label style="display:flex;align-items:center;gap:8px;font-size:.82rem;cursor:pointer">
+              <input type="checkbox" id="aaf-active" checked> Active (visible to customers)
+            </label>
+          </div>
+          <input type="hidden" id="aaf-id">
+          <input type="hidden" id="aaf-plat" value="">
+          <input type="hidden" id="aaf-plng" value="">
+          <div style="display:flex;gap:8px;margin-top:10px">
+            <button class="btn bp bsm" onclick="admSaveAddon()"><i class="fa fa-check"></i> Save add-on</button>
+            <button class="btn bg bsm" onclick="admHideAddonForm()">Cancel</button>
+          </div>
+        </div>
+        <div id="adm-addons-list"><div style="text-align:center;padding:40px;color:var(--muted)"><i class="fa fa-spinner fa-spin" style="font-size:1.5rem"></i></div></div>
       </div>
 
     </div><!-- /adm-main -->
@@ -15721,7 +15767,7 @@ function filterDashBoxes(status, btn) {
 }
 
 /* ── ADMIN ── */
-const admTabs = ['adm-dash','adm-boxes','adm-db','adm-exp','adm-requests','adm-reviews','adm-orders','adm-usage','adm-comm','adm-pricing','adm-coupons','adm-activate','adm-cities','adm-pool','adm-users','adm-partners-crm','adm-reporting','adm-access','adm-settings'];
+const admTabs = ['adm-dash','adm-boxes','adm-db','adm-exp','adm-requests','adm-reviews','adm-orders','adm-usage','adm-comm','adm-pricing','adm-coupons','adm-activate','adm-cities','adm-pool','adm-addons','adm-users','adm-partners-crm','adm-reporting','adm-access','adm-settings'];
 
 /* ══════════════════════════════════════════════════════════════
    CITY ROLLOUT — GEOGRAPHIC TOGGLE + RADIUS
@@ -16121,6 +16167,7 @@ function switchAdm(btn, tab) {
   if (tab === 'adm-orders')        loadOrdersFromSupabase();
   if (tab === 'adm-usage')         { renderUsageTable(); loadUsageFromSupabase(); }
   if (tab === 'adm-comm')          { loadAdminCommissionPayouts(); loadCommissionRates(); admLoadFeaturedBoosts(); }
+  if (tab === 'adm-addons')        admLoadAddons();
   if (tab === 'adm-settings')      { admLoadSiteSettings(); loadPrelaunchSettings(); }
   if (tab === 'adm-pricing')       renderAdmPricing();
   if (tab === 'adm-reviews')       admLoadReviews();
@@ -24729,6 +24776,132 @@ let _admSelectedPartnerId = null;
 // ─────────────────────────────────────────────────────────────
 // ADMIN: Pool Activity
 // ─────────────────────────────────────────────────────────────
+async function admLoadAddons() {
+  var listEl = document.getElementById('adm-addons-list');
+  if (!listEl) return;
+  try {
+    var res = await db_client.from('addons').select('*').order('created_at', { ascending: false });
+    var addons = res.data || [];
+    if (!addons.length) {
+      listEl.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted)"><i class="fa fa-gift" style="font-size:1.6rem;opacity:.3;display:block;margin-bottom:8px"></i>No add-ons yet. Create your first one above.</div>';
+      return;
+    }
+    listEl.innerHTML = '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:.82rem">'
+      + '<thead><tr style="text-align:left;border-bottom:1.5px solid var(--border);color:var(--muted);font-size:.72rem;text-transform:uppercase">'
+      + '<th style="padding:8px">Add-on</th><th style="padding:8px">Price</th><th style="padding:8px">Provider</th><th style="padding:8px">Cities</th><th style="padding:8px">Status</th><th style="padding:8px"></th>'
+      + '</tr></thead><tbody>'
+      + addons.map(function(a) {
+          var cities = Array.isArray(a.cities) && a.cities.length ? a.cities.join(', ') : 'All cities';
+          var statusBadge = a.is_active
+            ? '<span style="background:#dcfce7;color:#166534;font-size:.68rem;font-weight:700;padding:2px 8px;border-radius:99px">Active</span>'
+            : '<span style="background:#f1f5f9;color:#64748b;font-size:.68rem;font-weight:700;padding:2px 8px;border-radius:99px">Inactive</span>';
+          return '<tr style="border-bottom:1px solid var(--border)">'
+            + '<td style="padding:10px 8px"><span style="font-size:1.1rem;margin-right:6px">' + (a.icon||'🎁') + '</span><strong>' + a.name + '</strong></td>'
+            + '<td style="padding:10px 8px">R' + Number(a.price).toLocaleString() + '</td>'
+            + '<td style="padding:10px 8px">' + (a.provider_name||'—') + '</td>'
+            + '<td style="padding:10px 8px;font-size:.75rem;color:var(--muted)">' + cities + '</td>'
+            + '<td style="padding:10px 8px">' + statusBadge + '</td>'
+            + '<td style="padding:10px 8px;white-space:nowrap">'
+            + '<button class="btn bg bsm" onclick="admEditAddon(\'' + a.id + '\')"><i class="fa fa-pen"></i></button> '
+            + '<button class="btn bg bsm" style="color:var(--red)" onclick="admDeleteAddon(\'' + a.id + '\',\'' + a.name.replace(/'/g,"&#39;") + '\')"><i class="fa fa-trash"></i></button>'
+            + '</td></tr>';
+        }).join('')
+      + '</tbody></table></div>';
+  } catch(e) {
+    listEl.innerHTML = '<div style="text-align:center;padding:40px;color:var(--red)">Error loading add-ons: ' + e.message + '</div>';
+  }
+}
+
+function admShowAddonForm(addonId) {
+  var form = document.getElementById('adm-addon-form');
+  form.style.display = 'block';
+  form.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  if (!addonId) {
+    ['aaf-name','aaf-icon','aaf-desc','aaf-price','aaf-pname','aaf-pemail','aaf-pphone','aaf-paddress','aaf-cities','aaf-id','aaf-plat','aaf-plng'].forEach(function(id) {
+      var el = document.getElementById(id); if (el) el.value = '';
+    });
+    document.getElementById('aaf-comm').value = '20';
+    document.getElementById('aaf-active').checked = true;
+    setTimeout(function() { initPlacesAC('aaf-paddress', 'aaf-plat', 'aaf-plng', 'aaf-paddress', {}); }, 100);
+  }
+}
+
+function admHideAddonForm() {
+  document.getElementById('adm-addon-form').style.display = 'none';
+}
+
+async function admEditAddon(addonId) {
+  try {
+    var res = await db_client.from('addons').select('*').eq('id', addonId).maybeSingle();
+    var a = res.data;
+    if (!a) { admToast('Add-on not found.'); return; }
+    admShowAddonForm(addonId);
+    document.getElementById('aaf-id').value      = a.id;
+    document.getElementById('aaf-name').value    = a.name || '';
+    document.getElementById('aaf-icon').value    = a.icon || '';
+    document.getElementById('aaf-desc').value    = a.description || '';
+    document.getElementById('aaf-price').value   = a.price || '';
+    document.getElementById('aaf-comm').value    = a.commission_rate != null ? a.commission_rate : 20;
+    document.getElementById('aaf-pname').value   = a.provider_name || '';
+    document.getElementById('aaf-pemail').value  = a.provider_email || '';
+    document.getElementById('aaf-pphone').value  = a.provider_phone || '';
+    document.getElementById('aaf-paddress').value= a.provider_address || '';
+    document.getElementById('aaf-plat').value    = a.provider_lat || '';
+    document.getElementById('aaf-plng').value    = a.provider_lng || '';
+    document.getElementById('aaf-cities').value  = Array.isArray(a.cities) ? a.cities.join(', ') : '';
+    document.getElementById('aaf-active').checked= !!a.is_active;
+    setTimeout(function() { initPlacesAC('aaf-paddress', 'aaf-plat', 'aaf-plng', 'aaf-paddress', {}); }, 100);
+  } catch(e) { admToast('Error loading add-on: ' + e.message); }
+}
+
+async function admSaveAddon() {
+  var id      = document.getElementById('aaf-id').value;
+  var name    = document.getElementById('aaf-name').value.trim();
+  var icon    = document.getElementById('aaf-icon').value.trim();
+  var desc    = document.getElementById('aaf-desc').value.trim();
+  var price   = parseFloat(document.getElementById('aaf-price').value);
+  var comm    = parseFloat(document.getElementById('aaf-comm').value) || 20;
+  var pname   = document.getElementById('aaf-pname').value.trim();
+  var pemail  = document.getElementById('aaf-pemail').value.trim();
+  var pphone  = document.getElementById('aaf-pphone').value.trim();
+  var paddr   = document.getElementById('aaf-paddress').value.trim();
+  var plat    = parseFloat(document.getElementById('aaf-plat').value) || null;
+  var plng    = parseFloat(document.getElementById('aaf-plng').value) || null;
+  var citiesRaw = document.getElementById('aaf-cities').value.trim();
+  var cities  = citiesRaw ? citiesRaw.split(',').map(function(c){ return c.trim(); }).filter(Boolean) : [];
+  var active  = document.getElementById('aaf-active').checked;
+
+  if (!name) { admToast('Please enter a name for the add-on.'); return; }
+  if (!price || price <= 0) { admToast('Please enter a valid price.'); return; }
+
+  var payload = {
+    name: name, icon: icon || '🎁', description: desc, price: price, commission_rate: comm,
+    provider_name: pname, provider_email: pemail, provider_phone: pphone, provider_address: paddr,
+    provider_lat: plat, provider_lng: plng, cities: cities, is_active: active
+  };
+
+  try {
+    if (id) {
+      await db_client.from('addons').update(payload).eq('id', id);
+      admToast('✅ Add-on updated.');
+    } else {
+      await db_client.from('addons').insert(payload);
+      admToast('✅ Add-on created.');
+    }
+    admHideAddonForm();
+    admLoadAddons();
+  } catch(e) { admToast('Error saving add-on: ' + e.message); }
+}
+
+async function admDeleteAddon(addonId, addonName) {
+  if (!confirm('Delete "' + addonName + '"? This cannot be undone.')) return;
+  try {
+    await db_client.from('addons').delete().eq('id', addonId);
+    admToast('Add-on deleted.');
+    admLoadAddons();
+  } catch(e) { admToast('Error deleting add-on: ' + e.message); }
+}
+
 async function admLoadPoolActivity() {
   var statsEl = document.getElementById('adm-pool-stats');
   var bodyEl  = document.getElementById('adm-pool-body');
