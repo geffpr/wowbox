@@ -228,6 +228,13 @@ function tplBkwBookingCustomer(o) {
   const dateDisplay = o.bookingDate
     ? new Date(o.bookingDate).toLocaleDateString('en-ZA',{weekday:'long',day:'numeric',month:'long',year:'numeric'})
     : 'To be confirmed with the partner';
+  const addons = Array.isArray(o.addons) ? o.addons : [];
+  const addonsBlock = addons.length
+    ? hr() + p('<strong>Extras added to your booking:</strong>') + infoTable(
+        addons.map(a => infoRow(a.name, 'R' + a.price)).join('') +
+        infoRow('Extras total', 'R' + (o.addonsTotal || 0))
+      )
+    : '';
   return {
     subject: `✅ Booking confirmed — ${o.experienceName} (${o.bookingRef})`,
     html: layout(`
@@ -243,6 +250,7 @@ function tplBkwBookingCustomer(o) {
         infoRow('Total paid', o.total ? 'R' + o.total : '—') +
         infoRow('Booking Reference', o.bookingRef || '—')
       )}
+      ${addonsBlock}
       ${codeBox(o.bookingRef || '—')}
       ${hr()}
       ${highlight('<strong>📞 What to do next:</strong><br>Present your booking reference <strong>' + (o.bookingRef||'—') + '</strong> when you arrive. The partner will validate your visit.')}
@@ -277,6 +285,33 @@ function tplBkwBookingPartner(o) {
       ${btn('Open Partner Portal', SITE_URL + '/partner')}
       ${sm('Questions? <a href="mailto:support@wowbox.co.za" style="color:' + C.goldDark + '">support@wowbox.co.za</a>')}
     `, HEROES.booking, 'New direct booking for ' + o.experienceName),
+  };
+}
+
+// ── NEW: Add-on provider notification ─────────────────────────────────────────
+function tplAddonProviderNotification(o) {
+  const dateDisplay = o.bookingDate
+    ? new Date(o.bookingDate).toLocaleDateString('en-ZA',{weekday:'long',day:'numeric',month:'long',year:'numeric'})
+    : 'To be confirmed with the customer';
+  return {
+    subject: `🔔 New order for ${o.addonName} — ${o.bookingRef}`,
+    html: layout(`
+      ${badge('🔔 New Add-on Order', C.gold)}
+      ${h1('You have a new order, ' + (o.providerName || 'partner') + '!')}
+      ${p('A customer has booked <strong>' + (o.addonName || 'an add-on') + '</strong> as part of their WowBox booking.')}
+      ${infoTable(
+        infoRow('Add-on', o.addonName || '—') +
+        infoRow('Experience', o.experienceName || '—') +
+        infoRow('Experience address', o.experienceAddress || '—') +
+        infoRow('Your address', o.providerAddress || '—') +
+        infoRow('Customer', o.customerName || '—') +
+        infoRow('Date requested', dateDisplay) +
+        infoRow('Booking Reference', o.bookingRef || '—')
+      )}
+      ${hr()}
+      ${highlight('<strong>Action required:</strong> Please contact WowBox to confirm delivery/service logistics for this order, using the booking reference <strong>' + (o.bookingRef||'—') + '</strong>.')}
+      ${sm('Questions? <a href="mailto:support@wowbox.co.za" style="color:' + C.goldDark + '">support@wowbox.co.za</a>')}
+    `, HEROES.booking, 'New order: ' + (o.addonName || 'add-on')),
   };
 }
 
@@ -1050,6 +1085,10 @@ export default async function handler(req, res) {
       case 'bkw_booking_confirmation': {
         if (o.customerEmail) emailJobs.push({ to: o.customerEmail, ...tplBkwBookingCustomer(o) });
         if (o.partnerEmail)  emailJobs.push({ to: o.partnerEmail,  ...tplBkwBookingPartner(o) });
+        break;
+      }
+      case 'addon_provider_notification': {
+        if (o.providerEmail) emailJobs.push({ to: o.providerEmail, ...tplAddonProviderNotification(o) });
         break;
       }
       case 'payout_processed': {
