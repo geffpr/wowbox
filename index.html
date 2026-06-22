@@ -2320,7 +2320,10 @@ async function ppConfirmPool(price) {
       currency: 'ZAR',
       ref: ref,
       metadata: { item_name: 'WowBox Featured Pool — ' + expName },
-      callback: function(response) { activateBoost(); },
+      callback: function(response) {
+        if (response.status === 'success') { activateBoost(); }
+        else { admToast('Payment was not successful.'); }
+      },
       onClose: function() { admToast('Payment cancelled.'); }
     });
     handler.openIframe();
@@ -2376,7 +2379,10 @@ async function ppRenewBoost(btn, price) {
       currency: 'ZAR',
       ref: ref,
       metadata: { item_name: 'WowBox Featured Pool Renewal — ' + expName },
-      callback: function(response) { onAccept(); },
+      callback: function(response) {
+        if (response.status === 'success') { onAccept(); }
+        else { admToast('Payment was not successful.'); }
+      },
       onClose: function() { admToast('Payment cancelled.'); }
     });
     handler.openIframe();
@@ -12292,7 +12298,16 @@ function wbPayForAddons(amount) {
       currency: 'ZAR',
       ref: ref,
       metadata: { item_name: 'WowBox extras', addons: (_wbAddonsSelected||[]).map(function(a){return a.name;}).join(', ') },
-      callback: function(response) { _wbAddonsPaymentRef = ref; confirmExpBooking(); },
+      callback: function(response) {
+        if (response.status === 'success') {
+          _wbAddonsPaymentRef = ref;
+          confirmExpBooking();
+        } else {
+          admToast('Payment was not successful — your extras were not added.');
+          _wbAddonsSelected = [];
+          confirmExpBooking();
+        }
+      },
       onClose: function() { admToast('Payment cancelled — your extras were not added.'); _wbAddonsSelected = []; confirmExpBooking(); }
     });
     handler.openIframe();
@@ -14626,7 +14641,13 @@ async function completeOrder() {
       currency: 'ZAR',
       ref: pfRef,
       metadata: { item_name: 'WowBox — ' + boxNames, item_description: delivDesc },
-      callback: function(response) { completeOrderConfirm(pfRef, total, discount, delivFee); },
+      callback: function(response) {
+        if (response.status === 'success') {
+          completeOrderConfirm(pfRef, total, discount, delivFee);
+        } else {
+          admToast('Payment was not successful. Your cart is still saved.');
+        }
+      },
       onClose: function() { admToast('Payment cancelled. Your cart is still saved.'); }
     });
     handler.openIframe();
@@ -20128,7 +20149,15 @@ async function bkwSubmitPayment() {
       currency: 'ZAR',
       ref: bkwRef,
       metadata: { item_name: 'WowBox — '+s.exp.name, guests: s.formData.guests||1, date: s.formData.date||'' },
-      callback: async function(response) { await bkwCompleteBooking(bkwRef); },
+      callback: async function(response) {
+        if (response.status === 'success') {
+          await bkwCompleteBooking(bkwRef);
+        } else {
+          admToast('Payment was not successful. Please try again.');
+          if(btn){ btn.disabled=false; btn.innerHTML='<i class="fa fa-lock" style="margin-right:8px"></i>Pay securely — R'+(paymentAmount||0).toLocaleString(); }
+          if(statusEl) statusEl.textContent='';
+        }
+      },
       onClose: function() {
         if(btn){ btn.disabled=false; btn.innerHTML='<i class="fa fa-lock" style="margin-right:8px"></i>Pay securely — R'+(s.total||0).toLocaleString(); }
         if(statusEl) statusEl.textContent='';
@@ -23751,6 +23780,10 @@ async function processProSubscription() {
       ref: proRef,
       metadata: { item_name: 'WowBox Pro Plan — Monthly Subscription' },
       callback: function(response) {
+        if (response.status !== 'success') {
+          admToast('Payment was not successful. Please try again.');
+          return;
+        }
         const now = new Date();
         const end = new Date(now);
         end.setMonth(end.getMonth() + 1);
