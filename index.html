@@ -5388,6 +5388,12 @@ tr:hover td{background:var(--b50)}
           </div>
           <div id="ck-coupon-result"></div>
         </div>
+        <!-- Gift add-on (only when exactly 1 box in cart) -->
+        <div class="ck-card" id="ck-gift-addon-wrap" style="margin-bottom:18px;display:none">
+          <h3 style="margin-bottom:4px">🎁 Add a gift extra for the recipient?</h3>
+          <p>Pre-pay an extra now — they'll discover it as a surprise when they book their experience.</p>
+          <div id="ck-gift-addon-list"></div>
+        </div>
         <button class="btn bp block" onclick="checkoutContinue()">Continue <i class="fa fa-arrow-right"></i></button>
       </div>
 
@@ -12242,10 +12248,12 @@ async function wbOpenAddonsModal() {
   if (existing) existing.remove();
 
   var e = expDB.find(x => x.id === appState.currentExpId);
+  var allAddons = [];
   var addons = [];
   try {
     var res = await db_client.from('addons').select('*').eq('is_active', true);
-    addons = res.data || [];
+    allAddons = res.data || [];
+    addons = allAddons;
     // Filter by experience location (city/province), not the client's location
     if (e) {
       addons = addons.filter(function(a) {
@@ -12259,7 +12267,35 @@ async function wbOpenAddonsModal() {
     }
   } catch(err) { console.warn('addons fetch:', err.message); }
 
-  if (!addons.length) {
+  // Look up the WB code for this box (same logic as confirmExpBooking) to find prepaid gift add-ons
+  window._wbPrepaidAddons = [];
+  try {
+    var custEmailLookup = (currentUser && currentUser.email) ? currentUser.email : (appState.lastOrderEmail || '');
+    if (custEmailLookup && e && e.box) {
+      var vcRes2 = await db_client.from('vouchers')
+        .select('code')
+        .eq('user_email', custEmailLookup)
+        .eq('box_id', e.box)
+        .in('status', ['active', 'booked'])
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (vcRes2.data && vcRes2.data.code) {
+        var ppRes = await db_client.from('wb_prepaid_addons').select('*').eq('wb_code', vcRes2.data.code).eq('status', 'pending');
+        window._wbPrepaidAddons = ppRes.data || [];
+      }
+    }
+  } catch(ppErr) { console.warn('wb_prepaid_addons fetch:', ppErr.message); }
+
+  var prepaid = window._wbPrepaidAddons;
+  var prepaidIds = prepaid.map(function(p){ return p.addon_id; });
+  addons = addons.filter(function(a){ return prepaidIds.indexOf(a.id) === -1; });
+  window._wbPrepaidDriverNeeded = prepaid.some(function(p) {
+    var full = allAddons.find(function(a){ return a.id === p.addon_id; });
+    return full && full.addon_type === 'driver';
+  });
+
+  if (!addons.length && !prepaid.length) {
     wbOpenConfirmModal();
     return;
   }
@@ -12268,16 +12304,27 @@ async function wbOpenAddonsModal() {
   var modal = document.createElement('div');
   modal.id = 'wb-addons-modal';
   modal.style.cssText = 'position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(5,15,40,.6);backdrop-filter:blur(4px)';
+  var prepaidHtml = '';
+  if (prepaid.length) {
+    prepaidHtml = '<div style="background:#fef3c7;border-radius:10px;padding:12px 14px;margin-bottom:16px">'
+      + '<div style="font-size:.78rem;font-weight:700;color:#92400e;margin-bottom:6px">🎁 Already included with your gift</div>'
+      + prepaid.map(function(p) {
+          return '<div style="font-size:.82rem;color:#78350f;padding:3px 0">• ' + p.addon_name + '</div>';
+        }).join('')
+      + (prepaid[0].gift_message ? '<div style="font-size:.76rem;color:#78350f;margin-top:6px;font-style:italic">💌 "' + prepaid[0].gift_message + '"</div>' : '')
+      + '</div>';
+  }
   modal.innerHTML = '<div style="background:#fff;border-radius:16px;padding:28px;max-width:420px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.25)">'
     + '<h3 style="font-size:1.05rem;color:var(--navy);margin-bottom:6px">🎁 Add a touch of luxury?</h3>'
     + '<p style="font-size:.8rem;color:var(--muted);margin-bottom:18px">Optional extras for your booking — entirely up to you.</p>'
+    + prepaidHtml
     + '<div id="wb-addons-list" style="margin-bottom:18px"></div>'
     + '<div id="wb-driver-pickup-wrap" style="display:none;margin-bottom:18px">'
     + '<label style="font-size:.78rem;font-weight:600;color:var(--navy);display:block;margin-bottom:6px">Pickup address for your driver</label>'
     + '<input class="fi" id="wb-driver-pickup" placeholder="Select from dropdown">'
     + '</div>'
     + '<div style="display:flex;gap:10px">'
-    + '<button class="btn bg" style="flex:1" onclick="wbSkipAddons()">Skip</button>'
+    + (window._wbPrepaidDriverNeeded ? '' : '<button class="btn bg" style="flex:1" onclick="wbSkipAddons()">Skip</button>')
     + '<button class="btn bp" style="flex:1" onclick="wbProceedWithAddons()"><i class="fa fa-check"></i> Continue</button>'
     + '</div></div>';
   document.body.appendChild(modal);
@@ -12292,6 +12339,28 @@ async function wbOpenAddonsModal() {
       + '<div style="font-size:.85rem;font-weight:700;color:var(--b700)">R' + Number(a.price).toLocaleString()  + '</div>'
       + '</label>';
   }).join('');
+
+  // If a prepaid driver add-on is included, show the pickup field right away
+  if (window._wbPrepaidDriverNeeded) {
+    var wrap0 = document.getElementById('wb-driver-pickup-wrap');
+    if (wrap0) {
+      wrap0.style.display = 'block';
+      setTimeout(function() {
+        var input = document.getElementById('wb-driver-pickup');
+        if (input && typeof google !== 'undefined' && google.maps && !input.dataset.acInit) {
+          input.dataset.acInit = '1';
+          var ac = new google.maps.places.Autocomplete(input, { componentRestrictions: { country: 'za' } });
+          ac.addListener('place_changed', function() {
+            var place = ac.getPlace();
+            if (place.geometry) {
+              window._wbDriverPickupLat = place.geometry.location.lat();
+              window._wbDriverPickupLng = place.geometry.location.lng();
+            }
+          });
+        }
+      }, 50);
+    }
+  }
 }
 
 function wbToggleAddon(checkbox) {
@@ -12305,7 +12374,7 @@ function wbToggleAddon(checkbox) {
     _wbAddonsSelected = _wbAddonsSelected.filter(function(a){ return a.id !== id; });
   }
   // Show/hide pickup address field if any selected addon is a driver type
-  var hasDriver = _wbAddonsSelected.some(function(a){ return a.type === 'driver'; });
+  var hasDriver = _wbAddonsSelected.some(function(a){ return a.type === 'driver'; }) || window._wbPrepaidDriverNeeded;
   var wrap = document.getElementById('wb-driver-pickup-wrap');
   if (wrap) {
     wrap.style.display = hasDriver ? 'block' : 'none';
@@ -12337,7 +12406,7 @@ function wbSkipAddons() {
 }
 
 function wbProceedWithAddons() {
-  var hasDriver = _wbAddonsSelected.some(function(a){ return a.type === 'driver'; });
+  var hasDriver = _wbAddonsSelected.some(function(a){ return a.type === 'driver'; }) || window._wbPrepaidDriverNeeded;
   if (hasDriver) {
     var pickupInput = document.getElementById('wb-driver-pickup');
     if (!pickupInput || !pickupInput.value.trim()) {
@@ -12362,6 +12431,10 @@ function wbOpenConfirmModal() {
   modal.id = 'wb-confirm-modal';
 
   var checkoutBlock = '';
+  if ((window._wbPrepaidAddons||[]).length) {
+    checkoutBlock += '<div style="background:#fef3c7;border-radius:10px;padding:10px 14px;margin-bottom:12px;font-size:.78rem;color:#78350f">'
+      + '🎁 Included: ' + window._wbPrepaidAddons.map(function(p){ return p.addon_name; }).join(', ') + '</div>';
+  }
   if (addonsTotal > 0) {
     var rows = addons.map(function(a) {
       return '<div style="display:flex;justify-content:space-between;font-size:.8rem;color:var(--navy);padding:5px 0">'
@@ -12620,6 +12693,55 @@ async function confirmExpBooking() {
         }).eq('code', finalCode);
       }
 
+      // Process prepaid gift add-ons (paid earlier by the gift sender) — same logistics, no charge now
+      var giftAddonsBooked = [];
+      var prepaidToProcess = window._wbPrepaidAddons || [];
+      if (prepaidToProcess.length) {
+        try {
+          var prepaidAddonIds = prepaidToProcess.map(function(p){ return p.addon_id; });
+          var prepaidDetailsRes = await db_client.from('addons').select('*').in('id', prepaidAddonIds);
+          var prepaidDetails = prepaidDetailsRes.data || [];
+
+          for (var pi = 0; pi < prepaidToProcess.length; pi++) {
+            var prow = prepaidToProcess[pi];
+            var pfull = prepaidDetails.find(function(d){ return d.id === prow.addon_id; }) || {};
+            var pCommRate = pfull.commission_rate != null ? Number(pfull.commission_rate) : 20;
+            var pPlatformAmt = Math.round(prow.addon_price * pCommRate / 100);
+            var pProviderPayout = prow.addon_price - pPlatformAmt;
+            var pDistanceKm = pfull.addon_type === 'driver'
+              ? haversineDistanceKm(window._wbDriverPickupLat, window._wbDriverPickupLng, e.lat, e.lng)
+              : haversineDistanceKm(pfull.provider_lat, pfull.provider_lng, e.lat, e.lng);
+
+            await db_client.from('commission_entries').insert({
+              booking_reference: bkRef, partner_email: pfull.provider_email||'',
+              partner_name: pfull.provider_name||prow.addon_name, experience_name: prow.addon_name + ' (gift add-on)',
+              box_price: prow.addon_price, platform_rate: pCommRate, platform_amount: pPlatformAmt,
+              partner_payout: pProviderPayout, payout_status:'pending', flow:'gift_addon',
+              notes: pDistanceKm != null ? ('Estimated distance: ' + pDistanceKm + ' km') : null
+            });
+
+            if (pfull.provider_email) {
+              fetch('/api/send-email', {
+                method:'POST', headers:{'Content-Type':'application/json'},
+                body: JSON.stringify({ type:'addon_provider_notification', data:{
+                  providerEmail: pfull.provider_email, providerName: pfull.provider_name||'',
+                  addonName: prow.addon_name, bookingRef: bkRef,
+                  experienceName: e.name, experienceAddress: e.address||e.loc||'',
+                  customerName: custName, customerPhone: data.guestPhone||'',
+                  bookingDate: bookingDate||'', bookingTime: bookingTime||'',
+                  providerAddress: pfull.provider_address||'',
+                  pickupAddress: pfull.addon_type === 'driver' ? (window._wbDriverPickupAddress||'') : '',
+                  distanceKm: pDistanceKm,
+                  commissionRate: pCommRate, providerPayout: pProviderPayout
+                }})
+              }).catch(function(){});
+            }
+            giftAddonsBooked.push({ name: prow.addon_name });
+          }
+          await db_client.from('wb_prepaid_addons').update({ status: 'used' }).eq('wb_code', finalCode).eq('status', 'pending');
+        } catch(prepErr) { console.warn('Prepaid addon processing error:', prepErr.message); }
+      }
+
       // Save selected add-ons (WowBox flow) — commission entries + provider notifications
       var addonsList = _wbAddonsSelected || [];
       if (addonsList.length) {
@@ -12698,6 +12820,7 @@ async function confirmExpBooking() {
         address:          e.address  || e.loc || '',
         phone:            e.phone    || '',
         location:         e.loc      || '',
+        giftAddons:       giftAddonsBooked,
       });
 
     } catch(err) {
@@ -14141,6 +14264,7 @@ function renderCheckout() {
   const couponRemove = document.getElementById('ck-coupon-remove');
   if (couponRemove) couponRemove.style.display = 'none';
   updateCouponSummary();
+  renderGiftAddonBlock();
   nextStep(1, true);
 }
 
@@ -14153,6 +14277,65 @@ function checkoutContinue() {
     return;
   }
   nextStep(2);
+}
+
+/* ── Gift add-on at purchase time (offreur) ── */
+var _wbGiftAddonsSelected = [];
+
+async function renderGiftAddonBlock() {
+  var wrap = document.getElementById('ck-gift-addon-wrap');
+  if (!wrap) return;
+  var realCount = appState.cart.filter(function(c){ return c.type !== 'addon'; }).reduce(function(s,c){ return s + (c.qty||1); }, 0);
+  if (realCount !== 1) {
+    wrap.style.display = 'none';
+    if (_wbGiftAddonsSelected.length) { _wbGiftAddonsSelected = []; syncGiftAddonsToCart(); }
+    return;
+  }
+  try {
+    var res = await db_client.from('addons').select('*').eq('is_active', true);
+    // Only universal add-ons (no city/province restriction) can be gifted before an experience is chosen
+    var addons = (res.data || []).filter(function(a) {
+      var hasCity = Array.isArray(a.cities) && a.cities.length;
+      var hasProvince = Array.isArray(a.provinces) && a.provinces.length;
+      return !hasCity && !hasProvince;
+    });
+    if (!addons.length) { wrap.style.display = 'none'; return; }
+    wrap.style.display = 'block';
+    var listEl = document.getElementById('ck-gift-addon-list');
+    listEl.innerHTML = addons.map(function(a) {
+      var checked = _wbGiftAddonsSelected.some(function(s){ return s.id === a.id; });
+      return '<label style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);cursor:pointer">'
+        + '<input type="checkbox" data-gid="' + a.id + '" data-gprice="' + a.price + '" data-gname="' + a.name.replace(/"/g,'&quot;') + '" data-gtype="' + (a.addon_type||'standard') + '"' + (checked?' checked':'') + ' onchange="ckToggleGiftAddon(this)">'
+        + '<span style="font-size:1.1rem">' + (a.icon||'🎁') + '</span>'
+        + '<div style="flex:1"><div style="font-size:.82rem;font-weight:600;color:var(--navy)">' + a.name + '</div><div style="font-size:.7rem;color:var(--muted)">' + (a.description||'') + '</div></div>'
+        + '<div style="font-size:.82rem;font-weight:700;color:var(--b700)">R' + Number(a.price).toLocaleString() + '</div></label>';
+    }).join('');
+  } catch(err) { console.warn('gift addons fetch:', err.message); wrap.style.display = 'none'; }
+}
+
+function ckToggleGiftAddon(cb) {
+  var id = cb.dataset.gid, price = parseFloat(cb.dataset.gprice), name = cb.dataset.gname, type = cb.dataset.gtype;
+  if (cb.checked) {
+    _wbGiftAddonsSelected.push({ id: id, name: name, price: price, type: type });
+  } else {
+    _wbGiftAddonsSelected = _wbGiftAddonsSelected.filter(function(a){ return a.id !== id; });
+  }
+  syncGiftAddonsToCart();
+}
+
+function syncGiftAddonsToCart() {
+  appState.cart = appState.cart.filter(function(c){ return !c.isGiftAddon; });
+  _wbGiftAddonsSelected.forEach(function(a) {
+    appState.cart.push({
+      id: 'gift-addon-' + a.id, boxId: 'gift-addon-' + a.id,
+      name: '🎁 ' + a.name + ' (gift)', type: 'addon', isGiftAddon: true,
+      addonId: a.id, addonType: a.type, price: a.price, qty: 1,
+      img: 'https://images.unsplash.com/photo-1549465220-1a8b9238cd48?w=400'
+    });
+  });
+  renderCart();
+  if (typeof updateCkTotal === 'function') updateCkTotal();
+  if (typeof ckPopulateStep3Summary === 'function') ckPopulateStep3Summary();
 }
 
 function ckTermsToggle() {
@@ -14809,6 +14992,7 @@ async function completeOrderConfirm(pfRef, total, discount, delivFee) {
   const hasVideoAddon = !!appState.cart.find(function(c){ return c.id === 'video-message'; });
   const realBoxItems  = appState.cart.filter(function(c){ return c.type !== 'addon'; });
   const addonItems    = appState.cart.filter(function(c){ return c.type === 'addon'; });
+  const giftAddonItems = addonItems.filter(function(c){ return c.isGiftAddon; });
 
   // Generate WB codes only for real boxes
   const wbCodes = realBoxItems.map(function() {
@@ -14919,6 +15103,29 @@ async function completeOrderConfirm(pfRef, total, discount, delivFee) {
         await db_client.from('vouchers').insert(voucherRows);
       }
 
+      // Link gift add-ons (bought by the buyer) to the single generated WB code
+      var giftAddonsForEmail = [];
+      if (giftAddonItems.length && wbCodes.length === 1) {
+        giftAddonsForEmail = giftAddonItems.map(function(c) {
+          return { name: c.name.replace('🎁 ','').replace(' (gift)',''), price: c.price };
+        });
+        try {
+          var prepaidRows = giftAddonItems.map(function(c) {
+            return {
+              wb_code:     wbCodes[0],
+              addon_id:    c.addonId,
+              addon_name:  c.name.replace('🎁 ','').replace(' (gift)',''),
+              addon_price: c.price,
+              gift_message: appState.lastOrderMsg || null,
+              buyer_email: buyerEmail || null,
+              buyer_name:  buyerName || null,
+              status:      'pending'
+            };
+          });
+          await db_client.from('wb_prepaid_addons').insert(prepaidRows);
+        } catch(gaErr) { console.warn('wb_prepaid_addons insert:', gaErr.message); }
+      }
+
       // Capture gift/video/schedule from state
       var giftMsg      = appState.lastOrderMsg  || '';
       var hasVideoMsg  = !!capturedVideoFile;
@@ -14997,16 +15204,18 @@ async function completeOrderConfirm(pfRef, total, discount, delivFee) {
       // Send email
       if (ct === 'ebox' || ct === 'mixed') {
         // Ebox: send voucher to recipient + confirmation to buyer (if different)
+        var isGiftOrder = !!(buyerEmail && custEmail && buyerEmail !== custEmail);
         if (custEmail) {
           await fetch('/api/send-email', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              type: 'status_delivered',
+              type: isGiftOrder ? 'recipient_gift' : 'status_delivered',
               order: {
                 id:         ref,
-                name:       custName,
+                name:       isGiftOrder ? buyerName : custName,
                 email:      custEmail,
+                recipientName: custName,
                 type:       'E-Box',
                 total:      'R' + total.toLocaleString(),
                 date:       dateStr,
@@ -15015,6 +15224,7 @@ async function completeOrderConfirm(pfRef, total, discount, delivFee) {
                 videoToken: videoToken || null,
                 videoUrl:   videoUrlSaved || null,
                 schedDate:  schedDate || null,
+                giftAddons: isGiftOrder ? giftAddonsForEmail : undefined,
               }
             })
           });
@@ -15037,6 +15247,7 @@ async function completeOrderConfirm(pfRef, total, discount, delivFee) {
                 date:       dateStr,
                 items:      orderItems.filter(function(i){ return i.code && i.type === 'E-Box'; }),
                 giftMsg:    giftMsg || null,
+                giftAddons: giftAddonsForEmail,
               }
             })
           });
@@ -15060,6 +15271,7 @@ async function completeOrderConfirm(pfRef, total, discount, delivFee) {
                 giftMsg:    giftMsg || null,
                 videoToken: videoToken || null,
                 schedDate:  schedDate || null,
+                giftAddons: giftAddonsForEmail,
               }
             })
           });
@@ -15078,6 +15290,7 @@ async function completeOrderConfirm(pfRef, total, discount, delivFee) {
   go('checkout');
   nextStep(4);
   appState.cart = []; activeCoupon = null; appState.termsAcceptedAt = null; updateCartBadge(); saveCartToStorage();
+  _wbGiftAddonsSelected = [];
   var tc = document.getElementById('ck-terms-check'); if (tc) tc.checked = false;
   var payBtn = document.getElementById('ck-pay-btn'); if (payBtn) { payBtn.disabled = true; payBtn.style.opacity = '.45'; payBtn.style.cursor = 'not-allowed'; }
   // Reset personalisation state

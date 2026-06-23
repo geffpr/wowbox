@@ -531,6 +531,9 @@ function tplBuyerConfirmation(o) {
   const intro = isGift
     ? `Your gift has been prepared. ${isPhysical ? 'It will be shipped shortly.' : 'A separate gift email has been sent to <strong>' + (o.recipientName || o.recipientEmail) + '</strong>.'}`
     : 'Your WowBox is ready. Your voucher code is below — enjoy your experience!';
+  const giftAddonsHtml = (o.giftAddons && o.giftAddons.length)
+    ? hr() + h2('Extras you added') + infoTable(o.giftAddons.map(a => infoRow(a.name, 'R' + a.price)).join(''))
+    : '';
   return {
     subject: `${subjectPrefix} — ${o.id}`,
     html: layout(`
@@ -549,6 +552,7 @@ function tplBuyerConfirmation(o) {
         (o.bookingReference ? infoRow('Booking ref', '<strong style="font-family:monospace;color:#15803d;letter-spacing:1px">' + o.bookingReference + '</strong>') : '')
       )}
       ${o.videoToken ? highlight('<strong>🎬 Video message included</strong><br>Your video has been sent with the gift.') : ''}
+      ${giftAddonsHtml}
       ${hr()}
       ${p('<strong>How to use WowBox:</strong><br>1. Go to <a href="' + SITE_URL + '/redeem" style="color:' + C.goldDark + '">wowbox.co.za/redeem</a> and enter your code<br>2. Browse the experiences in your box<br>3. Book directly with the partner')}
       ${btn('View My Account', SITE_URL + '/my-account')}
@@ -575,6 +579,7 @@ function tplRecipientGift(o) {
       ${p('<strong>' + senderName + '</strong> has gifted you a WowBox experience. Your voucher code is below — use it to browse and book your experience.')}
       ${o.giftMsg ? highlight('<strong>💌 A message from ' + senderName + ':</strong><br><em style="font-family:Georgia,serif;font-size:15px">"' + o.giftMsg + '"</em>') : ''}
       ${o.videoToken ? highlight('<strong>🎬 Video message from ' + senderName + '</strong><br><a href="' + SITE_URL + '/gift-video/' + o.videoToken + '" style="color:' + C.goldDark + '">Watch the video &rarr;</a>') : ''}
+      ${(o.giftAddons && o.giftAddons.length) ? highlight('<strong>🎁 Extras included with your gift:</strong><br>' + o.giftAddons.map(a => a.name).join('<br>')) : ''}
       ${hr()}
       ${h2('Your Voucher Code' + ((o.items||[]).length > 1 ? 's' : ''))}
       <div style="background:${C.card};border-radius:10px;padding:4px 16px;margin:16px 0">${items}</div>
@@ -730,6 +735,7 @@ function tplBookingCustomer(o) {
       )}
       ${codeBox(o.bookingReference || codeDisplay)}
       ${calButtons}
+      ${(o.giftAddons && o.giftAddons.length) ? highlight('<strong>🎁 Extras included with this booking:</strong><br>' + o.giftAddons.map(a => a.name).join('<br>')) : ''}
       ${hr()}
       ${highlight('<strong>📞 Next step:</strong> Call <strong>' + (o.partnerName || 'the partner') + '</strong>' + (o.phone ? ' on <strong>' + o.phone + '</strong>' : '') + ' to confirm your visit.<br>Show your booking reference <strong>' + (o.bookingReference || '—') + '</strong> on arrival — the partner will enter it to validate your experience.')}
       ${btn('My Account', SITE_URL + '/my-account')}
@@ -1021,6 +1027,11 @@ export default async function handler(req, res) {
         if (!toOverride && o.recipientEmail && o.recipientEmail !== o.email) {
           emailJobs.push({ to: o.recipientEmail, ...tplRecipientGift(o) });
         }
+        break;
+      }
+      case 'recipient_gift': {
+        const dest = toOverride || o.email;
+        if (dest) emailJobs.push({ to: dest, ...tplRecipientGift(o) });
         break;
       }
       case 'status_pending': {
