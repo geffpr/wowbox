@@ -11841,17 +11841,55 @@ async function loadBlockedDates(expId) {
   } catch(e) { console.warn('loadBlockedDates:', e.message); return []; }
 }
 
+// For Dining/Wellness/Combo: when a date is picked, grey out the time slots
+// that fall inside a partner's timed iCal block on that specific date.
+// Whole-day blocks are already handled upstream (the date itself is disabled).
+async function applyBkTimeAvailability(expId, dateStr) {
+  var sel = document.getElementById('bk-time');
+  if (!sel || !expId || !dateStr) return;
+  // Restore all options to their original state first
+  Array.from(sel.options).forEach(function(o) {
+    if (o.dataset.orig === undefined) o.dataset.orig = o.textContent;
+    o.disabled = false;
+    o.textContent = o.dataset.orig;
+  });
+  try {
+    var res = await db_client.from('availability').select('start_time,end_time')
+      .eq('experience_id', expId).eq('date', dateStr).eq('status', 'blocked')
+      .not('start_time', 'is', null);
+    var ranges = res.data || [];
+    if (!ranges.length) return;
+    Array.from(sel.options).forEach(function(o) {
+      var m = (o.dataset.orig || '').match(/^(\d{2}):(\d{2})/);
+      if (!m) return; // e.g. "No preference" / "Let the spa decide"
+      var slot = m[1] + ':' + m[2];
+      var conflict = ranges.some(function(r) {
+        return r.start_time && r.end_time && slot >= r.start_time.slice(0,5) && slot < r.end_time.slice(0,5);
+      });
+      if (conflict) { o.disabled = true; o.textContent = o.dataset.orig + ' — unavailable'; }
+    });
+    if (sel.selectedOptions[0] && sel.selectedOptions[0].disabled) {
+      var firstEnabled = Array.from(sel.options).find(function(o){ return !o.disabled; });
+      if (firstEnabled) sel.value = firstEnabled.value;
+    }
+  } catch(err) { console.warn('applyBkTimeAvailability:', err.message); }
+}
+
 // Init Flatpickr on all date inputs in the booking form
 async function initBookingDatePickers(expId) {
   var blocked = await loadBlockedDates(expId);
   var today   = new Date().toISOString().slice(0,10);
   var opts    = { minDate: today, disable: blocked, dateFormat: 'Y-m-d' };
 
-  // Single date picker (dining, wellness, activity, event)
+  // Single date picker (dining, wellness, activity, event, combo)
   var bdEl = document.getElementById('bk-date');
   if (bdEl && window.flatpickr) {
     if (bdEl._flatpickr) bdEl._flatpickr.destroy();
-    flatpickr(bdEl, opts);
+    flatpickr(bdEl, Object.assign({}, opts, {
+      onChange: function(sel, dateStr) {
+        if (document.getElementById('bk-time')) applyBkTimeAvailability(expId, dateStr);
+      }
+    }));
   }
 
   // Range pickers (accommodation, rental)
