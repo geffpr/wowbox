@@ -1432,6 +1432,16 @@ async function loadUserBoxes(email) {
     }
     if (subtitle) subtitle.textContent = vouchers.length + ' gift box' + (vouchers.length !== 1 ? 'es' : '') + ' in your account.';
 
+    // Check for prepaid gift add-ons (pending = not yet revealed/used at booking)
+    var voucherCodes = vouchers.map(function(v){ return v.code; }).filter(Boolean);
+    var prepaidCountByCode = {};
+    if (voucherCodes.length) {
+      try {
+        var ppRes = await db_client.from('wb_prepaid_addons').select('wb_code').in('wb_code', voucherCodes).eq('status', 'pending');
+        (ppRes.data || []).forEach(function(p) { prepaidCountByCode[p.wb_code] = (prepaidCountByCode[p.wb_code] || 0) + 1; });
+      } catch(ppErr) { console.warn('wb_prepaid_addons fetch:', ppErr.message); }
+    }
+
     // Check for video messages linked to these vouchers via order_id
     var orderIds = [...new Set(vouchers.map(function(v){ return v.order_id; }).filter(Boolean))];
     var videoMap = {}; // orderId → video_token
@@ -1518,12 +1528,17 @@ async function loadUserBoxes(email) {
       var expiryDate  = v.expires_at  ? new Date(v.expires_at).toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'})
         : v.created_at ? new Date(new Date(v.created_at).setFullYear(new Date(v.created_at).getFullYear()+1)).toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'})
         : '';
+      var giftBadgeCount = prepaidCountByCode[v.code] || 0;
+      var giftBadge = giftBadgeCount
+        ? '<span style="font-size:.68rem;background:#fef3c7;color:#92400e;padding:3px 8px;border-radius:99px;font-weight:600;cursor:pointer;white-space:nowrap" onclick="admToast(\'🎁 A gift extra is included — book your experience to discover it!\')"><i class="fa fa-gift"></i> +' + giftBadgeCount + ' surprise</span>'
+        : '';
       return '<div class="order-card dash-box-card" data-status="' + st + '" data-vcode="' + v.code + '" style="display:flex;align-items:center;gap:14px">'
         + '<img src="' + imgSrc + '" style="width:58px;height:48px;border-radius:var(--rs);object-fit:cover;flex-shrink:0" alt="">'
         + '<div style="flex:1"><div style="font-size:.9rem;font-weight:600;color:var(--navy);margin-bottom:2px">' + (v.box_name || box.name || 'WowBox') + '</div>'
         + '<div style="font-size:.73rem;color:var(--muted)">Code: ' + v.code + (createdDate ? ' · Purchased ' + createdDate : '') + '</div>'
         + (expiryDate ? '<div style="font-size:.7rem;color:var(--muted)">Expires: ' + expiryDate + '</div>' : '')
         + (st === 'booked' && v.booked_experience ? '<div style="font-size:.72rem;color:var(--b600);margin-top:3px"><i class="fa fa-calendar-check"></i> ' + v.booked_experience + (v.booking_date ? ' · ' + v.booking_date.slice(0,10) : '') + '</div>' : '')
+        + (giftBadge ? '<div style="margin-top:5px">' + giftBadge + '</div>' : '')
         + '</div>'
         + '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:7px">'
         + '<span class="sbadge ' + (statusMap[st] || 'sb-p') + '">' + (statusLabel[st] || st) + '</span>'

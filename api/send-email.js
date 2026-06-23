@@ -579,7 +579,7 @@ function tplRecipientGift(o) {
       ${p('<strong>' + senderName + '</strong> has gifted you a WowBox experience. Your voucher code is below — use it to browse and book your experience.')}
       ${o.giftMsg ? highlight('<strong>💌 A message from ' + senderName + ':</strong><br><em style="font-family:Georgia,serif;font-size:15px">"' + o.giftMsg + '"</em>') : ''}
       ${o.videoToken ? highlight('<strong>🎬 Video message from ' + senderName + '</strong><br><a href="' + SITE_URL + '/gift-video/' + o.videoToken + '" style="color:' + C.goldDark + '">Watch the video &rarr;</a>') : ''}
-      ${(o.giftAddons && o.giftAddons.length) ? highlight('<strong>🎁 Extras included with your gift:</strong><br>' + o.giftAddons.map(a => a.name).join('<br>')) : ''}
+      ${(o.giftAddons && o.giftAddons.length) ? highlight('<strong>🎁 A gift extra is included with your box!</strong><br>You\'ll discover what it is when you book your experience.') : ''}
       ${hr()}
       ${h2('Your Voucher Code' + ((o.items||[]).length > 1 ? 's' : ''))}
       <div style="background:${C.card};border-radius:10px;padding:4px 16px;margin:16px 0">${items}</div>
