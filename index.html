@@ -11790,14 +11790,16 @@ const rtConfig = {
       <div class="fg"><label>Name for reservation *</label><input class="fi" id="bk-g1" placeholder="Full name"></div>
       <div class="fg-row">
         <div class="fg"><label>Date *</label><input class="fi" type="date" id="bk-date"></div>
-        <div class="fg"><label>Number of guests *</label><select class="fi" id="bk-guests">${buildGuestOptions(cap,2)}</select></div>
+        <div class="fg"><label>Preferred time (optional)</label><select class="fi" id="bk-time"><option value="">No preference</option><option>09:00</option><option>10:00</option><option>11:00</option><option>12:00</option><option>13:00</option><option>14:00</option><option>15:00</option><option>16:00</option><option>17:00</option><option>18:00</option><option>19:00</option><option>20:00</option></select></div>
       </div>
+      <div class="fg"><label>Number of guests *</label><select class="fi" id="bk-guests">${buildGuestOptions(cap,2)}</select></div>
       <div class="opt-section"><h5>Preferences &amp; special requests</h5>
         <div class="fg" style="margin-bottom:0"><label>Notes</label><textarea class="fi" id="bk-notes" rows="3" style="resize:vertical" placeholder="Let us know any details about the services included in this combo…"></textarea></div>
       </div>`,
     collect: () => ({
       guest1:  document.getElementById('bk-g1')?.value      || '',
       date:    document.getElementById('bk-date')?.value    || '',
+      time:    document.getElementById('bk-time')?.value    || '',
       guests:  document.getElementById('bk-guests')?.value  || '2',
       notes:   document.getElementById('bk-notes')?.value   || '',
     }),
