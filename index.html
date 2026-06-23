@@ -1455,6 +1455,23 @@ async function loadUserBoxes(email) {
       });
     }
 
+    // Fetch real booking info (date, experience name) for "booked" vouchers —
+    // vouchers itself has no booking_date column, the real data lives on `bookings`.
+    var bookedCodes = vouchers.filter(function(v){ return v.status === 'booked'; }).map(function(v){ return v.code; });
+    var bookingInfoByCode = {};
+    if (bookedCodes.length) {
+      try {
+        var bkInfoRes = await db_client.from('bookings')
+          .select('voucher_code,experience_name,booking_date,booking_time')
+          .in('voucher_code', bookedCodes)
+          .neq('status', 'cancelled')
+          .order('created_at', { ascending: false });
+        (bkInfoRes.data || []).forEach(function(b) {
+          if (!bookingInfoByCode[b.voucher_code]) bookingInfoByCode[b.voucher_code] = b; // most recent kept (already ordered desc)
+        });
+      } catch(bkErr) { console.warn('bookings info fetch:', bkErr.message); }
+    }
+
     var statusMap   = { active:'sb-a', used:'sb-u', expired:'sb-e', inactive:'sb-p', booked:'sb-b' };
     var statusLabel = { active:'Active', used:'Used', expired:'Expired', inactive:'Pending activation', booked:'Experience booked' };
     var html = vouchers.map(function(v) {
@@ -1466,14 +1483,15 @@ async function loadUserBoxes(email) {
       if (st === 'active') {
         browseBtn = '<button class="btn bp bsm" onclick="openBrowsePage(\'' + v.box_id + '\', \'' + (v.expires_at||'') + '\', \'' + v.code + '\')">Browse <i class="fa fa-arrow-right"></i></button>';
       } else if (st === 'booked') {
+        var bkInfo = bookingInfoByCode[v.code] || {};
         var canCancel = true;
-        if (v.booking_date) {
-          var bDate = new Date(v.booking_date);
+        if (bkInfo.booking_date) {
+          var bDate = new Date(bkInfo.booking_date);
           var hoursUntil = (bDate - Date.now()) / 3600000;
           canCancel = hoursUntil > 24;
         }
         browseBtn = canCancel
-          ? '<button class="btn bsm" style="background:#fef2f2;color:#dc2626;border:1px solid #fca5a5" onclick="cancelBooking(\'' + v.code + '\',\'' + (v.booking_date||'') + '\')"><i class="fa fa-xmark"></i> Cancel booking</button>'
+          ? '<button class="btn bsm" style="background:#fef2f2;color:#dc2626;border:1px solid #fca5a5" onclick="cancelBooking(\'' + v.code + '\',\'' + (bkInfo.booking_date||'') + '\')"><i class="fa fa-xmark"></i> Cancel booking</button>'
           : '<button class="btn bsm" style="background:#f8fafc;color:#94a3b8;border:1px solid #e2e8f0;cursor:not-allowed" disabled title="Cannot cancel within 24h of experience"><i class="fa fa-lock"></i> Non-cancellable</button>';
       }
       // Leave a review button for used vouchers — fetch linked booking
@@ -1537,7 +1555,7 @@ async function loadUserBoxes(email) {
         + '<div style="flex:1"><div style="font-size:.9rem;font-weight:600;color:var(--navy);margin-bottom:2px">' + (v.box_name || box.name || 'WowBox') + '</div>'
         + '<div style="font-size:.73rem;color:var(--muted)">Code: ' + v.code + (createdDate ? ' · Purchased ' + createdDate : '') + '</div>'
         + (expiryDate ? '<div style="font-size:.7rem;color:var(--muted)">Expires: ' + expiryDate + '</div>' : '')
-        + (st === 'booked' && v.booked_experience ? '<div style="font-size:.72rem;color:var(--b600);margin-top:3px"><i class="fa fa-calendar-check"></i> ' + v.booked_experience + (v.booking_date ? ' · ' + v.booking_date.slice(0,10) : '') + '</div>' : '')
+        + (st === 'booked' && bookingInfoByCode[v.code] ? '<div style="font-size:.72rem;color:var(--b600);margin-top:3px"><i class="fa fa-calendar-check"></i> ' + (bookingInfoByCode[v.code].experience_name||'') + (bookingInfoByCode[v.code].booking_date ? ' · ' + String(bookingInfoByCode[v.code].booking_date).slice(0,10) : '') + '</div>' : '')
         + (giftBadge ? '<div style="margin-top:5px">' + giftBadge + '</div>' : '')
         + '</div>'
         + '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:7px">'
@@ -12801,12 +12819,19 @@ async function confirmExpBooking() {
       }
 
       // UPDATE voucher status → booked
+      // NOTE: booking_id intentionally omitted — bookings.id is not a true UUID
+      // (app-generated, e.g. "BK-xxxxx"), which previously caused a silent type-mismatch
+      // failure against vouchers.booking_id (uuid). That column isn't read anywhere else.
       if (finalCode) {
-        await db_client.from('vouchers').update({
+        var voucherUpd = await db_client.from('vouchers').update({
           status:     'booked',
           booked_at:  new Date().toISOString(),
-          booking_id: bookingId,
-        }).eq('code', finalCode);
+        }).eq('code', finalCode).select('code');
+        if (voucherUpd.error) {
+          console.error('Voucher status update FAILED for', finalCode, ':', voucherUpd.error.message);
+        } else if (!voucherUpd.data || !voucherUpd.data.length) {
+          console.error('Voucher status update affected 0 rows for', finalCode, '— likely blocked by RLS or wrong code/email match.');
+        }
       }
 
       // Process prepaid gift add-ons (paid earlier by the gift sender) — same logistics, no charge now
