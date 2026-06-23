@@ -14334,6 +14334,8 @@ function syncGiftAddonsToCart() {
     });
   });
   renderCart();
+  var sideRows = document.getElementById('ck-summary-rows');
+  if (sideRows) sideRows.innerHTML = appState.cart.map(function(c){ return '<div class="sum-row"><span>' + c.name + ' ×' + c.qty + '</span><span>R' + (c.price*c.qty).toLocaleString() + '</span></div>'; }).join('');
   if (typeof updateCkTotal === 'function') updateCkTotal();
   if (typeof ckPopulateStep3Summary === 'function') ckPopulateStep3Summary();
 }
