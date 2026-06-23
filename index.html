@@ -6880,6 +6880,17 @@ tr:hover td{background:var(--b50)}
               <input class="fi" id="pp-new-ical" placeholder="webcal:// or https://... link to your .ics calendar">
               <div style="font-size:.68rem;color:var(--muted);margin-top:3px"><i class="fa fa-circle-info" style="color:var(--b400)"></i> Blocked dates will automatically grey out in the booking date picker.</div>
             </div>
+            <div class="fg-row">
+              <div class="fg"><label>Opening time <span style="font-weight:400;color:var(--muted)">(optional)</span></label>
+                <input class="fi" id="pp-new-opening" type="time">
+              </div>
+              <div class="fg"><label>Closing time <span style="font-weight:400;color:var(--muted)">(optional)</span></label>
+                <input class="fi" id="pp-new-closing" type="time">
+              </div>
+              <div class="fg"><label>Slot duration (min)</label>
+                <input class="fi" id="pp-new-slot-duration" type="number" min="5" step="5" placeholder="e.g. 30 or 60">
+              </div>
+            </div>
           </div>
 
           <!-- §4 Pricing -->
@@ -8127,6 +8138,17 @@ tr:hover td{background:var(--b50)}
                     <button type="button" class="btn bg bsm" onclick="admSyncIcal()" style="flex-shrink:0;white-space:nowrap"><i class="fa fa-rotate"></i> Sync now</button>
                   </div>
                   <div id="aef-ical-status" style="font-size:.68rem;color:var(--muted);margin-top:3px"></div>
+                </div>
+                <div class="fg-row">
+                  <div class="fg"><label>Opening time <span style="font-weight:400;color:var(--muted)">(optional)</span></label>
+                    <input class="fi" id="aef-opening" type="time">
+                  </div>
+                  <div class="fg"><label>Closing time <span style="font-weight:400;color:var(--muted)">(optional)</span></label>
+                    <input class="fi" id="aef-closing" type="time">
+                  </div>
+                  <div class="fg"><label>Slot duration (min)</label>
+                    <input class="fi" id="aef-slot-duration" type="number" min="5" step="5" placeholder="e.g. 30 or 60">
+                  </div>
                 </div>
               </div>
 
@@ -17156,7 +17178,7 @@ async function admShowExpFormById(expId) {
     // ── Add new experience ──
     document.getElementById('adm-exp-form-title').textContent = 'Add new experience';
     ['aef-name','aef-partner','aef-loc','aef-lat','aef-lng','aef-desc','aef-cap',
-     'aef-certification','aef-ical'].forEach(function(id){
+     'aef-certification','aef-ical','aef-opening','aef-closing','aef-slot-duration'].forEach(function(id){
       var el = document.getElementById(id); if (el) el.value = '';
     });
     var el;
@@ -17213,6 +17235,9 @@ async function admShowExpFormById(expId) {
     document.getElementById('aef-cap').value     = e.capacity      || '';
     document.getElementById('aef-certification').value = e.certification || '';
     document.getElementById('aef-ical').value    = e.ical_url      || '';
+    document.getElementById('aef-opening').value = e.opening_time ? e.opening_time.slice(0,5) : '';
+    document.getElementById('aef-closing').value = e.closing_time ? e.closing_time.slice(0,5) : '';
+    document.getElementById('aef-slot-duration').value = e.slot_duration_minutes || '';
 
     var el;
     el = document.getElementById('aef-rt');           if (el) el.value   = e.reservation_type       || '';
@@ -17922,6 +17947,9 @@ function admShowExpForm(expId) {
   el = document.getElementById('aef-insolite');     if(el) el.checked = !!(d?.insolite);
   el = document.getElementById('aef-ical');         if(el) el.value   = d?.ical_url||'';
   el = document.getElementById('aef-ical-status');  if(el) el.textContent = '';
+  el = document.getElementById('aef-opening');       if(el) el.value   = d?.opening_time ? String(d.opening_time).slice(0,5) : '';
+  el = document.getElementById('aef-closing');       if(el) el.value   = d?.closing_time ? String(d.closing_time).slice(0,5) : '';
+  el = document.getElementById('aef-slot-duration'); if(el) el.value   = d?.slot_duration_minutes || '';
   // Programme & Amenities
   var progWrap = document.getElementById('aef-programme-wrap');
   if (progWrap) progWrap.innerHTML = buildProgrammeFields('aef', d && d.programme ? d.programme : []);
@@ -18018,6 +18046,9 @@ async function admSaveExp() {
   const accessible   = !!(document.getElementById('aef-accessible')?.checked);
   const insolite     = !!(document.getElementById('aef-insolite')?.checked);
   const icalUrl      = document.getElementById('aef-ical')?.value?.trim() || null;
+  const openingTime  = document.getElementById('aef-opening')?.value || null;
+  const closingTime  = document.getElementById('aef-closing')?.value || null;
+  const slotDuration = parseInt(document.getElementById('aef-slot-duration')?.value) || null;
 
   if (!name) { admToast('Please enter an experience name.'); return; }
   if (!rt)   { admToast('Please select a reservation type.'); return; }
@@ -18065,6 +18096,9 @@ async function admSaveExp() {
     programme:          collectProgramme('aef'),
     amenities:          collectAmenities('aef'),
     ...(icalUrl ? { ical_url: icalUrl } : {}),
+    ...(openingTime ? { opening_time: openingTime } : {}),
+    ...(closingTime ? { closing_time: closingTime } : {}),
+    ...(slotDuration ? { slot_duration_minutes: slotDuration } : {}),
     ...(videoUrl ? { video_url: videoUrl, video_position: videoPosition } : {}),
   };
 
@@ -18348,6 +18382,11 @@ function admViewRequest(id) {
     + dc('Address', r.address, prev.address)
     + dc('Certification', r.certification, prev.certification)
     + '</div><div class="fg-row">'
+    + dc('iCal URL', r.ical_url, prev.ical_url)
+    + dc('Opening time', r.opening_time, prev.opening_time)
+    + dc('Closing time', r.closing_time, prev.closing_time)
+    + dc('Slot duration (min)', r.slot_duration_minutes, prev.slot_duration_minutes)
+    + '</div><div class="fg-row">'
     + dc('Description', r.description?(r.description.substring(0,300)+(r.description.length>300?'...':'')):'',(prev.description!==undefined?String(prev.description).substring(0,300):undefined))
     + '</div>'+imgHtml+progHtml+amHtml+'</div></div>';
   detailEl.scrollIntoView({ behavior:'smooth', block:'nearest' });
@@ -18448,6 +18487,9 @@ async function admConfirmApprove(id) {
         programme:        req.programme || [],
         amenities:        req.amenities || [],
         ...(req.ical_url ? { ical_url: req.ical_url } : {}),
+        ...(req.opening_time ? { opening_time: req.opening_time } : {}),
+        ...(req.closing_time ? { closing_time: req.closing_time } : {}),
+        ...(req.slot_duration_minutes ? { slot_duration_minutes: req.slot_duration_minutes } : {}),
         ...(req.price ? { price: req.price } : {}),
         ...(req.wow_price ? { wow_price: req.wow_price } : {}),
         ...(req.wow_pricing_type ? { wow_pricing_type: req.wow_pricing_type } : {}),
@@ -18479,6 +18521,9 @@ async function admConfirmApprove(id) {
         programme:        req.programme || [],
         amenities:        req.amenities || [],
         ...(req.ical_url ? { ical_url: req.ical_url } : {}),
+        ...(req.opening_time ? { opening_time: req.opening_time } : {}),
+        ...(req.closing_time ? { closing_time: req.closing_time } : {}),
+        ...(req.slot_duration_minutes ? { slot_duration_minutes: req.slot_duration_minutes } : {}),
         is_active:        true,
         image_url:        req.image_url || '',
         image_urls:       req.image_urls || [],
@@ -23535,6 +23580,9 @@ async function submitNewExp() {
   const accessible  = !!(document.getElementById('pp-new-accessible')||{checked:false}).checked;
   const insolite    = !!(document.getElementById('pp-new-insolite')  ||{checked:false}).checked;
   const icalUrl     = (document.getElementById('pp-new-ical')        ||{value:''}).value.trim() || null;
+  const openingTime = (document.getElementById('pp-new-opening')     ||{value:''}).value || null;
+  const closingTime = (document.getElementById('pp-new-closing')     ||{value:''}).value || null;
+  const slotDuration= parseInt((document.getElementById('pp-new-slot-duration')||{value:''}).value) || null;
   const programme   = collectProgramme('pp-new');
   const amenitiesList = collectAmenities('pp-new');
 
@@ -23565,6 +23613,9 @@ async function submitNewExp() {
       accessible,
       insolite,
       ...(icalUrl ? { ical_url: icalUrl } : {}),
+      ...(openingTime ? { opening_time: openingTime } : {}),
+      ...(closingTime ? { closing_time: closingTime } : {}),
+      ...(slotDuration ? { slot_duration_minutes: slotDuration } : {}),
       ...(videoUrl ? { video_url: videoUrl, video_position: videoPosition } : {}),
       programme:  programme,
       amenities:  amenitiesList,
@@ -23854,7 +23905,16 @@ async function loadPartnerExperiences() {
 }
 
 // ── Partner: edit a published experience ──
-function ppEditExperience(expId, expName, expDesc, expType, expCity, expCap, expProvince, expBooking, expNights, expCategory, expWeekend, expAccom, expCert, expAccessible, expInsolite, expIcal, expProgramme, expAmenities, expWowPrice, expWowPricing, expPrice, expAddress, expPhone, expLat, expLng, expImages, expImage) {
+async function ppEditExperience(expId, expName, expDesc, expType, expCity, expCap, expProvince, expBooking, expNights, expCategory, expWeekend, expAccom, expCert, expAccessible, expInsolite, expIcal, expProgramme, expAmenities, expWowPrice, expWowPricing, expPrice, expAddress, expPhone, expLat, expLng, expImages, expImage) {
+  var expOpening = '', expClosing = '', expSlotDuration = '';
+  try {
+    var hoursRes = await db_client.from('experiences').select('opening_time,closing_time,slot_duration_minutes').eq('id', expId).maybeSingle();
+    if (hoursRes.data) {
+      expOpening = hoursRes.data.opening_time ? String(hoursRes.data.opening_time).slice(0,5) : '';
+      expClosing = hoursRes.data.closing_time ? String(hoursRes.data.closing_time).slice(0,5) : '';
+      expSlotDuration = hoursRes.data.slot_duration_minutes || '';
+    }
+  } catch(hoursErr) { console.warn('ppEditExperience opening hours fetch:', hoursErr.message); }
   var modal = document.getElementById('adm-modal');
   var typeOpts = ['accommodation','dining','wellness','activity','rental','event','combo','culture','nature'].map(function(t){
     return '<option value="'+t+'"'+(expType===t?' selected':'')+'>'+t.charAt(0).toUpperCase()+t.slice(1)+'</option>';
@@ -23896,6 +23956,11 @@ function ppEditExperience(expId, expName, expDesc, expType, expCity, expCap, exp
     + '<div class="fg"><label>Nights (0 = day trip)</label><input class="fi" id="pp-edit-nights" type="number" min="0" max="14" value="'+expNights+'"></div>'
     + '</div>'
     + '<div class="fg"><label>🔗 iCal sync URL <span style="font-weight:400;color:var(--muted)">(optional)</span></label><input class="fi" id="pp-edit-ical" value="'+(expIcal||'')+'" placeholder="webcal:// or https://... .ics link"><div style="font-size:.68rem;color:var(--muted);margin-top:3px">Blocked dates will grey out in the booking date picker.</div></div>'
+    + '<div class="fg-row">'
+    + '<div class="fg"><label>Opening time <span style="font-weight:400;color:var(--muted)">(optional)</span></label><input class="fi" id="pp-edit-opening" type="time" value="'+expOpening+'"></div>'
+    + '<div class="fg"><label>Closing time <span style="font-weight:400;color:var(--muted)">(optional)</span></label><input class="fi" id="pp-edit-closing" type="time" value="'+expClosing+'"></div>'
+    + '<div class="fg"><label>Slot duration (min)</label><input class="fi" id="pp-edit-slot-duration" type="number" min="5" step="5" placeholder="e.g. 30 or 60" value="'+expSlotDuration+'"></div>'
+    + '</div>'
 
     + '<div style="'+sh+'">4 · Pricing</div>'
     + '<div class="fg-row">'
@@ -23938,6 +24003,9 @@ async function ppSubmitEdit(expId) {
   var accessible = !!(document.getElementById('pp-edit-accessible')||{checked:false}).checked;
   var insolite   = !!(document.getElementById('pp-edit-insolite') ||{checked:false}).checked;
   var icalUrl    = (document.getElementById('pp-edit-ical')       ||{value:''}).value.trim() || null;
+  var openingTime= (document.getElementById('pp-edit-opening')    ||{value:''}).value || null;
+  var closingTime= (document.getElementById('pp-edit-closing')    ||{value:''}).value || null;
+  var slotDuration= parseInt((document.getElementById('pp-edit-slot-duration')||{value:''}).value) || null;
   var wowPrice   = parseInt((document.getElementById('pp-edit-wow-price')||{value:''}).value) || null;
   var wowPricingType = (document.getElementById('pp-edit-wow-pricing')||{value:'per_person'}).value || 'per_person';
   var price      = parseInt((document.getElementById('pp-edit-price')||{value:''}).value) || null;
@@ -23978,6 +24046,9 @@ async function ppSubmitEdit(expId) {
       accessible,
       insolite,
       ...(icalUrl ? { ical_url: icalUrl } : {}),
+      ...(openingTime ? { opening_time: openingTime } : {}),
+      ...(closingTime ? { closing_time: closingTime } : {}),
+      ...(slotDuration ? { slot_duration_minutes: slotDuration } : {}),
       ...(wowPrice ? { wow_price: wowPrice } : {}),
       wow_pricing_type:   wowPricingType,
       ...(price ? { price: price } : {}),
