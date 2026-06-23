@@ -11898,10 +11898,45 @@ async function applyBkTimeAvailability(expId, dateStr) {
 }
 
 // Init Flatpickr on all date inputs in the booking form
+// Generate "HH:MM" slots between opening and closing time, every `durationMin` minutes.
+// Handles overnight ranges (e.g. closing "05:00" before opening "20:00" → wraps past midnight).
+function generateTimeSlots(opening, closing, durationMin) {
+  if (!opening || !closing || !durationMin) return null;
+  var toMin = function(t) { var p = t.split(':'); return parseInt(p[0])*60 + parseInt(p[1]); };
+  var startMin = toMin(opening);
+  var endMin   = toMin(closing);
+  if (endMin <= startMin) endMin += 24*60; // overnight service
+  var slots = [];
+  for (var m = startMin; m < endMin; m += durationMin) {
+    var hh = Math.floor((m % (24*60)) / 60);
+    var mm = m % 60;
+    slots.push(String(hh).padStart(2,'0') + ':' + String(mm).padStart(2,'0'));
+  }
+  return slots;
+}
+
 async function initBookingDatePickers(expId) {
   var blocked = await loadBlockedDates(expId);
   var today   = new Date().toISOString().slice(0,10);
   var opts    = { minDate: today, disable: blocked, dateFormat: 'Y-m-d' };
+
+  // If the partner has configured opening/closing time + slot duration, replace the
+  // hardcoded time options with a dynamically generated list. Falls back to the
+  // existing hardcoded list (untouched) when not configured — zero regression.
+  var timeSel = document.getElementById('bk-time');
+  if (timeSel) {
+    try {
+      var hoursRes = await db_client.from('experiences').select('opening_time,closing_time,slot_duration_minutes').eq('id', expId).maybeSingle();
+      var h = hoursRes.data;
+      if (h && h.opening_time && h.closing_time && h.slot_duration_minutes) {
+        var slots = generateTimeSlots(String(h.opening_time).slice(0,5), String(h.closing_time).slice(0,5), h.slot_duration_minutes);
+        if (slots && slots.length) {
+          var keepNoPref = (timeSel.options.length && timeSel.options[0].value === '') ? '<option value="">' + timeSel.options[0].textContent + '</option>' : '';
+          timeSel.innerHTML = keepNoPref + slots.map(function(s){ return '<option>' + s + '</option>'; }).join('');
+        }
+      }
+    } catch(hErr) { console.warn('Dynamic time slots:', hErr.message); }
+  }
 
   // Single date picker (dining, wellness, activity, event, combo)
   var bdEl = document.getElementById('bk-date');
