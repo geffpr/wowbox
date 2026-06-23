@@ -50,7 +50,17 @@ export default async function handler(req, res) {
 
     const today   = new Date(); today.setUTCHours(0,0,0,0);
     const horizon = addDays(today, 365 * 2); // 2 years ahead
-    const blocked = new Set();
+    const blocked = new Set();          // all-day blocks (unchanged behaviour)
+    const timedBlocks = new Map();      // date -> { start_time, end_time } (HH:MM, merged widest range if several same-day events)
+
+    function mergeTimed(dateKey, startHHMM, endHHMM) {
+      if (!startHHMM || !endHHMM) return;
+      const existing = timedBlocks.get(dateKey);
+      if (!existing) { timedBlocks.set(dateKey, { start_time: startHHMM, end_time: endHHMM }); return; }
+      // Widen the range conservatively if multiple timed events share the same date
+      if (startHHMM < existing.start_time) existing.start_time = startHHMM;
+      if (endHHMM   > existing.end_time)   existing.end_time   = endHHMM;
+    }
 
     for (const block of eventBlocks) {
       const startMatch = block.match(/DTSTART(?:;[^:\r\n]+)?:([\dT]+Z?)/);
@@ -59,6 +69,15 @@ export default async function handler(req, res) {
       // Parse date only — ignore time component
       const startDate = parseIcsDate(startMatch[1]);
       if (!startDate) continue;
+
+      // Detect all-day (no time component, e.g. "20260626") vs timed (e.g. "20260626T190000Z")
+      const isAllDay = !startMatch[1].includes('T');
+      const startHHMM = isAllDay ? null : parseIcsTime(startMatch[1]);
+      let endHHMM = null;
+      if (!isAllDay) {
+        const endMatchTimed = block.match(/DTEND(?:;[^:\r\n]+)?:([\dT]+Z?)/);
+        if (endMatchTimed) endHHMM = parseIcsTime(endMatchTimed[1]);
+      }
 
       const rruleMatch = block.match(/RRULE:([^\r\n]+)/);
 
@@ -81,11 +100,15 @@ export default async function handler(req, res) {
       }
 
       if (rruleMatch) {
-        // ── Recurring event: expand RRULE ──
+        // ── Recurring event: expand RRULE (date-only; time-of-day is preserved from DTSTART) ──
         const dates = expandRRule(startDate, rruleMatch[1], horizon, today, exdates);
-        dates.forEach(d => blocked.add(d));
-      } else {
-        // ── Single event: block the start day ──
+        if (isAllDay) {
+          dates.forEach(d => blocked.add(d));
+        } else {
+          dates.forEach(d => mergeTimed(d, startHHMM, endHHMM));
+        }
+      } else if (isAllDay) {
+        // ── Single all-day event: block the start day (unchanged behaviour) ──
         const key = startDate.toISOString().slice(0,10);
         if (!exdates.has(key)) blocked.add(key);
 
@@ -102,15 +125,26 @@ export default async function handler(req, res) {
             }
           }
         }
+      } else {
+        // ── Single timed event: record the time range, leave the rest of the day open ──
+        const key = startDate.toISOString().slice(0,10);
+        if (!exdates.has(key)) mergeTimed(key, startHHMM, endHHMM);
       }
     }
 
-    const totalDates = blocked.size;
+    // An all-day block always takes priority over a timed block on the same date
+    // (the whole day is already blocked, so the fine time range is redundant).
+    for (const d of blocked) timedBlocks.delete(d);
+
+    const totalDates = blocked.size + timedBlocks.size;
     if (totalDates === 0)
       return res.json({ success: true, count: 0, total_events: eventBlocks.length, total_dates: 0 });
 
     // ── 3. Upsert to Supabase ─────────────────────────────────────────────────
-    const rows = [...blocked].map(date => ({ experience_id, date, status: 'blocked', source: 'ical' }));
+    const rows = [
+      ...[...blocked].map(date => ({ experience_id, date, status: 'blocked', source: 'ical', start_time: null, end_time: null })),
+      ...[...timedBlocks].map(([date, t]) => ({ experience_id, date, status: 'blocked', source: 'ical', start_time: t.start_time, end_time: t.end_time })),
+    ];
     let upserted = 0;
     for (let i = 0; i < rows.length; i += 100) {
       const chunk = rows.slice(i, i + 100);
@@ -208,6 +242,23 @@ function parseIcsDate(str) {
   const d = s.slice(0,8); // YYYYMMDD
   if (d.length < 8 || !/^\d{8}$/.test(d)) return null;
   return new Date(Date.UTC(parseInt(d.slice(0,4)), parseInt(d.slice(4,6))-1, parseInt(d.slice(6,8))));
+}
+
+// Parse the HH:MM time component of a DTSTART/DTEND value.
+// "...Z" suffix means UTC → converted to SAST (UTC+2, South Africa has no DST).
+// No "Z" (a TZID parameter was used instead) → the HH:MM is already local wall-clock time, used as-is.
+// NOTE: assumes the partner's calendar is set to South African time when no explicit UTC offset is given.
+function parseIcsTime(str) {
+  if (!str) return null;
+  const isUtc = /Z$/.test(str);
+  const s = str.replace(/Z$/, '').trim();
+  const tIdx = s.indexOf('T');
+  if (tIdx === -1 || s.length < tIdx + 5) return null;
+  let hh = parseInt(s.slice(tIdx+1, tIdx+3));
+  const mm = s.slice(tIdx+3, tIdx+5);
+  if (isNaN(hh)) return null;
+  if (isUtc) hh = (hh + 2) % 24; // UTC -> SAST
+  return String(hh).padStart(2,'0') + ':' + mm;
 }
 
 function addDays(date, n) {
