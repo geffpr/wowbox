@@ -60,12 +60,15 @@ export default async function handler(req, res) {
       const startDate = parseIcsDate(startMatch[1]);
       if (!startDate) continue;
 
-      // Skip events in the past
-      if (startDate < today) continue;
-      // Skip events beyond horizon
-      if (startDate > horizon) continue;
-
       const rruleMatch = block.match(/RRULE:([^\r\n]+)/);
+
+      // Skip past/out-of-horizon events ONLY when not recurring.
+      // A recurring series' master DTSTART is almost always in the past —
+      // its future occurrences are computed by expandRRule() below.
+      if (!rruleMatch) {
+        if (startDate < today) continue;
+        if (startDate > horizon) continue;
+      }
 
       // EXDATE exceptions
       const exdates = new Set();
