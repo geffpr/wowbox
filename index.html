@@ -11878,6 +11878,7 @@ async function ppSyncIcal() {
   var expId= (document.getElementById('cal-exp-select')||{value:''}).value;
   var stat = document.getElementById('pp-ical-status');
   if (!url) { admToast('Please enter an iCal URL'); return; }
+  if (!expId || expId === 'all') { admToast('Please select a specific experience first'); return; }
   if (stat) stat.textContent = '⏳ Syncing…';
   try {
     var res = await fetch('/api/ical-sync', {
@@ -11887,6 +11888,9 @@ async function ppSyncIcal() {
     });
     var data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Sync failed');
+    // Save the URL on the experience so future silent auto-syncs pick it up too
+    try { await db_client.from('experiences').update({ ical_url: url }).eq('id', expId); }
+    catch(saveErr) { console.warn('ical_url save:', saveErr.message); }
     if (stat) stat.textContent = '✅ Synced — ' + (data.count||0) + ' dates imported · ' + new Date().toLocaleTimeString();
     admToast('✅ Calendar synced — ' + (data.count||0) + ' dates blocked');
   } catch(e) {
