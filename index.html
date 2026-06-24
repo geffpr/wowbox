@@ -1082,7 +1082,8 @@ async function loadUserOrders(email) {
         id: o.id, date: date, amount: amount, status: o.status || 'pending',
         delivLabel: delivLabel, recipient: o.recipient_name || '', recipientEmail: o.recipient_email || '',
         hasVideo: hasVideo, giftMsg: o.gift_message || '', schedDate: o.scheduled_send_date || '',
-        vouchers: realVouchers.map(function(v){ return { code: v.code, name: v.box_name || v.box_id }; })
+        buyerName: o.customer_name || '', buyerEmail: o.customer_email || '',
+        vouchers: realVouchers.map(function(v){ return { code: v.code, name: v.box_name || v.box_id, box_id: v.box_id }; })
       }));
 
       // Coupon line
@@ -1112,6 +1113,7 @@ async function loadUserOrders(email) {
         // Action buttons
         + '<div style="display:flex;gap:8px;flex-wrap:wrap">'
         + '<button class="btn bg bsm" onclick="showUserOrderReceipt(' + "'" + encodedOrder + "'" + ')" style="font-size:.75rem"><i class="fa fa-receipt"></i> Receipt</button>'
+        + '<button class="btn bg bsm" onclick="printUserOrderInvoice(' + "'" + encodedOrder + "'" + ')" style="font-size:.75rem"><i class="fa fa-file-invoice"></i> Invoice</button>'
         + (realVouchers.length ? '<button class="btn bg bsm" onclick="printUserOrderVoucher(' + "'" + encodedOrder + "'" + ')" style="font-size:.75rem"><i class="fa fa-print"></i> Voucher</button>' : '')
         + '</div>'
         + '</div>';
@@ -1178,11 +1180,65 @@ function showUserOrderReceipt(encodedOrder) {
       // Buttons
       + '<div style="display:flex;gap:8px;flex-wrap:wrap">'
       + (o.vouchers && o.vouchers.length ? '<button class="btn bp bsm" onclick="printUserOrderVoucher(' + "'" + encodeURIComponent(JSON.stringify(o)) + "'" + ')"><i class="fa fa-print"></i> Print voucher</button>' : '')
+      + '<button class="btn bg bsm" onclick="printUserOrderInvoice(' + "'" + encodeURIComponent(JSON.stringify(o)) + "'" + ')"><i class="fa fa-file-invoice"></i> Invoice</button>'
       + '<button class="btn bg bsm" onclick="document.getElementById(\'user-receipt-modal\').remove()">Close</button>'
       + '</div>'
       + '</div></div>';
     document.body.appendChild(modal);
     modal.addEventListener('click', function(e){ if(e.target===modal) modal.remove(); });
+  } catch(e) { admToast('Error: ' + e.message); }
+}
+
+/* ── Branded invoice for My Orders (buyer-facing, with company legal details) ── */
+function printUserOrderInvoice(encodedOrder) {
+  try {
+    var o = JSON.parse(decodeURIComponent(encodedOrder));
+    var w = window.open('', '_blank');
+    w.document.write('<html><head><title>Invoice</title></head><body style="font-family:DM Sans,Arial,sans-serif;padding:40px;text-align:center;color:#2c1a0e">Loading your invoice…</body></html>');
+    w.document.close();
+
+    var logoUrl = 'https://wowbox.co.za/favicon-96x96.png';
+    var itemRows = (o.vouchers || []).map(function(v) {
+      var box = boxDB[v.box_id] || {};
+      var price = box.price ? 'R' + Number(box.price).toLocaleString() : '';
+      return '<tr><td style="padding:8px 0;border-bottom:1px solid #e8d5c0">📦 ' + v.name + '</td><td style="padding:8px 0;border-bottom:1px solid #e8d5c0;text-align:right">' + price + '</td></tr>';
+    }).join('');
+    if (o.hasVideo) {
+      itemRows += '<tr><td style="padding:8px 0;border-bottom:1px solid #e8d5c0">🎬 Video message</td><td style="padding:8px 0;border-bottom:1px solid #e8d5c0;text-align:right">—</td></tr>';
+    }
+
+    var html = '<div style="font-family:\'DM Sans\',Arial,sans-serif;color:#2c1a0e;padding:14mm">'
+      + '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:28px">'
+      + '<div style="display:flex;align-items:center;gap:10px"><img src="' + logoUrl + '" style="height:40px;width:40px;border-radius:8px"><div style="font-family:\'Cormorant Garamond\',serif;font-size:22px;font-weight:700;color:#a0522d">WowBox</div></div>'
+      + '<div style="text-align:right;font-size:11px;color:#8a6a50;line-height:1.5">RC Tradeworx Holdings (Pty) Ltd<br>Reg. 2025/174107/07<br>29 North Road, Benoni, Gauteng, 1514<br>info@wowbox.co.za</div>'
+      + '</div>'
+      + '<div style="font-family:\'Cormorant Garamond\',serif;font-size:24px;font-weight:700;margin-bottom:18px">Invoice</div>'
+      + '<table style="width:100%;font-size:13px;margin-bottom:6px">'
+      + '<tr><td style="color:#8a6a50;padding:3px 0">Invoice / Order ref</td><td style="text-align:right;font-weight:700">' + o.id + '</td></tr>'
+      + '<tr><td style="color:#8a6a50;padding:3px 0">Date</td><td style="text-align:right">' + o.date + '</td></tr>'
+      + (o.buyerName ? '<tr><td style="color:#8a6a50;padding:3px 0">Billed to</td><td style="text-align:right">' + o.buyerName + '</td></tr>' : '')
+      + '</table>'
+      + '<table style="width:100%;font-size:13px;margin:20px 0;border-collapse:collapse">'
+      + '<tr><th style="text-align:left;padding:8px 0;border-bottom:2px solid #a0522d;color:#a0522d">Item</th><th style="text-align:right;padding:8px 0;border-bottom:2px solid #a0522d;color:#a0522d">Amount</th></tr>'
+      + itemRows
+      + '<tr><td style="padding:14px 0;font-weight:700">Total paid</td><td style="padding:14px 0;text-align:right;font-weight:700;font-size:16px;color:#a0522d">' + o.amount + '</td></tr>'
+      + '</table>'
+      + '<div style="font-size:11px;color:#8a6a50;margin-top:30px">This receipt confirms payment for the above WowBox gift experience(s). For questions, contact info@wowbox.co.za · wowbox.co.za</div>'
+      + '</div>';
+
+    w.document.open();
+    w.document.write('<html><head><title>WowBox Invoice — ' + o.id + '</title><style>* { -webkit-print-color-adjust: exact; print-color-adjust: exact; color-adjust: exact; }</style></head><body>' + html + '</body></html>');
+    w.document.close();
+
+    var finish = function() { w.print(); };
+    var imgs = w.document.images;
+    var pending = Array.from(imgs).filter(function(img){ return !img.complete; });
+    if (pending.length) {
+      Promise.race([
+        Promise.all(pending.map(function(img){ return new Promise(function(res){ img.onload = img.onerror = res; }); })),
+        new Promise(function(res){ setTimeout(res, 3000); })
+      ]).then(finish);
+    } else { finish(); }
   } catch(e) { admToast('Error: ' + e.message); }
 }
 
