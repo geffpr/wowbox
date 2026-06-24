@@ -6858,6 +6858,10 @@ tr:hover td{background:var(--b50)}
                 <input type="hidden" id="pp-new-address">
                 <div style="font-size:.68rem;color:var(--muted);margin-top:3px"><i class="fa fa-map-pin" style="color:var(--b500)"></i> Select from dropdown to auto-fill coordinates</div>
               </div>
+              <div class="fg">
+                <label>City <span style="font-weight:400;color:var(--muted)">(auto-filled, editable)</span></label>
+                <input class="fi" id="pp-new-city-real" placeholder="e.g. Cape Town">
+              </div>
               <div class="fg"><label>Province</label>
                 <select class="fi" id="pp-new-province">
                   <option value="">— Select —</option>
@@ -16536,7 +16540,7 @@ function admCityDrawMap() {
 ══════════════════════════════════════════════════════════════ */
 var _placesAC = {}; // keyed by input id
 
-function initPlacesAC(inputId, latId, lngId, addressId, opts) {
+function initPlacesAC(inputId, latId, lngId, addressId, opts, cityFieldId, provinceFieldId) {
   var el = document.getElementById(inputId);
   if (!el || !window.google || _placesAC[inputId]) return;
   var ac = new google.maps.places.Autocomplete(el, Object.assign({
@@ -16550,23 +16554,38 @@ function initPlacesAC(inputId, latId, lngId, addressId, opts) {
     if (latId)     { var lf = document.getElementById(latId);     if (lf) lf.value = place.geometry.location.lat(); }
     if (lngId)     { var lgf = document.getElementById(lngId);    if (lgf) lgf.value = place.geometry.location.lng(); }
     if (addressId) { var af = document.getElementById(addressId); if (af) af.value = place.formatted_address || ''; }
-    var city = '';
+    var city = '', province = '';
     if (place.address_components) {
       var locality = place.address_components.find(function(c){ return c.types.includes('locality'); });
       var admin2   = place.address_components.find(function(c){ return c.types.includes('administrative_area_level_2'); });
       var admin1   = place.address_components.find(function(c){ return c.types.includes('administrative_area_level_1'); });
-      city = (locality || admin2 || admin1 || {}).long_name || place.formatted_address;
+      city     = (locality || admin2 || {}).long_name || place.formatted_address;
+      province = (admin1 || {}).long_name || '';
     }
-    el.dataset.city    = city;
-    el.dataset.address = place.formatted_address || '';
+    el.dataset.city     = city;
+    el.dataset.province = province;
+    el.dataset.address  = place.formatted_address || '';
+    // Auto-fill dedicated City / Province fields when provided — still manually editable afterwards
+    if (cityFieldId) {
+      var cf = document.getElementById(cityFieldId);
+      if (cf) cf.value = city;
+    }
+    if (provinceFieldId) {
+      var pf = document.getElementById(provinceFieldId);
+      if (pf && province) {
+        var matched = Array.from(pf.options).find(function(o){ return o.value === province || o.textContent.trim() === province; });
+        if (matched) pf.value = matched.value;
+      }
+    }
   });
 }
 
-// Call after Google Maps loads — attach to all 3 forms
+// Call after Google Maps loads — attach to all forms
 function initAllPlacesAC() {
-  initPlacesAC('pl-city',     'pl-lat',     'pl-lng',     null,            {});  // Partner signup
-  initPlacesAC('aef-loc',     'aef-lat',    'aef-lng',    'aef-address',   {});  // Admin exp form
-  initPlacesAC('pp-new-city', 'pp-new-lat', 'pp-new-lng', 'pp-new-address',{});  // Partner portal
+  initPlacesAC('pl-city',     'pl-lat',     'pl-lng',     null,            {});
+  initPlacesAC('aef-loc',     'aef-lat',    'aef-lng',    'aef-address',   {}, 'aef-city', 'aef-province');
+  initPlacesAC('pp-new-city', 'pp-new-lat', 'pp-new-lng', 'pp-new-address',{}, 'pp-new-city-real', 'pp-new-province');
+  initPlacesAC('pp-edit-addr','pp-edit-lat','pp-edit-lng','pp-edit-address',{}, 'pp-edit-city', 'pp-edit-province');
 }
 
 /* ── Dynamic region filter — exp list (before purchase) ── */
@@ -18246,7 +18265,7 @@ async function admSaveExp() {
     name,
     partner_name:       partner,
     reservation_type:   rt,
-    location:           loc,
+    location:           city || loc,
     address:            address,
     phone:              phone,
     ...(cap  ? { capacity: cap } : {}),
@@ -23586,7 +23605,7 @@ function ppPreviewExperience() {
   var price    = document.getElementById('pp-new-price')?.value         || '';
   var wowPrice = document.getElementById('pp-new-wow-price')?.value         || '';
   var wowPricingType = document.getElementById('pp-new-wow-pricing-type')?.value || 'per_person';
-  var city     = document.getElementById('pp-new-city')?.value?.trim()  || '';
+  var city     = document.getElementById('pp-new-city-real')?.value?.trim()  || '';
   var province = document.getElementById('pp-new-province')?.value      || '';
   var capacity = document.getElementById('pp-new-capacity')?.value      || '2';
   var phone    = wbPhoneGetFull('pp-new-phone');
@@ -23734,7 +23753,7 @@ function ppPreviewExperience() {
   var price    = document.getElementById('pp-new-price')?.value              || '';
   var wowPrice = document.getElementById('pp-new-wow-price')?.value              || '';
   var wowPricingType = document.getElementById('pp-new-wow-pricing-type')?.value || 'per_person';
-  var city     = document.getElementById('pp-new-city')?.value?.trim()       || '';
+  var city     = document.getElementById('pp-new-city-real')?.value?.trim()       || '';
   var province = document.getElementById('pp-new-province')?.value           || '';
   var capacity = document.getElementById('pp-new-capacity')?.value           || '2';
   var phone    = wbPhoneGetFull('pp-new-phone');
@@ -23773,7 +23792,7 @@ async function submitNewExp() {
   const imgUrls  = [0,1,2,3,4,5].map(function(i){ return (document.getElementById('pp-new-img-'+i)||{value:''}).value.trim(); }).filter(Boolean);
   const videoUrl = (document.getElementById('pp-new-video-url')   ||{value:''}).value.trim() || null;
   const videoPosition = parseInt((document.getElementById('pp-new-video-position')||{value:'1'}).value) || 1;
-  const city     = (document.getElementById('pp-new-city')        ||{value:''}).value.trim();
+  const city     = (document.getElementById('pp-new-city-real')   ||{value:''}).value.trim();
   const address  = (document.getElementById('pp-new-address')     ||{value:''}).value.trim();
   const phone    = wbPhoneGetFull('pp-new-phone');
   const lat      = parseFloat((document.getElementById('pp-new-lat')||{value:''}).value) || null;
@@ -23844,7 +23863,7 @@ async function submitNewExp() {
   }
 
   // Success — clear form and show confirmation
-  ['pp-new-name','pp-new-desc','pp-new-img-0','pp-new-img-1','pp-new-img-2','pp-new-img-3','pp-new-img-4','pp-new-img-5','pp-new-video-url','pp-new-city','pp-new-capacity','pp-new-price','pp-new-wow-price','pp-new-certification','pp-new-nights'].forEach(function(id){ var el=document.getElementById(id); if(el) el.value=''; });
+  ['pp-new-name','pp-new-desc','pp-new-img-0','pp-new-img-1','pp-new-img-2','pp-new-img-3','pp-new-img-4','pp-new-img-5','pp-new-video-url','pp-new-city','pp-new-city-real','pp-new-capacity','pp-new-price','pp-new-wow-price','pp-new-certification','pp-new-nights'].forEach(function(id){ var el=document.getElementById(id); if(el) el.value=''; });
   ['pp-new-accessible','pp-new-insolite'].forEach(function(id){ var el=document.getElementById(id); if(el) el.checked=false; });
   [0,1,2].forEach(function(i){ var s=document.getElementById('pp-img-slot-'+i); if(s){ s.style.backgroundImage=''; s.style.backgroundSize=''; s.innerHTML='<i class="fa fa-image" style="font-size:1.4rem;color:var(--b400);margin-bottom:4px"></i>'+(i===0?'Main image':'Photo '+(i+1)); } });
   ppImgUrls=['','',''];
@@ -24123,14 +24142,18 @@ async function loadPartnerExperiences() {
 // ── Partner: edit a published experience ──
 async function ppEditExperience(expId, expName, expDesc, expType, expCity, expCap, expProvince, expBooking, expNights, expCategory, expWeekend, expAccom, expCert, expAccessible, expInsolite, expIcal, expProgramme, expAmenities, expWowPrice, expWowPricing, expPrice, expAddress, expPhone, expLat, expLng, expImages, expImage) {
   var expOpening = '', expClosing = '', expSlotDuration = '', expCancelHours = 24, expCancelNote = '';
+  var expAddress = '', expLat = '', expLng = '';
   try {
-    var hoursRes = await db_client.from('experiences').select('opening_time,closing_time,slot_duration_minutes,cancellation_hours,cancellation_note').eq('id', expId).maybeSingle();
+    var hoursRes = await db_client.from('experiences').select('opening_time,closing_time,slot_duration_minutes,cancellation_hours,cancellation_note,address,lat,lng').eq('id', expId).maybeSingle();
     if (hoursRes.data) {
       expOpening = hoursRes.data.opening_time ? String(hoursRes.data.opening_time).slice(0,5) : '';
       expClosing = hoursRes.data.closing_time ? String(hoursRes.data.closing_time).slice(0,5) : '';
       expSlotDuration = hoursRes.data.slot_duration_minutes || '';
       expCancelHours  = hoursRes.data.cancellation_hours || 24;
       expCancelNote   = hoursRes.data.cancellation_note || '';
+      expAddress      = hoursRes.data.address || '';
+      expLat          = hoursRes.data.lat || '';
+      expLng          = hoursRes.data.lng || '';
     }
   } catch(hoursErr) { console.warn('ppEditExperience opening hours fetch:', hoursErr.message); }
   var modal = document.getElementById('adm-modal');
@@ -24162,8 +24185,16 @@ async function ppEditExperience(expId, expName, expDesc, expType, expCity, expCa
     + '<div class="fg"><label>Amenities</label><div id="pp-edit-amenities-wrap">' + buildAmenitiesCheckboxes('pp-edit', expAmenities||[]) + '</div></div>'
 
     + '<div style="'+sh+'">2 · Location</div>'
+    + '<div class="fg">'
+    + '<label>Address / Location</label>'
+    + '<input class="fi" id="pp-edit-addr" value="'+(expAddress||'').replace(/"/g,'&quot;')+'" placeholder="Start typing address or venue…" autocomplete="off">'
+    + '<input type="hidden" id="pp-edit-lat" value="'+expLat+'">'
+    + '<input type="hidden" id="pp-edit-lng" value="'+expLng+'">'
+    + '<input type="hidden" id="pp-edit-address" value="'+(expAddress||'').replace(/"/g,'&quot;')+'">'
+    + '<div style="font-size:.68rem;color:var(--muted);margin-top:3px"><i class="fa fa-map-pin" style="color:var(--b500)"></i> Select from dropdown to auto-fill City, Province &amp; coordinates</div>'
+    + '</div>'
     + '<div class="fg-row">'
-    + '<div class="fg"><label>City / Location</label><input class="fi" id="pp-edit-city" value="'+expCity+'"></div>'
+    + '<div class="fg"><label>City <span style="font-weight:400;color:var(--muted)">(auto-filled, editable)</span></label><input class="fi" id="pp-edit-city" value="'+expCity+'"></div>'
     + '<div class="fg"><label>Province</label><select class="fi" id="pp-edit-province">'+provinceOpts+'</select></div>'
     + '</div>'
 
@@ -24209,6 +24240,7 @@ async function ppEditExperience(expId, expName, expDesc, expType, expCity, expCa
     + '<button class="btn bg bsm" onclick="document.getElementById(\'adm-modal\').style.display=\'none\'">Cancel</button>'
     + '</div>';
   modal.style.display = 'flex';
+  if (window.google) initPlacesAC('pp-edit-addr', 'pp-edit-lat', 'pp-edit-lng', 'pp-edit-address', {}, 'pp-edit-city', 'pp-edit-province');
 }
 
 async function ppSubmitEdit(expId) {
@@ -24216,6 +24248,9 @@ async function ppSubmitEdit(expId) {
   var type       = (document.getElementById('pp-edit-type')       ||{value:''}).value;
   var desc       = (document.getElementById('pp-edit-desc')       ||{value:''}).value.trim();
   var city       = (document.getElementById('pp-edit-city')       ||{value:''}).value.trim();
+  var address    = (document.getElementById('pp-edit-address')    ||{value:''}).value.trim() || (document.getElementById('pp-edit-addr')||{value:''}).value.trim();
+  var lat        = parseFloat((document.getElementById('pp-edit-lat')||{value:''}).value) || null;
+  var lng        = parseFloat((document.getElementById('pp-edit-lng')||{value:''}).value) || null;
   var cap        = parseInt((document.getElementById('pp-edit-cap')||{value:''}).value) || null;
   var province   = (document.getElementById('pp-edit-province')   ||{value:''}).value;
   var bookingType= (document.getElementById('pp-edit-booking')    ||{value:'on_site'}).value||'on_site';
@@ -24282,11 +24317,11 @@ async function ppSubmitEdit(expId) {
       ...(price ? { price: price } : {}),
       programme:          programme,
       amenities:          amenitiesList,
-      // Preserve address/phone/lat/lng/images from existing experience
-      address:            prevData.address || null,
+      // Address/lat/lng now editable via the new Address field (falls back to previous value if untouched)
+      address:            address || prevData.address || null,
       phone:              prevData.phone || null,
-      lat:                prevData.lat || null,
-      lng:                prevData.lng || null,
+      lat:                lat || prevData.lat || null,
+      lng:                lng || prevData.lng || null,
       image_url:          prevData.image_url || null,
       image_urls:         prevData.image_urls || [],
       ...(prevData.video_url ? { video_url: prevData.video_url, video_position: prevData.video_position || 1 } : {}),
