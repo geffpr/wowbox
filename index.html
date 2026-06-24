@@ -26828,6 +26828,46 @@ function prelaunchShowTerms() {
   if (content) content.scrollTop = 0;
 }
 
+/* ── Box thumbnail zoom lightbox (prelaunch overlay) ── */
+var _plxBoxNames  = ['Family Fun','Chill Day','Couples Retreat','Reset'];
+var _plxBoxImgIds = ['plx-box-img-family-fun','plx-box-img-chill-day','plx-box-img-couples-retreat','plx-box-img-reset'];
+var _plxZoomIdx = 0;
+
+function plxRenderZoom() {
+  var srcEl = document.getElementById(_plxBoxImgIds[_plxZoomIdx]);
+  var imgEl = document.getElementById('plx-box-zoom-img');
+  var capEl = document.getElementById('plx-box-zoom-caption');
+  if (imgEl) imgEl.src = srcEl ? srcEl.src : '';
+  if (capEl) capEl.textContent = _plxBoxNames[_plxZoomIdx];
+}
+function plxZoomBox(idx) {
+  _plxZoomIdx = idx;
+  plxRenderZoom();
+  var z = document.getElementById('plx-box-zoom');
+  if (z) {
+    z.style.display = 'flex';
+    // Attach swipe navigation once, the first time the lightbox is opened
+    // (deferred because this element doesn't exist yet when the script first runs)
+    if (!z.dataset.swipeBound) {
+      z.dataset.swipeBound = '1';
+      var startX = 0;
+      z.addEventListener('touchstart', function(e) { startX = e.touches[0].clientX; }, { passive: true });
+      z.addEventListener('touchend', function(e) {
+        var dx = e.changedTouches[0].clientX - startX;
+        if (Math.abs(dx) > 40) plxZoomNav(dx < 0 ? 1 : -1);
+      }, { passive: true });
+    }
+  }
+}
+function plxZoomNav(dir) {
+  _plxZoomIdx = (_plxZoomIdx + dir + _plxBoxNames.length) % _plxBoxNames.length;
+  plxRenderZoom();
+}
+function plxCloseZoom() {
+  var z = document.getElementById('plx-box-zoom');
+  if (z) z.style.display = 'none';
+}
+
 function prelaunchShowPartner() {
   var main    = document.getElementById('prelaunch-screen-main');
   var partner = document.getElementById('prelaunch-screen-partner');
@@ -26981,6 +27021,14 @@ async function checkPrelaunchMode() {
         if (catEl) catEl.src = s['pre_launch_cat_' + ci];
       }
     }
+    // Load real box thumbnails from Supabase (not the static boxDB demo data)
+    try {
+      var boxImgRes = await db_client.from('boxes').select('id,image_url').in('id', ['family-fun','chill-day','couples-retreat','reset']);
+      (boxImgRes.data || []).forEach(function(b) {
+        var imgEl = document.getElementById('plx-box-img-' + b.id);
+        if (imgEl && b.image_url) imgEl.src = b.image_url;
+      });
+    } catch(boxImgErr) { console.warn('Prelaunch box images:', boxImgErr.message); }
     // Set logo
     var logoEl = document.getElementById('prelaunch-logo');
     if (logoEl) {
@@ -27479,12 +27527,12 @@ async function admRunSchemaDiag() {
       .plx-cat-chip{display:flex;align-items:center;gap:5px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.18);border-radius:99px;padding:5px 12px;font-size:.7rem;font-weight:600;color:rgba(255,255,255,.85)}
       .plx-cat-chip .emo{filter:grayscale(1) brightness(1.6);font-size:.8rem}
       .plx-box-grid{display:flex;gap:8px;max-width:min(700px,90vw);width:100%;margin-bottom:1.5vh}
-      .plx-box-item{position:relative;height:11vh;max-height:100px;flex:1;border-radius:8px;overflow:hidden;min-width:0}
+      .plx-box-item{position:relative;height:13vh;max-height:120px;flex:1;border-radius:8px;overflow:hidden;min-width:0;cursor:pointer}
       @media(max-width:768px){
         .plx-cat-chips{margin-bottom:.7vh}
         .plx-cat-chip{padding:4px 9px;font-size:.62rem}
         .plx-box-grid{margin-bottom:.8vh}
-        .plx-box-item{height:64px;max-height:64px;border-radius:8px}
+        .plx-box-item{height:78px;max-height:78px;border-radius:8px}
         .plx-box-item span{font-size:.6rem!important}
       }
     </style>
@@ -27492,17 +27540,22 @@ async function admRunSchemaDiag() {
       <div class="plx-cat-chip"><span class="emo">🍽️</span> Dining</div>
       <div class="plx-cat-chip"><span class="emo">🧖</span> Wellness</div>
       <div class="plx-cat-chip"><span class="emo">🦁</span> Safari</div>
-      <div class="plx-cat-chip"><span class="emo">🍷</span> Wine</div>
-      <div class="plx-cat-chip"><span class="emo">🎉</span> Events</div>
-      <div class="plx-cat-chip"><span class="emo">🏄</span> Adventure</div>
-      <div class="plx-cat-chip"><span class="emo">🎭</span> Culture</div>
       <div class="plx-cat-chip"><span class="emo">🏨</span> Stays</div>
+      <div class="plx-cat-chip">&amp; more</div>
     </div>
     <div class="plx-box-grid" id="plx-box-grid">
-      <div class="plx-box-item"><img src="https://images.unsplash.com/photo-1602520733810-e63e40f2ae9e?q=80&w=800&auto=format&fit=crop" style="width:100%;height:100%;object-fit:cover" loading="lazy"><div style="position:absolute;inset:0;background:rgba(0,0,0,.35);display:flex;align-items:flex-end;padding:7px"><span style="font-size:.68rem;font-weight:700;color:#fff">Family Fun</span></div></div>
-      <div class="plx-box-item"><img src="https://images.unsplash.com/photo-1540555700478-4be289fbecef?q=80&w=800&auto=format&fit=crop" style="width:100%;height:100%;object-fit:cover" loading="lazy"><div style="position:absolute;inset:0;background:rgba(0,0,0,.35);display:flex;align-items:flex-end;padding:7px"><span style="font-size:.68rem;font-weight:700;color:#fff">Chill Day</span></div></div>
-      <div class="plx-box-item"><img src="https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?q=80&w=800&auto=format&fit=crop" style="width:100%;height:100%;object-fit:cover" loading="lazy"><div style="position:absolute;inset:0;background:rgba(0,0,0,.35);display:flex;align-items:flex-end;padding:7px"><span style="font-size:.68rem;font-weight:700;color:#fff">Couples Retreat</span></div></div>
-      <div class="plx-box-item"><img src="https://images.unsplash.com/photo-1544161515-4ab6ce6db874?q=80&w=800&auto=format&fit=crop" style="width:100%;height:100%;object-fit:cover" loading="lazy"><div style="position:absolute;inset:0;background:rgba(0,0,0,.35);display:flex;align-items:flex-end;padding:7px"><span style="font-size:.68rem;font-weight:700;color:#fff">Reset</span></div></div>
+      <div class="plx-box-item" onclick="plxZoomBox(0)"><img id="plx-box-img-family-fun" src="https://images.unsplash.com/photo-1602520733810-e63e40f2ae9e?q=80&w=800&auto=format&fit=crop" style="width:100%;height:100%;object-fit:cover" loading="lazy"><div style="position:absolute;inset:0;background:rgba(0,0,0,.35);display:flex;align-items:flex-end;padding:7px"><span style="font-size:.68rem;font-weight:700;color:#fff">Family Fun</span></div></div>
+      <div class="plx-box-item" onclick="plxZoomBox(1)"><img id="plx-box-img-chill-day" src="https://images.unsplash.com/photo-1540555700478-4be289fbecef?q=80&w=800&auto=format&fit=crop" style="width:100%;height:100%;object-fit:cover" loading="lazy"><div style="position:absolute;inset:0;background:rgba(0,0,0,.35);display:flex;align-items:flex-end;padding:7px"><span style="font-size:.68rem;font-weight:700;color:#fff">Chill Day</span></div></div>
+      <div class="plx-box-item" onclick="plxZoomBox(2)"><img id="plx-box-img-couples-retreat" src="https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?q=80&w=800&auto=format&fit=crop" style="width:100%;height:100%;object-fit:cover" loading="lazy"><div style="position:absolute;inset:0;background:rgba(0,0,0,.35);display:flex;align-items:flex-end;padding:7px"><span style="font-size:.68rem;font-weight:700;color:#fff">Couples Retreat</span></div></div>
+      <div class="plx-box-item" onclick="plxZoomBox(3)"><img id="plx-box-img-reset" src="https://images.unsplash.com/photo-1544161515-4ab6ce6db874?q=80&w=800&auto=format&fit=crop" style="width:100%;height:100%;object-fit:cover" loading="lazy"><div style="position:absolute;inset:0;background:rgba(0,0,0,.35);display:flex;align-items:flex-end;padding:7px"><span style="font-size:.68rem;font-weight:700;color:#fff">Reset</span></div></div>
+    </div>
+    <!-- Zoom lightbox for box thumbnails -->
+    <div id="plx-box-zoom" style="display:none;position:fixed;inset:0;z-index:9200;background:rgba(0,0,0,.92);align-items:center;justify-content:center" onclick="if(event.target===this)plxCloseZoom()">
+      <button onclick="plxCloseZoom()" style="position:absolute;top:18px;right:18px;background:rgba(255,255,255,.15);border:none;color:#fff;width:38px;height:38px;border-radius:50%;font-size:1.1rem;cursor:pointer">✕</button>
+      <button onclick="plxZoomNav(-1)" style="position:absolute;left:14px;top:50%;transform:translateY(-50%);background:rgba(255,255,255,.15);border:none;color:#fff;width:42px;height:42px;border-radius:50%;font-size:1.2rem;cursor:pointer">‹</button>
+      <img id="plx-box-zoom-img" src="" style="max-width:88vw;max-height:78vh;object-fit:contain;border-radius:10px">
+      <button onclick="plxZoomNav(1)" style="position:absolute;right:14px;top:50%;transform:translateY(-50%);background:rgba(255,255,255,.15);border:none;color:#fff;width:42px;height:42px;border-radius:50%;font-size:1.2rem;cursor:pointer">›</button>
+      <div id="plx-box-zoom-caption" style="position:absolute;bottom:24px;left:0;right:0;text-align:center;color:#fff;font-size:.85rem;font-weight:600"></div>
     </div>
     <div id="prelaunch-stats-row" style="display:flex;gap:24px;margin-bottom:1.5vh;flex-wrap:nowrap;justify-content:center;align-items:flex-start">
       <div style="text-align:center;flex:1;min-width:0">
