@@ -16642,6 +16642,7 @@ function initAllPlacesAC() {
   initPlacesAC('aef-loc',     'aef-lat',    'aef-lng',    'aef-address',   {}, 'aef-city', 'aef-province');
   initPlacesAC('pp-new-city', 'pp-new-lat', 'pp-new-lng', 'pp-new-address',{}, 'pp-new-city-real', 'pp-new-province');
   initPlacesAC('pp-edit-addr','pp-edit-lat','pp-edit-lng','pp-edit-address',{}, 'pp-edit-city', 'pp-edit-province');
+  initPlacesAC('plx-city',    null,         null,         null,            {});
 }
 
 /* ── Dynamic region filter — exp list (before purchase) ── */
@@ -26875,6 +26876,8 @@ function prelaunchShowPartner() {
   if (main)    main.style.display    = 'none';
   if (partner) { partner.style.display = 'flex'; }
   if (overlay) overlay.scrollTop = 0;
+  if (window.google) initPlacesAC('plx-city', null, null, null, {});
+  wbPhoneInit('plx-phone');
 }
 
 function prelaunchShowMain() {
@@ -26890,7 +26893,7 @@ async function plxSubmitPartner() {
   var bizName = (document.getElementById('plx-biz-name') ||{value:''}).value.trim();
   var contact = (document.getElementById('plx-contact')  ||{value:''}).value.trim();
   var email   = (document.getElementById('plx-email')    ||{value:''}).value.trim();
-  var phone   = (document.getElementById('plx-phone')    ||{value:''}).value.trim();
+  var phone   = wbPhoneGetFull('plx-phone');
   var type    = (document.getElementById('plx-type')     ||{value:''}).value;
   var regNum  = (document.getElementById('plx-reg-num')  ||{value:''}).value.trim();
   var bizType = (document.getElementById('plx-biz-type') ||{value:''}).value;
@@ -27617,7 +27620,7 @@ async function admRunSchemaDiag() {
           <div><label style="font-size:.72rem;color:rgba(255,255,255,.6);display:block;margin-bottom:4px">Business type *</label>
             <select class="fi" id="plx-biz-type"><option value="">Select...</option><option>Sole Proprietor</option><option>Private Company (Pty) Ltd</option><option>Close Corporation (CC)</option><option>Trust</option><option>Other</option></select>
           </div>
-          <div><label style="font-size:.72rem;color:rgba(255,255,255,.6);display:block;margin-bottom:4px">Password *</label><input class="fi" id="plx-pw" type="password" placeholder="Min. 6 characters"></div>
+          <div><label style="font-size:.72rem;color:rgba(255,255,255,.6);display:block;margin-bottom:4px">Password *</label><div style="position:relative"><input class="fi" id="plx-pw" type="password" placeholder="Min. 6 characters" style="padding-right:38px"><button type="button" onclick="authTogglePw('plx-pw',this)" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:rgba(255,255,255,.6);font-size:.9rem;padding:0"><i class="fa fa-eye"></i></button></div></div>
         </div>
         <div style="margin-top:12px"><label style="font-size:.72rem;color:rgba(255,255,255,.6);display:block;margin-bottom:4px">Location / Address *</label><input class="fi" id="plx-city" type="text" placeholder="City or venue address"></div>
         <div style="margin-top:12px"><label style="font-size:.72rem;color:rgba(255,255,255,.6);display:block;margin-bottom:4px">Describe your experience(s) *</label><textarea class="fi" id="plx-exp-desc" rows="3" style="resize:vertical" placeholder="Tell us what guests will experience..."></textarea></div>
