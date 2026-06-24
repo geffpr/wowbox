@@ -25367,6 +25367,33 @@ function admRenderUsersTable() {
   }).join('');
 }
 
+// Admin bypass: directly promote an existing customer account to partner,
+// skipping the self-service signup form entirely.
+async function admPromoteToPartner(userId, currentName) {
+  var partnerName = prompt('Business / Partner name for this account:', currentName || '');
+  if (partnerName === null) return; // cancelled
+  if (!partnerName.trim()) { admToast('Partner name is required.'); return; }
+  try {
+    var upd = await db_client.from('user_profiles').update({
+      role: 'partner', status: 'active', partner_name: partnerName.trim(),
+    }).eq('id', userId).select('id');
+    if (upd.error) { admToast('Failed: ' + upd.error.message); return; }
+    if (!upd.data || !upd.data.length) { admToast('Update affected 0 rows — check RLS or user id.'); return; }
+    admToast('✅ Promoted to Partner: ' + partnerName);
+    admOpenUserDetail(userId);
+  } catch(err) { admToast('Error: ' + err.message); }
+}
+
+async function admRevertToCustomer(userId) {
+  if (!confirm('Revert this account back to a regular customer? Their experiences and partner data will NOT be deleted.')) return;
+  try {
+    var upd = await db_client.from('user_profiles').update({ role: 'customer' }).eq('id', userId).select('id');
+    if (upd.error) { admToast('Failed: ' + upd.error.message); return; }
+    admToast('Reverted to Customer.');
+    admOpenUserDetail(userId);
+  } catch(err) { admToast('Error: ' + err.message); }
+}
+
 function admOpenUserDetail(userId) {
   _admSelectedUserId = userId;
   const u = _admUsersData.find(x => x.id === userId);
@@ -25442,30 +25469,6 @@ function admOpenUserDetail(userId) {
 
 // Admin bypass: directly promote an existing customer account to partner,
 // skipping the self-service signup form entirely.
-async function admPromoteToPartner(userId, currentName) {
-  var partnerName = prompt('Business / Partner name for this account:', currentName || '');
-  if (partnerName === null) return; // cancelled
-  if (!partnerName.trim()) { admToast('Partner name is required.'); return; }
-  try {
-    var upd = await db_client.from('user_profiles').update({
-      role: 'partner', status: 'active', partner_name: partnerName.trim(),
-    }).eq('id', userId).select('id');
-    if (upd.error) { admToast('Failed: ' + upd.error.message); return; }
-    if (!upd.data || !upd.data.length) { admToast('Update affected 0 rows — check RLS or user id.'); return; }
-    admToast('✅ Promoted to Partner: ' + partnerName);
-    admOpenUserDetail(userId);
-  } catch(err) { admToast('Error: ' + err.message); }
-}
-
-async function admRevertToCustomer(userId) {
-  if (!confirm('Revert this account back to a regular customer? Their experiences and partner data will NOT be deleted.')) return;
-  try {
-    var upd = await db_client.from('user_profiles').update({ role: 'customer' }).eq('id', userId).select('id');
-    if (upd.error) { admToast('Failed: ' + upd.error.message); return; }
-    admToast('Reverted to Customer.');
-    admOpenUserDetail(userId);
-  } catch(err) { admToast('Error: ' + err.message); }
-}
 
   document.getElementById('adm-user-detail-body').innerHTML = `
     <!-- Profile -->
