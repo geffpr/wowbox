@@ -14921,7 +14921,7 @@ function goMyAccount(){
   else { go('login'); setNL('nl-login'); }
 }
 
-function showBoxVoucher(code, boxName) {
+async function showBoxVoucher(code, boxName) {
   var modal = document.createElement('div');
   modal.id = 'box-voucher-modal';
   modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
@@ -14944,17 +14944,68 @@ function showBoxVoucher(code, boxName) {
   document.body.appendChild(modal);
 }
 
-function printBoxVoucher(code, boxName) {
-  var w = window.open('','_blank','width=500,height=400');
-  w.document.write('<html><head><title>WowBox Voucher</title></head><body style="font-family:Arial;text-align:center;padding:40px">'
-    + '<h2 style="color:#0f172a">WowBox Gift Voucher</h2>'
-    + '<p style="color:#64748b">' + (boxName||'WowBox') + '</p>'
-    + '<div style="border:2px dashed #2563eb;border-radius:12px;padding:24px;margin:24px auto;max-width:300px">'
-    + '<div style="font-size:11px;color:#64748b;margin-bottom:8px;text-transform:uppercase;letter-spacing:.05em">Voucher Code</div>'
-    + '<div style="font-family:monospace;font-size:28px;font-weight:700;color:#2563eb">' + code + '</div>'
+// Builds and prints a branded, exactly-2-page WowBox voucher document:
+// page 1 = the voucher (booking details if the voucher is booked/used, otherwise just the code),
+// page 2 = the Terms & Conditions (cancellation clause included).
+async function printBoxVoucher(code, boxName) {
+  var w = window.open('', '_blank');
+  w.document.write('<html><head><title>WowBox Voucher</title></head><body style="font-family:DM Sans,Arial,sans-serif;padding:40px;text-align:center;color:#2c1a0e">Loading your voucher…</body></html>');
+  w.document.close();
+
+  var booking = null, exp = null, prepaidAddons = [];
+  try {
+    var vRes = await db_client.from('vouchers').select('status').eq('code', code).maybeSingle();
+    var status = vRes.data ? vRes.data.status : null;
+    if (status === 'booked' || status === 'used') {
+      var bRes = await db_client.from('bookings')
+        .select('experience_id,experience_name,booking_date,booking_time,guest_name,guests,booking_details,booking_reference')
+        .eq('voucher_code', code).neq('status', 'cancelled')
+        .order('created_at', { ascending: false }).limit(1).maybeSingle();
+      booking = bRes.data || null;
+      if (booking && booking.experience_id) {
+        var eRes = await db_client.from('experiences').select('address,phone,image_urls,location,city').eq('id', booking.experience_id).maybeSingle();
+        exp = eRes.data || null;
+      }
+      var ppRes = await db_client.from('wb_prepaid_addons').select('addon_name').eq('wb_code', code);
+      prepaidAddons = (ppRes.data || []).map(function(p){ return p.addon_name; });
+    }
+  } catch(err) { console.warn('printBoxVoucher data fetch:', err.message); }
+
+  var guest2 = (booking && booking.booking_details && booking.booking_details.guest2) || '';
+  var heroImg = (exp && Array.isArray(exp.image_urls) && exp.image_urls[0]) || '';
+  var logoUrl = 'https://wowbox.co.za/favicon-96x96.png';
+
+  var page1 = '<div style="page-break-after:always;font-family:\'DM Sans\',Arial,sans-serif;color:#2c1a0e;padding:14mm;min-height:260mm;box-sizing:border-box">'
+    + '<div style="display:flex;align-items:center;gap:10px;margin-bottom:24px"><img src="' + logoUrl + '" style="height:40px;width:40px;border-radius:8px"><div style="font-family:\'Cormorant Garamond\',serif;font-size:22px;font-weight:700;color:#a0522d">WowBox</div></div>'
+    + (heroImg ? '<img src="' + heroImg + '" style="width:100%;height:60mm;object-fit:cover;border-radius:10px;margin-bottom:18px">' : '')
+    + '<div style="font-family:\'Cormorant Garamond\',serif;font-size:26px;font-weight:700;margin-bottom:4px">' + (boxName||'WowBox') + '</div>'
+    + (booking ? '<div style="font-size:14px;color:#8a6a50;margin-bottom:18px">' + (booking.experience_name||'') + '</div>' : '<div style="font-size:13px;color:#8a6a50;margin-bottom:18px">Not yet booked — browse your box at wowbox.co.za/redeem</div>')
+    + '<div style="background:#fdf6ee;border:2px dashed #d9a97c;border-radius:12px;padding:18px;margin-bottom:18px;text-align:center">'
+    + '<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#b5622f;margin-bottom:6px">Voucher code</div>'
+    + '<div style="font-family:monospace;font-size:24px;font-weight:700;color:#a0522d;letter-spacing:.08em">' + code + '</div>'
+    + (booking && booking.booking_reference ? '<div style="font-size:11px;color:#8a6a50;margin-top:10px">Booking reference</div><div style="font-family:monospace;font-size:16px;font-weight:700;color:#2c1a0e">' + booking.booking_reference + '</div>' : '')
     + '</div>'
-    + '<p style="font-size:12px;color:#94a3b8">Present this code at the venue · wowbox.co.za</p>'
-    + '</body></html>');
+    + (booking ? (
+        '<table style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:18px">'
+        + (booking.booking_date ? '<tr><td style="padding:6px 0;color:#8a6a50;width:35%">Date</td><td style="padding:6px 0;font-weight:600">' + String(booking.booking_date).slice(0,10) + (booking.booking_time?' · '+booking.booking_time:'') + '</td></tr>' : '')
+        + (booking.guest_name ? '<tr><td style="padding:6px 0;color:#8a6a50">Guest 1</td><td style="padding:6px 0;font-weight:600">' + booking.guest_name + '</td></tr>' : '')
+        + (guest2 ? '<tr><td style="padding:6px 0;color:#8a6a50">Guest 2</td><td style="padding:6px 0;font-weight:600">' + guest2 + '</td></tr>' : '')
+        + (booking.guests ? '<tr><td style="padding:6px 0;color:#8a6a50">Guests</td><td style="padding:6px 0;font-weight:600">' + booking.guests + '</td></tr>' : '')
+        + (exp && exp.address ? '<tr><td style="padding:6px 0;color:#8a6a50">Address</td><td style="padding:6px 0;font-weight:600">' + exp.address + '</td></tr>' : '')
+        + (exp && exp.phone ? '<tr><td style="padding:6px 0;color:#8a6a50">Phone</td><td style="padding:6px 0;font-weight:600">' + exp.phone + '</td></tr>' : '')
+        + '</table>'
+        + (prepaidAddons.length ? '<div style="background:#fef3c7;border-radius:8px;padding:10px 14px;margin-bottom:18px;font-size:12px;color:#78350f">🎁 Included: ' + prepaidAddons.join(', ') + '</div>' : '')
+      ) : '')
+    + '<div style="font-size:11px;color:#8a6a50;margin-top:30px">Present this voucher at the venue to redeem your experience · wowbox.co.za</div>'
+    + '</div>';
+
+  var page2 = '<div style="font-family:\'DM Sans\',Arial,sans-serif;color:#2c1a0e;padding:14mm;font-size:10px;line-height:1.6">'
+    + '<div style="font-family:\'Cormorant Garamond\',serif;font-size:18px;font-weight:700;margin-bottom:14px;color:#a0522d">WowBox Terms &amp; Conditions</div>'
+    + document.getElementById('ck-tc-scroll').innerHTML
+    + '</div>';
+
+  w.document.open();
+  w.document.write('<html><head><title>WowBox Voucher</title></head><body>' + page1 + page2 + '</body></html>');
   w.document.close();
   w.print();
 }
