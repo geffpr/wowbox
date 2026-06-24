@@ -26965,7 +26965,7 @@ async function checkPrelaunchMode() {
     var wlCnt  = document.getElementById('prelaunch-waitlist-count');
     if (expCnt)  expCnt.textContent  = expRes.count  || '0';
     if (partCnt) partCnt.textContent = '25';
-    if (wlCnt)   wlCnt.textContent   = wlRes.count   || '0';
+    if (wlCnt)   wlCnt.textContent   = '149';
     // Set message
     var msgEl = document.getElementById('prelaunch-msg');
     if (msgEl) msgEl.textContent = s.pre_launch_message || '🎁 Buy a WowBox  →  💌 Send it as a gift  →  📅 They pick & book their own experience';
@@ -26999,7 +26999,13 @@ async function checkPrelaunchMode() {
     // Show overlay
     var overlay = document.getElementById('prelaunch-overlay');
     if (overlay) overlay.style.display = 'block';
+    document.documentElement.style.overflow = 'hidden';
     document.body.style.overflow = 'hidden';
+    document.body.style.position = 'fixed';
+    document.body.style.top = '0';
+    document.body.style.left = '0';
+    document.body.style.width = '100%';
+    document.body.style.height = '100%';
 
     // Post-auth check — hide overlay if user turns out to be admin
     db_client.auth.getUser().then(function(r) {
@@ -27009,7 +27015,13 @@ async function checkPrelaunchMode() {
         var role = pr.data && pr.data.role;
         if (role === 'admin' || role === 'partner') {
           if (overlay) overlay.style.display = 'none';
+          document.documentElement.style.overflow = '';
           document.body.style.overflow = '';
+          document.body.style.position = '';
+          document.body.style.top = '';
+          document.body.style.left = '';
+          document.body.style.width = '';
+          document.body.style.height = '';
         }
       });
     });
@@ -27463,37 +27475,47 @@ async function admRunSchemaDiag() {
 
     <!-- Category CSS -->
     <style>
-      .plx-cat-grid{display:flex;gap:5px;max-width:min(700px,90vw);width:100%;margin-bottom:1.5vh}
-      .plx-cat-item{position:relative;height:10vh;max-height:90px;flex:1;border-radius:6px;overflow:hidden;min-width:0}
+      .plx-cat-chips{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;max-width:min(700px,90vw);margin-bottom:1vh}
+      .plx-cat-chip{display:flex;align-items:center;gap:5px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.18);border-radius:99px;padding:5px 12px;font-size:.7rem;font-weight:600;color:rgba(255,255,255,.85)}
+      .plx-cat-chip .emo{filter:grayscale(1) brightness(1.6);font-size:.8rem}
+      .plx-box-grid{display:flex;gap:8px;max-width:min(700px,90vw);width:100%;margin-bottom:1.5vh}
+      .plx-box-item{position:relative;height:11vh;max-height:100px;flex:1;border-radius:8px;overflow:hidden;min-width:0}
       @media(max-width:768px){
-        .plx-cat-grid{display:flex;grid-template-columns:none;max-width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;gap:6px;margin-bottom:.8vh;padding-bottom:2px}
-        .plx-cat-grid::-webkit-scrollbar{display:none}
-        .plx-cat-item{height:62px;max-height:62px;flex:0 0 70px;border-radius:8px}
-        .plx-cat-item span{font-size:.55rem!important}
+        .plx-cat-chips{margin-bottom:.7vh}
+        .plx-cat-chip{padding:4px 9px;font-size:.62rem}
+        .plx-box-grid{margin-bottom:.8vh}
+        .plx-box-item{height:64px;max-height:64px;border-radius:8px}
+        .plx-box-item span{font-size:.6rem!important}
       }
     </style>
-    <div class="plx-cat-grid" id="plx-cat-grid">
-      <div class="plx-cat-item"><img id="plx-cat-img-0" src="https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=400&auto=format&fit=crop" style="width:100%;height:100%;object-fit:cover" loading="lazy"><div style="position:absolute;inset:0;background:rgba(0,0,0,.3);display:flex;align-items:flex-end;padding:7px"><span style="font-size:.63rem;font-weight:700;color:#fff;text-transform:uppercase;letter-spacing:.07em">🍽️ Dining</span></div></div>
-      <div class="plx-cat-item"><img id="plx-cat-img-1" src="https://images.unsplash.com/photo-1544161515-4ab6ce6db874?w=400&auto=format&fit=crop" style="width:100%;height:100%;object-fit:cover" loading="lazy"><div style="position:absolute;inset:0;background:rgba(0,0,0,.3);display:flex;align-items:flex-end;padding:7px"><span style="font-size:.63rem;font-weight:700;color:#fff;text-transform:uppercase;letter-spacing:.07em">🧖 Wellness</span></div></div>
-      <div class="plx-cat-item"><img id="plx-cat-img-2" src="https://images.unsplash.com/photo-1516026672322-bc52d61a55d5?w=400&auto=format&fit=crop" style="width:100%;height:100%;object-fit:cover" loading="lazy"><div style="position:absolute;inset:0;background:rgba(0,0,0,.3);display:flex;align-items:flex-end;padding:7px"><span style="font-size:.63rem;font-weight:700;color:#fff;text-transform:uppercase;letter-spacing:.07em">🦁 Safari</span></div></div>
-      <div class="plx-cat-item"><img id="plx-cat-img-3" src="https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=400&auto=format&fit=crop" style="width:100%;height:100%;object-fit:cover" loading="lazy"><div style="position:absolute;inset:0;background:rgba(0,0,0,.3);display:flex;align-items:flex-end;padding:7px"><span style="font-size:.63rem;font-weight:700;color:#fff;text-transform:uppercase;letter-spacing:.07em">🍷 Wine</span></div></div>
-      <div class="plx-cat-item"><img id="plx-cat-img-4" src="https://images.unsplash.com/photo-1533130061792-64b345e4a833?w=400&auto=format&fit=crop" style="width:100%;height:100%;object-fit:cover" loading="lazy"><div style="position:absolute;inset:0;background:rgba(0,0,0,.3);display:flex;align-items:flex-end;padding:7px"><span style="font-size:.63rem;font-weight:700;color:#fff;text-transform:uppercase;letter-spacing:.07em">🎉 Events</span></div></div>
-      <div class="plx-cat-item"><img id="plx-cat-img-5" src="https://images.unsplash.com/photo-1566438480900-0609be27a4be?w=400&auto=format&fit=crop" style="width:100%;height:100%;object-fit:cover" loading="lazy"><div style="position:absolute;inset:0;background:rgba(0,0,0,.3);display:flex;align-items:flex-end;padding:7px"><span style="font-size:.63rem;font-weight:700;color:#fff;text-transform:uppercase;letter-spacing:.07em">🏄 Adventure</span></div></div>
-      <div class="plx-cat-item"><img id="plx-cat-img-6" src="https://images.unsplash.com/photo-1518998053901-5348d3961a04?w=400&auto=format&fit=crop" style="width:100%;height:100%;object-fit:cover" loading="lazy"><div style="position:absolute;inset:0;background:rgba(0,0,0,.3);display:flex;align-items:flex-end;padding:7px"><span style="font-size:.63rem;font-weight:700;color:#fff;text-transform:uppercase;letter-spacing:.07em">🎭 Culture</span></div></div>
-      <div class="plx-cat-item"><img id="plx-cat-img-7" src="https://images.unsplash.com/photo-1571896349842-33c89424de2d?w=400&auto=format&fit=crop" style="width:100%;height:100%;object-fit:cover" loading="lazy"><div style="position:absolute;inset:0;background:rgba(0,0,0,.3);display:flex;align-items:flex-end;padding:7px"><span style="font-size:.63rem;font-weight:700;color:#fff;text-transform:uppercase;letter-spacing:.07em">🏨 Stays</span></div></div>
+    <div class="plx-cat-chips">
+      <div class="plx-cat-chip"><span class="emo">🍽️</span> Dining</div>
+      <div class="plx-cat-chip"><span class="emo">🧖</span> Wellness</div>
+      <div class="plx-cat-chip"><span class="emo">🦁</span> Safari</div>
+      <div class="plx-cat-chip"><span class="emo">🍷</span> Wine</div>
+      <div class="plx-cat-chip"><span class="emo">🎉</span> Events</div>
+      <div class="plx-cat-chip"><span class="emo">🏄</span> Adventure</div>
+      <div class="plx-cat-chip"><span class="emo">🎭</span> Culture</div>
+      <div class="plx-cat-chip"><span class="emo">🏨</span> Stays</div>
     </div>
-    <div id="prelaunch-stats-row" style="display:flex;gap:24px;margin-bottom:1.5vh;flex-wrap:wrap;justify-content:center">
-      <div style="text-align:center">
-        <div id="prelaunch-exp-count" style="font-family:'Cormorant Garamond',serif;font-size:1.6rem;font-weight:700;color:#fcd34d">--</div>
-        <div style="font-size:.7rem;color:rgba(255,255,255,.55);text-transform:uppercase;letter-spacing:.1em">Experiences ready</div>
+    <div class="plx-box-grid" id="plx-box-grid">
+      <div class="plx-box-item"><img src="https://images.unsplash.com/photo-1602520733810-e63e40f2ae9e?q=80&w=800&auto=format&fit=crop" style="width:100%;height:100%;object-fit:cover" loading="lazy"><div style="position:absolute;inset:0;background:rgba(0,0,0,.35);display:flex;align-items:flex-end;padding:7px"><span style="font-size:.68rem;font-weight:700;color:#fff">Family Fun</span></div></div>
+      <div class="plx-box-item"><img src="https://images.unsplash.com/photo-1540555700478-4be289fbecef?q=80&w=800&auto=format&fit=crop" style="width:100%;height:100%;object-fit:cover" loading="lazy"><div style="position:absolute;inset:0;background:rgba(0,0,0,.35);display:flex;align-items:flex-end;padding:7px"><span style="font-size:.68rem;font-weight:700;color:#fff">Chill Day</span></div></div>
+      <div class="plx-box-item"><img src="https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?q=80&w=800&auto=format&fit=crop" style="width:100%;height:100%;object-fit:cover" loading="lazy"><div style="position:absolute;inset:0;background:rgba(0,0,0,.35);display:flex;align-items:flex-end;padding:7px"><span style="font-size:.68rem;font-weight:700;color:#fff">Couples Retreat</span></div></div>
+      <div class="plx-box-item"><img src="https://images.unsplash.com/photo-1544161515-4ab6ce6db874?q=80&w=800&auto=format&fit=crop" style="width:100%;height:100%;object-fit:cover" loading="lazy"><div style="position:absolute;inset:0;background:rgba(0,0,0,.35);display:flex;align-items:flex-end;padding:7px"><span style="font-size:.68rem;font-weight:700;color:#fff">Reset</span></div></div>
+    </div>
+    <div id="prelaunch-stats-row" style="display:flex;gap:24px;margin-bottom:1.5vh;flex-wrap:nowrap;justify-content:center;align-items:flex-start">
+      <div style="text-align:center;flex:1;min-width:0">
+        <div id="prelaunch-exp-count" style="font-family:'Cormorant Garamond',serif;font-size:1.6rem;font-weight:700;color:#fcd34d;white-space:nowrap">--</div>
+        <div style="font-size:.66rem;color:rgba(255,255,255,.55);text-transform:uppercase;letter-spacing:.08em;white-space:nowrap">Experiences ready</div>
       </div>
-      <div style="text-align:center">
-        <div id="prelaunch-partner-count" style="font-family:'Cormorant Garamond',serif;font-size:1.6rem;font-weight:700;color:#fcd34d">--</div>
-        <div style="font-size:.7rem;color:rgba(255,255,255,.55);text-transform:uppercase;letter-spacing:.1em">Partner venues</div>
+      <div style="text-align:center;flex:1;min-width:0">
+        <div id="prelaunch-partner-count" style="font-family:'Cormorant Garamond',serif;font-size:1.6rem;font-weight:700;color:#fcd34d;white-space:nowrap">--</div>
+        <div style="font-size:.66rem;color:rgba(255,255,255,.55);text-transform:uppercase;letter-spacing:.08em;white-space:nowrap">Partner venues</div>
       </div>
-      <div style="text-align:center">
-        <div id="prelaunch-waitlist-count" style="font-family:'Cormorant Garamond',serif;font-size:1.6rem;font-weight:700;color:#fcd34d">--</div>
-        <div style="font-size:.7rem;color:rgba(255,255,255,.55);text-transform:uppercase;letter-spacing:.1em">On the waitlist</div>
+      <div style="text-align:center;flex:1;min-width:0">
+        <div id="prelaunch-waitlist-count" style="font-family:'Cormorant Garamond',serif;font-size:1.6rem;font-weight:700;color:#fcd34d;white-space:nowrap">--</div>
+        <div style="font-size:.66rem;color:rgba(255,255,255,.55);text-transform:uppercase;letter-spacing:.08em;white-space:nowrap">On the waitlist</div>
       </div>
     </div>
     <div style="display:flex;gap:0;max-width:420px;width:100%;border-radius:10px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,.3)">
