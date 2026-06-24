@@ -25440,6 +25440,33 @@ function admOpenUserDetail(userId) {
     </div>`;
   }).join('') : '<div style="font-size:.8rem;color:var(--muted);padding:10px 0">No bookings.</div>';
 
+// Admin bypass: directly promote an existing customer account to partner,
+// skipping the self-service signup form entirely.
+async function admPromoteToPartner(userId, currentName) {
+  var partnerName = prompt('Business / Partner name for this account:', currentName || '');
+  if (partnerName === null) return; // cancelled
+  if (!partnerName.trim()) { admToast('Partner name is required.'); return; }
+  try {
+    var upd = await db_client.from('user_profiles').update({
+      role: 'partner', status: 'active', partner_name: partnerName.trim(),
+    }).eq('id', userId).select('id');
+    if (upd.error) { admToast('Failed: ' + upd.error.message); return; }
+    if (!upd.data || !upd.data.length) { admToast('Update affected 0 rows — check RLS or user id.'); return; }
+    admToast('✅ Promoted to Partner: ' + partnerName);
+    admOpenUserDetail(userId);
+  } catch(err) { admToast('Error: ' + err.message); }
+}
+
+async function admRevertToCustomer(userId) {
+  if (!confirm('Revert this account back to a regular customer? Their experiences and partner data will NOT be deleted.')) return;
+  try {
+    var upd = await db_client.from('user_profiles').update({ role: 'customer' }).eq('id', userId).select('id');
+    if (upd.error) { admToast('Failed: ' + upd.error.message); return; }
+    admToast('Reverted to Customer.');
+    admOpenUserDetail(userId);
+  } catch(err) { admToast('Error: ' + err.message); }
+}
+
   document.getElementById('adm-user-detail-body').innerHTML = `
     <!-- Profile -->
     <div style="margin-bottom:18px">
@@ -25447,9 +25474,13 @@ function admOpenUserDetail(userId) {
       ${infoRow('Role', roleBadge(u.role))}
       ${infoRow('Phone', u.phone)}
       ${infoRow('Joined', joined)}
+      ${u.role === 'customer' || u.role === 'pending_partner'
+        ? `<button class="btn bp bsm" style="margin-top:10px" onclick="admPromoteToPartner('${u.id}','${(u.full_name||'').replace(/'/g,"\\'")}')"><i class="fa fa-store"></i> Promote to Partner</button>`
+        : u.role === 'partner'
+          ? `<button class="btn bg bsm" style="margin-top:10px" onclick="admRevertToCustomer('${u.id}')"><i class="fa fa-rotate-left"></i> Revert to Customer</button>`
+          : ''}
     </div>
 
-    <!-- Orders -->
     <div style="margin-bottom:18px">
       <div style="font-size:.75rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:8px">
         <i class="fa fa-box"></i> Orders (${u._orderCount})
