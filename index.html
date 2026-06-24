@@ -1462,7 +1462,7 @@ async function loadUserBoxes(email) {
     if (bookedCodes.length) {
       try {
         var bkInfoRes = await db_client.from('bookings')
-          .select('voucher_code,experience_name,booking_date,booking_time')
+          .select('voucher_code,experience_name,booking_date,booking_time,cancellation_hours')
           .in('voucher_code', bookedCodes)
           .neq('status', 'cancelled')
           .order('created_at', { ascending: false });
@@ -1485,14 +1485,15 @@ async function loadUserBoxes(email) {
       } else if (st === 'booked') {
         var bkInfo = bookingInfoByCode[v.code] || {};
         var canCancel = true;
+        var cancelWindow = bkInfo.cancellation_hours || 24;
         if (bkInfo.booking_date) {
           var bDate = new Date(bkInfo.booking_date);
           var hoursUntil = (bDate - Date.now()) / 3600000;
-          canCancel = hoursUntil > 24;
+          canCancel = hoursUntil > cancelWindow;
         }
         browseBtn = canCancel
-          ? '<button class="btn bsm" style="background:#fef2f2;color:#dc2626;border:1px solid #fca5a5" onclick="cancelBooking(\'' + v.code + '\',\'' + (bkInfo.booking_date||'') + '\')"><i class="fa fa-xmark"></i> Cancel booking</button>'
-          : '<button class="btn bsm" style="background:#f8fafc;color:#94a3b8;border:1px solid #e2e8f0;cursor:not-allowed" disabled title="Cannot cancel within 24h of experience"><i class="fa fa-lock"></i> Non-cancellable</button>';
+          ? '<button class="btn bsm" style="background:#fef2f2;color:#dc2626;border:1px solid #fca5a5" onclick="cancelBooking(\'' + v.code + '\',\'' + (bkInfo.booking_date||'') + '\',' + cancelWindow + ')"><i class="fa fa-xmark"></i> Cancel booking</button>'
+          : '<button class="btn bsm" style="background:#f8fafc;color:#94a3b8;border:1px solid #e2e8f0;cursor:not-allowed" disabled title="Cannot cancel within ' + cancelWindow + 'h of experience"><i class="fa fa-lock"></i> Non-cancellable</button>';
       }
       // Leave a review button for used vouchers — fetch linked booking
       if (st === 'used') {
@@ -5475,7 +5476,7 @@ tr:hover td{background:var(--b50)}
             <p><strong>13. Fitness to Participate.</strong> You are solely responsible for ensuring all participants are fit to participate. Partners may refuse participation where unsafe. No refund shall be due in such circumstances.</p>
             <p><strong>14. Refusal of Admission.</strong> No refund, exchange, or compensation shall be payable where a Participating Partner refuses admission due to: age restrictions; failure to present valid ID; intoxication; inappropriate behaviour; safety concerns; dress code violations; medical concerns; or any other lawful reason.</p>
             <p><strong>15. Additional Costs.</strong> Unless stated otherwise, the following are excluded: transportation, accommodation, meals, gratuities, insurance, taxes, personal expenses, and optional extras.</p>
-            <p><strong>16. Cancellation &amp; Refunds.</strong> Subject to applicable South African consumer protection laws: activated, redeemed, expired, and partially used vouchers are non-refundable. Digital products may not be refunded once delivered, except where required by law.</p>
+            <p><strong>16. Cancellation &amp; Refunds.</strong> Subject to applicable South African consumer protection laws: activated, redeemed, expired, and partially used vouchers are non-refundable. Digital products may not be refunded once delivered, except where required by law. Each experience has its own free-cancellation window (shown at the time of booking, typically 24 hours to 14 days before the experience). Once a booking is confirmed and that window has passed, the booking cannot be modified, rebooked, or cancelled, and the voucher is forfeited.</p>
             <p><strong>17. Lost / Stolen Vouchers.</strong> WowBox is not responsible for lost, stolen, or unauthorised use of vouchers. Treat your voucher like cash.</p>
             <p><strong>18. Fraud &amp; Abuse.</strong> WowBox reserves the right to cancel any order or account where fraud or abuse is suspected.</p>
             <p><strong>19. Limitation of Liability.</strong> To the fullest extent permitted by law, WowBox shall not be liable for any indirect, incidental, or consequential damages. Our total liability shall never exceed the purchase price paid.</p>
@@ -6909,6 +6910,20 @@ tr:hover td{background:var(--b50)}
                 <input class="fi" id="pp-new-slot-duration" type="number" min="5" step="5" placeholder="e.g. 30 or 60">
               </div>
             </div>
+            <div class="fg-row">
+              <div class="fg"><label>Free cancellation window</label>
+                <select class="fi" id="pp-new-cancel-hours">
+                  <option value="24">24 hours before</option>
+                  <option value="48">48 hours before</option>
+                  <option value="72">72 hours before</option>
+                  <option value="168">7 days before</option>
+                  <option value="336">14 days before</option>
+                </select>
+              </div>
+              <div class="fg"><label>Note for guests <span style="font-weight:400;color:var(--muted)">(optional)</span></label>
+                <input class="fi" id="pp-new-cancel-note" placeholder="e.g. Your voucher will be lost if you cancel within 7 days — we order fresh ingredients in advance.">
+              </div>
+            </div>
           </div>
 
           <!-- §4 Pricing -->
@@ -8166,6 +8181,20 @@ tr:hover td{background:var(--b50)}
                   </div>
                   <div class="fg"><label>Slot duration (min)</label>
                     <input class="fi" id="aef-slot-duration" type="number" min="5" step="5" placeholder="e.g. 30 or 60">
+                  </div>
+                </div>
+                <div class="fg-row">
+                  <div class="fg"><label>Free cancellation window</label>
+                    <select class="fi" id="aef-cancel-hours">
+                      <option value="24">24 hours before</option>
+                      <option value="48">48 hours before</option>
+                      <option value="72">72 hours before</option>
+                      <option value="168">7 days before</option>
+                      <option value="336">14 days before</option>
+                    </select>
+                  </div>
+                  <div class="fg"><label>Note for guests <span style="font-weight:400;color:var(--muted)">(optional)</span></label>
+                    <input class="fi" id="aef-cancel-note" placeholder="e.g. Your voucher will be lost if you cancel within 7 days.">
                   </div>
                 </div>
               </div>
@@ -12583,15 +12612,28 @@ function wbOpenConfirmModal() {
       + '</div>';
   }
 
+  var cancelHours = e.cancellation_hours || 24;
+  var cancelLabel = cancelHours < 168 ? cancelHours + ' hours' : (cancelHours/168) + ' day' + (cancelHours>168?'s':'');
+  var cancelNote  = e.cancellation_note ? '<div style="margin-top:4px">' + e.cancellation_note + '</div>' : '';
+  var cancelBlock = '<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:12px 14px;margin-bottom:14px;font-size:.76rem;color:#92400e">'
+    + '<strong>⚠️ Cancellation policy</strong><br>Free cancellation up to <strong>' + cancelLabel + ' before</strong> your experience. After that, this voucher cannot be modified or rebooked — it will be lost.'
+    + cancelNote
+    + '</div>'
+    + '<label style="display:flex;align-items:flex-start;gap:8px;font-size:.76rem;color:var(--navy);margin-bottom:16px;cursor:pointer">'
+    + '<input type="checkbox" id="wb-cancel-policy-ck" onchange="document.getElementById(\'wb-confirm-btn\').disabled = !this.checked" style="margin-top:2px">'
+    + '<span>I understand and accept this cancellation policy.</span>'
+    + '</label>';
+
   modal.style.cssText = 'position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(5,15,40,.6);backdrop-filter:blur(4px)';
   modal.innerHTML = '<div style="background:#fff;border-radius:16px;padding:28px;max-width:380px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.25)">'
     + '<div style="font-size:1.6rem;margin-bottom:10px">🔒</div>'
     + '<h3 style="font-size:1.05rem;color:var(--navy);margin-bottom:14px">Confirm your booking</h3>'
     + checkoutBlock
-    + '<p style="font-size:.78rem;color:var(--muted);margin-bottom:18px">You are about to book <strong>' + e.name + '</strong>. Once confirmed, this booking will be finalized and cannot be reversed.</p>'
+    + '<p style="font-size:.78rem;color:var(--muted);margin-bottom:14px">You are about to book <strong>' + e.name + '</strong>.</p>'
+    + cancelBlock
     + '<div style="display:flex;gap:10px">'
     + '<button class="btn bg" style="flex:1" onclick="document.getElementById(\'wb-confirm-modal\').remove()">Cancel</button>'
-    + '<button class="btn bp" style="flex:1" onclick="wbConfirmAndContinue()"><i class="fa fa-check"></i> Confirm booking</button>'
+    + '<button class="btn bp" id="wb-confirm-btn" style="flex:1" disabled onclick="wbConfirmAndContinue()"><i class="fa fa-check"></i> Confirm booking</button>'
     + '</div></div>';
   document.body.appendChild(modal);
   modal.addEventListener('click', function(ev){ if(ev.target===modal) modal.remove(); });
@@ -12803,6 +12845,7 @@ async function confirmExpBooking() {
         reservation_type:   rt,
         booking_details:    data,
         status:             'pending_confirmation',
+        cancellation_hours: e.cancellation_hours || 24,
       }).select('id').single();
 
       var bookingId = bkRes.data ? bkRes.data.id : null;
@@ -12972,11 +13015,12 @@ async function confirmExpBooking() {
 
 
 /* ── Cancel Booking ── */
-async function cancelBooking(voucherCode, bookingDate) {
+async function cancelBooking(voucherCode, bookingDate, cancelWindowHours) {
   if (!voucherCode) return;
+  var win = cancelWindowHours || 24;
   if (bookingDate) {
     var hoursUntil = (new Date(bookingDate) - Date.now()) / 3600000;
-    if (hoursUntil <= 24) { alert('This booking cannot be cancelled within 24 hours of the experience date.'); return; }
+    if (hoursUntil <= win) { alert('This booking cannot be cancelled within ' + (win < 168 ? win + ' hours' : (win/168) + ' day' + (win>168?'s':'')) + ' of the experience date.'); return; }
   }
   if (!confirm('Are you sure you want to cancel this booking? Your voucher will be reactivated and you can browse again.')) return;
   try {
@@ -17238,9 +17282,10 @@ async function admShowExpFormById(expId) {
     // ── Add new experience ──
     document.getElementById('adm-exp-form-title').textContent = 'Add new experience';
     ['aef-name','aef-partner','aef-loc','aef-lat','aef-lng','aef-desc','aef-cap',
-     'aef-certification','aef-ical','aef-opening','aef-closing','aef-slot-duration'].forEach(function(id){
+     'aef-certification','aef-ical','aef-opening','aef-closing','aef-slot-duration','aef-cancel-note'].forEach(function(id){
       var el = document.getElementById(id); if (el) el.value = '';
     });
+    var cancelSel = document.getElementById('aef-cancel-hours'); if (cancelSel) cancelSel.value = '24';
     var el;
     el = document.getElementById('aef-rt');           if (el) el.value   = '';
     el = document.getElementById('aef-province');     if (el) el.value   = '';
@@ -17298,6 +17343,8 @@ async function admShowExpFormById(expId) {
     document.getElementById('aef-opening').value = e.opening_time ? e.opening_time.slice(0,5) : '';
     document.getElementById('aef-closing').value = e.closing_time ? e.closing_time.slice(0,5) : '';
     document.getElementById('aef-slot-duration').value = e.slot_duration_minutes || '';
+    document.getElementById('aef-cancel-hours').value  = e.cancellation_hours || 24;
+    document.getElementById('aef-cancel-note').value   = e.cancellation_note || '';
 
     var el;
     el = document.getElementById('aef-rt');           if (el) el.value   = e.reservation_type       || '';
@@ -18010,6 +18057,8 @@ function admShowExpForm(expId) {
   el = document.getElementById('aef-opening');       if(el) el.value   = d?.opening_time ? String(d.opening_time).slice(0,5) : '';
   el = document.getElementById('aef-closing');       if(el) el.value   = d?.closing_time ? String(d.closing_time).slice(0,5) : '';
   el = document.getElementById('aef-slot-duration'); if(el) el.value   = d?.slot_duration_minutes || '';
+  el = document.getElementById('aef-cancel-hours');  if(el) el.value   = d?.cancellation_hours || 24;
+  el = document.getElementById('aef-cancel-note');   if(el) el.value   = d?.cancellation_note || '';
   // Programme & Amenities
   var progWrap = document.getElementById('aef-programme-wrap');
   if (progWrap) progWrap.innerHTML = buildProgrammeFields('aef', d && d.programme ? d.programme : []);
@@ -18109,6 +18158,8 @@ async function admSaveExp() {
   const openingTime  = document.getElementById('aef-opening')?.value || null;
   const closingTime  = document.getElementById('aef-closing')?.value || null;
   const slotDuration = parseInt(document.getElementById('aef-slot-duration')?.value) || null;
+  const cancelHours  = parseInt(document.getElementById('aef-cancel-hours')?.value) || null;
+  const cancelNote   = document.getElementById('aef-cancel-note')?.value?.trim() || null;
 
   if (!name) { admToast('Please enter an experience name.'); return; }
   if (!rt)   { admToast('Please select a reservation type.'); return; }
@@ -18159,6 +18210,8 @@ async function admSaveExp() {
     ...(openingTime ? { opening_time: openingTime } : {}),
     ...(closingTime ? { closing_time: closingTime } : {}),
     ...(slotDuration ? { slot_duration_minutes: slotDuration } : {}),
+    ...(cancelHours ? { cancellation_hours: cancelHours } : {}),
+    ...(cancelNote ? { cancellation_note: cancelNote } : {}),
     ...(videoUrl ? { video_url: videoUrl, video_position: videoPosition } : {}),
   };
 
@@ -18446,6 +18499,8 @@ function admViewRequest(id) {
     + dc('Opening time', r.opening_time, prev.opening_time)
     + dc('Closing time', r.closing_time, prev.closing_time)
     + dc('Slot duration (min)', r.slot_duration_minutes, prev.slot_duration_minutes)
+    + dc('Cancellation window (hrs)', r.cancellation_hours, prev.cancellation_hours)
+    + dc('Cancellation note', r.cancellation_note, prev.cancellation_note)
     + '</div><div class="fg-row">'
     + dc('Description', r.description?(r.description.substring(0,300)+(r.description.length>300?'...':'')):'',(prev.description!==undefined?String(prev.description).substring(0,300):undefined))
     + '</div>'+imgHtml+progHtml+amHtml+'</div></div>';
@@ -18550,6 +18605,8 @@ async function admConfirmApprove(id) {
         ...(req.opening_time ? { opening_time: req.opening_time } : {}),
         ...(req.closing_time ? { closing_time: req.closing_time } : {}),
         ...(req.slot_duration_minutes ? { slot_duration_minutes: req.slot_duration_minutes } : {}),
+        ...(req.cancellation_hours ? { cancellation_hours: req.cancellation_hours } : {}),
+        ...(req.cancellation_note ? { cancellation_note: req.cancellation_note } : {}),
         ...(req.price ? { price: req.price } : {}),
         ...(req.wow_price ? { wow_price: req.wow_price } : {}),
         ...(req.wow_pricing_type ? { wow_pricing_type: req.wow_pricing_type } : {}),
@@ -18584,6 +18641,8 @@ async function admConfirmApprove(id) {
         ...(req.opening_time ? { opening_time: req.opening_time } : {}),
         ...(req.closing_time ? { closing_time: req.closing_time } : {}),
         ...(req.slot_duration_minutes ? { slot_duration_minutes: req.slot_duration_minutes } : {}),
+        ...(req.cancellation_hours ? { cancellation_hours: req.cancellation_hours } : {}),
+        ...(req.cancellation_note ? { cancellation_note: req.cancellation_note } : {}),
         is_active:        true,
         image_url:        req.image_url || '',
         image_urls:       req.image_urls || [],
@@ -23671,6 +23730,8 @@ async function submitNewExp() {
   const openingTime = (document.getElementById('pp-new-opening')     ||{value:''}).value || null;
   const closingTime = (document.getElementById('pp-new-closing')     ||{value:''}).value || null;
   const slotDuration= parseInt((document.getElementById('pp-new-slot-duration')||{value:''}).value) || null;
+  const cancelHours = parseInt((document.getElementById('pp-new-cancel-hours')||{value:''}).value) || null;
+  const cancelNote  = (document.getElementById('pp-new-cancel-note')||{value:''}).value.trim() || null;
   const programme   = collectProgramme('pp-new');
   const amenitiesList = collectAmenities('pp-new');
 
@@ -23704,6 +23765,8 @@ async function submitNewExp() {
       ...(openingTime ? { opening_time: openingTime } : {}),
       ...(closingTime ? { closing_time: closingTime } : {}),
       ...(slotDuration ? { slot_duration_minutes: slotDuration } : {}),
+      ...(cancelHours ? { cancellation_hours: cancelHours } : {}),
+      ...(cancelNote ? { cancellation_note: cancelNote } : {}),
       ...(videoUrl ? { video_url: videoUrl, video_position: videoPosition } : {}),
       programme:  programme,
       amenities:  amenitiesList,
@@ -23994,13 +24057,15 @@ async function loadPartnerExperiences() {
 
 // ── Partner: edit a published experience ──
 async function ppEditExperience(expId, expName, expDesc, expType, expCity, expCap, expProvince, expBooking, expNights, expCategory, expWeekend, expAccom, expCert, expAccessible, expInsolite, expIcal, expProgramme, expAmenities, expWowPrice, expWowPricing, expPrice, expAddress, expPhone, expLat, expLng, expImages, expImage) {
-  var expOpening = '', expClosing = '', expSlotDuration = '';
+  var expOpening = '', expClosing = '', expSlotDuration = '', expCancelHours = 24, expCancelNote = '';
   try {
-    var hoursRes = await db_client.from('experiences').select('opening_time,closing_time,slot_duration_minutes').eq('id', expId).maybeSingle();
+    var hoursRes = await db_client.from('experiences').select('opening_time,closing_time,slot_duration_minutes,cancellation_hours,cancellation_note').eq('id', expId).maybeSingle();
     if (hoursRes.data) {
       expOpening = hoursRes.data.opening_time ? String(hoursRes.data.opening_time).slice(0,5) : '';
       expClosing = hoursRes.data.closing_time ? String(hoursRes.data.closing_time).slice(0,5) : '';
       expSlotDuration = hoursRes.data.slot_duration_minutes || '';
+      expCancelHours  = hoursRes.data.cancellation_hours || 24;
+      expCancelNote   = hoursRes.data.cancellation_note || '';
     }
   } catch(hoursErr) { console.warn('ppEditExperience opening hours fetch:', hoursErr.message); }
   var modal = document.getElementById('adm-modal');
@@ -24049,6 +24114,12 @@ async function ppEditExperience(expId, expName, expDesc, expType, expCity, expCa
     + '<div class="fg"><label>Closing time <span style="font-weight:400;color:var(--muted)">(optional)</span></label><input class="fi" id="pp-edit-closing" type="time" value="'+expClosing+'"></div>'
     + '<div class="fg"><label>Slot duration (min)</label><input class="fi" id="pp-edit-slot-duration" type="number" min="5" step="5" placeholder="e.g. 30 or 60" value="'+expSlotDuration+'"></div>'
     + '</div>'
+    + '<div class="fg-row">'
+    + '<div class="fg"><label>Free cancellation window</label><select class="fi" id="pp-edit-cancel-hours">'
+    + [24,48,72,168,336].map(function(h){ var lbl = h<168 ? h+' hours before' : (h/168)+' day'+(h>168?'s':'')+' before'; return '<option value="'+h+'"'+(String(expCancelHours)===String(h)?' selected':'')+'>'+lbl+'</option>'; }).join('')
+    + '</select></div>'
+    + '<div class="fg"><label>Note for guests <span style="font-weight:400;color:var(--muted)">(optional)</span></label><input class="fi" id="pp-edit-cancel-note" value="'+(expCancelNote||'').replace(/"/g,'&quot;')+'" placeholder="e.g. Your voucher will be lost if you cancel within 7 days."></div>'
+    + '</div>'
 
     + '<div style="'+sh+'">4 · Pricing</div>'
     + '<div class="fg-row">'
@@ -24094,6 +24165,8 @@ async function ppSubmitEdit(expId) {
   var openingTime= (document.getElementById('pp-edit-opening')    ||{value:''}).value || null;
   var closingTime= (document.getElementById('pp-edit-closing')    ||{value:''}).value || null;
   var slotDuration= parseInt((document.getElementById('pp-edit-slot-duration')||{value:''}).value) || null;
+  var cancelHours = parseInt((document.getElementById('pp-edit-cancel-hours')||{value:''}).value) || null;
+  var cancelNote  = (document.getElementById('pp-edit-cancel-note')||{value:''}).value.trim() || null;
   var wowPrice   = parseInt((document.getElementById('pp-edit-wow-price')||{value:''}).value) || null;
   var wowPricingType = (document.getElementById('pp-edit-wow-pricing')||{value:'per_person'}).value || 'per_person';
   var price      = parseInt((document.getElementById('pp-edit-price')||{value:''}).value) || null;
@@ -24137,6 +24210,8 @@ async function ppSubmitEdit(expId) {
       ...(openingTime ? { opening_time: openingTime } : {}),
       ...(closingTime ? { closing_time: closingTime } : {}),
       ...(slotDuration ? { slot_duration_minutes: slotDuration } : {}),
+      ...(cancelHours ? { cancellation_hours: cancelHours } : {}),
+      ...(cancelNote ? { cancellation_note: cancelNote } : {}),
       ...(wowPrice ? { wow_price: wowPrice } : {}),
       wow_pricing_type:   wowPricingType,
       ...(price ? { price: price } : {}),
@@ -27018,7 +27093,7 @@ async function admRunSchemaDiag() {
       <div><h3 style="color:var(--navy);font-size:1rem;margin-bottom:6px">13. Fitness to Participate</h3><p>You are solely responsible for ensuring all participants are fit to participate. Partners may refuse participation where unsafe. No refund shall be due in such circumstances.</p></div>
       <div><h3 style="color:var(--navy);font-size:1rem;margin-bottom:6px">14. Refusal of Admission</h3><p>No refund, exchange, or compensation shall be payable where a Participating Partner refuses admission due to: age restrictions; failure to present valid ID; intoxication; inappropriate behaviour; safety concerns; dress code violations; medical concerns; or any other lawful reason.</p></div>
       <div><h3 style="color:var(--navy);font-size:1rem;margin-bottom:6px">15. Additional Costs</h3><p>Unless stated otherwise, the following are excluded: transportation, accommodation, meals, gratuities, insurance, taxes, personal expenses, and optional extras.</p></div>
-      <div><h3 style="color:var(--navy);font-size:1rem;margin-bottom:6px">16. Cancellation & Refunds</h3><p>Subject to applicable South African consumer protection laws: activated, redeemed, expired, and partially used vouchers are non-refundable. Digital products may not be refunded once delivered, except where required by law.</p></div>
+      <div><h3 style="color:var(--navy);font-size:1rem;margin-bottom:6px">16. Cancellation & Refunds</h3><p>Subject to applicable South African consumer protection laws: activated, redeemed, expired, and partially used vouchers are non-refundable. Digital products may not be refunded once delivered, except where required by law. Each experience has its own free-cancellation window (shown at the time of booking, typically 24 hours to 14 days before the experience). Once a booking is confirmed and that window has passed, the booking cannot be modified, rebooked, or cancelled, and the voucher is forfeited.</p></div>
       <div><h3 style="color:var(--navy);font-size:1rem;margin-bottom:6px">17. Lost / Stolen Vouchers</h3><p>WowBox is not responsible for lost, stolen, or unauthorised use of vouchers. Treat your voucher like cash.</p></div>
       <div><h3 style="color:var(--navy);font-size:1rem;margin-bottom:6px">18. Fraud & Abuse</h3><p>WowBox reserves the right to cancel any order or account where fraud or abuse is suspected.</p></div>
       <div><h3 style="color:var(--navy);font-size:1rem;margin-bottom:6px">19. Limitation of Liability</h3><p>To the fullest extent permitted by law, WowBox shall not be liable for any indirect, incidental, or consequential damages. Our total liability shall never exceed the purchase price paid.</p></div>
