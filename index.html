@@ -14975,7 +14975,7 @@ async function printBoxVoucher(code, boxName) {
   var heroImg = (exp && Array.isArray(exp.image_urls) && exp.image_urls[0]) || '';
   var logoUrl = 'https://wowbox.co.za/favicon-96x96.png';
 
-  var page1 = '<div style="page-break-after:always;font-family:\'DM Sans\',Arial,sans-serif;color:#2c1a0e;padding:14mm;min-height:260mm;box-sizing:border-box">'
+  var page1 = '<div style="page-break-after:always;font-family:\'DM Sans\',Arial,sans-serif;color:#2c1a0e;padding:14mm;box-sizing:border-box">'
     + '<div style="display:flex;align-items:center;gap:10px;margin-bottom:24px"><img src="' + logoUrl + '" style="height:40px;width:40px;border-radius:8px"><div style="font-family:\'Cormorant Garamond\',serif;font-size:22px;font-weight:700;color:#a0522d">WowBox</div></div>'
     + (heroImg ? '<img src="' + heroImg + '" style="width:100%;height:60mm;object-fit:cover;border-radius:10px;margin-bottom:18px">' : '')
     + '<div style="font-family:\'Cormorant Garamond\',serif;font-size:26px;font-weight:700;margin-bottom:4px">' + (boxName||'WowBox') + '</div>'
@@ -15005,8 +15005,22 @@ async function printBoxVoucher(code, boxName) {
     + '</div>';
 
   w.document.open();
-  w.document.write('<html><head><title>WowBox Voucher</title></head><body>' + page1 + page2 + '</body></html>');
+  w.document.write('<html><head><title>WowBox Voucher</title><style>* { -webkit-print-color-adjust: exact; print-color-adjust: exact; color-adjust: exact; }</style></head><body>' + page1 + page2 + '</body></html>');
   w.document.close();
+
+  // Wait for all images to actually finish loading before printing (logo + experience photo),
+  // otherwise they show up blank in the printed/PDF output. Capped at 3s so a slow/broken
+  // image link never blocks printing indefinitely.
+  var imgs = w.document.images;
+  var pending = Array.from(imgs).filter(function(img){ return !img.complete; });
+  if (pending.length) {
+    await Promise.race([
+      Promise.all(pending.map(function(img){
+        return new Promise(function(resolve){ img.onload = img.onerror = resolve; });
+      })),
+      new Promise(function(resolve){ setTimeout(resolve, 3000); })
+    ]);
+  }
   w.print();
 }
 
