@@ -746,7 +746,8 @@ function tplBookingCustomer(o) {
 
 function tplBookingPartner(o) {
   const dateDisplay = o.bookingDate || 'To be confirmed with guest';
-  const codeDisplay = o.voucherCode || '—';
+  const maskRef = (s) => s ? s.replace(/[A-Z0-9]{4}$/, '••••') : '—';
+  const codeDisplay = maskRef(o.voucherCode);
 
   return {
     subject: `🔔 New booking — ${o.experienceName} (${o.customerName})`,
@@ -760,11 +761,11 @@ function tplBookingPartner(o) {
         infoRow('Guest email', o.customerEmail || '—') +
         infoRow('Requested date', dateDisplay) +
         infoRow('Guests', o.guests || '2') +
-        infoRow('Booking Reference', o.bookingReference || '—') +
+        infoRow('Booking Reference', maskRef(o.bookingReference)) +
         infoRow('Voucher code', codeDisplay)
       )}
       ${hr()}
-      ${highlight('<strong>Action required:</strong> Contact the guest to confirm the visit. When they arrive, ask them to present their booking reference <strong>' + (o.bookingReference || codeDisplay) + '</strong> — enter it in your Partner Portal to validate the experience.')}
+      ${highlight('<strong>Action required:</strong> Contact the guest to confirm the visit. The full booking reference is hidden for security — ask the guest to present it in person (on their voucher or confirmation email), then type it into your Partner Portal to validate the experience. It will only unlock there once you enter it correctly.')}
       ${btn('Open Partner Portal', SITE_URL + '/partner')}
       ${sm('Questions? <a href="mailto:support@wowbox.co.za" style="color:' + C.goldDark + '">support@wowbox.co.za</a>')}
     `, HEROES.booking, 'New WowBox booking for ' + o.experienceName),

@@ -19590,7 +19590,7 @@ function ppShowBookingDetail(idx) {
     row('Buyer',          b.customer_name !== b.guest_name && b.customer_name ? b.customer_name + ' (' + (b.customer_email||'') + ')' : ''),
   ])
   + section('📋 Booking', [
-    row('Reference',      b.booking_reference),
+    row('Reference',      b.validated_at ? b.booking_reference : maskBookingRef(b.booking_reference)),
     row('Experience',     b.experience_name),
     row('Box',            b.box_name),
     row('Type',           b.reservation_type),
@@ -19615,7 +19615,7 @@ function ppShowBookingDetail(idx) {
     row('Confirmed',    b.confirmed_at ? new Date(b.confirmed_at).toLocaleString('en-ZA') : ''),
     row('Validated',    b.validated_at ? new Date(b.validated_at).toLocaleString('en-ZA') : ''),
     row('Cancelled',    b.cancelled_at ? new Date(b.cancelled_at).toLocaleString('en-ZA') : ''),
-    row('Voucher code', b.voucher_code),
+    row('Voucher code', b.validated_at ? b.voucher_code : maskBookingRef(b.voucher_code)),
   ]);
 
   var m = document.createElement('div');
@@ -19627,10 +19627,31 @@ function ppShowBookingDetail(idx) {
     + '<button onclick="document.getElementById(\'pp-bk-detail-modal\').remove()" style="background:var(--b50);border:none;border-radius:50%;width:32px;height:32px;cursor:pointer;font-size:1rem"><i class="fa fa-xmark"></i></button>'
     + '</div>'
     + html
-    + (!b.validated_at && b.status !== 'cancelled' ? '<button class="btn bp block" style="margin-top:16px" onclick="ppValidateBooking(\''+b.id+'\',\''+b.booking_reference+'\',this)"><i class="fa fa-check-circle"></i> Validate this booking</button>' : '')
+    + (!b.validated_at && b.status !== 'cancelled' ?
+        '<div style="margin-top:16px;padding:14px;background:var(--bg);border-radius:var(--rs);border:1px solid var(--border)">'
+        + '<label style="font-size:.78rem;font-weight:600;color:var(--navy);display:block;margin-bottom:6px">Ask the guest to show their booking reference, then type it below to validate:</label>'
+        + '<input class="fi" id="pp-bk-validate-input" placeholder="e.g. BK-EZS1-S0BK" style="margin-bottom:8px;text-transform:uppercase">'
+        + '<div id="pp-bk-validate-error" style="font-size:.75rem;color:#dc2626;margin-bottom:8px;display:none">That reference doesn\'t match this booking — please check with the guest.</div>'
+        + '<button class="btn bp block" onclick="ppConfirmValidate(\''+b.id+'\',\''+(b.voucher_code||'')+'\',\''+(b.booking_reference||'')+'\',this)"><i class="fa fa-check-circle"></i> Validate this booking</button>'
+        + '</div>'
+      : '')
     + '</div>';
   m.addEventListener('click', function(e){ if (e.target === m) m.remove(); });
   document.body.appendChild(m);
+}
+
+// Requires the partner to type the guest's actual booking reference before validating —
+// prevents self-validation without the guest physically presenting it.
+function ppConfirmValidate(bookingId, voucherCode, actualRef, btn) {
+  var input = document.getElementById('pp-bk-validate-input');
+  var errEl = document.getElementById('pp-bk-validate-error');
+  var typed = (input?.value || '').trim().toUpperCase();
+  if (!typed || typed !== String(actualRef).toUpperCase()) {
+    if (errEl) errEl.style.display = 'block';
+    return;
+  }
+  if (errEl) errEl.style.display = 'none';
+  ppValidateBooking(bookingId, voucherCode, btn);
 }
 
 // ── Partner QR Code ───────────────────────────────────────────────
@@ -19709,6 +19730,13 @@ async function ppLoadBookings() {
   }
 }
 
+// Mask a booking reference / voucher code until the booking has actually been validated
+// (prevents a partner from self-validating without the guest physically presenting it).
+function maskBookingRef(ref) {
+  if (!ref) return '—';
+  return ref.replace(/[A-Za-z0-9]{4}$/, '••••');
+}
+
 function ppFilterBookings(mode) {
   ['upcoming','past','all'].forEach(function(m){
     var btn = document.getElementById('pp-bk-tab-' + m);
@@ -19737,7 +19765,7 @@ function ppFilterBookings(mode) {
       + '</div>'
       + '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:5px">'
       + '<span style="font-size:.72rem;font-weight:700;color:' + statusColor + ';background:' + statusColor + '18;padding:3px 10px;border-radius:99px">' + statusLabel + '</span>'
-      + (b.booking_reference ? '<span style="font-size:.7rem;color:var(--muted);font-family:monospace">' + b.booking_reference + '</span>' : '')
+      + (b.booking_reference ? '<span style="font-size:.7rem;color:var(--muted);font-family:monospace">' + (b.validated_at ? b.booking_reference : maskBookingRef(b.booking_reference)) + '</span>' : '')
       + '<button onclick="ppShowBookingDetail('+idx+')" style="background:var(--b50);border:1px solid var(--border);border-radius:6px;padding:3px 10px;font-size:.7rem;color:var(--b700);cursor:pointer">View details \u2192</button>'
       + '</div>'
       + '</div>';
