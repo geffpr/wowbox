@@ -9502,19 +9502,9 @@ tr:hover td{background:var(--b50)}
                 </div>
                 <img id="adm-prelaunch-logo-preview" src="" alt="" style="height:60px;max-width:140px;object-fit:contain;border-radius:var(--rs);border:1.5px solid var(--border);background:repeating-conic-gradient(#e5e7eb 0% 25%,#fff 0% 50%) 0 0/16px 16px;display:none">
               </div>
-              <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-top:12px">
-                <div>
-                  <label style="font-size:.7rem;color:var(--muted);display:flex;justify-content:space-between;margin-bottom:4px">Logo size <span id="adm-logo-size-val">120px</span></label>
-                  <input type="range" id="adm-prelaunch-logo-size" min="60" max="300" value="120" style="width:100%" oninput="document.getElementById('adm-logo-size-val').textContent=this.value+'px';admPreviewLogo()">
-                </div>
-                <div>
-                  <label style="font-size:.7rem;color:var(--muted);display:flex;justify-content:space-between;margin-bottom:4px">Position X <span id="adm-logo-x-val">50%</span></label>
-                  <input type="range" id="adm-prelaunch-logo-x" min="0" max="100" value="50" style="width:100%" oninput="document.getElementById('adm-logo-x-val').textContent=this.value+'%';admPreviewLogo()">
-                </div>
-                <div>
-                  <label style="font-size:.7rem;color:var(--muted);display:flex;justify-content:space-between;margin-bottom:4px">Position Y <span id="adm-logo-y-val">15%</span></label>
-                  <input type="range" id="adm-prelaunch-logo-y" min="0" max="80" value="15" style="width:100%" oninput="document.getElementById('adm-logo-y-val').textContent=this.value+'%';admPreviewLogo()">
-                </div>
+              <div style="margin-top:12px;max-width:240px">
+                <label style="font-size:.7rem;color:var(--muted);display:flex;justify-content:space-between;margin-bottom:4px">Logo size <span id="adm-logo-size-val">120px</span></label>
+                <input type="range" id="adm-prelaunch-logo-size" min="60" max="300" value="120" style="width:100%" oninput="document.getElementById('adm-logo-size-val').textContent=this.value+'px';admPreviewLogo()">
               </div>
               <!-- Mini preview -->
               <div id="adm-logo-preview-wrap" style="position:relative;margin-top:12px;height:100px;border-radius:var(--rs);overflow:hidden;background:#1a1a2e;display:none">
@@ -26680,11 +26670,7 @@ async function loadPrelaunchSettings() {
       if (bgSm && s.pre_launch_image) bgSm.src = s.pre_launch_image;
     }
     var lSize = document.getElementById('adm-prelaunch-logo-size');
-    var lX    = document.getElementById('adm-prelaunch-logo-x');
-    var lY    = document.getElementById('adm-prelaunch-logo-y');
     if (lSize && s.pre_launch_logo_size) { lSize.value = s.pre_launch_logo_size; document.getElementById('adm-logo-size-val').textContent = s.pre_launch_logo_size + 'px'; }
-    if (lX    && s.pre_launch_logo_x)    { lX.value    = s.pre_launch_logo_x;    document.getElementById('adm-logo-x-val').textContent    = s.pre_launch_logo_x + '%'; }
-    if (lY    && s.pre_launch_logo_y)    { lY.value    = s.pre_launch_logo_y;    document.getElementById('adm-logo-y-val').textContent    = s.pre_launch_logo_y + '%'; }
     // Category upload inputs
     var catLabels = ['Dining','Wellness','Safari','Wine','Events','Adventure','Culture','Stays'];
     var catEmojis = ['🍽️','🧖','🦁','🍷','🎉','🏄','🎭','🏨'];
@@ -26775,13 +26761,9 @@ async function admSavePrelaunch() {
       if (lWrap)    { lWrap.style.display = 'block'; }
       if (logoStatusEl) logoStatusEl.textContent = '✓ Logo uploaded';
     }
-    // Save logo size and position
+    // Save logo size
     var lSize = document.getElementById('adm-prelaunch-logo-size');
-    var lX    = document.getElementById('adm-prelaunch-logo-x');
-    var lY    = document.getElementById('adm-prelaunch-logo-y');
     if (lSize) rows.push({ key: 'pre_launch_logo_size', value: lSize.value });
-    if (lX)    rows.push({ key: 'pre_launch_logo_x',    value: lX.value });
-    if (lY)    rows.push({ key: 'pre_launch_logo_y',    value: lY.value });
     // Upload category images
     var catStatusEl2 = document.getElementById('adm-cat-status');
     for (var ci = 0; ci < 8; ci++) {
@@ -26831,7 +26813,9 @@ function prelaunchShowTerms() {
 
 /* ── Box thumbnail zoom lightbox (prelaunch overlay) ── */
 var _plxBoxNames  = ['Family Fun','Chill Day','Couples Retreat','Reset'];
+var _plxBoxIds    = ['family-fun','chill-day','couples-retreat','reset'];
 var _plxBoxImgIds = ['plx-box-img-family-fun','plx-box-img-chill-day','plx-box-img-couples-retreat','plx-box-img-reset'];
+var _plxBoxDesc   = {};
 var _plxZoomIdx = 0;
 
 function plxRenderZoom() {
@@ -26839,7 +26823,11 @@ function plxRenderZoom() {
   var imgEl = document.getElementById('plx-box-zoom-img');
   var capEl = document.getElementById('plx-box-zoom-caption');
   if (imgEl) imgEl.src = srcEl ? srcEl.src : '';
-  if (capEl) capEl.textContent = _plxBoxNames[_plxZoomIdx];
+  if (capEl) {
+    var desc = _plxBoxDesc[_plxBoxIds[_plxZoomIdx]] || '';
+    capEl.innerHTML = '<div style="font-size:.95rem;font-weight:700;margin-bottom:4px">WowBox ' + _plxBoxNames[_plxZoomIdx] + '</div>'
+      + (desc ? '<div style="font-size:.75rem;color:rgba(255,255,255,.75);max-width:80vw;margin:0 auto;line-height:1.4">' + desc + '</div>' : '');
+  }
 }
 function plxZoomBox(idx) {
   _plxZoomIdx = idx;
@@ -26950,16 +26938,12 @@ function admPreviewLogo() {
   var src         = logoPreview && logoPreview.src ? logoPreview.src : '';
   if (!src || !wrap) return;
   var size = document.getElementById('adm-prelaunch-logo-size');
-  var x    = document.getElementById('adm-prelaunch-logo-x');
-  var y    = document.getElementById('adm-prelaunch-logo-y');
   var sz   = size ? size.value : 120;
-  var px   = x ? x.value : 50;
-  var py   = y ? y.value : 15;
   if (logoPreview) {
     logoPreview.style.width  = sz + 'px';
     logoPreview.style.height = 'auto';
-    logoPreview.style.left   = px + '%';
-    logoPreview.style.top    = py + '%';
+    logoPreview.style.left   = '50%';
+    logoPreview.style.top    = '15%';
   }
 }
 
@@ -27026,10 +27010,11 @@ async function checkPrelaunchMode() {
     }
     // Load real box thumbnails from Supabase (not the static boxDB demo data)
     try {
-      var boxImgRes = await db_client.from('boxes').select('id,image_url').in('id', ['family-fun','chill-day','couples-retreat','reset']);
+      var boxImgRes = await db_client.from('boxes').select('id,image_url,description').in('id', ['family-fun','chill-day','couples-retreat','reset']);
       (boxImgRes.data || []).forEach(function(b) {
         var imgEl = document.getElementById('plx-box-img-' + b.id);
         if (imgEl && b.image_url) imgEl.src = b.image_url;
+        if (b.description) _plxBoxDesc[b.id] = b.description;
       });
     } catch(boxImgErr) { console.warn('Prelaunch box images:', boxImgErr.message); }
     // Set logo
@@ -27576,7 +27561,7 @@ async function admRunSchemaDiag() {
     </div>
     <div style="display:flex;gap:0;max-width:420px;width:100%;border-radius:10px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,.3)">
       <input id="prelaunch-email" type="email" placeholder="Enter your email address" style="flex:1;padding:11px 16px;border:none;font-size:.85rem;outline:none;background:#fff;color:#1e293b">
-      <button onclick="prelaunchJoinWaitlist()" style="background:#f59e0b;color:#fff;border:none;padding:11px 18px;font-weight:700;font-size:.82rem;cursor:pointer;white-space:nowrap">Get early access</button>
+      <button onclick="prelaunchJoinWaitlist()" style="background:#f59e0b;color:#fff;border:none;padding:11px 18px;font-weight:700;font-size:.82rem;cursor:pointer;white-space:nowrap;text-align:center;display:flex;align-items:center;justify-content:center">Get early access</button>
     </div>
     <div id="prelaunch-join-status" style="font-size:.78rem;color:rgba(255,255,255,.7);margin-top:10px;min-height:20px"></div>
     <div style="margin-top:1.5vh;padding-top:1.5vh;border-top:1px solid rgba(255,255,255,.15);width:100%;max-width:420px">
@@ -27612,7 +27597,7 @@ async function admRunSchemaDiag() {
           <div><label style="font-size:.72rem;color:rgba(255,255,255,.6);display:block;margin-bottom:4px">Business name *</label><input class="fi" id="plx-biz-name" type="text" placeholder="e.g. The Vineyard Hotel"></div>
           <div><label style="font-size:.72rem;color:rgba(255,255,255,.6);display:block;margin-bottom:4px">Contact person *</label><input class="fi" id="plx-contact" type="text" placeholder="Your full name"></div>
           <div><label style="font-size:.72rem;color:rgba(255,255,255,.6);display:block;margin-bottom:4px">Email *</label><input class="fi" id="plx-email" type="email" placeholder="you@business.co.za"></div>
-          <div><label style="font-size:.72rem;color:rgba(255,255,255,.6);display:block;margin-bottom:4px">Phone *</label><input class="fi" id="plx-phone" type="tel" placeholder="+27 xx xxx xxxx"></div>
+          <div style="grid-column:1 / -1"><label style="font-size:.72rem;color:rgba(255,255,255,.6);display:block;margin-bottom:4px">Phone *</label><input class="fi" id="plx-phone" type="tel" placeholder="+27 xx xxx xxxx"></div>
           <div><label style="font-size:.72rem;color:rgba(255,255,255,.6);display:block;margin-bottom:4px">Experience type *</label>
             <select class="fi" id="plx-type"><option value="">Select...</option><option>Hotel / Lodge</option><option>Restaurant / Dining</option><option>Spa / Wellness</option><option>Safari / Wildlife</option><option>Hiking / Outdoor</option><option>Wine / Winelands</option><option>Adventure Activity</option><option>Cultural Experience</option><option>Other</option></select>
           </div>
