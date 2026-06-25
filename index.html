@@ -2357,6 +2357,14 @@ function ppJoinPool(price) {
 }
 
 async function ppConfirmPool(price) {
+  try {
+    var plRes = await db_client.from('site_settings').select('value').eq('key','pre_launch_mode').maybeSingle();
+    if (plRes.data && plRes.data.value === 'true') {
+      admToast('Boosts will open for purchase at launch — thanks for your patience!');
+      return;
+    }
+  } catch(plErr) { console.warn('pre_launch_mode check:', plErr.message); }
+
   var sel     = document.getElementById('pp-pool-exp-select');
   var expId   = sel ? sel.value : '';
   var expName = (sel && sel.options[sel.selectedIndex]) ? (sel.options[sel.selectedIndex].dataset.name || '') : '';
@@ -2433,6 +2441,14 @@ async function ppCancelBoost(btn) {
 }
 
 async function ppRenewBoost(btn, price) {
+  try {
+    var plRes2 = await db_client.from('site_settings').select('value').eq('key','pre_launch_mode').maybeSingle();
+    if (plRes2.data && plRes2.data.value === 'true') {
+      admToast('Boost renewals will open at launch — thanks for your patience!');
+      return;
+    }
+  } catch(plErr2) { console.warn('pre_launch_mode check:', plErr2.message); }
+
   var boostId = btn.dataset.bid;
   var expName = btn.dataset.bname || '';
   var expId   = btn.dataset.bexpid || '';
