@@ -4153,14 +4153,12 @@ tr:hover td{background:var(--b50)}
 
   /* ── Partner page ── */
   .pp-layout { grid-template-columns: 1fr; display: flex; flex-direction: column; }
-  .pp-sb { display: flex; flex-direction: row; overflow-x: auto; overflow-y: hidden;
-    min-height: auto; padding: 8px 10px; gap: 4px; -webkit-overflow-scrolling: touch;
-    scrollbar-width: none; white-space: nowrap; }
-  .pp-sb::-webkit-scrollbar { display: none; }
-  .pp-sb-logo { display: none; }
-  .pp-nav { flex-shrink: 0; padding: 7px 12px; font-size: .75rem; width: auto;
-    border-radius: 99px; white-space: nowrap; }
-  .pp-main { padding: 20px 16px; }
+  .pp-mobile-topbar { display: flex !important; }
+  .pp-sb { position: fixed; top: 0; left: -280px; bottom: 0; width: 260px; z-index: 60;
+    transition: left .25s ease; overflow-y: auto; flex-direction: column; display: flex; }
+  .pp-sb.pp-sb-open { left: 0; }
+  .pp-nav { width: 100%; }
+  .pp-main { padding: 16px; margin-top: 0; }
   .pp-kpis { grid-template-columns: 1fr 1fr; gap: 10px; }
   .pp-pro-feature { flex-wrap: wrap; }
   #pp-validate > div:first-of-type { grid-template-columns: 1fr; gap: 14px; }
@@ -6619,8 +6617,15 @@ tr:hover td{background:var(--b50)}
 <div id="page-partner" class="page">
   <div class="pp-layout">
 
+    <!-- Mobile-only top bar: hamburger + current section title -->
+    <div class="pp-mobile-topbar" style="display:none;align-items:center;gap:12px;padding:12px 16px;background:var(--navy);color:#fff;position:sticky;top:0;z-index:50">
+      <button onclick="ppToggleSidebar()" style="background:none;border:none;color:#fff;font-size:1.2rem;cursor:pointer;padding:4px"><i class="fa fa-bars"></i></button>
+      <div id="pp-mobile-title" style="font-weight:700;font-size:.95rem">Overview</div>
+    </div>
+    <div id="pp-sb-backdrop" onclick="ppToggleSidebar()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:59"></div>
+
     <!-- ── SIDEBAR ── -->
-    <div class="pp-sb">
+    <div class="pp-sb" id="pp-sb">
       <div class="pp-sb-logo">
         <div class="pp-sb-av" id="pp-sb-av">🏨</div>
         <div>
@@ -19757,7 +19762,31 @@ function confirmRouletteBooking() {
 ══════════════════════════════════════════════════════════════ */
 const PP_SECTIONS = ['pp-overview','pp-bookings','pp-validate','pp-payouts','pp-experiences','pp-page','pp-plan','pp-analytics','pp-calendar','pp-boost','pp-reporting','pp-reviews','pp-settings','pp-contact'];
 
+var PP_SECTION_LABELS = {
+  'pp-overview': 'Overview', 'pp-validate': 'Validate Voucher', 'pp-bookings': 'My Bookings',
+  'pp-calendar': 'Calendar', 'pp-experiences': 'My Experiences', 'pp-reviews': 'My Reviews',
+  'pp-analytics': 'Analytics', 'pp-reporting': 'Reporting', 'pp-payouts': 'My Payouts',
+  'pp-boost': 'Boost', 'pp-page': 'My Page', 'pp-settings': 'Settings',
+  'pp-contact': 'Contact Support', 'pp-plan': 'Plan'
+};
+
+function ppToggleSidebar() {
+  var sb = document.getElementById('pp-sb');
+  var bd = document.getElementById('pp-sb-backdrop');
+  if (!sb) return;
+  var opening = !sb.classList.contains('pp-sb-open');
+  sb.classList.toggle('pp-sb-open', opening);
+  if (bd) bd.style.display = opening ? 'block' : 'none';
+}
+
 function switchPP(btn, sectionId) {
+  // "My Page" (the visual builder + live preview) needs real screen space —
+  // block it on narrow screens with a clear explanation instead of trying to
+  // squeeze the editor onto a phone.
+  if (sectionId === 'pp-page' && window.innerWidth < 768) {
+    alert('This page builder works best on a larger screen. Please switch to a desktop or tablet to edit your page design.');
+    return;
+  }
   PP_SECTIONS.forEach(id => {
     const el = document.getElementById(id);
     if (el) el.classList.toggle('on', id === sectionId);
@@ -19777,6 +19806,11 @@ function switchPP(btn, sectionId) {
   if (sectionId === 'pp-boost')      renderBoostPage();
   if (sectionId === 'pp-reporting')  { ppLoadReporting(); }
   if (sectionId === 'pp-plan')       renderPlanPage();
+  // Close the mobile drawer and reflect the new section in the mobile top bar
+  var sbEl = document.getElementById('pp-sb');
+  if (sbEl && sbEl.classList.contains('pp-sb-open')) ppToggleSidebar();
+  var mobTitle = document.getElementById('pp-mobile-title');
+  if (mobTitle && PP_SECTION_LABELS[sectionId]) mobTitle.textContent = PP_SECTION_LABELS[sectionId];
 }
 function ppProNav(btn, sectionId) {
   if (!isPro()) {
