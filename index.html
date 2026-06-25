@@ -724,7 +724,8 @@ async function submitResetPassword() {
   if (errEl) errEl.textContent = '';
   if (sucEl) sucEl.textContent = '';
   if (!pw)          { if (errEl) errEl.textContent = 'Please enter a new password.'; return; }
-  if (pw.length < 6){ if (errEl) errEl.textContent = 'Password must be at least 6 characters.'; return; }
+  var pwErr1 = wbPasswordError(pw);
+  if (pwErr1)       { if (errEl) errEl.textContent = pwErr1; return; }
   if (pw !== pw2)   { if (errEl) errEl.textContent = 'Passwords do not match.'; return; }
   if (btn) { btn.disabled = true; btn.textContent = 'Saving...'; }
   try {
@@ -736,6 +737,15 @@ async function submitResetPassword() {
     if (errEl) errEl.textContent = e.message || 'Error updating password. Please try again.';
     if (btn) { btn.disabled = false; btn.textContent = 'Set new password'; }
   }
+}
+
+// Centralized password strength rule, used by every signup/change-password flow.
+// Returns null when valid, or a specific message saying exactly what's missing.
+function wbPasswordError(pw) {
+  if (!pw || pw.length < 8) return 'Password must be at least 8 characters.';
+  if (!/[0-9]/.test(pw)) return 'Password must include at least one number.';
+  if (!/[^A-Za-z0-9]/.test(pw)) return 'Password must include at least one special character.';
+  return null;
 }
 
 function authTogglePw(inputId, btn) {
@@ -756,7 +766,10 @@ async function authSubmit() {
   authClearMessages();
   if (!email || !password) { authShowError('Please enter your email and password.'); return; }
   if (isSignUp && !name)   { authShowError('Please enter your full name.'); return; }
-  if (password.length < 6) { authShowError('Password must be at least 6 characters.'); return; }
+  if (isSignUp) {
+    var pwErr2 = wbPasswordError(password);
+    if (pwErr2) { authShowError(pwErr2); return; }
+  }
   if (isSignUp) {
     var confirmPw = document.getElementById('auth-confirm-pw') ? document.getElementById('auth-confirm-pw').value : '';
     if (!confirmPw) { authShowError('Please confirm your password.'); return; }
@@ -1309,7 +1322,8 @@ async function saveSettings() {
 async function changePassword() {
   var pw  = (document.getElementById('settings-pw')  || {value:''}).value;
   var pw2 = (document.getElementById('settings-pw2') || {value:''}).value;
-  if (!pw || pw.length < 6) { admToast('Password must be at least 6 characters.'); return; }
+  var pwErr3 = wbPasswordError(pw);
+  if (pwErr3) { admToast(pwErr3); return; }
   if (pw !== pw2) { admToast('Passwords do not match.'); return; }
   try {
     var res = await db_client.auth.updateUser({ password: pw });
@@ -5378,7 +5392,7 @@ tr:hover td{background:var(--b50)}
           <div id="bkw-inline-auth" style="display:none;margin-top:12px">
             <div class="fg" style="margin-bottom:8px"><input class="fi" id="bkw-auth-email" type="email" placeholder="your@email.com" style="font-size:.82rem"></div>
             <div class="fg" id="bkw-auth-name-wrap" style="display:none;margin-bottom:8px"><input class="fi" id="bkw-auth-name" type="text" placeholder="Your full name" style="font-size:.82rem"></div>
-            <div class="fg" style="margin-bottom:10px"><input class="fi" id="bkw-auth-pass" type="password" placeholder="Password" style="font-size:.82rem"></div>
+            <div class="fg" style="margin-bottom:10px"><div style="position:relative"><input class="fi" id="bkw-auth-pass" type="password" placeholder="Password" style="font-size:.82rem;padding-right:38px"><button type="button" onclick="authTogglePw('bkw-auth-pass',this)" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--muted);font-size:.9rem;padding:0"><i class="fa fa-eye"></i></button></div></div>
             <div id="bkw-auth-err" style="font-size:.72rem;color:#dc2626;margin-bottom:8px;display:none"></div>
             <button id="bkw-auth-submit" onclick="bkwSubmitInlineAuth()" style="width:100%;background:var(--b600);color:#fff;border:none;border-radius:8px;padding:9px;font-size:.8rem;font-weight:700;cursor:pointer">Continue</button>
           </div>
@@ -5899,8 +5913,8 @@ tr:hover td{background:var(--b50)}
           </button>
           <div style="margin-top:24px;padding-top:20px;border-top:1px solid var(--border)">
             <h3 style="font-size:1rem;color:var(--navy);margin-bottom:12px">Password</h3>
-            <div class="fg"><label>New password</label><input class="fi" id="settings-pw" type="password" placeholder="Min. 6 characters"></div>
-            <div class="fg"><label>Confirm password</label><input class="fi" id="settings-pw2" type="password" placeholder="Repeat new password"></div>
+            <div class="fg"><label>New password</label><div style="position:relative"><input class="fi" id="settings-pw" type="password" placeholder="Min. 8 characters, 1 number & 1 symbol" style="padding-right:38px"><button type="button" onclick="authTogglePw('settings-pw',this)" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--muted);font-size:.9rem;padding:0"><i class="fa fa-eye"></i></button></div></div>
+            <div class="fg"><label>Confirm password</label><div style="position:relative"><input class="fi" id="settings-pw2" type="password" placeholder="Repeat new password" style="padding-right:38px"><button type="button" onclick="authTogglePw('settings-pw2',this)" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--muted);font-size:.9rem;padding:0"><i class="fa fa-eye"></i></button></div></div>
             <button type="button" class="btn bg" onclick="changePassword()"><i class="fa fa-lock"></i> Update password</button>
           </div>
           <div style="margin-top:24px;padding-top:20px;border-top:1px solid var(--border);text-align:center">
@@ -6181,7 +6195,7 @@ tr:hover td{background:var(--b50)}
       <div class="fg" style="text-align:left;margin-bottom:10px">
         <label>New password *</label>
         <div style="position:relative">
-          <input class="fi" id="rp-password" type="password" placeholder="Min. 6 characters" style="padding-right:40px">
+          <input class="fi" id="rp-password" type="password" placeholder="Min. 8 characters, 1 number & 1 symbol" style="padding-right:40px">
           <button type="button" onclick="authTogglePw('rp-password',this)" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--muted);font-size:.9rem;padding:0"><i class="fa fa-eye"></i></button>
         </div>
       </div>
@@ -6416,7 +6430,7 @@ tr:hover td{background:var(--b50)}
             <option>Other</option>
           </select>
         </div>
-        <div class="fg"><label>Password *</label><div style="position:relative"><input class="fi" id="pl-pw" type="password" placeholder="Min. 6 characters" style="padding-right:38px"><button type="button" onclick="authTogglePw('pl-pw',this)" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--muted);font-size:.9rem;padding:0"><i class="fa fa-eye"></i></button></div></div>
+        <div class="fg"><label>Password *</label><div style="position:relative"><input class="fi" id="pl-pw" type="password" placeholder="Min. 8 characters, 1 number & 1 symbol" style="padding-right:38px"><button type="button" onclick="authTogglePw('pl-pw',this)" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--muted);font-size:.9rem;padding:0"><i class="fa fa-eye"></i></button></div></div>
         <div class="fg"><label>Business registration number (CIPC) *</label><input class="fi" id="pl-reg-num" type="text" placeholder="e.g. 2023/123456/07"></div>
         <div class="fg">
           <label>Business type *</label>
@@ -6538,7 +6552,7 @@ tr:hover td{background:var(--b50)}
         <!-- Sign in form -->
         <div id="pl-signin-form">
           <div class="fg"><label>Email *</label><input class="fi" id="pl-signin2-email" type="email" placeholder="your@company.com" onkeydown="if(event.key==='Enter'){event.preventDefault();partnerSignIn();}"></div>
-          <div class="fg"><label>Password *</label><input class="fi" id="pl-password" type="password" placeholder="••••••••" onkeydown="if(event.key==='Enter'){event.preventDefault();partnerSignIn();}"></div>
+          <div class="fg"><label>Password *</label><div style="position:relative"><input class="fi" id="pl-password" type="password" placeholder="••••••••" onkeydown="if(event.key==='Enter'){event.preventDefault();partnerSignIn();}" style="padding-right:38px"><button type="button" onclick="authTogglePw('pl-password',this)" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--muted);font-size:.9rem;padding:0"><i class="fa fa-eye"></i></button></div></div>
           <button type="button" class="btn bp block" onclick="partnerSignIn()" style="margin-top:4px"><i class="fa fa-arrow-right-to-bracket"></i> Sign in</button>
           <p style="text-align:right;margin-top:10px"><span style="font-size:.73rem;color:var(--b600);cursor:pointer" onclick="showForgotPasswordModal()">Forgot password?</span></p>
         </div>
@@ -6561,7 +6575,7 @@ tr:hover td{background:var(--b50)}
           <div class="fg"><label>Contact name *</label><input class="fi" id="pl-contact" type="text" placeholder="Your full name"></div>
           <div class="fg"><label>Email *</label><input class="fi" id="pl-reg-email" type="email" placeholder="your@company.com"></div>
           <div class="fg"><label>Phone *</label><input class="fi" id="pl-phone" type="tel" placeholder="083 000 0000"></div>
-          <div class="fg"><label>Password *</label><input class="fi" id="pl-reg-password" type="password" placeholder="Min. 6 characters"></div>
+          <div class="fg"><label>Password *</label><div style="position:relative"><input class="fi" id="pl-reg-password" type="password" placeholder="Min. 8 characters, 1 number & 1 symbol" style="padding-right:38px"><button type="button" onclick="authTogglePw('pl-reg-password',this)" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--muted);font-size:.9rem;padding:0"><i class="fa fa-eye"></i></button></div></div>
           <div class="fg" style="margin-bottom:20px"><label>Tell us about your experience</label><textarea class="fi" id="pl-bio" rows="3" placeholder="Briefly describe what guests can expect..." style="resize:vertical"></textarea></div>
           <button type="button" class="btn bp block" onclick="partnerSignUp()"><i class="fa fa-paper-plane"></i> Submit application</button>
           <p style="font-size:.72rem;color:var(--muted);margin-top:12px;text-align:center">Applications are reviewed within 48 hours. You will receive a confirmation email.</p>
@@ -7839,8 +7853,8 @@ tr:hover td{background:var(--b50)}
         <div class="pp-card" style="margin-bottom:20px">
           <h3 style="font-size:1rem;color:var(--navy);margin-bottom:18px"><i class="fa fa-lock" style="color:var(--b500)"></i> Change password</h3>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
-            <div class="fg"><label>New password</label><input class="fi" type="password" id="pp-set-pw1" placeholder="New password"></div>
-            <div class="fg"><label>Confirm new password</label><input class="fi" type="password" id="pp-set-pw2" placeholder="Confirm password"></div>
+            <div class="fg"><label>New password</label><div style="position:relative"><input class="fi" type="password" id="pp-set-pw1" placeholder="New password" style="padding-right:38px"><button type="button" onclick="authTogglePw('pp-set-pw1',this)" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--muted);font-size:.9rem;padding:0"><i class="fa fa-eye"></i></button></div></div>
+            <div class="fg"><label>Confirm new password</label><div style="position:relative"><input class="fi" type="password" id="pp-set-pw2" placeholder="Confirm password" style="padding-right:38px"><button type="button" onclick="authTogglePw('pp-set-pw2',this)" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--muted);font-size:.9rem;padding:0"><i class="fa fa-eye"></i></button></div></div>
           </div>
           <button class="btn bg bsm" style="margin-top:16px" onclick="ppChangePassword()"><i class="fa fa-key"></i> Update password</button>
           <span id="pp-set-pw-msg" style="font-size:.78rem;margin-left:12px"></span>
@@ -13910,7 +13924,8 @@ async function ppChangePassword() {
   var msgEl = document.getElementById('pp-set-pw-msg');
   var pw1 = document.getElementById('pp-set-pw1').value;
   var pw2 = document.getElementById('pp-set-pw2').value;
-  if (!pw1 || pw1.length < 8) { if(msgEl){msgEl.style.color='#ef4444';msgEl.textContent='Password must be at least 8 characters.';} return; }
+  var pwErr4 = wbPasswordError(pw1);
+  if (pwErr4) { if(msgEl){msgEl.style.color='#ef4444';msgEl.textContent=pwErr4;} return; }
   if (pw1 !== pw2)             { if(msgEl){msgEl.style.color='#ef4444';msgEl.textContent='Passwords do not match.';} return; }
   var res = await db_client.auth.updateUser({ password: pw1 });
   if (msgEl) {
@@ -14771,8 +14786,9 @@ async function plSubmitPartner() {
     if (errEl) { errEl.textContent = 'Please enter a valid email address.'; errEl.style.display = 'block'; }
     return;
   }
-  if (pw.length < 6) {
-    if (errEl) { errEl.textContent = 'Password must be at least 6 characters.'; errEl.style.display = 'block'; }
+  var pwErr5 = wbPasswordError(pw);
+  if (pwErr5) {
+    if (errEl) { errEl.textContent = pwErr5; errEl.style.display = 'block'; }
     return;
   }
   if (!terms) {
@@ -15822,8 +15838,9 @@ async function partnerSignUp() {
     if (errEl) { errEl.textContent = 'Please fill in all required fields.'; errEl.style.display = 'block'; errEl.scrollIntoView({behavior:'smooth', block:'center'}); }
     return;
   }
-  if (pass.length < 6) {
-    if (errEl) { errEl.textContent = 'Password must be at least 6 characters.'; errEl.style.display = 'block'; errEl.scrollIntoView({behavior:'smooth', block:'center'}); }
+  var pwErr6 = wbPasswordError(pass);
+  if (pwErr6) {
+    if (errEl) { errEl.textContent = pwErr6; errEl.style.display = 'block'; errEl.scrollIntoView({behavior:'smooth', block:'center'}); }
     return;
   }
   if (errEl) errEl.style.display = 'none';
@@ -27010,8 +27027,9 @@ async function plxSubmitPartner() {
   if (!email.includes('@')) {
     if (errEl) { errEl.textContent = 'Please enter a valid email.'; errEl.style.display = 'block'; } return;
   }
-  if (pw.length < 6) {
-    if (errEl) { errEl.textContent = 'Password must be at least 6 characters.'; errEl.style.display = 'block'; } return;
+  var pwErr7 = wbPasswordError(pw);
+  if (pwErr7) {
+    if (errEl) { errEl.textContent = pwErr7; errEl.style.display = 'block'; } return;
   }
   if (!terms) {
     if (errEl) { errEl.textContent = 'Please accept the Partner Terms & Conditions.'; errEl.style.display = 'block'; } return;
@@ -27722,7 +27740,7 @@ async function admRunSchemaDiag() {
           <div><label style="font-size:.72rem;color:rgba(255,255,255,.6);display:block;margin-bottom:4px">Business type *</label>
             <select class="fi" id="plx-biz-type"><option value="">Select...</option><option>Sole Proprietor</option><option>Private Company (Pty) Ltd</option><option>Close Corporation (CC)</option><option>Trust</option><option>Other</option></select>
           </div>
-          <div><label style="font-size:.72rem;color:rgba(255,255,255,.6);display:block;margin-bottom:4px">Password *</label><div style="position:relative"><input class="fi" id="plx-pw" type="password" placeholder="Min. 6 characters" style="padding-right:38px"><button type="button" onclick="authTogglePw('plx-pw',this)" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:rgba(255,255,255,.6);font-size:.9rem;padding:0"><i class="fa fa-eye"></i></button></div></div>
+          <div><label style="font-size:.72rem;color:rgba(255,255,255,.6);display:block;margin-bottom:4px">Password *</label><div style="position:relative"><input class="fi" id="plx-pw" type="password" placeholder="Min. 8 characters, 1 number & 1 symbol" style="padding-right:38px"><button type="button" onclick="authTogglePw('plx-pw',this)" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:rgba(255,255,255,.6);font-size:.9rem;padding:0"><i class="fa fa-eye"></i></button></div></div>
         </div>
         <div style="margin-top:12px"><label style="font-size:.72rem;color:rgba(255,255,255,.6);display:block;margin-bottom:4px">Location / Address *</label><input class="fi" id="plx-city" type="text" placeholder="City or venue address"></div>
         <div style="margin-top:12px"><label style="font-size:.72rem;color:rgba(255,255,255,.6);display:block;margin-bottom:4px">Describe your experience(s) *</label><textarea class="fi" id="plx-exp-desc" rows="3" style="resize:vertical" placeholder="Tell us what guests will experience..."></textarea></div>
