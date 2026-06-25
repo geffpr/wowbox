@@ -3239,6 +3239,8 @@ nav{position:sticky;top:0;z-index:300;background:rgba(255,255,255,.95);
 .prog-item:last-child{border-bottom:none}
 .prog-dot{width:9px;height:9px;border-radius:50%;background:var(--b500);margin-top:6px;flex-shrink:0}
 .amenities{display:grid;grid-template-columns:repeat(2,1fr);gap:9px}
+.pp-amenities-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:4px}
+.pp-amenities-custom-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}
 .am{display:flex;align-items:center;gap:9px;padding:9px 12px;background:var(--b50);
   border-radius:var(--rs);font-size:.78rem;color:var(--slate)}
 .am i{color:var(--b500);width:14px;font-size:.8rem}
@@ -3693,6 +3695,10 @@ input[type=radio]:checked+.pp-layout-opt{border-color:var(--b600)!important;colo
   padding:24px;box-shadow:var(--md);margin-bottom:20px}
 .pp-card h3{font-size:1.1rem;color:var(--navy);margin-bottom:4px}
 .pp-card>p{font-size:.78rem;color:var(--muted);margin-bottom:18px}
+.pp-2col-revenue{display:grid;grid-template-columns:1fr 300px;gap:18px;margin-bottom:20px}
+.pp-2col-analytics{display:grid;grid-template-columns:1fr 290px;gap:18px;margin-bottom:22px}
+.pp-2col-calendar{display:grid;grid-template-columns:1fr 230px;gap:18px}
+.pp-2col-reporting{display:grid;grid-template-columns:180px 1fr;gap:18px;margin-bottom:22px;align-items:start}
 .pp-table-wrap{background:var(--white);border-radius:var(--r);border:1.5px solid var(--border);overflow:hidden}
 .pp-table-hdr{padding:13px 18px;border-bottom:1px solid var(--border);
   display:flex;justify-content:space-between;align-items:center}
@@ -4163,6 +4169,8 @@ tr:hover td{background:var(--b50)}
   .pp-pro-feature { flex-wrap: wrap; }
   #pp-validate > div:first-of-type { grid-template-columns: 1fr; gap: 14px; }
   .pp-card { padding: 18px; }
+  .pp-2col-revenue,.pp-2col-analytics,.pp-2col-calendar,.pp-2col-reporting,
+  .pp-amenities-grid,.pp-amenities-custom-grid { grid-template-columns: 1fr !important; }
 
   /* ── Admin ── */
   .adm-layout { grid-template-columns: 1fr; display: flex; flex-direction: column; }
@@ -6751,7 +6759,7 @@ tr:hover td{background:var(--b50)}
         </div>
 
         <!-- Revenue chart + top experience -->
-        <div style="display:grid;grid-template-columns:1fr 300px;gap:18px;margin-bottom:20px">
+        <div class="pp-2col-revenue">
           <div class="pp-card" style="margin-bottom:0">
             <h3>Monthly revenue</h3>
             <p style="margin-bottom:0;font-size:.75rem;color:var(--muted)">Last 6 months (ZAR) · current month highlighted</p>
@@ -7387,7 +7395,7 @@ tr:hover td{background:var(--b50)}
           </div>
         </div>
         <div class="an-kpi-grid" id="an-kpi-grid"></div>
-        <div style="display:grid;grid-template-columns:1fr 290px;gap:18px;margin-bottom:22px">
+        <div class="pp-2col-analytics">
           <div class="pp-card" style="margin-bottom:0">
             <h3 style="font-size:.95rem;color:var(--navy);margin-bottom:14px">Revenue over time</h3>
             <div class="an-bar-chart" id="an-bar-chart"></div>
@@ -7425,7 +7433,7 @@ tr:hover td{background:var(--b50)}
             <a id="pp-ical-edit-link" href="#" onclick="switchPP(document.querySelector('[onclick*=pp-experiences]'),'pp-experiences');return false" style="font-size:.75rem;color:var(--b500)"><i class="fa fa-pen"></i> Edit iCal URL →</a>
           </div>
         </div>
-        <div style="display:grid;grid-template-columns:1fr 230px;gap:18px">
+        <div class="pp-2col-calendar">
           <div class="pp-card" style="margin-bottom:0">
             <div class="cal-month-hdr">
               <button class="btn bg bsm" onclick="calPrevMonth()"><i class="fa fa-chevron-left"></i></button>
@@ -13649,7 +13657,7 @@ async function ppLoadReporting() {
     let html = '';
 
     // Health score + top experience
-    html += `<div style="display:grid;grid-template-columns:180px 1fr;gap:18px;margin-bottom:22px;align-items:start">
+    html += `<div class="pp-2col-reporting">
       <div class="pp-card" style="margin-bottom:0;text-align:center">
         <div style="font-size:.68rem;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);font-weight:700;margin-bottom:10px">Partner Health Score</div>
         <div class="ins-score-ring" style="margin:0 auto 10px;border-color:${scoreBdr};color:${scoreColor};background:${scoreBg}">${score}</div>
@@ -18198,7 +18206,7 @@ const WB_AMENITIES = [
 
 function buildAmenitiesCheckboxes(prefix, selected) {
   selected = selected || [];
-  return '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:4px">'
+  return '<div class="pp-amenities-grid">'
     + WB_AMENITIES.map(function(a) {
         var checked = selected.includes(a.id) ? ' checked' : '';
         return '<label style="display:flex;align-items:center;gap:6px;font-size:.78rem;cursor:pointer;padding:5px 8px;border:1px solid var(--border);border-radius:6px;background:var(--b50)">'
@@ -18208,7 +18216,7 @@ function buildAmenitiesCheckboxes(prefix, selected) {
       }).join('')
     + '</div>'
     + '<div style="margin-top:10px"><div style="font-size:.72rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Custom amenities (up to 3)</div>'
-    + '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px">'
+    + '<div class="pp-amenities-custom-grid">'
     + [0,1,2].map(function(i){
         var val = (selected.filter(function(s){ return !WB_AMENITIES.find(function(a){ return a.id===s; }); })[i]) || '';
         return '<input class="fi" id="'+prefix+'-am-custom-'+i+'" placeholder="e.g. Butler service" value="'+val+'" style="font-size:.78rem;padding:6px 10px">';
