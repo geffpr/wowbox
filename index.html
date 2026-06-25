@@ -10160,6 +10160,24 @@ function browseRestoreFromURL() {
 }
 
 function go(page) {
+  // While pre-launch mode is active, nobody except an authenticated partner/admin
+  // may reach any page other than /login — closes the gap where clicking the
+  // overlay's "Sign in" link (or simply abandoning it) left the whole site open.
+  if (window._wbPrelaunchActive) {
+    var isStaff = currentUser && (currentUser.role === 'partner' || currentUser.role === 'admin');
+    if (!isStaff && page !== 'login') {
+      var ov = document.getElementById('prelaunch-overlay');
+      if (ov) ov.style.display = 'block';
+      document.documentElement.style.overflow = 'hidden';
+      document.body.style.overflow = 'hidden';
+      document.body.style.position = 'fixed';
+      document.body.style.top = '0';
+      document.body.style.left = '0';
+      document.body.style.width = '100%';
+      document.body.style.height = '100%';
+      return;
+    }
+  }
   // While pre-launch mode is active, a partner account is restricted to their
   // Partner Portal — block any attempt to reach the public catalog, no matter
   // which button/link triggered it (current or future ones).
