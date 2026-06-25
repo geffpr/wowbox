@@ -1403,7 +1403,7 @@ async function authOnSignedIn(user, navigate) {
     // hide the rest so they don't see the still-fake/incomplete public catalog.
     db_client.from('site_settings').select('value').eq('key','pre_launch_mode').maybeSingle().then(function(plr) {
       if (plr.data && plr.data.value === 'true') {
-        ['nl-home','nl-boxes','nl-find-gift','nl-list-exp'].forEach(function(id) {
+        ['nl-home','nl-boxes','nl-find-gift','nl-list-exp','mob-nl-home','mob-nl-boxes','mob-nl-list-exp'].forEach(function(id) {
           var el = document.getElementById(id);
           if (el) el.style.display = 'none';
         });
@@ -4603,10 +4603,10 @@ tr:hover td{background:var(--b50)}
   </div>
 
   <nav class="mob-menu-nav">
-    <button class="mob-nav-item" onclick="closeMobMenu();go('home');setNL('nl-home')">
+    <button class="mob-nav-item" id="mob-nl-home" onclick="closeMobMenu();go('home');setNL('nl-home')">
       <i class="fa fa-house"></i><span>Home</span>
     </button>
-    <button class="mob-nav-item" onclick="closeMobMenu();go('allboxes');setNL('nl-boxes')">
+    <button class="mob-nav-item" id="mob-nl-boxes" onclick="closeMobMenu();go('allboxes');setNL('nl-boxes')">
       <i class="fa fa-gift"></i><span>Gift Boxes</span>
     </button>
     <button class="mob-nav-item" onclick="closeMobMenu();goMyAccount()">
@@ -4630,7 +4630,7 @@ tr:hover td{background:var(--b50)}
     <div class="mob-nav-divider"></div>
 
     <!-- List your experience — always visible, styled distinctly -->
-    <button class="mob-nav-item mob-list-exp" onclick="closeMobMenu();go('partner-landing')">
+    <button class="mob-nav-item mob-list-exp" id="mob-nl-list-exp" onclick="closeMobMenu();go('partner-landing')">
       <i class="fa fa-star"></i><span>Become a Partner ✦</span>
     </button>
 
@@ -10160,6 +10160,14 @@ function browseRestoreFromURL() {
 }
 
 function go(page) {
+  // While pre-launch mode is active, a partner account is restricted to their
+  // Partner Portal — block any attempt to reach the public catalog, no matter
+  // which button/link triggered it (current or future ones).
+  if (window._wbPrelaunchActive && currentUser && currentUser.role === 'partner'
+      && (page === 'home' || page === 'allboxes' || page === 'product')) {
+    go('partner');
+    return;
+  }
   if (typeof psWowModeOff === 'function') psWowModeOff();
   // Restore WowBox nav/footer when navigating away from /wow/ pages
   if (typeof psWowModeOff === 'function') psWowModeOff();
@@ -27056,6 +27064,12 @@ async function prelaunchJoinWaitlist() {
 
 async function checkPrelaunchMode() {
   try {
+    // Always determine and cache the flag first, regardless of path/role —
+    // go() relies on window._wbPrelaunchActive being accurate even when this
+    // function returns early below (e.g. a partner landing straight on /partner).
+    var plOnly = await db_client.from('site_settings').select('value').eq('key','pre_launch_mode').maybeSingle();
+    window._wbPrelaunchActive = !!(plOnly.data && plOnly.data.value === 'true');
+
     var isAdmin   = currentUser && appState.adminMode;
     var isPartner = currentUser && appState.partnerMode;
     if (isAdmin || isPartner) return;
