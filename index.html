@@ -1399,6 +1399,36 @@ async function authOnSignedIn(user, navigate) {
   } else if (role === 'partner') {
     if (nlPart)  nlPart.style.display  = 'inline-flex';
     if (mobPart) mobPart.style.display = 'flex';
+    // While pre-launch mode is active, a partner only needs their Partner Portal —
+    // hide the rest so they don't see the still-fake/incomplete public catalog.
+    db_client.from('site_settings').select('value').eq('key','pre_launch_mode').maybeSingle().then(function(plr) {
+      if (plr.data && plr.data.value === 'true') {
+        ['nl-home','nl-boxes','nl-find-gift','nl-list-exp'].forEach(function(id) {
+          var el = document.getElementById(id);
+          if (el) el.style.display = 'none';
+        });
+      }
+    }).catch(function(e){ console.warn('pre_launch_mode nav check:', e.message); });
+  } else {
+    // Regular customer account: if pre-launch mode is active, the overlay must
+    // stay enforced — re-show it in case it was temporarily hidden via the
+    // overlay's own "Sign in" link (prevents bypassing pre-launch with a normal account).
+    var path0 = window.location.pathname;
+    if (!path0.startsWith('/admin') && !path0.startsWith('/partner')) {
+      db_client.from('site_settings').select('value').eq('key','pre_launch_mode').maybeSingle().then(function(plr2) {
+        if (plr2.data && plr2.data.value === 'true') {
+          var ov = document.getElementById('prelaunch-overlay');
+          if (ov) ov.style.display = 'block';
+          document.documentElement.style.overflow = 'hidden';
+          document.body.style.overflow = 'hidden';
+          document.body.style.position = 'fixed';
+          document.body.style.top = '0';
+          document.body.style.left = '0';
+          document.body.style.width = '100%';
+          document.body.style.height = '100%';
+        }
+      }).catch(function(e){ console.warn('pre_launch_mode re-show check:', e.message); });
+    }
   }
 
   // Populate settings fields
@@ -4541,7 +4571,7 @@ tr:hover td{background:var(--b50)}
       <i class="fa fa-shopping-bag"></i>
       <span class="cart-badge" id="cart-badge">0</span>
     </div>
-    <button class="bp" onclick="go('allboxes')" style="font-size:.8rem"><i class="fa fa-gift"></i> Find a gift</button>
+    <button class="bp" id="nl-find-gift" onclick="go('allboxes')" style="font-size:.8rem"><i class="fa fa-gift"></i> Find a gift</button>
   </div>
   <!-- Mobile-only controls (hidden on desktop) -->
   <div class="mob-nav-right">
@@ -5287,7 +5317,7 @@ tr:hover td{background:var(--b50)}
               <span>Total</span><span id="bkw-sum-total-amt">—</span>
             </div>
           </div>
-          <button class="btn bp block" style="margin-top:16px" onclick="bkwGoCheckout()">
+          <button class="btn bp block" id="bkw-confirm-btn" style="margin-top:16px" onclick="bkwGoCheckout()">
             <i class="fa fa-arrow-right"></i> Confirm reservation
           </button>
           <div style="display:flex;gap:18px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);flex-wrap:wrap">
@@ -20225,6 +20255,26 @@ async function loadBkwExp(expId, slug) {
   window.scrollTo(0,0);
   psWowModeOn();
 
+  // Disable booking while pre-launch mode is active — the page itself stays
+  // shareable/visible, but no real reservation/payment should happen yet.
+  try {
+    var plRes3 = await db_client.from('site_settings').select('value').eq('key','pre_launch_mode').maybeSingle();
+    var confirmBtn = document.getElementById('bkw-confirm-btn');
+    if (confirmBtn) {
+      if (plRes3.data && plRes3.data.value === 'true') {
+        confirmBtn.disabled = true;
+        confirmBtn.style.opacity = '.6';
+        confirmBtn.style.cursor = 'not-allowed';
+        confirmBtn.innerHTML = '<i class="fa fa-clock"></i> Bookings open at launch — check back soon!';
+      } else {
+        confirmBtn.disabled = false;
+        confirmBtn.style.opacity = '';
+        confirmBtn.style.cursor = '';
+        confirmBtn.innerHTML = '<i class="fa fa-arrow-right"></i> Confirm reservation';
+      }
+    }
+  } catch(plErr3) { console.warn('pre_launch_mode booking check:', plErr3.message); }
+
   // Store slug for back navigation
   _bkwState.partnerSlug = slug || _bkwState.partnerSlug || '';
   _bkwState.expId = expId;
@@ -20506,6 +20556,8 @@ function bkwCalcNights() {
 }
 
 function bkwGoCheckout() {
+  var confirmBtnGuard = document.getElementById('bkw-confirm-btn');
+  if (confirmBtnGuard && confirmBtnGuard.disabled) return;
   var s = _bkwState;
   if (!s.exp) return;
   var g1   = document.getElementById('bkw-g1')?.value.trim();
@@ -26873,6 +26925,23 @@ function plxCloseZoom() {
   if (z) z.style.display = 'none';
 }
 
+// Lets an already-registered user (e.g. a partner) get back into their account
+// from the prelaunch overlay — temporarily hides the overlay and opens the
+// normal sign-in flow. If the resulting account isn't partner/admin, the
+// overlay is automatically re-shown (see the role-display logic on login).
+function prelaunchShowSignIn() {
+  var overlay = document.getElementById('prelaunch-overlay');
+  if (overlay) overlay.style.display = 'none';
+  document.documentElement.style.overflow = '';
+  document.body.style.overflow = '';
+  document.body.style.position = '';
+  document.body.style.top = '';
+  document.body.style.left = '';
+  document.body.style.width = '';
+  document.body.style.height = '';
+  go('login'); setNL('nl-login');
+}
+
 function prelaunchShowPartner() {
   var main    = document.getElementById('prelaunch-screen-main');
   var partner = document.getElementById('prelaunch-screen-partner');
@@ -26992,7 +27061,7 @@ async function checkPrelaunchMode() {
     if (isAdmin || isPartner) return;
     // Bypass for admin and partner portal URLs only
     var path = window.location.pathname;
-    if (path.startsWith('/admin') || path.startsWith('/partner')) return;
+    if (path.startsWith('/admin') || path.startsWith('/partner') || path.startsWith('/wow/')) return;
     var res = await db_client.from('site_settings').select('key,value').in('key',['pre_launch_mode','pre_launch_message','pre_launch_image','pre_launch_logo','pre_launch_logo_size','pre_launch_logo_x','pre_launch_logo_y','pre_launch_cat_0','pre_launch_cat_1','pre_launch_cat_2','pre_launch_cat_3','pre_launch_cat_4','pre_launch_cat_5','pre_launch_cat_6','pre_launch_cat_7']);
     var s = {};
     (res.data||[]).forEach(function(r){ s[r.key] = r.value; });
@@ -27000,15 +27069,15 @@ async function checkPrelaunchMode() {
     // Load stats
     var [expRes, partRes, wlRes] = await Promise.all([
       db_client.from('experiences').select('id',{count:'exact',head:true}).eq('is_active',true),
-      db_client.from('partners').select('id',{count:'exact',head:true}).eq('status','approved'),
+      db_client.from('user_profiles').select('id',{count:'exact',head:true}).eq('role','partner'),
       db_client.from('waitlist').select('id',{count:'exact',head:true})
     ]);
     var expCnt = document.getElementById('prelaunch-exp-count');
     var partCnt= document.getElementById('prelaunch-partner-count');
     var wlCnt  = document.getElementById('prelaunch-waitlist-count');
     if (expCnt)  expCnt.textContent  = expRes.count  || '0';
-    if (partCnt) partCnt.textContent = '25';
-    if (wlCnt)   wlCnt.textContent   = '149';
+    if (partCnt) partCnt.textContent = String(25  + (partRes.count || 0));
+    if (wlCnt)   wlCnt.textContent   = String(149 + (wlRes.count   || 0));
     // Set message
     var msgEl = document.getElementById('prelaunch-msg');
     if (msgEl) msgEl.textContent = s.pre_launch_message || 'No wrong size, no wrong guess — they pick from dining, wellness, safari, wine & more.';
@@ -27579,7 +27648,8 @@ async function admRunSchemaDiag() {
       <button onclick="prelaunchJoinWaitlist()" style="background:#f59e0b;color:#fff;border:none;padding:11px 18px;font-weight:700;font-size:.82rem;cursor:pointer;white-space:nowrap;text-align:center;display:flex;align-items:center;justify-content:center">Get early access</button>
     </div>
     <div id="prelaunch-join-status" style="font-size:.78rem;color:rgba(255,255,255,.7);margin-top:10px;min-height:20px"></div>
-    <div style="margin-top:1.5vh;padding-top:1.5vh;border-top:1px solid rgba(255,255,255,.15);width:100%;max-width:420px">
+    <button onclick="prelaunchShowSignIn()" style="background:none;border:none;color:rgba(255,255,255,.6);font-size:.74rem;cursor:pointer;text-decoration:underline;margin-top:2px">Already have an account? Sign in</button>
+    <div style="margin-top:1vh;padding-top:1vh;border-top:1px solid rgba(255,255,255,.15);width:100%;max-width:420px">
       <p style="font-size:.78rem;color:rgba(255,255,255,.5);margin-bottom:10px">Reach gift-givers actively looking to book — zero upfront cost, paid per booking.</p>
       <button onclick="prelaunchShowPartner()" style="background:none;border:none;color:#fcd34d;font-size:.82rem;font-weight:600;text-decoration:underline;cursor:pointer">Apply to be a WowBox partner &rarr;</button>
     </div>
