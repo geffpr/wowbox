@@ -21212,6 +21212,7 @@ async function bkwCompleteBooking(bkwRef) {
       checkin_date:      s.formData.date||null,
       checkout_date:     s.formData.endDate||null,
       reservation_type:  s.exp.reservation_type,
+      box_price:         s.expAmt || 0,
       booking_details:   s.formData,
       service_fee:       s.feeAmt||0,
       status:            'pending_confirmation',
