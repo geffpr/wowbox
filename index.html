@@ -16274,6 +16274,14 @@ async function validateVoucher() {
     var platformAmount = parseFloat((boxPrice * platformRate / 100).toFixed(2));
     var partnerPayout  = parseFloat((boxPrice - platformAmount).toFixed(2));
 
+    // Mirror the payout onto the booking itself — Reporting/Analytics read from here
+    try {
+      await db_client.from('bookings').update({
+        payout_amount: partnerPayout,
+        payout_status: 'pending',
+      }).eq('booking_reference', raw);
+    } catch(bkUpdErr) { console.warn('bookings payout_amount update:', bkUpdErr.message); }
+
     // ── Commission: generate transaction ref (persisted + displayed) ──
     var txRef = 'TXN-' + Date.now().toString(36).toUpperCase()
               + '-' + Math.random().toString(36).substring(2,6).toUpperCase();
