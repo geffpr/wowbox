@@ -11456,7 +11456,9 @@ async function fetchProductExps(boxId) {
 
     // Replace expDB entries for this box with fresh Supabase data
     expDB = expDB.filter(function(e){ return e.box !== boxId; });
+    var ratingsMap1 = await fetchExpRatings(all.map(function(e){ return e.id; }));
     all.forEach(function(e) {
+      var rt1 = ratingsMap1[e.id];
       expDB.push({
         id:               e.id,
         name:             e.name                || 'Untitled',
@@ -11470,8 +11472,9 @@ async function fetchProductExps(boxId) {
         province:         e.province            || '',
         address:          e.address             || '',
         phone:            e.phone               || '',
-        rating:           e.rating              || 4.5,
-        rv:               e.review_count        || 0,
+        rating:           rt1 ? rt1.avg : null,
+        rv:               rt1 ? rt1.count : 0,
+        amenities:        e.amenities            || [],
         img:              e.image_url || (Array.isArray(e.images) && e.images[0]) || (Array.isArray(e.image_urls) && e.image_urls[0]) || 'https://images.unsplash.com/photo-1528360983277-13d401cdc186?w=800&auto=format&fit=crop',
         img2:             (e.image_urls && e.image_urls[0]) || (e.images && e.images[1]) || '',
         img3:             (e.image_urls && e.image_urls[1]) || (e.images && e.images[2]) || '',
@@ -11541,7 +11544,10 @@ async function loadExpFromSupabase() {
       // Remove any remaining duplicate by id
       var existing = expDB.findIndex(function(x){ return x.id === e.id; });
       if (existing !== -1) expDB.splice(existing, 1);
-
+    });
+    var ratingsMap2 = await fetchExpRatings(res.data.map(function(e){ return e.id; }));
+    res.data.forEach(function(e) {
+      var rt2 = ratingsMap2[e.id];
       expDB.push({
         id:               e.id,
         name:             e.name             || 'Untitled',
@@ -11555,8 +11561,9 @@ async function loadExpFromSupabase() {
         province:         e.province         || '',
         address:          e.address          || '',
         phone:            e.phone            || '',
-        rating:           e.rating           || 4.5,
-        rv:               e.review_count     || 0,
+        rating:           rt2 ? rt2.avg : null,
+        rv:               rt2 ? rt2.count : 0,
+        amenities:        e.amenities         || [],
         img:              e.image_url || (Array.isArray(e.images) && e.images[0]) || (Array.isArray(e.image_urls) && e.image_urls[0]) || 'https://images.unsplash.com/photo-1528360983277-13d401cdc186?w=800&auto=format&fit=crop',
         img2:             (e.image_urls && e.image_urls[0]) || (e.images && e.images[1]) || '',
         img3:             (e.image_urls && e.image_urls[1]) || (e.images && e.images[2]) || '',
@@ -12260,6 +12267,47 @@ const amenities = {
   event:          [{i:'fa-champagne-glasses',t:'Welcome drink'},{i:'fa-utensils',t:'Catering incl.'},{i:'fa-music',t:'Live entertainment'},{i:'fa-camera',t:'Professional photos'},{i:'fa-universal-access',t:'Accessible'},{i:'fa-car',t:'Parking available'}],
 };
 
+// Computes real {avg, count} per experience_id from approved reviews.
+// Returns a map: { expId: { avg: Number, count: Number } } — only for IDs that have ≥1 review.
+async function fetchExpRatings(expIds) {
+  var map = {};
+  if (!expIds || !expIds.length) return map;
+  try {
+    var res = await db_client.from('experience_reviews').select('experience_id,rating').eq('status','approved').in('experience_id', expIds);
+    var byId = {};
+    (res.data || []).forEach(function(r) {
+      if (!byId[r.experience_id]) byId[r.experience_id] = [];
+      byId[r.experience_id].push(r.rating || 0);
+    });
+    Object.keys(byId).forEach(function(id) {
+      var arr = byId[id];
+      map[id] = { avg: Math.round((arr.reduce(function(s,n){ return s+n; },0) / arr.length) * 10) / 10, count: arr.length };
+    });
+  } catch(err) { console.warn('fetchExpRatings:', err.message); }
+  return map;
+}
+
+// Same, but grouped by box_id (for box-level rating cards) — uses the box_id
+// column already present on experience_reviews.
+async function fetchBoxRatings(boxIds) {
+  var map = {};
+  if (!boxIds || !boxIds.length) return map;
+  try {
+    var res = await db_client.from('experience_reviews').select('box_id,rating').eq('status','approved').in('box_id', boxIds);
+    var byId = {};
+    (res.data || []).forEach(function(r) {
+      if (!r.box_id) return;
+      if (!byId[r.box_id]) byId[r.box_id] = [];
+      byId[r.box_id].push(r.rating || 0);
+    });
+    Object.keys(byId).forEach(function(id) {
+      var arr = byId[id];
+      map[id] = { avg: Math.round((arr.reduce(function(s,n){ return s+n; },0) / arr.length) * 10) / 10, count: arr.length };
+    });
+  } catch(err) { console.warn('fetchBoxRatings:', err.message); }
+  return map;
+}
+
 function loadExp(expId) {
   appState.currentExpId = expId;
   const e = expDB.find(x => x.id === expId);
@@ -12290,18 +12338,28 @@ function loadExp(expId) {
 
   // Overview
   document.getElementById('exp-title').textContent = e.name;
-  const stars = '★'.repeat(Math.floor(e.rating)) + (e.rating%1?'½':'');
-  document.getElementById('exp-stars').innerHTML = `<span style="color:var(--amber)">${stars}</span> ${e.rating}`;
-  document.getElementById('exp-rating-cnt').textContent = `(${e.rv} reviews)`;
+  if (e.rating != null && e.rv > 0) {
+    const stars = '★'.repeat(Math.floor(e.rating)) + (e.rating%1?'½':'');
+    document.getElementById('exp-stars').innerHTML = `<span style="color:var(--amber)">${stars}</span> ${e.rating}`;
+    document.getElementById('exp-rating-cnt').textContent = `(${e.rv} review${e.rv===1?'':'s'})`;
+  } else {
+    document.getElementById('exp-stars').innerHTML = '<span style="background:var(--b100);color:var(--b700);padding:2px 8px;border-radius:99px;font-size:.72rem;font-weight:700">New</span>';
+    document.getElementById('exp-rating-cnt').textContent = '';
+  }
   const badge = document.getElementById('exp-type-badge');
   badge.className = 'rtype-badge ' + cfg.cls;
   badge.textContent = cfg.icon + ' ' + cfg.label;
-  document.getElementById('exp-loc-disp').innerHTML = `<i class="fa fa-location-dot" style="color:var(--b400)"></i> ${e.city||e.loc}`;
-  document.getElementById('exp-partner-disp').innerHTML = `<i class="fa fa-building" style="color:var(--b400)"></i> ${e.partner}`;
-  document.getElementById('exp-desc-full').textContent = e.desc;
-  document.getElementById('exp-rev-cnt').textContent = e.rv;
-  document.getElementById('exp-rv-num').textContent = e.rating;
-  document.getElementById('exp-rv-total').textContent = e.rv + ' reviews';
+  document.getElementById('exp-loc-disp').innerHTML = `<i class="fa fa-location-dot" style="color:var(--b400)"></i> ${e.city||e.loc||''}`;
+  document.getElementById('exp-partner-disp').innerHTML = `<i class="fa fa-building" style="color:var(--b400)"></i> ${e.partner||''}`;
+  document.getElementById('exp-desc-full').textContent = e.desc || '';
+  document.getElementById('exp-rev-cnt').textContent = e.rv || 0;
+  if (e.rating != null && e.rv > 0) {
+    document.getElementById('exp-rv-num').textContent = e.rating;
+    document.getElementById('exp-rv-total').textContent = e.rv + ' review' + (e.rv===1?'':'s');
+  } else {
+    document.getElementById('exp-rv-num').textContent = 'New';
+    document.getElementById('exp-rv-total').textContent = 'No reviews yet';
+  }
 
   // Programme: use Supabase data if available, fallback to hardcoded
   var progData = (e.programme && e.programme.length) ? e.programme : (programs[rt] || programs.activity);
@@ -12339,10 +12397,11 @@ function loadExp(expId) {
     var boxIds = new Set();
     if (e.box) boxIds.add(e.box);
 
+    var dbIds = [];
     try {
       // Find databases this experience belongs to
       var dbLinks = await db_client.from('experience_database_links').select('database_id').eq('experience_id', expId);
-      var dbIds = (dbLinks.data || []).map(function(r){ return r.database_id; });
+      dbIds = (dbLinks.data || []).map(function(r){ return r.database_id; });
       if (dbIds.length) {
         // Find boxes that use these databases
         var boxLinks = await db_client.from('box_database_links').select('box_id').in('database_id', dbIds);
@@ -12350,18 +12409,33 @@ function loadExp(expId) {
       }
     } catch(err) { console.warn('exp box links:', err.message); }
 
+    // If this experience has no single direct box (only reachable via shared databases),
+    // show the real combined experience count across those databases instead of a stale number.
+    if (!e.box && dbIds.length) {
+      try {
+        var unionRes = await db_client.from('experience_database_links').select('experience_id').in('database_id', dbIds);
+        var uniqueExpIds = new Set((unionRes.data || []).map(function(r){ return r.experience_id; }));
+        var countEl = document.getElementById('exp-info-count');
+        if (countEl) countEl.textContent = uniqueExpIds.size;
+      } catch(unionErr) { console.warn('exp union count:', unionErr.message); }
+    }
+
     // Render a card per box
     var boxArr = Array.from(boxIds).filter(function(id){ return boxDB[id] && id !== 'surprise'; });
     if (!boxArr.length && b && e.box !== 'surprise') boxArr = [e.box];
 
+    var boxRatings = await fetchBoxRatings(boxArr);
     cards.innerHTML = boxArr.map(function(bid) {
       var bx = boxDB[bid];
       if (!bx) return '';
+      var br = boxRatings[bid];
+      var ratingHtml = br ? ('<span style="color:var(--amber)">★</span> ' + br.avg + ' · ' + br.count + ' review' + (br.count===1?'':'s') + ' · ')
+        : '<span style="background:var(--b100);color:var(--b700);padding:1px 6px;border-radius:99px;font-size:.65rem;font-weight:700">New</span> · ';
       return '<div onclick="loadProduct(\''+bid+'\');go(\'product\')" style="flex-shrink:0;width:200px;border:1.5px solid var(--border);border-radius:var(--r);overflow:hidden;cursor:pointer;transition:box-shadow .15s" onmouseover="this.style.boxShadow=\'0 4px 12px rgba(0,0,0,.1)\'" onmouseout="this.style.boxShadow=\'\'">'
         + '<img src="'+(bx.img||'')+'" style="width:100%;height:90px;object-fit:cover" loading="lazy">'
         + '<div style="padding:10px">'
         + '<div style="font-size:.8rem;font-weight:700;color:var(--navy);margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+bx.name+'</div>'
-        + '<div style="font-size:.72rem;color:var(--muted);margin-bottom:6px"><span style="color:var(--amber)">★</span> '+(bx.rating||'4.5')+' · '+(bx.cnt||'?')+' experiences</div>'
+        + '<div style="font-size:.72rem;color:var(--muted);margin-bottom:6px">'+ratingHtml+(bx.cnt||'?')+' experiences</div>'
         + '<div style="font-size:.9rem;font-weight:700;color:var(--navy)">R'+(bx.price||0).toLocaleString()+'</div>'
         + '</div></div>';
     }).join('');
@@ -25304,13 +25378,16 @@ window.addEventListener('DOMContentLoaded', async () => {
             var directExpRes = await db_client.from('experiences').select('*').eq('id', expSlug).eq('is_active', true).maybeSingle();
             if (directExpRes.data) {
               var de = directExpRes.data;
+              var ratingsMap3 = await fetchExpRatings([de.id]);
+              var rt3 = ratingsMap3[de.id];
               expDB.push({
                 id: de.id, name: de.name, box: de.box_id, reservation_type: de.reservation_type,
                 desc: de.description, img: de.image_url, img2: (de.image_urls||[])[1], img3: (de.image_urls||[])[2],
                 loc: de.location, city: de.city, province: de.province, capacity: de.capacity,
-                partner_email: de.partner_email, price: de.price, wow_price: de.wow_price, wow_pricing_type: de.wow_pricing_type,
+                partner: de.partner_name || '', partner_email: de.partner_email, price: de.price, wow_price: de.wow_price, wow_pricing_type: de.wow_pricing_type,
                 duration_nights: de.duration_nights, booking_type: de.booking_type, lat: de.lat, lng: de.lng,
                 address: de.address, phone: de.phone, ical_url: de.ical_url, programme: de.programme, amenities: de.amenities,
+                rating: rt3 ? rt3.avg : null, rv: rt3 ? rt3.count : 0,
                 video_url: de.video_url || null,
                 video_position: de.video_position || 1,
               });
