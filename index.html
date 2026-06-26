@@ -16162,7 +16162,7 @@ async function validateVoucher() {
     resEl.innerHTML = renderValidationResult('error', null, 'Please enter a booking reference.');
     return;
   }
-  if (!raw.startsWith('BK-')) {
+  if (!raw.startsWith('BK-') && !raw.startsWith('BKW-')) {
     resEl.style.display = 'block';
     resEl.innerHTML = renderValidationResult("error", null, "Please enter a valid booking reference (format: BK-XXXX), found on the customer's confirmation email.");
     return;
@@ -23547,9 +23547,9 @@ async function loadPartnerPortalData() {
 
   // ── KPIs from bookings ──
   try {
-    const thisR = await db_client.from('bookings').select('id').eq('partner_email',email).gte('created_at',monthStart);
-    const lastR = await db_client.from('bookings').select('id').eq('partner_email',email).gte('created_at',lastMonthStart).lt('created_at',monthStart);
-    const allR  = await db_client.from('bookings').select('id').eq('partner_email',email);
+    const thisR = await db_client.from('bookings').select('id').eq('partner_email',email).eq('status','used').gte('validated_at',monthStart);
+    const lastR = await db_client.from('bookings').select('id').eq('partner_email',email).eq('status','used').gte('validated_at',lastMonthStart).lt('validated_at',monthStart);
+    const allR  = await db_client.from('bookings').select('id').eq('partner_email',email).eq('status','used');
     const thisCount = (thisR.data||[]).length;
     const lastCount = (lastR.data||[]).length;
     const allCount  = (allR.data||[]).length;
@@ -23563,8 +23563,8 @@ async function loadPartnerPortalData() {
     }
 
     // Revenue: look up experience prices
-    const revR = await db_client.from('bookings').select('experience_id,guests').eq('partner_email',email).gte('created_at',monthStart);
-    const lrevR = await db_client.from('bookings').select('experience_id,guests').eq('partner_email',email).gte('created_at',lastMonthStart).lt('created_at',monthStart);
+    const revR = await db_client.from('bookings').select('experience_id,guests').eq('partner_email',email).eq('status','used').gte('validated_at',monthStart);
+    const lrevR = await db_client.from('bookings').select('experience_id,guests').eq('partner_email',email).eq('status','used').gte('validated_at',lastMonthStart).lt('validated_at',monthStart);
     const expIds = [...new Set((revR.data||[]).map(function(b){ return b.experience_id; }).filter(Boolean))];
     let revTotal = 0, lastRevTotal = 0;
     if (expIds.length) {
