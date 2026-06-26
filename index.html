@@ -5429,7 +5429,7 @@ tr:hover td{background:var(--b50)}
         <div class="fg"><label>Full name *</label><input class="fi" id="bkw-co-name" placeholder="Your full name"></div>
         <div class="fg"><label>Email *</label><input class="fi" type="email" id="bkw-co-email" placeholder="your@email.com"></div>
         <div id="bkw-co-status" style="font-size:.8rem;color:var(--muted);text-align:center;margin-bottom:8px;min-height:18px"></div>
-        <button id="bkw-co-btn" onclick="bkwOpenConfirmModal()" class="btn bp block">
+        <button id="bkw-co-btn" onclick="bkwOpenAddonsModal()" class="btn bp block">
           <i class="fa fa-lock" style="margin-right:8px"></i>Pay securely — <span id="bkw-co-btn-total"></span>
         </button>
         <div style="display:flex;gap:18px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);flex-wrap:wrap">
@@ -21037,6 +21037,13 @@ function bkwOpenConfirmModal() {
   if (!name)  { alert('Please enter your full name.'); return; }
   if (!email || !email.includes('@')) { alert('Please enter a valid email.'); return; }
 
+  var addonsTotal = (_bkwAddonsSelected||[]).reduce(function(sum, a){ return sum + a.price; }, 0);
+  var addonsHtml = (_bkwAddonsSelected||[]).length
+    ? '<div style="background:var(--b50);border-radius:8px;padding:10px 12px;margin-bottom:14px;font-size:.78rem">'
+      + (_bkwAddonsSelected.map(function(a){ return '<div style="display:flex;justify-content:space-between;color:var(--navy)"><span>🎁 '+a.name+'</span><span>R'+a.price.toLocaleString()+'</span></div>'; }).join(''))
+      + '</div>'
+    : '';
+
   var existing = document.getElementById('bkw-confirm-modal');
   if (existing) existing.remove();
   var modal = document.createElement('div');
@@ -21045,25 +21052,26 @@ function bkwOpenConfirmModal() {
   modal.innerHTML = '<div style="background:#fff;border-radius:16px;padding:28px;max-width:380px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.25)">'
     + '<div style="font-size:1.6rem;margin-bottom:10px">🔒</div>'
     + '<h3 style="font-size:1.05rem;color:var(--navy);margin-bottom:8px">Confirm your booking</h3>'
-    + '<p style="font-size:.82rem;color:var(--muted);margin-bottom:20px">You are about to book <strong>' + s.exp.name + '</strong>. Once confirmed, this booking will be finalized and cannot be reversed.</p>'
+    + '<p style="font-size:.82rem;color:var(--muted);margin-bottom:14px">You are about to book <strong>' + s.exp.name + '</strong>. Once confirmed, this booking will be finalized and cannot be reversed.</p>'
+    + addonsHtml
+    + '<div style="display:flex;justify-content:space-between;font-weight:700;color:var(--navy);margin-bottom:18px"><span>Total</span><span>R'+((s.total||0)+addonsTotal).toLocaleString()+'</span></div>'
     + '<div style="display:flex;gap:10px">'
-    + '<button class="btn bg" style="flex:1" onclick="document.getElementById(\'bkw-confirm-modal\').remove()">Cancel</button>'
-    + '<button class="btn bp" style="flex:1" onclick="bkwConfirmAndContinue()"><i class="fa fa-check"></i> Confirm booking</button>'
+    + '<button class="btn bg" style="flex:1" onclick="document.getElementById(\'bkw-confirm-modal\').remove()">Back</button>'
+    + '<button class="btn bp" style="flex:1" onclick="bkwSubmitPayment()"><i class="fa fa-lock"></i> Confirm &amp; Pay</button>'
     + '</div></div>';
   document.body.appendChild(modal);
   modal.addEventListener('click', function(e){ if(e.target===modal) modal.remove(); });
 }
 
-function bkwConfirmAndContinue() {
-  var modal = document.getElementById('bkw-confirm-modal');
-  if (modal) modal.remove();
-  bkwOpenAddonsModal();
-}
-
-/* ── Add-ons upsell modal — optional, skippable, shown after booking confirmation ── */
+/* ── Add-ons upsell modal — optional, skippable, shown before final confirmation ── */
 var _bkwAddonsSelected = [];
 
 async function bkwOpenAddonsModal() {
+  var name  = document.getElementById('bkw-co-name')?.value.trim();
+  var email = document.getElementById('bkw-co-email')?.value.trim();
+  if (!name)  { alert('Please enter your full name.'); return; }
+  if (!email || !email.includes('@')) { alert('Please enter a valid email.'); return; }
+
   var existing = document.getElementById('bkw-addons-modal');
   if (existing) existing.remove();
 
@@ -21074,8 +21082,8 @@ async function bkwOpenAddonsModal() {
   } catch(e) { console.warn('addons fetch:', e.message); }
 
   if (!addons.length) {
-    // No add-ons configured — skip straight to payment
-    bkwSubmitPayment();
+    // No add-ons configured — skip straight to the final confirmation
+    bkwOpenConfirmModal();
     return;
   }
 
@@ -21089,7 +21097,7 @@ async function bkwOpenAddonsModal() {
     + '<div id="bkw-addons-list" style="margin-bottom:18px"></div>'
     + '<div style="display:flex;gap:10px">'
     + '<button class="btn bg" style="flex:1" onclick="bkwSkipAddons()">Skip</button>'
-    + '<button class="btn bp" style="flex:1" onclick="bkwSubmitPayment()"><i class="fa fa-lock"></i> Continue to payment</button>'
+    + '<button class="btn bp" style="flex:1" onclick="bkwContinueWithAddons()">Continue</button>'
     + '</div></div>';
   document.body.appendChild(modal);
   modal.addEventListener('click', function(e){ if(e.target===modal) modal.remove(); });
@@ -21120,7 +21128,13 @@ function bkwSkipAddons() {
   _bkwAddonsSelected = [];
   var modal = document.getElementById('bkw-addons-modal');
   if (modal) modal.remove();
-  bkwSubmitPayment();
+  bkwOpenConfirmModal();
+}
+
+function bkwContinueWithAddons() {
+  var modal = document.getElementById('bkw-addons-modal');
+  if (modal) modal.remove();
+  bkwOpenConfirmModal();
 }
 
 async function bkwSubmitPayment() {
@@ -21156,9 +21170,9 @@ async function bkwSubmitPayment() {
       currency: 'ZAR',
       ref: bkwRef,
       metadata: { item_name: 'WowBox — '+s.exp.name, guests: s.formData.guests||1, date: s.formData.date||'' },
-      callback: async function(response) {
+      callback: function(response) {
         if (response.status === 'success') {
-          await bkwCompleteBooking(bkwRef);
+          bkwCompleteBooking(bkwRef);
         } else {
           admToast('Payment was not successful. Please try again.');
           if(btn){ btn.disabled=false; btn.innerHTML='<i class="fa fa-lock" style="margin-right:8px"></i>Pay securely — R'+(paymentAmount||0).toLocaleString(); }
