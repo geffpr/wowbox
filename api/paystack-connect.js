@@ -2,8 +2,26 @@
 // GET  → returns list of South African banks from Paystack
 // POST → creates a Paystack subaccount for a partner and saves subaccount_code to Supabase
 
+async function getPaystackSecretKey(supabaseUrl, supabaseKey) {
+  let mode = 'test'; // safe default — never assume live
+  if (supabaseUrl && supabaseKey) {
+    try {
+      const r = await fetch(`${supabaseUrl}/rest/v1/site_settings?key=eq.paystack_mode&select=value`, {
+        headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` },
+      });
+      const rows = await r.json();
+      if (Array.isArray(rows) && rows[0] && rows[0].value === 'live') mode = 'live';
+    } catch (e) { console.warn('getPaystackSecretKey: mode lookup failed, defaulting to test —', e.message); }
+  }
+  return mode === 'live'
+    ? (process.env.PAYSTACK_SECRET_KEY_LIVE || process.env.PAYSTACK_SECRET_KEY)
+    : (process.env.PAYSTACK_SECRET_KEY_TEST || process.env.PAYSTACK_SECRET_KEY);
+}
+
 export default async function handler(req, res) {
-  const secretKey = process.env.PAYSTACK_SECRET_KEY;
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
+  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY;
+  const secretKey = await getPaystackSecretKey(supabaseUrl, supabaseKey);
   if (!secretKey) return res.status(500).json({ error: 'Paystack secret key not configured' });
 
   // ── GET: return list of banks ────────────────────────────────────────────────
@@ -82,9 +100,6 @@ export default async function handler(req, res) {
       const recipient_code = rcpData?.data?.recipient_code || null;
 
       // 3. Save both codes to Supabase user_profiles
-      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
-      const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY;
-
       if (!supabaseUrl || !supabaseKey) {
         return res.status(500).json({ error: 'Supabase env vars not configured' });
       }

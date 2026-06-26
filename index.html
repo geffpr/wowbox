@@ -618,7 +618,24 @@ var APP_URL = (window.location.hostname === 'localhost' || window.location.hostn
 // Set to true to show a mock payment modal instead of real Payfast
 // Switch to false when prod account is approved
 var PAYFAST_TEST_MODE = false;
-var PAYSTACK_PUBLIC_KEY = 'pk_test_af150d9b155e6462903561ae77752440ae7a4548';
+var PAYSTACK_TEST_KEY = 'pk_test_af150d9b155e6462903561ae77752440ae7a4548';
+var PAYSTACK_LIVE_KEY = ''; // loaded from site_settings — never hardcode the live key here
+var PAYSTACK_PUBLIC_KEY = PAYSTACK_TEST_KEY; // safe default until loadPaystackMode() resolves
+
+async function loadPaystackMode() {
+  try {
+    var res = await db_client.from('site_settings').select('key,value')
+      .in('key', ['paystack_mode', 'paystack_test_key', 'paystack_live_key']);
+    var s = {};
+    (res.data || []).forEach(function(r){ s[r.key] = r.value; });
+    if (s.paystack_test_key) PAYSTACK_TEST_KEY = s.paystack_test_key;
+    if (s.paystack_live_key) PAYSTACK_LIVE_KEY = s.paystack_live_key;
+    PAYSTACK_PUBLIC_KEY = (s.paystack_mode === 'live' && PAYSTACK_LIVE_KEY) ? PAYSTACK_LIVE_KEY : PAYSTACK_TEST_KEY;
+  } catch(err) {
+    console.warn('loadPaystackMode: falling back to test key —', err.message);
+    PAYSTACK_PUBLIC_KEY = PAYSTACK_TEST_KEY;
+  }
+}
 
 function showPayfastTestModal(pfRef, total, discount, delivFee, onAccept) {
   var existing = document.getElementById('pf-test-modal');
@@ -9531,6 +9548,36 @@ tr:hover td{background:var(--b50)}
         <div style="margin-bottom:26px">
           <h2 style="font-size:1.7rem;color:var(--navy)">Site Settings</h2>
           <p style="color:var(--muted);font-size:.82rem">Manage the hero background image, pre-launch mode and global SEO settings.</p>
+        </div>
+
+        <!-- Paystack Mode -->
+        <div class="atbl" style="padding:20px;margin-bottom:22px;border:2px solid #ef4444">
+          <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:16px">
+            <div>
+              <h3 style="font-size:.95rem;color:var(--navy);margin-bottom:3px"><i class="fa fa-credit-card" style="color:#ef4444"></i> Paystack Mode</h3>
+              <p style="font-size:.75rem;color:var(--muted);margin:0">Controls every payment on the site (boxes, boost, add-ons). <strong>Live mode charges real cards immediately.</strong></p>
+            </div>
+            <label style="display:flex;align-items:center;gap:10px;cursor:pointer">
+              <span id="adm-paystack-mode-label" style="font-size:.82rem;font-weight:600;color:var(--navy)">TEST</span>
+              <div style="position:relative;width:44px;height:24px" onclick="admTogglePaystackMode()">
+                <input type="checkbox" id="adm-paystack-live-toggle" style="opacity:0;width:0;height:0;position:absolute">
+                <div id="adm-paystack-track" style="position:absolute;inset:0;border-radius:99px;background:var(--border);transition:background .2s;cursor:pointer"></div>
+                <div id="adm-paystack-thumb" style="position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:#fff;transition:transform .2s;box-shadow:0 1px 4px rgba(0,0,0,.2)"></div>
+              </div>
+            </label>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+            <div>
+              <label style="font-size:.72rem;color:var(--muted);display:block;margin-bottom:5px">Test Public Key</label>
+              <input class="fi" id="adm-paystack-test-key" placeholder="pk_test_..." style="font-family:monospace;font-size:.78rem">
+            </div>
+            <div>
+              <label style="font-size:.72rem;color:var(--muted);display:block;margin-bottom:5px">Live Public Key</label>
+              <input class="fi" id="adm-paystack-live-key" placeholder="pk_live_..." style="font-family:monospace;font-size:.78rem">
+            </div>
+          </div>
+          <button class="btn bp bsm" style="margin-top:14px" onclick="admSavePaystackKeys()"><i class="fa fa-save"></i> Save keys</button>
+          <div id="adm-paystack-status" style="font-size:.78rem;margin-top:10px"></div>
         </div>
 
         <!-- Pre-launch Mode -->
@@ -25286,6 +25333,7 @@ async function loadSiteSettingsOnStartup() {
   try {
     // Check pre-launch mode first
     await checkPrelaunchMode();
+    loadPaystackMode();
     var res = await db_client.from('site_settings').select('key,value');
     if (res.error || !res.data) return;
     var settings = {};
@@ -26929,6 +26977,72 @@ async function loadPrelaunchSettings() {
   } catch(e) { console.warn('loadPrelaunchSettings:', e.message); }
 }
 
+function admUpdatePaystackToggleUI() {
+  var toggle = document.getElementById('adm-paystack-live-toggle');
+  var track  = document.getElementById('adm-paystack-track');
+  var thumb  = document.getElementById('adm-paystack-thumb');
+  var label  = document.getElementById('adm-paystack-mode-label');
+  var on     = toggle && toggle.checked;
+  if (track) track.style.background = on ? '#ef4444' : 'var(--border)';
+  if (thumb) thumb.style.transform  = on ? 'translateX(20px)' : 'translateX(0)';
+  if (label) label.textContent       = on ? 'LIVE' : 'TEST';
+}
+
+async function admTogglePaystackMode() {
+  var toggle = document.getElementById('adm-paystack-live-toggle');
+  if (!toggle) return;
+  var goingLive = !toggle.checked;
+  if (goingLive && !confirm('Switch to LIVE Paystack mode?\n\nEvery payment site-wide (boxes, boost, add-ons) will immediately use REAL cards and charge real money. Are you sure?')) {
+    return;
+  }
+  toggle.checked = goingLive;
+  admUpdatePaystackToggleUI();
+  var statusEl = document.getElementById('adm-paystack-status');
+  if (statusEl) statusEl.textContent = 'Saving…';
+  try {
+    var upd = await db_client.from('site_settings').upsert({ key: 'paystack_mode', value: goingLive ? 'live' : 'test' }, { onConflict: 'key' });
+    if (upd.error) throw upd.error;
+    if (statusEl) statusEl.innerHTML = '<span style="color:var(--green)">✅ Mode switched to ' + (goingLive ? 'LIVE' : 'TEST') + '.</span>';
+    loadPaystackMode();
+  } catch(err) {
+    if (statusEl) statusEl.innerHTML = '<span style="color:#ef4444">Error: ' + err.message + '</span>';
+    toggle.checked = !goingLive;
+    admUpdatePaystackToggleUI();
+  }
+}
+
+async function admSavePaystackKeys() {
+  var testKey = (document.getElementById('adm-paystack-test-key') || {value:''}).value.trim();
+  var liveKey = (document.getElementById('adm-paystack-live-key') || {value:''}).value.trim();
+  var statusEl = document.getElementById('adm-paystack-status');
+  if (!testKey && !liveKey) { if (statusEl) statusEl.textContent = 'Nothing to save.'; return; }
+  if (statusEl) statusEl.textContent = 'Saving…';
+  try {
+    var rows = [];
+    if (testKey) rows.push({ key: 'paystack_test_key', value: testKey });
+    if (liveKey) rows.push({ key: 'paystack_live_key', value: liveKey });
+    var upd = await db_client.from('site_settings').upsert(rows, { onConflict: 'key' });
+    if (upd.error) throw upd.error;
+    if (statusEl) statusEl.innerHTML = '<span style="color:var(--green)">✅ Keys saved.</span>';
+    loadPaystackMode();
+  } catch(err) {
+    if (statusEl) statusEl.innerHTML = '<span style="color:#ef4444">Error: ' + err.message + '</span>';
+  }
+}
+
+async function admLoadPaystackSettings() {
+  try {
+    var res = await db_client.from('site_settings').select('key,value').in('key', ['paystack_mode','paystack_test_key','paystack_live_key']);
+    var s = {};
+    (res.data || []).forEach(function(r){ s[r.key] = r.value; });
+    var toggle = document.getElementById('adm-paystack-live-toggle');
+    if (toggle) toggle.checked = s.paystack_mode === 'live';
+    admUpdatePaystackToggleUI();
+    var tk = document.getElementById('adm-paystack-test-key'); if (tk) tk.value = s.paystack_test_key || '';
+    var lk = document.getElementById('adm-paystack-live-key'); if (lk) lk.value = s.paystack_live_key || '';
+  } catch(err) { console.warn('admLoadPaystackSettings:', err.message); }
+}
+
 function admUpdatePrelaunchToggleUI() {
   var toggle = document.getElementById('adm-prelaunch-toggle');
   var track  = document.getElementById('adm-prelaunch-track');
@@ -27325,6 +27439,11 @@ async function admLoadSiteSettings() {
     if (res.error || !res.data) return;
     var s = {};
     res.data.forEach(function(r){ s[r.key] = r.value; });
+    var pToggle = document.getElementById('adm-paystack-live-toggle');
+    if (pToggle) pToggle.checked = s.paystack_mode === 'live';
+    admUpdatePaystackToggleUI();
+    var pTestEl = document.getElementById('adm-paystack-test-key'); if (pTestEl) pTestEl.value = s.paystack_test_key || '';
+    var pLiveEl = document.getElementById('adm-paystack-live-key'); if (pLiveEl) pLiveEl.value = s.paystack_live_key || '';
     var titleEl = document.getElementById('adm-seo-title');
     var descEl  = document.getElementById('adm-seo-desc');
     var ogEl    = document.getElementById('adm-seo-og');
