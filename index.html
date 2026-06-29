@@ -22363,7 +22363,7 @@ function psToggleBookingTab(btn, blockId) {
     var _btc = _bw?.dataset.textColor || psContrastColor(_bc2);
     var _cb2 = _bc2==='transparent' ? (document.getElementById('page-partner-storefront')?.style.background||'#f9fafb') : _bc2;
     var _ib2 = psContrastColor(_cb2) === '#ffffff' ? 'rgba(255,255,255,.2)' : 'rgba(0,0,0,.12)';
-    var _atc2 = psContrastColor(_bc2)==='#1a1a2e' ? psContrastColor('#ffffff') : _bc2;
+    var _atc2 = color;
     b.style.background = isOn ? '#fff' : _ib2;
     b.style.color = isOn ? _atc2 : _btc;
     b.style.boxShadow = isOn ? '0 2px 8px rgba(0,0,0,.15)' : 'none';
