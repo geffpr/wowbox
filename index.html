@@ -21615,14 +21615,16 @@ function psGetComboLabel(activeBlocks) {
   return activeBlocks.map(function(b){ return LABELS[b]||b; }).join(' + ');
 }
 
-function psBuildBar(color, activeBlocks) {
+function psBuildBar(color, activeBlocks, isTransparent) {
   var activeBlock = activeBlocks[0];
   var fields = _psFields[activeBlock] || [];
-  var fi = 'background:transparent;border:none;outline:none;padding:10px 14px;font-size:.88rem;color:#1a1a2e;width:100%;font-family:inherit;box-sizing:border-box';
+  var labelColor = isTransparent ? 'rgba(255,255,255,.85)' : '#9ca3af';
+  var inputColor = isTransparent ? '#fff' : '#1a1a2e';
+  var fi = 'background:transparent;border:none;outline:none;padding:10px 14px;font-size:.88rem;color:'+inputColor+';width:100%;font-family:inherit;box-sizing:border-box';
   var isMobile = window.innerWidth < 640;
 
   var bar = fields.map(function(f, idx) {
-    var border = !isMobile && idx < fields.length - 1 ? 'border-right:1px solid #e5e7eb' : '';
+    var border = !isMobile && idx < fields.length - 1 ? 'border-right:1px solid '+(isTransparent?'rgba(255,255,255,.25)':'#e5e7eb') : '';
     var inner = '';
     if (f.type === 'date') {
       inner = '<input type="text" id="'+f.id+'" placeholder="DD/MM/YYYY" autocomplete="off" style="'+fi+';padding-top:2px;padding-bottom:10px;cursor:pointer">';
@@ -21633,12 +21635,17 @@ function psBuildBar(color, activeBlocks) {
     var flex = isMobile ? '1 1 100%' : f.flex;
     // On mobile, hide checkout field (range picker on checkin handles both)
     var fieldDisplay = (isMobile && f.id === 'ps-f-checkout') ? 'display:none;' : '';
-    return '<div style="flex:'+flex+';min-width:80px;'+border+';'+fieldDisplay+'"><div style="font-size:.58rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#9ca3af;padding:10px 14px 2px">'+f.label+'</div>'+inner+'</div>';
+    return '<div style="flex:'+flex+';min-width:80px;'+border+';'+fieldDisplay+'"><div style="font-size:.58rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:'+labelColor+';padding:10px 14px 2px;'+(isTransparent?'text-shadow:0 1px 3px rgba(0,0,0,.4)':'')+'">'+f.label+'</div>'+inner+'</div>';
   }).join('');
 
+  // Transparent = frosted glass: cover stays visible through it, but always legible
+  // regardless of the photo underneath (no risk of white-on-white invisibility).
+  var barBg = isTransparent ? 'rgba(255,255,255,.16)' : '#fff';
+  var barExtra = isTransparent ? 'backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.3);' : '';
+
   var wrapStyle = isMobile
-    ? 'display:flex;flex-direction:column;background:#fff;border-radius:12px;box-shadow:0 4px 24px rgba(0,0,0,.2);overflow:hidden;width:100%'
-    : 'display:flex;align-items:center;background:#fff;border-radius:12px;box-shadow:0 4px 24px rgba(0,0,0,.2);overflow:hidden;width:100%';
+    ? 'display:flex;flex-direction:column;background:'+barBg+';border-radius:12px;box-shadow:0 4px 24px rgba(0,0,0,.2);overflow:hidden;width:100%;'+barExtra
+    : 'display:flex;align-items:center;background:'+barBg+';border-radius:12px;box-shadow:0 4px 24px rgba(0,0,0,.2);overflow:hidden;width:100%;'+barExtra;
 
   var btnStyle = isMobile
     ? 'padding:12px;margin:8px;border-radius:8px;width:calc(100% - 16px)'
@@ -21693,7 +21700,7 @@ function psRenderBlocks(blocks, p, color, exps, partnerContact, slug, barColor, 
     bookingEl.innerHTML = '<div style="background:'+barColor+';padding:20px 40px 32px;'+_barExtra+'" id="ps-widget-inner">'
       + '<div style="max-width:1100px;margin:0 auto">'
       + tabsHtml
-      + '<div id="ps-bar-wrap">' + psBuildBar(color, [bookingBlocks[0].id]) + '</div>'
+      + '<div id="ps-bar-wrap">' + psBuildBar(color, [bookingBlocks[0].id], barColor==='transparent') + '</div>'
       + '</div></div>';
     bookingEl.dataset.color = barColor;
     bookingEl.dataset.textColor = barTextColor;
@@ -22363,7 +22370,9 @@ function psToggleBookingTab(btn, blockId) {
   // Rebuild bar with fields for the active tab only
   var barWrap = document.getElementById('ps-bar-wrap');
   if (barWrap) {
-    barWrap.innerHTML = psBuildBar(color, [blockId]);
+    var _bw3 = document.getElementById('ps-booking-widget');
+    var _bc3 = _bw3?.dataset.color || color;
+    barWrap.innerHTML = psBuildBar(color, [blockId], _bc3==='transparent');
     // Reinit Flatpickr on all date fields after bar rebuild
     setTimeout(function() {
       var fp = window.flatpickr || (typeof flatpickr !== 'undefined' ? flatpickr : null);
@@ -22943,7 +22952,7 @@ function ppBuilderGetPreviewHTML() {
     var _prevBarShadow=_isBarTrans?'box-shadow:0 4px 16px rgba(0,0,0,.12);border-bottom:1px solid rgba(0,0,0,.08);':(!_isBarTrans&&psContrastColor(barColor)==='#1a1a2e'?'box-shadow:0 2px 8px rgba(0,0,0,.1);border-bottom:1px solid #e5e7eb;':'');
     bookingBarHtml = '<div style="background:'+_prevBarBg+';padding:16px 20px;'+_prevBarShadow+'">'
       + '<div style="display:flex;gap:5px;margin-bottom:12px">'+bookActives.map(function(b,i){ return '<span style="background:'+(i===0?'#fff':_prevInactiveBg2)+';color:'+(i===0?_prevActiveTxt:_prevContrastTxt)+';border-radius:99px;padding:6px 16px;font-size:.76rem;font-weight:700">'+(BICONS[b.id]||b.id)+'</span>'; }).join('')+'</div>'
-      + '<div style="background:#fff;border-radius:9px;padding:12px 16px;font-size:.78rem;color:#9ca3af;font-style:italic">Search bar with '+bookActives.map(function(b){ return (BICONS[b.id]||b.id).replace(/<[^>]+>/g,''); }).join(' + ')+'  fields</div>'
+      + '<div id="pp-prev-bar-wrap">' + psBuildBar(color, [bookActives[0].id], _isBarTrans) + '</div>'
       + '</div>';
   }
 
@@ -23205,11 +23214,15 @@ function ppPageRenderPreview() {
     var otherActives   = activeBlockObjs.filter(function(b){ return !_psBookingBlocks.includes(b.id); });
     if (bookingActives.length) {
       var BICONS = { hotel_booking:'<i class="fa fa-bed"></i> Stay', restaurant_booking:'<i class="fa fa-utensils"></i> Dine', spa_booking:'<i class="fa fa-spa"></i> Relax', activity_booking:'<i class="fa fa-person-hiking"></i> Activities' };
-      pageHTML += '<div style="background:'+color+';padding:20px 24px">'
+      var _isBarTrans2 = document.getElementById('pp-pg-bar-transparent')?.checked || false;
+      var _barBg2    = _isBarTrans2 ? 'transparent' : color;
+      var _barShadow2 = _isBarTrans2 ? 'box-shadow:0 4px 16px rgba(0,0,0,.12);border-bottom:1px solid rgba(0,0,0,.08);' : '';
+      var _inactiveBg3 = _isBarTrans2 ? 'rgba(255,255,255,.18)' : 'rgba(255,255,255,.2)';
+      pageHTML += '<div style="background:'+_barBg2+';padding:20px 24px;'+_barShadow2+'">'
         + '<div style="display:flex;gap:6px;margin-bottom:14px">'
-        + bookingActives.map(function(b,i){ return '<span style="background:'+(i===0?'#fff':'rgba(255,255,255,.2)')+';color:'+(i===0?color:'#fff')+';border-radius:99px;padding:7px 18px;font-size:.8rem;font-weight:700">'+(BICONS[b.id]||b.id)+'</span>'; }).join('')
+        + bookingActives.map(function(b,i){ return '<span style="background:'+(i===0?'#fff':_inactiveBg3)+';color:'+(i===0?color:'#fff')+';border-radius:99px;padding:7px 18px;font-size:.8rem;font-weight:700;text-shadow:'+(i===0?'none':'0 1px 2px rgba(0,0,0,.3)')+'">'+(BICONS[b.id]||b.id)+'</span>'; }).join('')
         + '</div>'
-        + '<div style="background:#fff;border-radius:10px;padding:16px;font-size:.8rem;color:#9ca3af;font-style:italic;max-width:700px">Search bar · ' + bookingActives.map(function(b){ return (BICONS[b.id]||b.id).replace(/<[^>]+>/g,''); }).join(' + ') + ' fields</div>'
+        + '<div id="pp-page-prev-bar-wrap">' + psBuildBar(color, [bookingActives[0].id], _isBarTrans2) + '</div>'
         + '</div>';
     }
     otherActives.forEach(function(b){
