@@ -1522,7 +1522,11 @@ async function authOnSignedIn(user, navigate) {
   // Default: go to dashboard only on active login, not session restore
   await loadUserBoxes(email);
   await loadUserOrders(email);
-  if (navigate) { go('dashboard'); setNL('nl-dash'); }
+  if (navigate) {
+    if (role === 'admin')        { go('admin'); }
+    else if (role === 'partner') { go('partner'); setNL('nl-part'); }
+    else                          { go('dashboard'); setNL('nl-dash'); }
+  }
   // ── Mobile sidebar user info ──
   var mobSection  = document.getElementById('mob-user-section');
   var mobUserName = document.getElementById('mob-user-name');
