@@ -1113,6 +1113,7 @@ async function loadUserOrders(email) {
         delivLabel: delivLabel, recipient: o.recipient_name || '', recipientEmail: o.recipient_email || '',
         hasVideo: hasVideo, giftMsg: o.gift_message || '', schedDate: o.scheduled_send_date || '',
         buyerName: o.customer_name || '', buyerEmail: o.customer_email || '',
+        discountAmount: o.discount_amount || 0, couponCode: o.coupon_code || '',
         vouchers: realVouchers.map(function(v){ return { code: v.code, name: v.box_name || v.box_id, box_id: v.box_id }; })
       }));
 
@@ -1199,6 +1200,7 @@ function showUserOrderReceipt(encodedOrder) {
       + '<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border)"><span style="font-size:.75rem;color:var(--muted)">Date</span><span style="font-size:.75rem;font-weight:600;color:var(--navy)">' + o.date + '</span></div>'
       + '<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border)"><span style="font-size:.75rem;color:var(--muted)">Delivery</span><span style="font-size:.75rem;font-weight:600;color:var(--navy)">' + o.delivLabel + '</span></div>'
       + (o.recipient ? '<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border)"><span style="font-size:.75rem;color:var(--muted)">Pour</span><span style="font-size:.75rem;font-weight:600;color:var(--navy)">' + o.recipient + '</span></div>' : '')
+      + (o.discountAmount > 0 ? '<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border)"><span style="font-size:.75rem;color:var(--muted)">Discount' + (o.couponCode ? ' (' + o.couponCode + ')' : '') + '</span><span style="font-size:.75rem;font-weight:600;color:var(--b600)">-R' + Number(o.discountAmount).toLocaleString() + '</span></div>' : '')
       + '<div style="display:flex;justify-content:space-between;padding:8px 0 2px"><span style="font-size:.85rem;font-weight:700;color:var(--navy)">Total paid</span><span style="font-size:.95rem;font-weight:700;color:var(--b700)">' + o.amount + '</span></div>'
       + '</div>'
       // Items
@@ -1235,6 +1237,9 @@ function printUserOrderInvoice(encodedOrder) {
     }).join('');
     if (o.hasVideo) {
       itemRows += '<tr><td style="padding:8px 0;border-bottom:1px solid #e8d5c0">🎬 Video message</td><td style="padding:8px 0;border-bottom:1px solid #e8d5c0;text-align:right">—</td></tr>';
+    }
+    if (o.discountAmount > 0) {
+      itemRows += '<tr><td style="padding:8px 0;border-bottom:1px solid #e8d5c0;color:#a0522d">Discount' + (o.couponCode ? ' (' + o.couponCode + ')' : '') + '</td><td style="padding:8px 0;border-bottom:1px solid #e8d5c0;text-align:right;color:#a0522d">-R' + Number(o.discountAmount).toLocaleString() + '</td></tr>';
     }
 
     var html = '<div style="font-family:\'DM Sans\',Arial,sans-serif;color:#2c1a0e;padding:14mm">'
