@@ -21658,6 +21658,7 @@ function psBuildBar(color, activeBlocks, isTransparent) {
 }
 
 function psRenderBlocks(blocks, p, color, exps, partnerContact, slug, barColor, barTextColor) {
+  var bgColor = (p && p.page_bg_color) || '#f9fafb';
   barColor     = barColor     || color;
   barTextColor = barTextColor || psContrastColor(barColor);
   if (!blocks || !blocks.length) return;
