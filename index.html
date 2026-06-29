@@ -525,7 +525,7 @@ function wlRender() {
         + '</div>'
         + '<div style="padding:12px 14px">'
         + '<div style="font-weight:700;font-size:.88rem;color:var(--navy);margin-bottom:2px">' + e.name + '</div>'
-        + '<div style="font-size:.72rem;color:var(--muted);margin-bottom:4px"><i class="fa fa-location-dot" style="color:var(--b400)"></i> ' + (e.city||e.loc||'') + ' · ★' + e.rating + '</div>'
+        + '<div style="font-size:.72rem;color:var(--muted);margin-bottom:4px"><i class="fa fa-location-dot" style="color:var(--b400)"></i> ' + (e.city||e.loc||'') + (e.rating ? ' · ★' + e.rating : '') + '</div>'
         + (box.name ? '<div style="font-size:.72rem;color:var(--b600);margin-bottom:10px"><i class="fa fa-box-open"></i> Included in ' + box.name + '</div>' : '')
         + '<button class="btn bp bsm pp-wl-getbox" style="width:100%;justify-content:center" data-box="' + (e.box||'couples-retreat') + '">'  
         + '<i class="fa fa-arrow-right"></i> Get this box</button>'
@@ -5036,7 +5036,10 @@ tr:hover td{background:var(--b50)}
           <span class="stars-link" id="prod-stars-r" onclick="go('reviews')"></span>
           <span class="txt-sm txt-muted" id="prod-rev-count-r"></span>
         </div>
-        <div class="prod-price" id="prod-price-r"></div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <div class="prod-price" id="prod-price-r"></div>
+          <button onclick="wbSharePage()" style="background:var(--b50);border:1px solid var(--b200);border-radius:99px;width:36px;height:36px;cursor:pointer;color:var(--b600);flex-shrink:0" title="Share"><i class="fa fa-share-nodes"></i></button>
+        </div>
         <div id="prod-coupon-badge" style="margin-top:6px"></div>
         <div class="validity"><i class="fa fa-calendar-check" style="color:var(--b500)"></i> Valid 1 year from purchase</div>
 
@@ -5217,6 +5220,7 @@ tr:hover td{background:var(--b50)}
       <div style="position:sticky;top:80px">
 
         <!-- ── BOX LINK (PRE-PURCHASE MODE) ── always shown in preview -->
+        <button onclick="wbSharePage()" style="background:var(--b50);border:1px solid var(--b200);border-radius:99px;padding:8px 16px;cursor:pointer;color:var(--b600);font-size:.8rem;font-weight:600;margin-bottom:14px;width:100%"><i class="fa fa-share-nodes"></i> Share this experience</button>
         <div class="exp-box-link" id="exp-box-link">
           <h5><i class="fa fa-gift"></i> This experience is part of a box</h5>
           <p style="font-size:.75rem;color:var(--slate);margin-bottom:14px">To book this experience, you need to purchase the corresponding WowBox.</p>
@@ -10782,7 +10786,7 @@ function renderBrowse() {
         </div>
         <div style="display:flex;align-items:center;gap:12px">
           <span style="font-size:.8rem;color:var(--muted)"><i class="fa fa-location-dot" style="color:var(--b400)"></i> ${e.city||e.loc}</span>
-          <span style="font-size:.8rem;color:var(--amber)">★ ${e.rating}</span>
+          ${e.rating ? '<span style="font-size:.8rem;color:var(--amber)">★ '+e.rating+'</span>' : '<span style="font-size:.68rem;background:var(--b100);color:var(--b700);padding:1px 7px;border-radius:99px;font-weight:700">New</span>'}
           <span style="font-size:.75rem;color:var(--muted)">(${e.rv} reviews)</span>
           ${e.capacity ? '<span style="font-size:.72rem;background:var(--b50);border:1px solid var(--b200);color:var(--b700);padding:2px 7px;border-radius:99px">' + capLabel(e.capacity) + '</span>' : ''}
         </div>
@@ -11207,8 +11211,13 @@ function loadProduct(boxId) {
   document.getElementById('prod-exp-note').textContent = isSurprise
     ? '🎰 Spin the wheel below to preview random experiences'
     : appState.boxActivated ? '✅ Your box is active — click "Book" to reserve an experience.' : '🔒 Browse experiences — purchase or activate a box to book.';
-  document.getElementById('prod-stars-r').innerHTML = '★★★★★ ' + b.rating + ' <span style="color:var(--muted)">·</span>';
-  document.getElementById('prod-rev-count-r').textContent = b.sold + ' reviews';
+  if (b.rating) {
+    document.getElementById('prod-stars-r').innerHTML = '★★★★★ ' + b.rating + ' <span style="color:var(--muted)">·</span>';
+    document.getElementById('prod-rev-count-r').textContent = b.sold + ' reviews';
+  } else {
+    document.getElementById('prod-stars-r').innerHTML = '<span style="font-size:.68rem;background:var(--b100);color:var(--b700);padding:2px 8px;border-radius:99px;font-weight:700">New</span>';
+    document.getElementById('prod-rev-count-r').textContent = '';
+  }
   appState.priceBase = b.price;
   document.getElementById('qty-v').textContent = '1';
   document.getElementById('qty-total').textContent = 'R' + b.price.toLocaleString();
@@ -11701,7 +11710,7 @@ function renderExpList() {
         </div>
       </div>
       <div style="display:flex;flex-direction:column;align-items:flex-end;gap:7px;flex-shrink:0">
-        <span style="color:var(--amber);font-size:.82rem">★${e.rating}</span>
+        ${e.rating ? '<span style="color:var(--amber);font-size:.82rem">★'+e.rating+'</span>' : '<span style="font-size:.65rem;background:var(--b100);color:var(--b700);padding:1px 6px;border-radius:99px;font-weight:700">New</span>'}
         <span class="txt-sm txt-muted">${e.city||e.loc}</span>
         <button class="btn bp bsm ecard-nav" data-expid="${e.id}">View <i class="fa fa-arrow-right"></i></button>
       </div>
@@ -23320,6 +23329,8 @@ async function ppPageSave() {
     var barTextColor = document.getElementById('pp-pg-bar-text-color')?.value || '';
     var bgColor  = document.getElementById('pp-pg-bg-color')?.value  || '#f9fafb';
     var hdrTxtColor = document.getElementById('pp-pg-header-text-color')?.value || '#1a1a2e';
+    var footerBgColor  = document.getElementById('pp-pg-footer-bg')?.value   || '#1a1a2e';
+    var footerTxtColor = document.getElementById('pp-pg-footer-text')?.value || '#ffffff';
     var taglineStyle = {
       size:  document.getElementById('pp-pg-tagline-size')?.value  || '1.1rem',
       font:  document.getElementById('pp-pg-tagline-font')?.value  || 'Cormorant Garamond,serif',
@@ -23334,7 +23345,7 @@ async function ppPageSave() {
       color: document.getElementById('pp-pg-desc-color')?.value || '#4b5563',
       bold:  document.getElementById('pp-pg-desc-bold')?.checked || false
     };
-    var payload = { page_slug: slug, page_tagline: tagline, page_description: desc, page_color: color, page_bar_transparent: _barTrans, page_bar_color: barColor, page_bar_text_color: barTextColor, page_bg_color: bgColor, page_header_text_color: hdrTxtColor, page_tagline_style: taglineStyle, page_desc_style: descStyle, page_experiences: selectedIds, page_layout: ppPageGetLayout() };
+    var payload = { page_slug: slug, page_tagline: tagline, page_description: desc, page_color: color, page_bar_transparent: _barTrans, page_bar_color: barColor, page_bar_text_color: barTextColor, page_bg_color: bgColor, page_header_text_color: hdrTxtColor, page_footer_bg: footerBgColor, page_footer_text: footerTxtColor, page_tagline_style: taglineStyle, page_desc_style: descStyle, page_experiences: selectedIds, page_layout: ppPageGetLayout() };
     if (_ppPageData.page_logo)  payload.page_logo  = _ppPageData.page_logo;
     if (_ppPageData.page_cover) payload.page_cover = _ppPageData.page_cover;
     var uid = currentUser && currentUser.id;
@@ -27351,6 +27362,20 @@ async function prelaunchJoinWaitlist() {
     if (cnt) { var n = parseInt(cnt.textContent) || 0; cnt.textContent = n + 1; }
   } catch(e) {
     if (statusEl) { statusEl.textContent = 'Something went wrong. Please try again.'; statusEl.style.color = '#fca5a5'; }
+  }
+}
+
+function wbSharePage() {
+  var url = window.location.href;
+  var title = document.title || 'WowBox';
+  if (navigator.share) {
+    navigator.share({ title: title, url: url }).catch(function(){});
+  } else {
+    navigator.clipboard.writeText(url).then(function() {
+      admToast('Link copied to clipboard!');
+    }).catch(function() {
+      prompt('Copy this link:', url);
+    });
   }
 }
 
