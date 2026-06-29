@@ -21704,6 +21704,7 @@ function psRenderBlocks(blocks, p, color, exps, partnerContact, slug, barColor, 
       + '<div id="ps-bar-wrap">' + psBuildBar(color, [bookingBlocks[0].id], barColor==='transparent') + '</div>'
       + '</div></div>';
     bookingEl.dataset.color = barColor;
+    bookingEl.dataset.accentColor = color;
     bookingEl.dataset.textColor = barTextColor;
 
     // Init Flatpickr date range on Check-in/Check-out
@@ -22034,7 +22035,7 @@ function psSyncSlider(isMobile) {
   if (hidMax) hidMax.value = max < slMax ? max : '';
 
   // Apply color from partner
-  var color = document.getElementById('ps-booking-widget')?.dataset.color || '#b45309';
+  var color = document.getElementById('ps-booking-widget')?.dataset.accentColor || '#b45309';
   if (fill) fill.style.background = color;
 
   // Enable pointer events on thumbs
@@ -22350,7 +22351,7 @@ function psRenderFilteredExps(activeBlockIds, exps, color, catMap) {
 }
 
 function psToggleBookingTab(btn, blockId) {
-  var color = document.getElementById('ps-booking-widget')?.dataset.color || '#b45309';
+  var color = document.getElementById('ps-booking-widget')?.dataset.accentColor || '#b45309';
   // On the partner page, tabs are single-select (only one active at a time)
   Object.keys(_psActiveBlocks).forEach(function(k){ _psActiveBlocks[k] = false; });
   _psActiveBlocks[blockId] = true;
