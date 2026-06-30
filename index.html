@@ -20355,7 +20355,7 @@ async function loadPartnerStorefront(slug) {
     // Fetch page config + partner contact info in parallel
     var [res, partnerRes] = await Promise.all([
       db_client.from('user_profiles').select('partner_name,full_name,page_tagline,page_description,page_logo,page_cover,page_cover_position,page_color,page_bar_transparent,page_bar_color,page_bar_text_color,page_bg_color,page_header_text_color,page_footer_bg,page_footer_text,page_tagline_style,page_desc_style,page_experiences,page_status,page_layout,page_blocks,partner_address').eq('page_slug', slug).maybeSingle(),
-      db_client.from('partners').select('location,region,website_url,contact_email,business_name').eq('page_slug', slug).maybeSingle()
+      db_client.from('partners').select('location,region,website_url,contact_email,contact_phone,business_name').eq('page_slug', slug).maybeSingle()
     ]);
     var p = res.data;
     var partnerContact = partnerRes.data || {};
@@ -21361,7 +21361,7 @@ var BLOCK_DEFS = [
   { id:'spa_booking',        icon:'fa-spa',           label:'Spa Booking',        desc:'Treatment, therapist, date and time slot',            booking:true },
   { id:'activity_booking',   icon:'fa-person-hiking', label:'Activity Booking',   desc:'Date, participants, activity type',                   booking:true },
   { id:'photo_gallery',      icon:'fa-images',        label:'Photo Gallery',      desc:'Showcase your venue with a photo grid',              booking:false },
-  { id:'map_contact',        icon:'fa-location-dot',  label:'Map & Contact',      desc:'Address, phone, email, opening hours',               booking:false },
+  { id:'map_contact',        icon:'fa-location-dot',  label:'Map & Contact',      desc:'Address, phone, email & map',               booking:false },
   { id:'reviews',            icon:'fa-star',          label:'Reviews',            desc:'Display guest reviews from your experiences',        booking:false },
   { id:'gift_vouchers',      icon:'fa-gift',          label:'Gift Vouchers',      desc:'Sell digital gift cards for your venue',             booking:false },
   { id:'social_media',        icon:'fa-share-nodes',    label:'Social Media',       desc:'Instagram, TikTok, Facebook, Twitter, LinkedIn',     booking:false },
@@ -21957,20 +21957,25 @@ function psRenderBlocks(blocks, p, color, exps, partnerContact, slug, barColor, 
     var region = partnerContact.region || '';
     var website = partnerContact.website_url || '';
     var email   = partnerContact.contact_email || '';
-    var mapsUrl = loc ? 'https://maps.google.com/?q='+encodeURIComponent(loc+(region?', '+region:'')) : '';
+    var phone   = partnerContact.contact_phone || '';
+    var fullAddr = loc + (region ? ', '+region : '');
+    var mapsUrl = loc ? 'https://maps.google.com/?q='+encodeURIComponent(fullAddr) : '';
+    var mapEmbedUrl = loc ? 'https://maps.google.com/maps?q='+encodeURIComponent(fullAddr)+'&output=embed' : '';
     belowHtml += '<div style="background:'+mcBg+';padding:64px 40px;border-top:1px solid #f3f4f6">'
       +'<div style="max-width:1100px;margin:0 auto;display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:clamp(24px,4vw,48px);align-items:start">'
       +'<div>'
       +'<div style="font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.18em;color:'+color+';margin-bottom:14px">Visit Us</div>'
       +'<h2 style="font-family:\'Cormorant Garamond\',serif;font-size:2.6rem;font-weight:400;color:'+mcTxt+';margin-bottom:20px;line-height:1.2">Come &amp; experience<br>something remarkable</h2>'
+      +(mapEmbedUrl ? '<div style="border-radius:14px;overflow:hidden;border:1px solid '+mcTxt+'22;height:220px"><iframe src="'+mapEmbedUrl+'" width="100%" height="100%" style="border:0" loading="lazy" referrerpolicy="no-referrer-when-downgrade" title="Map"></iframe></div>' : '')
       +'</div>'
       +'<div style="background:'+mcTxt+'0d;border-radius:14px;padding:32px;border:1px solid '+mcTxt+'22">'
       +'<div style="font-family:\'Cormorant Garamond\',serif;font-size:1.3rem;color:'+mcTxt+';margin-bottom:18px">'+(p.partner_name||p.full_name||'')+'</div>'
-      +(loc ? '<div style="font-size:.85rem;color:'+mcTxt+'cc;margin-bottom:10px"><i class="fa fa-location-dot" style="color:'+color+';width:18px;margin-right:6px"></i>'+loc+(region?', '+region:'')+'</div>' : '')
+      +(loc ? '<div style="font-size:.85rem;color:'+mcTxt+'cc;margin-bottom:10px"><i class="fa fa-location-dot" style="color:'+color+';width:18px;margin-right:6px"></i>'+fullAddr+'</div>' : '')
       +(mapsUrl ? '<div style="margin-bottom:10px"><a href="'+mapsUrl+'" target="_blank" style="font-size:.8rem;color:'+color+';font-weight:600;text-decoration:none"><i class="fa fa-map" style="margin-right:5px"></i>View on Google Maps →</a></div>' : '')
+      +(phone ? '<div style="font-size:.85rem;color:#374151;margin-bottom:10px"><i class="fa fa-phone" style="color:'+color+';width:18px;margin-right:6px"></i><a href="tel:'+phone.replace(/\s+/g,'')+'" style="color:'+color+';font-weight:600;text-decoration:none">'+phone+'</a></div>' : '')
       +(email ? '<div style="font-size:.85rem;color:#374151;margin-bottom:10px"><i class="fa fa-envelope" style="color:'+color+';width:18px;margin-right:6px"></i><a href="mailto:'+email+'" style="color:'+color+';font-weight:600">'+email+'</a></div>' : '')
       +(website ? '<div style="font-size:.85rem;color:#374151;margin-bottom:16px"><i class="fa fa-globe" style="color:'+color+';width:18px;margin-right:6px"></i><a href="'+website+'" target="_blank" style="color:'+color+';font-weight:600">'+website.replace(/^https?:\/\//,'')+'</a></div>' : '')
-      +'<div style="margin-top:20px"><button onclick="psBookingComingSoon()" style="'+(psContrastColor(color)==='#1a1a2e'?'background:#fff;color:'+color+';border:2px solid '+color:'background:'+color+';color:#fff;border:none')+';border-radius:8px;padding:11px 24px;font-weight:700;font-size:.84rem;cursor:pointer">Book now →</button></div>'
+      +'<div style="margin-top:20px"><a href="#ps-exp-grid" onclick="document.getElementById(\'ps-exp-grid\')?.scrollIntoView({behavior:\'smooth\'})" style="display:inline-block;text-decoration:none;'+(psContrastColor(color)==='#1a1a2e'?'background:#fff;color:'+color+';border:2px solid '+color:'background:'+color+';color:#fff;border:none')+';border-radius:8px;padding:11px 24px;font-weight:700;font-size:.84rem;cursor:pointer">See our experiences ↓</a></div>'
       +'</div></div></div>';
   }
 
@@ -23163,6 +23168,11 @@ function ppPageRenderPreview() {
   var tsAlign2 = document.getElementById('pp-pg-tagline-align')?.value || 'left';
   var tsColor2 = document.getElementById('pp-pg-tagline-color')?.value || 'rgba(255,255,255,.9)';
   var tsBold2  = document.getElementById('pp-pg-tagline-bold')?.checked || false;
+  var dsSize2  = document.getElementById('pp-pg-desc-size')?.value  || '0.95rem';
+  var dsFont2  = document.getElementById('pp-pg-desc-font')?.value  || 'DM Sans,sans-serif';
+  var dsAlign2 = document.getElementById('pp-pg-desc-align')?.value || 'left';
+  var dsColor2 = document.getElementById('pp-pg-desc-color')?.value || '#4b5563';
+  var dsBold2  = document.getElementById('pp-pg-desc-bold')?.checked || false;
 
   // Get ordered experiences from rows
   var expRows = Array.from(document.querySelectorAll('#pp-pg-exp-list .pp-exp-row'));
@@ -23225,7 +23235,7 @@ function ppPageRenderPreview() {
     + (tagline ? '<div style="font-size:'+tsSize2+';color:'+tsColor2+';font-style:italic;font-family:'+tsFont2+';font-weight:'+(tsBold2?'700':'400')+';text-align:'+tsAlign2+';margin-top:2px">'+tagline+'</div>' : '')
     + '</div></div></div>'
     + '<div style="padding:24px 28px;background:#fdf8f4">'
-    + (desc ? '<p style="font-size:.88rem;color:#374151;line-height:1.75;margin-bottom:22px">'+desc+'</p>' : '')
+    + (desc ? '<p style="font-size:'+dsSize2+';color:'+dsColor2+';line-height:1.75;margin-bottom:22px;font-family:'+dsFont2+';font-weight:'+(dsBold2?'700':'400')+';text-align:'+dsAlign2+'">'+desc+'</p>' : '')
     + '<div style="font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:var(--muted);margin-bottom:14px">Experiences</div>'
     + buildGrid()
     + '<div style="margin-top:28px;padding-top:16px;border-top:1px solid var(--border);text-align:center;font-size:.74rem;color:var(--muted)">Powered by <strong style="color:'+color+'">WowBox</strong></div>'
