@@ -81,7 +81,7 @@ export default async function handler(req, res) {
     // 3. Fetch partner Paystack account IDs
     const partnerEmails = [...new Set(eligible.map(function(e){ return e.partner_email; }))];
     const profiles = await supabaseFetch(
-      `/user_profiles?email=in.(${partnerEmails.map(function(e){ return encodeURIComponent(e); }).join(',')})&select=email,partner_name,paystack_account_id`
+      `/user_profiles?email=in.(${partnerEmails.map(function(e){ return encodeURIComponent(e); }).join(',')})&select=email,partner_name,paystack_account_id,paystack_recipient_code`
     );
     const profileMap = {};
     (profiles || []).forEach(function(p){ profileMap[p.email] = p; });
@@ -91,7 +91,7 @@ export default async function handler(req, res) {
     for (const entry of eligible) {
       const profile = profileMap[entry.partner_email];
 
-      if (!profile || !profile.paystack_account_id) {
+      if (!profile || (!profile.paystack_recipient_code && !profile.paystack_account_id)) {
         console.log(`[process-payouts] Skipping ${entry.id} — no Paystack account for ${entry.partner_email}`);
         results.push({ id: entry.id, status: 'skipped', reason: 'No Paystack account connected' });
         continue;
@@ -107,6 +107,7 @@ export default async function handler(req, res) {
           body: JSON.stringify({
             commission_id:        entry.id,
             partner_email:        entry.partner_email,
+            paystack_recipient_code: profile.paystack_recipient_code || null,
             paystack_account_id:  profile.paystack_account_id,
             amount:               entry.partner_payout,
             reason:               `WowBox payout — ${entry.experience_name || 'Experience'} (${entry.booking_reference || entry.transaction_ref})`,
