@@ -6107,9 +6107,9 @@ tr:hover td{background:var(--b50)}
     <button id="ps-hdr-burger" onclick="psDrawerOpen()" style="display:none;background:none;border:none;cursor:pointer;padding:8px;color:var(--navy);font-size:1.3rem"><i class="fa fa-bars"></i></button>
   </div>
   <style>@media(max-width:640px){#ps-partner-header{padding:0 16px}#ps-hdr-powered{display:none!important}#ps-hdr-burger{display:block!important}}</style>
-  <div id="ps-hero" style="min-height:180px;background:linear-gradient(135deg,#3d2314,#1a1a2e);position:relative">
+  <div id="ps-hero" style="min-height:180px;background:linear-gradient(135deg,#3d2314,#1a1a2e);position:relative;display:flex;align-items:flex-end;padding:24px 28px">
     <div style="position:absolute;inset:0;background:rgba(0,0,0,.35)"></div>
-    <div id="ps-tagline"></div>
+    <div id="ps-tagline" style="position:relative;z-index:1;width:100%"></div>
   </div>
   <div id="ps-booking-widget"></div>
   <div id="ps-body" style="max-width:1100px;margin:0 auto;padding:36px 40px">
@@ -21616,8 +21616,11 @@ function psGetComboLabel(activeBlocks) {
 function psBuildBar(color, activeBlocks, isTransparent, isBuilderPreview) {
   var activeBlock = activeBlocks[0];
   var fields = _psFields[activeBlock] || [];
-  var labelColor = isTransparent ? 'rgba(255,255,255,.85)' : '#6b7280';
-  var inputColor = isTransparent ? '#fff' : '#1a1a2e';
+  // The search-fields box itself is ALWAYS white with dark text — "Transparent"
+  // only affects the backdrop behind the tabs/box (handled by the caller),
+  // never the box's own readability.
+  var labelColor = '#6b7280';
+  var inputColor = '#1a1a2e';
   var fi = 'background:transparent;border:none;outline:none;padding:10px 14px;font-size:.88rem;color:'+inputColor+';width:100%;font-family:inherit;box-sizing:border-box';
 
   // Builder preview panel: detect "mobile" from the panel's own width (it's
@@ -21634,7 +21637,7 @@ function psBuildBar(color, activeBlocks, isTransparent, isBuilderPreview) {
   var wrapId = 'ps-smart-bar-' + Math.random().toString(36).slice(2, 8);
 
   var bar = fields.map(function(f, idx) {
-    var border = !isMobile && idx < fields.length - 1 ? 'border-right:1px solid '+(isTransparent?'rgba(255,255,255,.25)':'#e5e7eb') : '';
+    var border = !isMobile && idx < fields.length - 1 ? 'border-right:1px solid #e5e7eb' : '';
     var inner = '';
     if (f.type === 'date') {
       inner = '<input type="text" id="'+f.id+'" placeholder="DD/MM/YYYY" autocomplete="off" style="'+fi+';padding-top:2px;padding-bottom:10px;cursor:pointer">';
@@ -21646,13 +21649,13 @@ function psBuildBar(color, activeBlocks, isTransparent, isBuilderPreview) {
     // On mobile, hide checkout field (range picker on checkin handles both)
     var fieldDisplay = (isMobile && f.id === 'ps-f-checkout') ? 'display:none;' : '';
     var fieldClass = f.id === 'ps-f-checkout' ? 'ps-bar-checkout' : '';
-    return '<div class="ps-bar-field '+fieldClass+'" style="flex:'+flex+';min-width:80px;'+border+';'+fieldDisplay+'"><div style="font-size:.58rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:'+labelColor+';padding:10px 14px 2px;'+(isTransparent?'text-shadow:0 1px 3px rgba(0,0,0,.4)':'')+'">'+f.label+'</div>'+inner+'</div>';
+    return '<div class="ps-bar-field '+fieldClass+'" style="flex:'+flex+';min-width:80px;'+border+';'+fieldDisplay+'"><div style="font-size:.58rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:'+labelColor+';padding:10px 14px 2px">'+f.label+'</div>'+inner+'</div>';
   }).join('');
 
-  // Transparent = frosted glass: cover stays visible through it, but always legible
-  // regardless of the photo underneath (no risk of white-on-white invisibility).
-  var barBg = isTransparent ? 'rgba(20,20,30,.45)' : '#fff';
-  var barExtra = isTransparent ? 'backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.3);' : '';
+  // The search-fields box is always solid white — "Transparent" never affects
+  // its own readability, only the backdrop behind the tabs/box (set by the caller).
+  var barBg = '#fff';
+  var barExtra = '';
 
   var wrapStyle = isMobile
     ? 'display:flex;flex-direction:column;background:'+barBg+';border-radius:12px;box-shadow:0 4px 24px rgba(0,0,0,.2);overflow:hidden;width:100%;'+barExtra
