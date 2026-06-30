@@ -6109,7 +6109,7 @@ tr:hover td{background:var(--b50)}
   <style>@media(max-width:640px){#ps-partner-header{padding:0 16px}#ps-hdr-powered{display:none!important}#ps-hdr-burger{display:block!important}}</style>
   <div id="ps-hero" style="min-height:180px;background:linear-gradient(135deg,#3d2314,#1a1a2e);position:relative">
     <div style="position:absolute;inset:0;background:rgba(0,0,0,.35)"></div>
-    <div id="ps-tagline" style="display:none"></div>
+    <div id="ps-tagline"></div>
   </div>
   <div id="ps-booking-widget"></div>
   <div id="ps-body" style="max-width:1100px;margin:0 auto;padding:36px 40px">
@@ -20419,6 +20419,7 @@ async function loadPartnerStorefront(slug) {
     var tagEl = document.getElementById('ps-tagline');
     if (tagEl) {
       tagEl.textContent = p.page_tagline || '';
+      tagEl.style.display = p.page_tagline ? 'block' : 'none';
       var ts = p.page_tagline_style || {};
       tagEl.style.fontSize   = ts.size  || '1.1rem';
       tagEl.style.fontFamily = ts.font  || "'Cormorant Garamond',serif";
@@ -22542,6 +22543,7 @@ function ppPageUpdateCoverPosition() {
   var pctY = ih > fh ? Math.round((-t / (ih - fh)) * 100) : 50;
   _ppPageData._coverPosition = pctX + '% ' + pctY + '%';
   ppPageUpdateMiniPreview();
+  if (typeof ppBuilderUpdate === 'function') ppBuilderUpdate();
 }
 
 function ppPageInitCropFromUrl(url, position) {
@@ -23389,7 +23391,7 @@ async function ppPageSave() {
       color: document.getElementById('pp-pg-desc-color')?.value || '#4b5563',
       bold:  document.getElementById('pp-pg-desc-bold')?.checked || false
     };
-    var payload = { page_slug: slug, page_tagline: tagline, page_description: desc, page_color: color, page_bar_transparent: _barTrans, page_bar_color: barColor, page_bar_text_color: barTextColor, page_bg_color: bgColor, page_header_text_color: hdrTxtColor, page_footer_bg: footerBgColor, page_footer_text: footerTxtColor, page_tagline_style: taglineStyle, page_desc_style: descStyle, page_experiences: selectedIds, page_layout: ppPageGetLayout() };
+    var payload = { page_slug: slug, page_tagline: tagline, page_description: desc, page_color: color, page_cover_position: (_ppPageData._coverPosition || _ppPageData.page_cover_position || '50% 30%'), page_bar_transparent: _barTrans, page_bar_color: barColor, page_bar_text_color: barTextColor, page_bg_color: bgColor, page_header_text_color: hdrTxtColor, page_footer_bg: footerBgColor, page_footer_text: footerTxtColor, page_tagline_style: taglineStyle, page_desc_style: descStyle, page_experiences: selectedIds, page_layout: ppPageGetLayout() };
     if (_ppPageData.page_logo)  payload.page_logo  = _ppPageData.page_logo;
     if (_ppPageData.page_cover) payload.page_cover = _ppPageData.page_cover;
     var uid = currentUser && currentUser.id;
