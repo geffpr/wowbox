@@ -21612,15 +21612,25 @@ function psGetComboLabel(activeBlocks) {
   return activeBlocks.map(function(b){ return LABELS[b]||b; }).join(' + ');
 }
 
-function psBuildBar(color, activeBlocks, isTransparent) {
+function psBuildBar(color, activeBlocks, isTransparent, isBuilderPreview) {
   var activeBlock = activeBlocks[0];
   var fields = _psFields[activeBlock] || [];
   var labelColor = isTransparent ? 'rgba(255,255,255,.85)' : '#6b7280';
   var inputColor = isTransparent ? '#fff' : '#1a1a2e';
   var fi = 'background:transparent;border:none;outline:none;padding:10px 14px;font-size:.88rem;color:'+inputColor+';width:100%;font-family:inherit;box-sizing:border-box';
-  var builderPreviewEl = document.getElementById("pp-builder-preview");
-  var refWidth = builderPreviewEl ? builderPreviewEl.getBoundingClientRect().width : window.innerWidth;
-  var isMobile = refWidth < 640;
+
+  // Builder preview panel: detect "mobile" from the panel's own width (it's
+  // narrow even on a wide desktop screen). Live site: never use JS detection
+  // here — real responsiveness is handled below by a real CSS media query,
+  // which is reliable regardless of browser zoom or window quirks.
+  var isMobile = false;
+  if (isBuilderPreview) {
+    var builderPreviewEl = document.getElementById("pp-builder-preview");
+    var refWidth = builderPreviewEl ? builderPreviewEl.getBoundingClientRect().width : window.innerWidth;
+    isMobile = refWidth < 640;
+  }
+
+  var wrapId = 'ps-smart-bar-' + Math.random().toString(36).slice(2, 8);
 
   var bar = fields.map(function(f, idx) {
     var border = !isMobile && idx < fields.length - 1 ? 'border-right:1px solid '+(isTransparent?'rgba(255,255,255,.25)':'#e5e7eb') : '';
@@ -21634,7 +21644,8 @@ function psBuildBar(color, activeBlocks, isTransparent) {
     var flex = isMobile ? '1 1 100%' : f.flex;
     // On mobile, hide checkout field (range picker on checkin handles both)
     var fieldDisplay = (isMobile && f.id === 'ps-f-checkout') ? 'display:none;' : '';
-    return '<div style="flex:'+flex+';min-width:80px;'+border+';'+fieldDisplay+'"><div style="font-size:.58rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:'+labelColor+';padding:10px 14px 2px;'+(isTransparent?'text-shadow:0 1px 3px rgba(0,0,0,.4)':'')+'">'+f.label+'</div>'+inner+'</div>';
+    var fieldClass = f.id === 'ps-f-checkout' ? 'ps-bar-checkout' : '';
+    return '<div class="ps-bar-field '+fieldClass+'" style="flex:'+flex+';min-width:80px;'+border+';'+fieldDisplay+'"><div style="font-size:.58rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:'+labelColor+';padding:10px 14px 2px;'+(isTransparent?'text-shadow:0 1px 3px rgba(0,0,0,.4)':'')+'">'+f.label+'</div>'+inner+'</div>';
   }).join('');
 
   // Transparent = frosted glass: cover stays visible through it, but always legible
@@ -21650,9 +21661,16 @@ function psBuildBar(color, activeBlocks, isTransparent) {
     ? 'padding:12px;margin:8px;border-radius:8px;width:calc(100% - 16px)'
     : 'padding:10px';
 
-  return '<div style="'+wrapStyle+'" id="ps-smart-bar">'
+  // Real CSS media query — only applied when NOT already pre-built for the
+  // (narrow) builder panel, so the live site always stays on one line on an
+  // actual desktop screen, regardless of JS quirks/zoom.
+  var responsiveStyle = (!isBuilderPreview)
+    ? '<style>@media(max-width:640px){#'+wrapId+'{flex-direction:column!important}#'+wrapId+' .ps-bar-field{flex:1 1 100%!important;border-right:none!important}#'+wrapId+' .ps-bar-checkout{display:none!important}#'+wrapId+'-btn{padding:12px!important;margin:8px!important;width:calc(100% - 16px)!important}}</style>'
+    : '';
+
+  return responsiveStyle + '<div style="'+wrapStyle+'" id="'+wrapId+'">'
     + bar
-    + '<div style="'+btnStyle+';flex-shrink:0"><button onclick="psSearchFilter()" style="background:'+color+';color:#fff;border:none;border-radius:8px;padding:12px 24px;font-weight:700;font-size:.88rem;cursor:pointer;white-space:nowrap;width:100%">Search →</button></div>'
+    + '<div id="'+wrapId+'-btn" style="'+btnStyle+';flex-shrink:0"><button onclick="psSearchFilter()" style="background:'+color+';color:#fff;border:none;border-radius:8px;padding:12px 24px;font-weight:700;font-size:.88rem;cursor:pointer;white-space:nowrap;width:100%">Search →</button></div>'
     + '</div>';
 }
 
@@ -22952,7 +22970,7 @@ function ppBuilderGetPreviewHTML() {
     var _prevBarShadow=_isBarTrans?'box-shadow:0 4px 16px rgba(0,0,0,.12);border-bottom:1px solid rgba(0,0,0,.08);':(!_isBarTrans&&psContrastColor(barColor)==='#1a1a2e'?'box-shadow:0 2px 8px rgba(0,0,0,.1);border-bottom:1px solid #e5e7eb;':'');
     bookingBarHtml = '<div style="background:'+_prevBarBg+';padding:16px 20px;'+_prevBarShadow+'">'
       + '<div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:12px">'+bookActives.map(function(b,i){ return '<span style="background:'+(i===0?'#fff':_prevInactiveBg2)+';color:'+(i===0?_prevActiveTxt:barTextColor)+';border-radius:99px;padding:6px 16px;font-size:.76rem;font-weight:700">'+(BICONS[b.id]||b.id)+'</span>'; }).join('')+'</div>'
-      + '<div id="pp-prev-bar-wrap">' + psBuildBar(color, [bookActives[0].id], _isBarTrans) + '</div>'
+      + '<div id="pp-prev-bar-wrap">' + psBuildBar(color, [bookActives[0].id], _isBarTrans, true) + '</div>'
       + '</div>';
   }
 
@@ -23222,7 +23240,7 @@ function ppPageRenderPreview() {
         + '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px">'
         + bookingActives.map(function(b,i){ return '<span style="background:'+(i===0?'#fff':_inactiveBg3)+';color:'+(i===0?color:'#fff')+';border-radius:99px;padding:7px 18px;font-size:.8rem;font-weight:700;text-shadow:'+(i===0?'none':'0 1px 2px rgba(0,0,0,.3)')+'">'+(BICONS[b.id]||b.id)+'</span>'; }).join('')
         + '</div>'
-        + '<div id="pp-page-prev-bar-wrap">' + psBuildBar(color, [bookingActives[0].id], _isBarTrans2) + '</div>'
+        + '<div id="pp-page-prev-bar-wrap">' + psBuildBar(color, [bookingActives[0].id], _isBarTrans2, true) + '</div>'
         + '</div>';
     }
     otherActives.forEach(function(b){
