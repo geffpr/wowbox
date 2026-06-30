@@ -23519,20 +23519,25 @@ async function ppCheckOnboarding() {
 
   try {
     var [profRes, expRes] = await Promise.all([
-      db_client.from('user_profiles').select('full_name,partner_name,phone,paystack_account_id').eq('id', currentUser.id).maybeSingle(),
-      db_client.from('experiences').select('id').eq('partner_email', email).eq('is_active', true).limit(1)
+      db_client.from('user_profiles').select('full_name,partner_name,phone,bank_account_number,paystack_account_id').eq('id', currentUser.id).maybeSingle(),
+      db_client.from('experiences').select('id').eq('partner_email', email).eq('is_active', true)
     ]);
 
     var prof     = profRes.data || {};
-    var hasExps  = !!(expRes.data && expRes.data.length);
+    var expIds   = (expRes.data || []).map(function(e){ return e.id; });
+    var hasExps  = expIds.length > 0;
     var hasProf  = !!(prof.full_name && prof.phone);
 
-    // Step 4 (calendar): check if any availability exists
-    var calRes   = await db_client.from('availability').select('id').eq('partner_email', email).limit(1);
-    var hasCal   = !!(calRes.data && calRes.data.length);
+    // Step 4 (calendar): availability is linked via experience_id, not partner_email directly —
+    // check if any availability row exists for any of this partner's experiences.
+    var hasCal = false;
+    if (expIds.length) {
+      var calRes = await db_client.from('availability').select('id').in('experience_id', expIds).limit(1);
+      hasCal = !!(calRes.data && calRes.data.length);
+    }
 
     // Step 3 (payout): check user_profiles bank info
-    var hasPayout = !!(prof.bank_account_number || prof.payfast_connected || prof.paystack_account_id);
+    var hasPayout = !!(prof.bank_account_number || prof.paystack_account_id);
 
     var steps = [
       { id: 'pp-ob-step-profile',  done: hasProf },
