@@ -68,7 +68,16 @@ export default async function handler(req, res) {
       const psData = await psRes.json();
 
       if (!psData.status) {
-        return res.status(400).json({ error: psData.message || 'Paystack subaccount creation failed' });
+        // TEMP DIAGNOSTIC — remove once the real cause is confirmed.
+        // Shows the full Paystack error + a masked preview of the key actually
+        // used (first/last 4 chars only) so we can tell apart "wrong key" vs
+        // "Paystack account not fully onboarded" vs "bad field value".
+        const keyPreview = secretKey ? secretKey.slice(0,7) + '...' + secretKey.slice(-4) : 'MISSING';
+        console.error('Paystack subaccount creation failed. Full response:', JSON.stringify(psData));
+        return res.status(400).json({
+          error: psData.message || 'Paystack subaccount creation failed',
+          _debug: { paystackResponse: psData, keyPreview, httpStatus: psRes.status },
+        });
       }
 
       const subaccount_code = psData.data.subaccount_code;
