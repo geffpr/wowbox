@@ -6113,7 +6113,7 @@ tr:hover td{background:var(--b50)}
   </div>
   <div id="ps-booking-widget"></div>
   <div id="ps-body" style="max-width:1100px;margin:0 auto;padding:36px 40px">
-    <div id="ps-desc" style="font-size:.95rem;color:#4b5563;line-height:1.9;margin-bottom:36px;max-width:720px;font-family:'Cormorant Garamond',serif;font-size:1.05rem"></div>
+    <div style="padding:0 24px"><div id="ps-desc" style="color:#4b5563;line-height:1.9;margin:0 auto 36px;max-width:720px;font-family:'Cormorant Garamond',serif;font-size:1.05rem"></div></div>
     <div style="font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.14em;color:var(--muted);margin-bottom:18px">Experiences</div>
 
     <!-- Filter bar -->
@@ -7650,7 +7650,7 @@ tr:hover td{background:var(--b50)}
                   </div>
                   <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
                     <label style="font-size:.72rem;color:var(--muted);min-width:140px">Tab text (inactive) <span title="Text colour on Stay/Dine/Relax/Activities tabs when not selected. Active tab uses Accent colour." style="display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;border-radius:50%;background:var(--border);color:var(--muted);font-size:.6rem;cursor:help">ⓘ</span></label>
-                    <input type="color" id="pp-pg-bar-text-color" value="#ffffff" style="width:36px;height:28px;border:1px solid var(--border);border-radius:5px;cursor:pointer;padding:2px" oninput="ppPreviewScrollTo('searchbar');ppBuilderUpdate()">
+                    <input type="color" id="pp-pg-bar-text-color" value="#1a1a2e" style="width:36px;height:28px;border:1px solid var(--border);border-radius:5px;cursor:pointer;padding:2px" oninput="ppPreviewScrollTo('searchbar');ppBuilderUpdate()">
                     <span style="font-size:.62rem;color:var(--muted);opacity:.7">Active = Accent colour</span>
                   </div>
                   <div style="font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-top:10px;margin-bottom:6px;padding-bottom:4px;border-bottom:1px solid var(--border)">③ Experiences &amp; buttons</div>
@@ -21651,7 +21651,7 @@ function psBuildBar(color, activeBlocks, isTransparent, isBuilderPreview) {
 
   // Transparent = frosted glass: cover stays visible through it, but always legible
   // regardless of the photo underneath (no risk of white-on-white invisibility).
-  var barBg = isTransparent ? 'rgba(255,255,255,.16)' : '#fff';
+  var barBg = isTransparent ? 'rgba(20,20,30,.45)' : '#fff';
   var barExtra = isTransparent ? 'backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.3);' : '';
 
   var wrapStyle = isMobile
@@ -23155,6 +23155,11 @@ function ppPageRenderPreview() {
   var cover   = _ppPageData.page_cover || '';
   var coverPos2 = _ppPageData._coverPosition || _ppPageData.page_cover_position || '50% 30%';
   var coverBg = cover ? 'url('+cover+') '+coverPos2+'/cover' : 'linear-gradient(135deg,'+color+'cc,#1a1a2e)';
+  var tsSize2  = document.getElementById('pp-pg-tagline-size')?.value  || '1.1rem';
+  var tsFont2  = document.getElementById('pp-pg-tagline-font')?.value  || 'Cormorant Garamond,serif';
+  var tsAlign2 = document.getElementById('pp-pg-tagline-align')?.value || 'left';
+  var tsColor2 = document.getElementById('pp-pg-tagline-color')?.value || 'rgba(255,255,255,.9)';
+  var tsBold2  = document.getElementById('pp-pg-tagline-bold')?.checked || false;
 
   // Get ordered experiences from rows
   var expRows = Array.from(document.querySelectorAll('#pp-pg-exp-list .pp-exp-row'));
@@ -23214,7 +23219,7 @@ function ppPageRenderPreview() {
     + '<div style="display:flex;align-items:center;gap:14px">'
     + (logo ? '<img src="'+logo+'" style="height:52px;width:52px;object-fit:contain;border-radius:8px;background:rgba(255,255,255,.15);padding:5px">' : '')
     + '<div><div style="font-family:Cormorant+Garamond,serif;font-size:1.8rem;font-weight:700;color:#fff">'+name+'</div>'
-    + (tagline ? '<div style="font-size:.82rem;color:rgba(255,255,255,.8);margin-top:2px">'+tagline+'</div>' : '')
+    + (tagline ? '<div style="font-size:'+tsSize2+';color:'+tsColor2+';font-style:italic;font-family:'+tsFont2+';font-weight:'+(tsBold2?'700':'400')+';text-align:'+tsAlign2+';margin-top:2px">'+tagline+'</div>' : '')
     + '</div></div></div>'
     + '<div style="padding:24px 28px;background:#fdf8f4">'
     + (desc ? '<p style="font-size:.88rem;color:#374151;line-height:1.75;margin-bottom:22px">'+desc+'</p>' : '')
