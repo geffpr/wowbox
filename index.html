@@ -10256,7 +10256,7 @@ function go(page) {
   // overlay's "Sign in" link (or simply abandoning it) left the whole site open.
   if (window._wbPrelaunchActive) {
     var isStaff = currentUser && (currentUser.role === 'partner' || currentUser.role === 'admin');
-    if (!isStaff && page !== 'login') {
+    if (!isStaff && page !== 'login' && page !== 'partner-landing') {
       var ov = document.getElementById('prelaunch-overlay');
       if (ov) ov.style.display = 'block';
       document.documentElement.style.overflow = 'hidden';
@@ -27321,6 +27321,17 @@ function prelaunchShowSignIn() {
   go('login'); setNL('nl-login');
 }
 
+function prelaunchGoToPartnerLanding() {
+  var overlay = document.getElementById('prelaunch-overlay');
+  if (overlay) overlay.style.display = 'none';
+  document.documentElement.style.overflow = '';
+  document.body.style.overflow = '';
+  document.body.style.position = '';
+  document.body.style.width = '';
+  document.body.style.height = '';
+  go('partner-landing'); setNL('nl-list-exp');
+}
+
 function prelaunchShowPartner() {
   var main    = document.getElementById('prelaunch-screen-main');
   var partner = document.getElementById('prelaunch-screen-partner');
@@ -27449,8 +27460,17 @@ async function prelaunchSaveWaitlist(signupType) {
     var cnt = document.getElementById('prelaunch-waitlist-count');
     if (cnt) { var n = parseInt(cnt.textContent) || 0; cnt.textContent = n + 1; }
     if (signupType === 'professional') {
-      if (statusEl) { statusEl.textContent = "🎉 You're on the list! Let's get your venue set up…"; statusEl.style.color = '#86efac'; }
-      setTimeout(function() { if (typeof prelaunchShowPartner === 'function') prelaunchShowPartner(); }, 900);
+      if (statusEl) { statusEl.textContent = "🎉 You're on the list! Discover how it works…"; statusEl.style.color = '#86efac'; }
+      setTimeout(function() {
+        var ov = document.getElementById('prelaunch-overlay');
+        if (ov) ov.style.display = 'none';
+        document.documentElement.style.overflow = '';
+        document.body.style.overflow = '';
+        document.body.style.position = '';
+        document.body.style.width = '';
+        document.body.style.height = '';
+        go('partner-landing'); setNL('nl-list-exp');
+      }, 900);
     } else {
       if (statusEl) { statusEl.textContent = "🎉 You're on the list! We'll notify you at launch."; statusEl.style.color = '#86efac'; }
     }
@@ -28099,7 +28119,7 @@ async function admRunSchemaDiag() {
     <button onclick="prelaunchShowSignIn()" style="background:none;border:none;color:rgba(255,255,255,.6);font-size:.74rem;cursor:pointer;text-decoration:underline;margin-top:2px">Already have an account? Sign in</button>
     <div style="margin-top:1vh;padding-top:1vh;border-top:1px solid rgba(255,255,255,.15);width:100%;max-width:420px">
       <p style="font-size:.78rem;color:rgba(255,255,255,.5);margin-bottom:10px">Reach customers ready to book unforgettable experiences. No upfront fees — we only earn when you do.</p>
-      <button onclick="prelaunchShowPartner()" style="background:none;border:none;color:#fcd34d;font-size:.82rem;font-weight:600;text-decoration:underline;cursor:pointer">Apply to be a WowBox partner &rarr;</button>
+      <button onclick="prelaunchGoToPartnerLanding()" style="background:none;border:none;color:#fcd34d;font-size:.82rem;font-weight:600;text-decoration:underline;cursor:pointer">Apply to be a WowBox partner &rarr;</button>
     </div>
   </div>
 
