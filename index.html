@@ -13990,6 +13990,20 @@ async function ppSubmitPaystack() {
   }
 }
 
+function ppShareExperience(expId, expName) {
+  var url = window.location.origin + '/experience/' + expId;
+  var title = expName || 'WowBox Experience';
+  if (navigator.share) {
+    navigator.share({ title: title, url: url }).catch(function(){});
+  } else {
+    navigator.clipboard.writeText(url).then(function() {
+      if (typeof admToast === 'function') admToast('Link copied to clipboard!');
+    }).catch(function() {
+      prompt('Copy this link:', url);
+    });
+  }
+}
+
 async function ppNewFillFromSettings() {
   try {
     if (!currentUser) return;
@@ -24613,6 +24627,8 @@ async function loadPartnerExperiences() {
         + ' data-images="'     + JSON.stringify(e.image_urls||[]).replace(/"/g,'&quot;')  + '"'
         + ' data-image="'      + (e.image_url||'').replace(/"/g,'&quot;')                 + '"'
         + '><i class="fa fa-pen"></i> Edit</button>'
+        + '<a href="/experience/' + (e.id||'') + '" target="_blank" class="btn bg bsm" style="text-decoration:none;text-align:center"><i class="fa fa-arrow-up-right-from-square"></i> View</a>'
+        + '<button class="btn bg bsm" onclick="ppShareExperience(\'' + (e.id||'') + '\',\'' + (e.name||'').replace(/'/g,"\\'").replace(/"/g,'&quot;') + '\')"><i class="fa fa-share-nodes"></i> Share</button>'
         + '</div>'
         + '</div>';
     });
