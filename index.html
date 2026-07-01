@@ -6692,7 +6692,7 @@ tr:hover td{background:var(--b50)}
       <button class="pp-nav" onclick="switchPP(this,'pp-validate')"><i class="fa fa-qrcode"></i> Validate Voucher</button>
       <button class="pp-nav" onclick="switchPP(this,'pp-bookings');ppLoadBookings()" id="pp-nav-bookings"><i class="fa fa-calendar-check"></i> My Bookings <span id="pp-bookings-badge" style="display:none;margin-left:auto;background:#ef4444;color:#fff;border-radius:99px;padding:1px 6px;font-size:.6rem;font-weight:700"></span></button>
       <button class="pp-nav" id="pp-nav-calendar"  onclick="switchPP(this,'pp-calendar')"><i class="fa fa-calendar-days"></i> Calendar</button>
-      <button class="pp-nav" onclick="switchPP(this,'pp-experiences')"><i class="fa fa-compass"></i> My Experiences</button>
+      <button class="pp-nav" id="pp-nav-experiences" onclick="switchPP(this,'pp-experiences')"><i class="fa fa-compass"></i> My Experiences</button>
       <!-- Pro nav buttons -->
       <button class="pp-nav" onclick="switchPP(this,'pp-reviews');ppLoadReviews()"><i class="fa fa-star"></i> My Reviews <span id="pp-reviews-badge" style="display:none;margin-left:auto;background:#ef4444;color:#fff;border-radius:99px;padding:1px 6px;font-size:.6rem;font-weight:700"></span></button>
       <button class="pp-nav" id="pp-nav-analytics" onclick="switchPP(this,'pp-analytics')"><i class="fa fa-chart-line"></i> Analytics</button>
@@ -6701,7 +6701,7 @@ tr:hover td{background:var(--b50)}
       <button class="pp-nav" id="pp-nav-boost"     onclick="switchPP(this,'pp-boost')"><i class="fa fa-rocket"></i> Boost</button>
 
       <button class="pp-nav" onclick="switchPP(this,'pp-page');ppPageInit()" id="pp-nav-page"><i class="fa fa-globe"></i> My Page</button>
-      <button class="pp-nav" onclick="switchPP(this,'pp-settings');ppLoadSettings()"><i class="fa fa-gear"></i> Settings</button>
+      <button class="pp-nav" id="pp-nav-settings" onclick="switchPP(this,'pp-settings');ppLoadSettings()"><i class="fa fa-gear"></i> Settings</button>
 
       <div style="margin-top:auto;padding-top:24px;border-top:1px solid rgba(255,255,255,.1)">
         <button class="pp-nav" onclick="switchPP(this,'pp-contact')"><i class="fa fa-envelope"></i> Contact Support</button>
@@ -14979,6 +14979,7 @@ async function plSubmitPartner() {
         id:              userId,
         email:           email,
         full_name:       contact,
+        phone:           phone,
         role:            'pending_partner',
         status:          'pending',
         partner_name:    bizName,
@@ -16026,6 +16027,7 @@ async function partnerSignUp() {
         id:           userId,
         email:        email,
         full_name:    contact,
+        phone:        phone,
         role:         'partner',
         partner_name: company,
       });
