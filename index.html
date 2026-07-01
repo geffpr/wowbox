@@ -7026,6 +7026,7 @@ tr:hover td{background:var(--b50)}
           <!-- §2 Location -->
           <div style="padding:18px 20px;border-bottom:1px solid var(--b100)">
             <div style="font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:var(--b600);margin-bottom:14px">2 · Location</div>
+            <button type="button" onclick="ppNewFillFromSettings()" style="background:var(--b50);border:1px solid var(--b200);color:var(--b700);border-radius:8px;padding:8px 14px;font-size:.78rem;font-weight:600;cursor:pointer;margin-bottom:14px"><i class="fa fa-wand-magic-sparkles" style="margin-right:6px"></i>Use my business address &amp; phone</button>
             <div class="fg-row">
               <div class="fg">
                 <label>Address / Location</label>
@@ -13989,6 +13990,28 @@ async function ppSubmitPaystack() {
   }
 }
 
+async function ppNewFillFromSettings() {
+  try {
+    if (!currentUser) return;
+    var res = await db_client.from('user_profiles')
+      .select('phone,partner_address').eq('id', currentUser.id).maybeSingle();
+    var d = res.data || {};
+    if (d.partner_address) {
+      var cityInput = document.getElementById('pp-new-city');
+      var addrHidden = document.getElementById('pp-new-address');
+      if (cityInput) cityInput.value = d.partner_address;
+      if (addrHidden) addrHidden.value = d.partner_address;
+    }
+    if (d.phone) {
+      if (typeof wbPhoneSetValue === 'function') wbPhoneSetValue('pp-new-phone', d.phone);
+      else { var ph = document.getElementById('pp-new-phone'); if (ph) ph.value = d.phone; }
+    }
+    if (typeof admToast === 'function') admToast('Filled from your business profile — edit if needed.');
+  } catch(e) {
+    if (typeof admToast === 'function') admToast('Could not load your saved details.');
+  }
+}
+
 async function ppLoadSettings() {
   if (!currentUser) return;
   wbPhoneInit('pp-set-phone');
@@ -14137,8 +14160,17 @@ async function ppLoadReviews() {
       return r;
     });
 
+    // Opening this section = the partner has now seen the reviews. Record the
+    // timestamp and clear the badge (it only signals NEW reviews since last visit).
     var badge = document.getElementById('pp-reviews-badge');
-    if (badge) { badge.textContent = revs.length; badge.style.display = revs.length ? '' : 'none'; }
+    if (badge) { badge.style.display = 'none'; badge.textContent = ''; }
+    try {
+      if (currentUser) {
+        await db_client.from('user_profiles')
+          .update({ reviews_last_seen: new Date().toISOString() })
+          .eq('id', currentUser.id);
+      }
+    } catch(e) { console.warn('reviews_last_seen update:', e.message); }
 
     if (!revs.length) {
       listEl.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted)"><i class="fa fa-star" style="font-size:2rem;opacity:.2;display:block;margin-bottom:12px"></i><p>No approved reviews yet. Reviews appear here after admin approval.</p></div>';
@@ -23804,6 +23836,34 @@ async function loadPartnerPortalData() {
     setV2('pp-val-revenue', 'R'+monthRev.toLocaleString('en-ZA',{minimumFractionDigits:2,maximumFractionDigits:2}));
     setV2('pp-val-pending', 'R'+pendingAmt.toLocaleString('en-ZA',{minimumFractionDigits:2,maximumFractionDigits:2}));
   } catch(e){ console.warn('validate KPIs:',e.message); }
+
+  // Refresh sidebar badges on portal load (not only when their sections open)
+  try { ppRefreshBadges(); } catch(e) { console.warn('badge refresh:', e.message); }
+}
+
+// Computes and displays the Bookings + Reviews sidebar badges independently of
+// whether those sections are currently open.
+async function ppRefreshBadges() {
+  if (!currentUser) return;
+  var email = currentUser.email;
+  // Bookings: count upcoming, not-yet-validated bookings
+  try {
+    var bkRes = await db_client.from('bookings')
+      .select('id,validated_at,status').eq('partner_email', email);
+    var upcoming = (bkRes.data || []).filter(function(b){ return !b.validated_at && b.status !== 'used' && b.status !== 'cancelled'; });
+    var bkBadge = document.getElementById('pp-bookings-badge');
+    if (bkBadge) { bkBadge.style.display = upcoming.length ? 'inline' : 'none'; bkBadge.textContent = upcoming.length || ''; }
+  } catch(e) { console.warn('bookings badge:', e.message); }
+  // Reviews: count approved reviews newer than the partner's last visit
+  try {
+    var profR = await db_client.from('user_profiles').select('reviews_last_seen').eq('id', currentUser.id).maybeSingle();
+    var lastSeen = profR.data && profR.data.reviews_last_seen ? new Date(profR.data.reviews_last_seen) : null;
+    var rvRes = await db_client.from('experience_reviews')
+      .select('created_at').eq('partner_email', email).eq('status', 'approved');
+    var unseen = (rvRes.data || []).filter(function(r){ return !lastSeen || new Date(r.created_at) > lastSeen; });
+    var rvBadge = document.getElementById('pp-reviews-badge');
+    if (rvBadge) { rvBadge.style.display = unseen.length ? 'inline' : 'none'; rvBadge.textContent = unseen.length || ''; }
+  } catch(e) { console.warn('reviews badge:', e.message); }
 }
 
 
