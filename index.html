@@ -27502,7 +27502,18 @@ async function checkPrelaunchMode() {
     var wlCnt  = document.getElementById('prelaunch-waitlist-count');
     if (expCnt)  expCnt.textContent  = expRes.count  || '0';
     if (partCnt) partCnt.textContent = String(25  + (partRes.count || 0));
-    if (wlCnt)   wlCnt.textContent   = String(149 + (wlRes.count   || 0));
+    // Waitlist: base of 149 that grows on its own each day at a credible,
+    // date-deterministic pace (~4–8/day, same value for everyone on a given day),
+    // plus real signups on top. Reference date: 2026-07-01.
+    var wlRefDate = new Date('2026-07-01T00:00:00Z');
+    var wlToday   = new Date();
+    var wlDays    = Math.max(0, Math.floor((wlToday - wlRefDate) / 86400000));
+    var wlOrganic = 0;
+    for (var wd = 0; wd < wlDays; wd++) {
+      // pseudo-random but fixed per day: 4..8
+      wlOrganic += 4 + ((wd * 2654435761) % 5 + 5) % 5;
+    }
+    if (wlCnt) wlCnt.textContent = String(149 + wlOrganic + (wlRes.count || 0));
     // Set message
     var msgEl = document.getElementById('prelaunch-msg');
     if (msgEl) msgEl.textContent = s.pre_launch_message || 'No wrong size, no wrong guess — they pick from dining, wellness, safari, wine & more.';
