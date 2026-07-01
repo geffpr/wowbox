@@ -6313,8 +6313,8 @@ tr:hover td{background:var(--b50)}
   <div class="pl-hero-bg"></div>
   <div class="pl-hero-content">
     <div style="display:inline-block;background:rgba(147,197,253,.15);border:1px solid rgba(147,197,253,.3);border-radius:99px;padding:6px 18px;font-size:.75rem;font-weight:600;color:#93c5fd;margin-bottom:20px;letter-spacing:.05em">FOR EXPERIENCE PROVIDERS</div>
-    <h1>Turn your space into an<br><span>unforgettable experience</span></h1>
-    <p>Join South Africa's leading gift experience platform. Reach thousands of premium customers actively seeking hotels, restaurants, spas, safaris and more.</p>
+    <h1>Grow your business<br><span>with WowBox</span></h1>
+    <p>List your experience for free. Reach new customers. Commission only on confirmed bookings.</p>
     <div class="pl-cta-row">
       <button class="btn-w" onclick="document.getElementById('pl-signup-section').scrollIntoView({behavior:'smooth'})">Become a Partner <i class="fa fa-arrow-right"></i></button>
       <button class="btn-o" onclick="document.getElementById('pl-signup-section').scrollIntoView({behavior:'smooth'});document.getElementById('pl-signin-tab').click()">Partner login</button>
@@ -6335,27 +6335,39 @@ tr:hover td{background:var(--b50)}
 <!-- CATEGORIES -->
 <div class="pl-section">
   <div class="pl-section-title">Who can list on WowBox?</div>
-  <div class="pl-section-sub">From boutique hotels to bush lodges — if you offer an exceptional experience, you belong here.</div>
+  <div class="pl-section-sub">From boutique hotels to solo guides — if you create a moment worth gifting, you belong here.</div>
   <div class="pl-cats">
     <div class="pl-cat">
-      <img src="https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?q=80&w=600&auto=format&fit=crop" alt="Hotels">
-      <div class="pl-cat-label">🏨 Hotels & Lodges</div>
+      <img src="https://images.unsplash.com/photo-1414235077428-338989a2e8c0?q=80&w=600&auto=format&fit=crop" alt="Dining">
+      <div class="pl-cat-label"><i class="fa fa-utensils" style="margin-right:8px;opacity:.9"></i>Dining</div>
     </div>
     <div class="pl-cat">
-      <img src="https://images.unsplash.com/photo-1414235077428-338989a2e8c0?q=80&w=600&auto=format&fit=crop" alt="Restaurants">
-      <div class="pl-cat-label">🍽️ Restaurants</div>
+      <img src="https://images.unsplash.com/photo-1566073771259-6a8506099945?q=80&w=600&auto=format&fit=crop" alt="Stays">
+      <div class="pl-cat-label"><i class="fa fa-bed" style="margin-right:8px;opacity:.9"></i>Stays</div>
     </div>
     <div class="pl-cat">
-      <img src="https://images.unsplash.com/photo-1544161515-4ab6ce6db874?q=80&w=600&auto=format&fit=crop" alt="Spas">
-      <div class="pl-cat-label">🧖 Spas & Wellness</div>
+      <img src="https://images.unsplash.com/photo-1544161515-4ab6ce6db874?q=80&w=600&auto=format&fit=crop" alt="Wellness">
+      <div class="pl-cat-label"><i class="fa fa-spa" style="margin-right:8px;opacity:.9"></i>Wellness</div>
     </div>
     <div class="pl-cat">
-      <img src="https://images.unsplash.com/photo-1516426122078-c23e76319801?q=80&w=600&auto=format&fit=crop" alt="Safari">
-      <div class="pl-cat-label">🦁 Safaris</div>
+      <img src="https://images.unsplash.com/photo-1516426122078-c23e76319801?q=80&w=600&auto=format&fit=crop" alt="Wildlife">
+      <div class="pl-cat-label"><i class="fa fa-paw" style="margin-right:8px;opacity:.9"></i>Wildlife</div>
     </div>
     <div class="pl-cat">
-      <img src="https://images.unsplash.com/photo-1551632811-561732d1e306?q=80&w=600&auto=format&fit=crop" alt="Hiking">
-      <div class="pl-cat-label">🥾 Hiking & Nature</div>
+      <img src="https://images.unsplash.com/photo-1513364776144-60967b0f800f?q=80&w=600&auto=format&fit=crop" alt="Arts & Workshops">
+      <div class="pl-cat-label"><i class="fa fa-palette" style="margin-right:8px;opacity:.9"></i>Arts &amp; Workshops</div>
+    </div>
+    <div class="pl-cat">
+      <img src="https://images.unsplash.com/photo-1540962351504-03099e0a754b?q=80&w=600&auto=format&fit=crop" alt="Air Experiences">
+      <div class="pl-cat-label"><i class="fa fa-helicopter" style="margin-right:8px;opacity:.9"></i>Air Experiences</div>
+    </div>
+    <div class="pl-cat">
+      <img src="https://images.unsplash.com/photo-1551632811-561732d1e306?q=80&w=600&auto=format&fit=crop" alt="Outdoor Adventures">
+      <div class="pl-cat-label"><i class="fa fa-mountain-sun" style="margin-right:8px;opacity:.9"></i>Outdoor Adventures</div>
+    </div>
+    <div class="pl-cat">
+      <img src="https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?q=80&w=600&auto=format&fit=crop" alt="Food & Wine">
+      <div class="pl-cat-label"><i class="fa fa-wine-glass" style="margin-right:8px;opacity:.9"></i>Food &amp; Wine</div>
     </div>
   </div>
 
@@ -27321,7 +27333,7 @@ function prelaunchShowSignIn() {
   go('login'); setNL('nl-login');
 }
 
-function prelaunchGoToPartnerLanding() {
+function prelaunchGoToPartnerLanding(scrollToForm) {
   var overlay = document.getElementById('prelaunch-overlay');
   if (overlay) overlay.style.display = 'none';
   document.documentElement.style.overflow = '';
@@ -27330,6 +27342,12 @@ function prelaunchGoToPartnerLanding() {
   document.body.style.width = '';
   document.body.style.height = '';
   go('partner-landing'); setNL('nl-list-exp');
+  if (scrollToForm) {
+    setTimeout(function() {
+      var f = document.getElementById('pl-signup-section');
+      if (f) f.scrollIntoView({ behavior: 'smooth' });
+    }, 300);
+  }
 }
 
 function prelaunchShowPartner() {
@@ -28119,7 +28137,7 @@ async function admRunSchemaDiag() {
     <button onclick="prelaunchShowSignIn()" style="background:none;border:none;color:rgba(255,255,255,.6);font-size:.74rem;cursor:pointer;text-decoration:underline;margin-top:2px">Already have an account? Sign in</button>
     <div style="margin-top:1vh;padding-top:1vh;border-top:1px solid rgba(255,255,255,.15);width:100%;max-width:420px">
       <p style="font-size:.78rem;color:rgba(255,255,255,.5);margin-bottom:10px">Reach customers ready to book unforgettable experiences. No upfront fees — we only earn when you do.</p>
-      <button onclick="prelaunchGoToPartnerLanding()" style="background:none;border:none;color:#fcd34d;font-size:.82rem;font-weight:600;text-decoration:underline;cursor:pointer">Apply to be a WowBox partner &rarr;</button>
+      <button onclick="prelaunchGoToPartnerLanding(true)" style="background:none;border:none;color:#fcd34d;font-size:.82rem;font-weight:600;text-decoration:underline;cursor:pointer">Apply to be a WowBox partner &rarr;</button>
     </div>
   </div>
 
