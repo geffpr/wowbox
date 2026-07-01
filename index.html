@@ -14001,6 +14001,39 @@ async function ppNewFillFromSettings() {
       var addrHidden = document.getElementById('pp-new-address');
       if (cityInput) cityInput.value = d.partner_address;
       if (addrHidden) addrHidden.value = d.partner_address;
+      // Ask Google to geocode the stored address so City + Province are filled
+      // from the SAME authoritative source as manual entry (no guessing / no
+      // comma-splitting errors). Falls back silently if Google is unavailable.
+      if (window.google && google.maps && google.maps.Geocoder) {
+        try {
+          var geocoder = new google.maps.Geocoder();
+          geocoder.geocode({ address: d.partner_address, componentRestrictions: { country: 'za' } }, function(results, status) {
+            if (status === 'OK' && results && results[0]) {
+              var place = results[0];
+              var comps = place.address_components || [];
+              var locality = comps.find(function(c){ return c.types.includes('locality'); });
+              var admin2   = comps.find(function(c){ return c.types.includes('administrative_area_level_2'); });
+              var admin1   = comps.find(function(c){ return c.types.includes('administrative_area_level_1'); });
+              var city     = (locality || admin2 || {}).long_name || '';
+              var province = (admin1 || {}).long_name || '';
+              var cityReal = document.getElementById('pp-new-city-real');
+              if (cityReal && city) cityReal.value = city;
+              var provSel = document.getElementById('pp-new-province');
+              if (provSel && province) {
+                var matched = Array.from(provSel.options).find(function(o){ return o.value === province || o.textContent.trim() === province; });
+                if (matched) provSel.value = matched.value;
+              }
+              // Also fill coordinates for consistency with manual entry
+              if (place.geometry && place.geometry.location) {
+                var latH = document.getElementById('pp-new-lat');
+                var lngH = document.getElementById('pp-new-lng');
+                if (latH) latH.value = place.geometry.location.lat();
+                if (lngH) lngH.value = place.geometry.location.lng();
+              }
+            }
+          });
+        } catch(geoErr) { console.warn('geocode fill:', geoErr.message); }
+      }
     }
     if (d.phone) {
       if (typeof wbPhoneSetValue === 'function') wbPhoneSetValue('pp-new-phone', d.phone);
