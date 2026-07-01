@@ -6512,6 +6512,8 @@ tr:hover td{background:var(--b50)}
         </label>
         <div style="font-size:.72rem;color:#64748b;margin-bottom:18px">Your application will be reviewed within 24 hours. You will receive a confirmation email once approved.</div>
         <button type="button" class="btn bp block" id="pl-submit-btn" onclick="plSubmitPartner()"><i class="fa fa-paper-plane"></i> Submit application</button>
+        <div id="pl-error-bottom" style="display:none;background:#fee2e2;border:1px solid #fca5a5;border-radius:8px;padding:10px 14px;font-size:.78rem;color:#991b1b;margin-top:14px"></div>
+        <div id="pl-success-bottom" style="display:none;background:#d1fae5;border:1px solid #6ee7b7;border-radius:8px;padding:10px 14px;font-size:.78rem;color:#065f46;margin-top:14px"></div>
       </div>
 
       <!-- SIGN IN FORM -->
@@ -14939,8 +14941,23 @@ async function plSubmitPartner() {
   var lat      = parseFloat((document.getElementById('pl-lat')  ||{value:''}).value) || null;
   var lng      = parseFloat((document.getElementById('pl-lng')  ||{value:''}).value) || null;
   var terms    = (document.getElementById('pl-terms')     ||{checked:false}).checked;
-  var errEl    = document.getElementById('pl-error');
-  var sucEl    = document.getElementById('pl-success');
+  var errTop = document.getElementById('pl-error');
+  var sucTop = document.getElementById('pl-success');
+  var errBot = document.getElementById('pl-error-bottom');
+  var sucBot = document.getElementById('pl-success-bottom');
+  // Mirror every message to both the top and bottom containers so the user
+  // never has to scroll up to see validation/success feedback.
+  function mkMirror(a, b) {
+    return {
+      set textContent(v) { if (a) a.textContent = v; if (b) b.textContent = v; },
+      get textContent() { return a ? a.textContent : (b ? b.textContent : ''); },
+      set innerHTML(v) { if (a) a.innerHTML = v; if (b) b.innerHTML = v; },
+      get innerHTML() { return a ? a.innerHTML : (b ? b.innerHTML : ''); },
+      style: { set display(v) { if (a) a.style.display = v; if (b) b.style.display = v; }, get display() { return a ? a.style.display : ''; } },
+    };
+  }
+  var errEl    = mkMirror(errTop, errBot);
+  var sucEl    = mkMirror(sucTop, sucBot);
   var btn      = document.getElementById('pl-submit-btn');
 
   if (errEl) errEl.style.display = 'none';
