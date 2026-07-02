@@ -4828,6 +4828,39 @@ tr:hover td{background:var(--b50)}
         <option value="duo">👫 Duo (up to 2)</option>
         <option value="group">👥 Group (3+)</option>
       </select>
+      <select class="wbx-sel" id="wbx-duration" onchange="wbExploreApply()">
+        <option value="">Any duration</option>
+        <option value="day">🌞 Day trip</option>
+        <option value="1">🌙 1 night</option>
+        <option value="2">🌙 2 nights</option>
+        <option value="3plus">🌙 3+ nights</option>
+      </select>
+      <select class="wbx-sel" id="wbx-style" onchange="wbExploreApply()">
+        <option value="">Any style</option>
+        <option value="romantic">💑 Romantic</option>
+        <option value="family">👨‍👩‍👧 Family</option>
+        <option value="adventure">🏔️ Adventure</option>
+        <option value="relaxation">🧘 Relaxation</option>
+        <option value="gastronomic">🍷 Gastronomic</option>
+        <option value="cultural">🎨 Cultural</option>
+      </select>
+      <select class="wbx-sel" id="wbx-amenity" onchange="wbExploreApply()">
+        <option value="">Any amenity</option>
+        <option value="wifi">Wi-Fi</option>
+        <option value="pool">Pool</option>
+        <option value="breakfast">Breakfast</option>
+        <option value="parking">Parking</option>
+        <option value="accessible">Accessible</option>
+        <option value="ac">A/C</option>
+        <option value="spa">Spa</option>
+        <option value="jacuzzi">Jacuzzi</option>
+        <option value="bar">Bar</option>
+        <option value="restaurant">Restaurant</option>
+        <option value="seaview">Sea view</option>
+        <option value="terrace">Terrace</option>
+        <option value="gym">Gym</option>
+        <option value="transfer">Transfer incl.</option>
+      </select>
     </div>
 
     <div class="wbx-count" id="wbx-count"></div>
@@ -11697,6 +11730,9 @@ function wbExploreGetFiltered() {
   var prov = document.getElementById('wbx-province')?.value || '';
   var city = document.getElementById('wbx-city')?.value || '';
   var size = document.getElementById('wbx-size')?.value || '';
+  var dur  = document.getElementById('wbx-duration')?.value || '';
+  var style= document.getElementById('wbx-style')?.value || '';
+  var amen = document.getElementById('wbx-amenity')?.value || '';
   var sort = document.getElementById('wbx-sort')?.value || 'rating';
 
   var items = (expDB || []).filter(function(e){
@@ -11713,7 +11749,15 @@ function wbExploreGetFiltered() {
       || (size==='solo'  && cap>=1)
       || (size==='duo'   && cap>=2 && cap<=2)
       || (size==='group' && cap>=3);
-    return qMatch && tMatch && pMatch && cMatch && sMatch;
+    var nights = e.duration_nights || 0;
+    var dMatch = !dur
+      || (dur==='day'   && nights===0)
+      || (dur==='1'     && nights===1)
+      || (dur==='2'     && nights===2)
+      || (dur==='3plus' && nights>=3);
+    var stMatch = !style || (e.weekend_type||'')===style;
+    var amMatch = !amen || (Array.isArray(e.amenities) && e.amenities.includes(amen));
+    return qMatch && tMatch && pMatch && cMatch && sMatch && dMatch && stMatch && amMatch;
   });
 
   if (sort === 'name') items.sort(function(a,b){ return (a.name||'').localeCompare(b.name||''); });
