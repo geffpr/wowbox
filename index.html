@@ -3133,6 +3133,24 @@ nav{position:sticky;top:0;z-index:300;background:rgba(255,255,255,.95);
 .wbx-more{padding:10px 16px;border:1.5px solid var(--border);border-radius:10px;background:var(--white);font-size:.82rem;font-weight:600;color:var(--b600);cursor:pointer;display:flex;align-items:center;gap:7px;white-space:nowrap}
 .wbx-more:hover{border-color:var(--b500);background:var(--b50)}
 .wbx-more-panel{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;padding:14px;background:var(--b50);border-radius:10px}
+.wbx-count-row{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:14px;flex-wrap:wrap}
+.wbx-viewtoggle{display:flex;gap:4px;background:var(--b50);border-radius:10px;padding:3px}
+.wbx-vt{padding:7px 14px;border:none;background:transparent;border-radius:8px;font-size:.8rem;font-weight:600;color:var(--slate);cursor:pointer;display:flex;align-items:center;gap:6px;transition:all .15s}
+.wbx-vt.on{background:var(--white);color:var(--b600);box-shadow:0 1px 4px rgba(0,0,0,.08)}
+.wbx-split{display:grid;grid-template-columns:1fr 1fr;gap:16px;height:620px}
+.wbx-split-list{overflow-y:auto;padding-right:6px;display:flex;flex-direction:column;gap:12px}
+.wbx-split-map{border-radius:14px;overflow:hidden;border:1px solid var(--border);position:sticky;top:80px;height:620px}
+.wbx-split-card{display:flex;gap:12px;border:1px solid var(--border);border-radius:12px;overflow:hidden;background:var(--white);cursor:pointer;transition:box-shadow .15s,border-color .15s}
+.wbx-split-card:hover,.wbx-split-card.active{border-color:var(--b500);box-shadow:0 4px 16px rgba(0,0,0,.1)}
+.wbx-split-card img{width:110px;height:110px;object-fit:cover;flex-shrink:0;background:var(--b50)}
+.wbx-split-card-body{padding:10px 12px;display:flex;flex-direction:column;gap:4px;min-width:0}
+.wbx-split-card-name{font-size:.9rem;font-weight:600;color:var(--navy);line-height:1.3}
+.wbx-split-card-meta{font-size:.72rem;color:var(--muted)}
+@media(max-width:760px){
+  .wbx-split{grid-template-columns:1fr;height:auto}
+  .wbx-split-map{position:relative;top:0;height:340px;order:-1}
+  .wbx-split-list{max-height:none;overflow:visible}
+}
 .wbx-count{font-size:.8rem;color:var(--muted);margin-bottom:14px}
 .wbx-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:18px}
 .wbx-card{border:1px solid var(--border);border-radius:14px;overflow:hidden;background:var(--white);cursor:pointer;transition:transform .15s,box-shadow .15s;display:flex;flex-direction:column}
@@ -4871,9 +4889,27 @@ tr:hover td{background:var(--b50)}
       </select>
     </div>
 
-    <div class="wbx-count" id="wbx-count"></div>
-    <div class="wbx-grid" id="wbx-grid"></div>
-    <div class="wbx-pager" id="wbx-pager"></div>
+    <div class="wbx-count-row">
+      <div class="wbx-count" id="wbx-count"></div>
+      <div class="wbx-viewtoggle">
+        <button class="wbx-vt on" id="wbx-vt-list" onclick="wbExploreSetView('list')"><i class="fa fa-list"></i> List</button>
+        <button class="wbx-vt" id="wbx-vt-map" onclick="wbExploreSetView('map')"><i class="fa fa-map-location-dot"></i> Map</button>
+      </div>
+    </div>
+
+    <!-- LIST VIEW -->
+    <div id="wbx-list-view">
+      <div class="wbx-grid" id="wbx-grid"></div>
+      <div class="wbx-pager" id="wbx-pager"></div>
+    </div>
+
+    <!-- MAP (SPLIT) VIEW -->
+    <div id="wbx-map-view" style="display:none">
+      <div class="wbx-split">
+        <div class="wbx-split-list" id="wbx-split-list"></div>
+        <div class="wbx-split-map" id="wbx-split-map"></div>
+      </div>
+    </div>
   </div></div>
 
 </div>
@@ -11791,6 +11827,7 @@ function wbExploreGetFiltered() {
 function wbExploreApply() {
   _wbxPage = 1;
   wbExploreRender();
+  if (_wbxView === 'map') wbExploreRenderMap();
 }
 
 function wbExploreGoPage(p) {
@@ -11940,6 +11977,108 @@ function wbExploreSetupVideoObserver() {
     _wbxVideoScrollBound = true;
   }
   updateActiveVideo();
+}
+
+// ─── EXPLORER MAP / SPLIT VIEW ────────────────────────────────────────────
+var _wbxView = 'list';
+var _wbxMap = null;
+var _wbxMarkers = {};      // expId -> google.maps.Marker
+var _wbxInfoWindow = null;
+
+function wbExploreSetView(view) {
+  _wbxView = view;
+  var listBtn = document.getElementById('wbx-vt-list');
+  var mapBtn  = document.getElementById('wbx-vt-map');
+  var listView = document.getElementById('wbx-list-view');
+  var mapView  = document.getElementById('wbx-map-view');
+  if (listBtn) listBtn.classList.toggle('on', view==='list');
+  if (mapBtn)  mapBtn.classList.toggle('on', view==='map');
+  if (listView) listView.style.display = view==='list' ? '' : 'none';
+  if (mapView)  mapView.style.display  = view==='map'  ? '' : 'none';
+  if (view === 'map') wbExploreRenderMap();
+}
+
+function wbExploreRenderMap() {
+  var items = wbExploreGetFiltered().filter(function(e){ return e.lat && e.lng; });
+  var listEl = document.getElementById('wbx-split-list');
+  var mapEl  = document.getElementById('wbx-split-map');
+  if (!mapEl) return;
+
+  // Build the left list
+  if (listEl) {
+    if (!items.length) {
+      listEl.innerHTML = '<div style="padding:30px;text-align:center;color:var(--muted)">No experiences with a location match your filters.</div>';
+    } else {
+      listEl.innerHTML = items.map(function(e){
+        var img = e.img || 'https://images.unsplash.com/photo-1528360983277-13d401cdc186?w=400&auto=format&fit=crop';
+        var loc = e.city || e.loc || '';
+        var rating = (e.rating != null && e.rv > 0) ? '★ ' + e.rating : 'New';
+        return '<div class="wbx-split-card" data-expid="' + String(e.id).replace(/"/g,'&quot;') + '" '
+          + 'onmouseenter="wbExploreHighlightMarker(\'' + String(e.id).replace(/'/g,"\\'") + '\',true)" '
+          + 'onmouseleave="wbExploreHighlightMarker(\'' + String(e.id).replace(/'/g,"\\'") + '\',false)" '
+          + 'onclick="wbExploreOpen(\'' + String(e.id).replace(/'/g,"\\'") + '\')">'
+          + '<img src="' + img + '" alt="" loading="lazy" onerror="this.src=\'https://images.unsplash.com/photo-1528360983277-13d401cdc186?w=400&auto=format&fit=crop\'">'
+          + '<div class="wbx-split-card-body">'
+          + '<div class="wbx-split-card-name">' + (e.name||'Untitled') + '</div>'
+          + '<div class="wbx-split-card-meta">' + (loc?loc+' · ':'') + rating + '</div>'
+          + '</div></div>';
+      }).join('');
+    }
+  }
+
+  if (!window.google || !google.maps) return;
+
+  // Init the map once
+  if (!_wbxMap) {
+    _wbxMap = new google.maps.Map(mapEl, {
+      center: { lat: -30.5595, lng: 22.9375 }, // South Africa
+      zoom: 5,
+      mapTypeControl: false, streetViewControl: false, fullscreenControl: false,
+    });
+    _wbxInfoWindow = new google.maps.InfoWindow();
+  }
+
+  // Clear old markers
+  Object.keys(_wbxMarkers).forEach(function(k){ _wbxMarkers[k].setMap(null); });
+  _wbxMarkers = {};
+
+  if (!items.length) return;
+  var bounds = new google.maps.LatLngBounds();
+  items.forEach(function(e){
+    var pos = { lat: Number(e.lat), lng: Number(e.lng) };
+    var marker = new google.maps.Marker({ position: pos, map: _wbxMap, title: e.name || '' });
+    _wbxMarkers[e.id] = marker;
+    bounds.extend(pos);
+    marker.addListener('click', function(){
+      // Highlight + scroll the matching list card
+      wbExploreScrollToCard(e.id);
+      if (_wbxInfoWindow) {
+        _wbxInfoWindow.setContent('<div style="font-size:.8rem;font-weight:600;max-width:180px">' + (e.name||'') + '</div>');
+        _wbxInfoWindow.open(_wbxMap, marker);
+      }
+    });
+  });
+  _wbxMap.fitBounds(bounds);
+  if (items.length === 1) _wbxMap.setZoom(13);
+  google.maps.event.trigger(_wbxMap, 'resize');
+}
+
+function wbExploreHighlightMarker(expId, on) {
+  var m = _wbxMarkers[expId];
+  if (!m) return;
+  m.setAnimation(on ? google.maps.Animation.BOUNCE : null);
+  if (on && _wbxMap) { m.setZIndex(9999); }
+}
+
+function wbExploreScrollToCard(expId) {
+  var listEl = document.getElementById('wbx-split-list');
+  if (!listEl) return;
+  var card = listEl.querySelector('.wbx-split-card[data-expid="' + String(expId).replace(/"/g,'&quot;') + '"]');
+  if (!card) return;
+  listEl.querySelectorAll('.wbx-split-card.active').forEach(function(c){ c.classList.remove('active'); });
+  card.classList.add('active');
+  card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  setTimeout(function(){ card.classList.remove('active'); }, 2500);
 }
 
 function wbExploreOpen(expId) {
