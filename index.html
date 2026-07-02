@@ -12008,7 +12008,11 @@ function wbExploreSetView(view) {
   if (mapBtn)  mapBtn.classList.toggle('on', view==='map');
   if (listView) listView.style.display = view==='list' ? '' : 'none';
   if (mapView)  mapView.style.display  = view==='map'  ? '' : 'none';
-  if (view === 'map') wbExploreRenderMap();
+  if (view === 'map') {
+    // Defer so the map container has its final size before Google Maps inits
+    // (it was display:none until now — initialising too early breaks markers/bounds).
+    requestAnimationFrame(function(){ setTimeout(wbExploreRenderMap, 30); });
+  }
 }
 
 function wbExploreRenderMap() {
@@ -12075,9 +12079,13 @@ function wbExploreRenderMap() {
       }
     });
   });
-  _wbxMap.fitBounds(bounds);
-  if (items.length === 1) _wbxMap.setZoom(13);
+  // Tell the map its container size is final BEFORE fitting bounds, otherwise
+  // markers/centering are computed against a stale (possibly zero) size.
   google.maps.event.trigger(_wbxMap, 'resize');
+  _wbxMap.fitBounds(bounds);
+  google.maps.event.addListenerOnce(_wbxMap, 'idle', function(){
+    if (items.length === 1) _wbxMap.setZoom(13);
+  });
 }
 
 function wbExploreHighlightMarker(expId, on) {
