@@ -3124,6 +3124,36 @@ nav{position:sticky;top:0;z-index:300;background:rgba(255,255,255,.95);
   cursor:pointer;transition:all .18s;display:flex;align-items:center;gap:7px;white-space:nowrap}
 .cat:hover,.cat.on{border-color:var(--b500);background:var(--b50);color:var(--b600)}
 
+/* ─── EXPERIENCE EXPLORER ─── */
+.wbx-bar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
+.wbx-search{flex:1;min-width:220px;display:flex;align-items:center;gap:8px;padding:10px 14px;border:1.5px solid var(--border);border-radius:10px;background:var(--white)}
+.wbx-search i{color:var(--muted);font-size:.85rem}
+.wbx-search input{border:none;outline:none;flex:1;font-size:.85rem;background:transparent;color:var(--navy)}
+.wbx-sel{padding:10px 12px;border:1.5px solid var(--border);border-radius:10px;background:var(--white);font-size:.82rem;color:var(--navy);cursor:pointer;max-width:180px}
+.wbx-more{padding:10px 16px;border:1.5px solid var(--border);border-radius:10px;background:var(--white);font-size:.82rem;font-weight:600;color:var(--b600);cursor:pointer;display:flex;align-items:center;gap:7px;white-space:nowrap}
+.wbx-more:hover{border-color:var(--b500);background:var(--b50)}
+.wbx-more-panel{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;padding:14px;background:var(--b50);border-radius:10px}
+.wbx-count{font-size:.8rem;color:var(--muted);margin-bottom:14px}
+.wbx-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:18px}
+.wbx-card{border:1px solid var(--border);border-radius:14px;overflow:hidden;background:var(--white);cursor:pointer;transition:transform .15s,box-shadow .15s;display:flex;flex-direction:column}
+.wbx-card:hover{transform:translateY(-3px);box-shadow:0 8px 24px rgba(0,0,0,.1)}
+.wbx-card-img{width:100%;height:150px;object-fit:cover;background:var(--b50)}
+.wbx-card-body{padding:14px;display:flex;flex-direction:column;gap:6px;flex:1}
+.wbx-card-name{font-size:.95rem;font-weight:600;color:var(--navy);line-height:1.3}
+.wbx-card-meta{font-size:.75rem;color:var(--muted);display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.wbx-card-foot{margin-top:auto;display:flex;align-items:center;justify-content:space-between;padding-top:8px}
+.wbx-card-rating{font-size:.78rem;color:var(--navy);font-weight:600}
+.wbx-pager{display:flex;justify-content:center;align-items:center;gap:6px;margin-top:28px;flex-wrap:wrap}
+.wbx-pg{min-width:36px;height:36px;padding:0 10px;border:1.5px solid var(--border);border-radius:8px;background:var(--white);font-size:.82rem;color:var(--navy);cursor:pointer;transition:all .15s}
+.wbx-pg:hover:not(:disabled){border-color:var(--b500);background:var(--b50)}
+.wbx-pg.on{background:var(--b500);color:#fff;border-color:var(--b500)}
+.wbx-pg:disabled{opacity:.4;cursor:not-allowed}
+@media(max-width:640px){
+  .wbx-sel{flex:1;max-width:none}
+  .wbx-grid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
+  .wbx-card-img{height:120px}
+}
+
 /* ─── PRODUCT PAGE ─── */
 .box-nav-arrow{position:fixed;top:50%;transform:translateY(-50%);z-index:200;width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,.92);border:1.5px solid var(--border);box-shadow:0 2px 10px rgba(0,0,0,.12);display:none;align-items:center;justify-content:center;cursor:pointer;transition:background .15s,box-shadow .15s;color:var(--navy);font-size:.95rem}
 .box-nav-arrow:hover{background:#fff;box-shadow:0 4px 16px rgba(0,0,0,.18)}
@@ -4756,26 +4786,55 @@ tr:hover td{background:var(--b50)}
     <div class="boxes-grid" id="home-boxes-grid"></div>
   </div>
 
-  <!-- CATEGORIES -->
-  <div class="sep"><div class="sec" style="padding-top:0;padding-bottom:0">
-    <div class="sec-hdr" style="text-align:center"><h2>Discover by category</h2><p>Find the perfect experience for every taste</p></div>
-    <div class="cats">
-      <div class="cat" onclick="go('allboxes')"><i class="fa fa-mountain"></i> Hiking & Nature</div>
-      <div class="cat" onclick="go('allboxes')"><i class="fa fa-utensils"></i> Food & Gastronomy</div>
-      <div class="cat" onclick="go('allboxes')"><i class="fa fa-water"></i> Ocean & Sea</div>
-      <div class="cat" onclick="go('allboxes')"><i class="fa fa-heart"></i> Romantic Weekend</div>
-      <div class="cat" onclick="go('allboxes')"><i class="fa fa-spa"></i> Relax & Wellness</div>
-      <div class="cat" onclick="go('allboxes')"><i class="fa fa-paw"></i> Safari & Wildlife</div>
-      <div class="cat" onclick="go('allboxes')"><i class="fa fa-wine-glass"></i> Wine & Culture</div>
-      <div class="cat" onclick="go('allboxes')"><i class="fa fa-plane"></i> City Breaks</div>
+  <!-- EXPERIENCE EXPLORER -->
+  <div class="sep"><div class="sec" id="wb-explore" style="padding-top:0">
+    <div class="sec-hdr" style="text-align:center"><h2>Explore experiences</h2><p>Browse every experience available across South Africa</p></div>
+
+    <!-- Horizontal filter bar -->
+    <div class="wbx-bar">
+      <div class="wbx-search">
+        <i class="fa fa-search"></i>
+        <input type="text" id="wbx-search" placeholder="Search experiences, places, partners…" oninput="wbExploreApply()">
+      </div>
+      <select class="wbx-sel" id="wbx-type" onchange="wbExploreApply()">
+        <option value="">All types</option>
+        <option value="accommodation">🏨 Accommodation</option>
+        <option value="dining">🍽️ Dining</option>
+        <option value="wellness">🧖 Wellness</option>
+        <option value="activity">🏄 Activity</option>
+        <option value="culture">🎭 Culture</option>
+        <option value="nature">🦁 Nature</option>
+        <option value="event">🎉 Event</option>
+        <option value="rental">🚗 Rental</option>
+      </select>
+      <select class="wbx-sel" id="wbx-province" onchange="wbExploreApply()">
+        <option value="">All provinces</option>
+      </select>
+      <select class="wbx-sel" id="wbx-sort" onchange="wbExploreApply()">
+        <option value="rating">Top rated</option>
+        <option value="name">Name (A–Z)</option>
+      </select>
+      <button class="wbx-more" onclick="wbExploreToggleMore()"><i class="fa fa-sliders"></i> More filters</button>
     </div>
+
+    <!-- Advanced filters (hidden by default) -->
+    <div class="wbx-more-panel" id="wbx-more-panel" style="display:none">
+      <select class="wbx-sel" id="wbx-city" onchange="wbExploreApply()">
+        <option value="">All cities</option>
+      </select>
+      <select class="wbx-sel" id="wbx-size" onchange="wbExploreApply()">
+        <option value="">Any group size</option>
+        <option value="solo">👤 Solo (1)</option>
+        <option value="duo">👫 Duo (up to 2)</option>
+        <option value="group">👥 Group (3+)</option>
+      </select>
+    </div>
+
+    <div class="wbx-count" id="wbx-count"></div>
+    <div class="wbx-grid" id="wbx-grid"></div>
+    <div class="wbx-pager" id="wbx-pager"></div>
   </div></div>
 
-  <div class="sec"><div class="cta-sec">
-    <h2>Can't find the perfect gift?</h2>
-    <p>Browse our full collection of 140,000+ curated experiences across South Africa</p>
-    <button class="btn bw blg" onclick="go('allboxes')"><i class="fa fa-search"></i> Browse all boxes</button>
-  </div></div>
 </div>
 
 <!-- ═══════════════════════════ PAGE: FAQ ═══════════════════════════ -->
@@ -11595,6 +11654,153 @@ async function fetchProductExps(boxId) {
   }
 }
 
+// ─── EXPERIENCE EXPLORER (home) ───────────────────────────────────────────
+// Self-contained browser over all active experiences in expDB. Read-only: it
+// never mutates expDB or any existing state. Each card links to the existing
+// /experience/{id} page (which already shows the boxes that include it).
+var _wbxPage = 1;
+var _wbxPerPage = 12;
+var _wbxMoreOpen = false;
+
+function wbExploreToggleMore() {
+  _wbxMoreOpen = !_wbxMoreOpen;
+  var panel = document.getElementById('wbx-more-panel');
+  if (panel) panel.style.display = _wbxMoreOpen ? 'flex' : 'none';
+}
+
+function wbExplorePopulateFilters() {
+  // Build province + city dropdowns from the data actually present in expDB.
+  var provinces = {}, cities = {};
+  (expDB || []).forEach(function(e){
+    if (e.province) provinces[e.province] = true;
+    if (e.city) cities[e.city] = true;
+  });
+  var provSel = document.getElementById('wbx-province');
+  if (provSel) {
+    var curP = provSel.value;
+    provSel.innerHTML = '<option value="">All provinces</option>'
+      + Object.keys(provinces).sort().map(function(p){ return '<option value="'+p+'">'+p+'</option>'; }).join('');
+    provSel.value = curP;
+  }
+  var citySel = document.getElementById('wbx-city');
+  if (citySel) {
+    var curC = citySel.value;
+    citySel.innerHTML = '<option value="">All cities</option>'
+      + Object.keys(cities).sort().map(function(c){ return '<option value="'+c+'">'+c+'</option>'; }).join('');
+    citySel.value = curC;
+  }
+}
+
+function wbExploreGetFiltered() {
+  var q    = (document.getElementById('wbx-search')?.value || '').toLowerCase().trim();
+  var type = document.getElementById('wbx-type')?.value || '';
+  var prov = document.getElementById('wbx-province')?.value || '';
+  var city = document.getElementById('wbx-city')?.value || '';
+  var size = document.getElementById('wbx-size')?.value || '';
+  var sort = document.getElementById('wbx-sort')?.value || 'rating';
+
+  var items = (expDB || []).filter(function(e){
+    if (!e || !e.id) return false;
+    var qMatch = !q || (e.name||'').toLowerCase().includes(q)
+      || (e.loc||'').toLowerCase().includes(q)
+      || (e.city||'').toLowerCase().includes(q)
+      || (e.partner||'').toLowerCase().includes(q);
+    var tMatch = !type || e.reservation_type===type || e.type===type || e.category===type;
+    var pMatch = !prov || (e.province||'')===prov;
+    var cMatch = !city || (e.city||'')===city;
+    var cap = e.capacity || 2;
+    var sMatch = !size
+      || (size==='solo'  && cap>=1)
+      || (size==='duo'   && cap>=2 && cap<=2)
+      || (size==='group' && cap>=3);
+    return qMatch && tMatch && pMatch && cMatch && sMatch;
+  });
+
+  if (sort === 'name') items.sort(function(a,b){ return (a.name||'').localeCompare(b.name||''); });
+  else items.sort(function(a,b){ return (b.rating||0) - (a.rating||0); });
+  return items;
+}
+
+function wbExploreApply() {
+  _wbxPage = 1;
+  wbExploreRender();
+}
+
+function wbExploreGoPage(p) {
+  _wbxPage = p;
+  wbExploreRender();
+  var anchor = document.getElementById('wb-explore');
+  if (anchor) anchor.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function wbExploreRender() {
+  var grid = document.getElementById('wbx-grid');
+  if (!grid) return;
+  var items = wbExploreGetFiltered();
+  var total = items.length;
+  var pages = Math.max(1, Math.ceil(total / _wbxPerPage));
+  if (_wbxPage > pages) _wbxPage = pages;
+  var start = (_wbxPage - 1) * _wbxPerPage;
+  var pageItems = items.slice(start, start + _wbxPerPage);
+
+  var countEl = document.getElementById('wbx-count');
+  if (countEl) countEl.textContent = total ? ('Showing ' + (start+1) + '–' + Math.min(start+_wbxPerPage, total) + ' of ' + total + ' experiences') : '';
+
+  if (!total) {
+    grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--muted)"><i class="fa fa-compass" style="font-size:2rem;opacity:.2;display:block;margin-bottom:12px"></i>No experiences match your filters.</div>';
+    var pgEmpty = document.getElementById('wbx-pager'); if (pgEmpty) pgEmpty.innerHTML = '';
+    return;
+  }
+
+  grid.innerHTML = pageItems.map(function(e){
+    var img = e.img || 'https://images.unsplash.com/photo-1528360983277-13d401cdc186?w=800&auto=format&fit=crop';
+    var rtLabel = (rtConfig[e.reservation_type] && rtConfig[e.reservation_type].label) || e.type || '';
+    var rtIcon  = (rtConfig[e.reservation_type] && rtConfig[e.reservation_type].icon) || '';
+    var loc = e.city || e.loc || '';
+    var ratingHtml = (e.rating != null && e.rv > 0)
+      ? '<span class="wbx-card-rating">★ ' + e.rating + '</span>'
+      : '<span class="wbx-card-rating" style="color:var(--muted)">New</span>';
+    return '<div class="wbx-card" onclick="wbExploreOpen(\'' + String(e.id).replace(/'/g,"\\'") + '\')">'
+      + '<img class="wbx-card-img" src="' + img + '" alt="" loading="lazy" onerror="this.src=\'https://images.unsplash.com/photo-1528360983277-13d401cdc186?w=800&auto=format&fit=crop\'">'
+      + '<div class="wbx-card-body">'
+      + '<div class="wbx-card-name">' + (e.name||'Untitled') + '</div>'
+      + '<div class="wbx-card-meta">' + (rtIcon?rtIcon+' ':'') + rtLabel + (loc?' · '+loc:'') + '</div>'
+      + '<div class="wbx-card-foot">' + ratingHtml
+      + '<span style="font-size:.75rem;color:var(--b600);font-weight:600">View →</span>'
+      + '</div></div></div>';
+  }).join('');
+
+  // Pager
+  var pager = document.getElementById('wbx-pager');
+  if (pager) {
+    var html = '';
+    html += '<button class="wbx-pg" onclick="wbExploreGoPage(' + (_wbxPage-1) + ')" ' + (_wbxPage<=1?'disabled':'') + '>‹</button>';
+    var maxBtns = 7;
+    var from = Math.max(1, _wbxPage - 3);
+    var to   = Math.min(pages, from + maxBtns - 1);
+    from = Math.max(1, to - maxBtns + 1);
+    if (from > 1) html += '<button class="wbx-pg" onclick="wbExploreGoPage(1)">1</button>' + (from>2?'<span style="color:var(--muted)">…</span>':'');
+    for (var i=from; i<=to; i++) html += '<button class="wbx-pg ' + (i===_wbxPage?'on':'') + '" onclick="wbExploreGoPage(' + i + ')">' + i + '</button>';
+    if (to < pages) html += (to<pages-1?'<span style="color:var(--muted)">…</span>':'') + '<button class="wbx-pg" onclick="wbExploreGoPage(' + pages + ')">' + pages + '</button>';
+    html += '<button class="wbx-pg" onclick="wbExploreGoPage(' + (_wbxPage+1) + ')" ' + (_wbxPage>=pages?'disabled':'') + '>›</button>';
+    pager.innerHTML = html;
+  }
+}
+
+function wbExploreOpen(expId) {
+  // Same navigation the existing experience cards use (view/preview context).
+  appState.expContext = 'preview';
+  loadExp(expId);
+  go('expdetail');
+}
+
+// Initialise the explorer once experiences are loaded. Safe to call multiple times.
+function wbExploreInit() {
+  if (!document.getElementById('wbx-grid')) return;
+  wbExplorePopulateFilters();
+  wbExploreRender();
+}
+
 async function loadExpFromSupabase() {
   try {
     if (typeof db_client === 'undefined') return;
@@ -11697,6 +11903,8 @@ async function loadExpFromSupabase() {
     buildExpProvinceFilter();
     buildBrowseLocFilter();
     buildBrowseProvinceFilter();
+    // Populate + render the home experience explorer now that expDB is complete
+    try { wbExploreInit(); } catch(e) { console.warn('wbExploreInit:', e.message); }
   } catch(err) {
     console.warn('loadExpFromSupabase:', err.message);
   }
