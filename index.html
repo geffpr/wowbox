@@ -25895,6 +25895,11 @@ window.addEventListener('DOMContentLoaded', async () => {
   loadAppPrices();
   loadSiteSettingsOnStartup();
   renderBoxGrids();
+  // Load real experiences from Supabase so the home explorer shows live data
+  // (not just the hardcoded demo seed). Non-blocking; wbExploreInit runs at its end.
+  if (typeof loadExpFromSupabase === 'function') {
+    loadExpFromSupabase().catch(function(e){ console.warn('startup loadExpFromSupabase:', e.message); });
+  }
   if (typeof wbRestoreSessionState === 'function') wbRestoreSessionState();
   loadProduct('couples-retreat');
 
