@@ -10524,6 +10524,8 @@ function go(page) {
   }
   if (page === 'allboxes' || page === 'home') {
     loadActiveBadgeCoupons().then(function(){ renderBoxGrid(); renderBoxGrids(); });
+    // Restore explorer scroll position when returning from an experience
+    if (page === 'home') { try { wbExploreRestoreScroll(); } catch(e) {} }
     renderBoxGrids().then(function() {
       var savedScroll  = sessionStorage.getItem('wowbox_allboxes_scroll');
       var savedBoxId   = sessionStorage.getItem('wowbox_allboxes_lastbox');
@@ -11941,10 +11943,29 @@ function wbExploreSetupVideoObserver() {
 }
 
 function wbExploreOpen(expId) {
+  // Remember scroll position + current page so we can restore it when the user
+  // navigates back from the experience.
+  try {
+    sessionStorage.setItem('wbx_scroll', String(window.scrollY));
+    sessionStorage.setItem('wbx_page', String(_wbxPage));
+  } catch(e) {}
   // Same navigation the existing experience cards use (view/preview context).
   appState.expContext = 'preview';
   loadExp(expId);
   go('expdetail');
+}
+
+function wbExploreRestoreScroll() {
+  var y = null;
+  try { y = sessionStorage.getItem('wbx_scroll'); } catch(e) {}
+  if (y === null) return;
+  // Restore the explorer page first (so the right cards are rendered), then scroll
+  try {
+    var savedPage = parseInt(sessionStorage.getItem('wbx_page')) || 1;
+    if (savedPage !== _wbxPage) { _wbxPage = savedPage; wbExploreRender(); }
+  } catch(e) {}
+  setTimeout(function(){ window.scrollTo(0, parseInt(y) || 0); }, 60);
+  try { sessionStorage.removeItem('wbx_scroll'); sessionStorage.removeItem('wbx_page'); } catch(e) {}
 }
 
 // Initialise the explorer once experiences are loaded. Safe to call multiple times.
