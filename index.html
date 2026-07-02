@@ -3137,7 +3137,9 @@ nav{position:sticky;top:0;z-index:300;background:rgba(255,255,255,.95);
 .wbx-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:18px}
 .wbx-card{border:1px solid var(--border);border-radius:14px;overflow:hidden;background:var(--white);cursor:pointer;transition:transform .15s,box-shadow .15s;display:flex;flex-direction:column}
 .wbx-card:hover{transform:translateY(-3px);box-shadow:0 8px 24px rgba(0,0,0,.1)}
-.wbx-card-img{width:100%;height:150px;object-fit:cover;background:var(--b50)}
+.wbx-card-img{width:100%;height:150px;object-fit:cover;background:var(--b50);display:block}
+.wbx-card-media{position:relative;width:100%;height:150px;background:var(--b50);overflow:hidden}
+.wbx-card-media .wbx-card-img{position:absolute;inset:0;height:100%}
 .wbx-card-body{padding:14px;display:flex;flex-direction:column;gap:6px;flex:1}
 .wbx-card-name{font-size:.95rem;font-weight:600;color:var(--navy);line-height:1.3}
 .wbx-card-meta{font-size:.75rem;color:var(--muted);display:flex;align-items:center;gap:6px;flex-wrap:wrap}
@@ -3152,6 +3154,7 @@ nav{position:sticky;top:0;z-index:300;background:rgba(255,255,255,.95);
   .wbx-sel{flex:1;max-width:none}
   .wbx-grid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
   .wbx-card-img{height:120px}
+  .wbx-card-media{height:120px}
 }
 
 /* ─── PRODUCT PAGE ─── */
@@ -11812,8 +11815,8 @@ function wbExploreRender() {
     var isDirect = vurl && !/youtube\.com|youtu\.be|vimeo\.com/i.test(vurl);
     var mediaHtml = '<img class="wbx-card-img" src="' + img + '" alt="" loading="lazy" onerror="this.src=\'https://images.unsplash.com/photo-1528360983277-13d401cdc186?w=800&auto=format&fit=crop\'">';
     if (isDirect) {
-      mediaHtml = '<div class="wbx-card-media" style="position:relative;width:100%;height:150px">'
-        + '<img class="wbx-card-img wbx-media-img" src="' + img + '" alt="" loading="lazy" style="position:absolute;inset:0;height:100%" onerror="this.src=\'https://images.unsplash.com/photo-1528360983277-13d401cdc186?w=800&auto=format&fit=crop\'">'
+      mediaHtml = '<div class="wbx-card-media">'
+        + '<img class="wbx-card-img wbx-media-img" src="' + img + '" alt="" loading="lazy" onerror="this.src=\'https://images.unsplash.com/photo-1528360983277-13d401cdc186?w=800&auto=format&fit=crop\'">'
         + '<video class="wbx-media-video" src="' + vurl + '" muted loop playsinline preload="none" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity .35s" onerror="this.remove()"></video>'
         + '</div>';
     }
