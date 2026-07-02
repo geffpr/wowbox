@@ -3140,6 +3140,7 @@ nav{position:sticky;top:0;z-index:300;background:rgba(255,255,255,.95);
 .wbx-card-img{width:100%;height:150px;object-fit:cover;background:var(--b50);display:block}
 .wbx-card-media{position:relative;width:100%;height:150px;background:var(--b50);overflow:hidden}
 .wbx-card-media .wbx-card-img{position:absolute;inset:0;height:100%}
+.wbx-feat-badge{position:absolute;top:8px;left:8px;z-index:2;background:#f59e0b;color:#fff;font-size:.66rem;font-weight:700;padding:3px 9px;border-radius:99px;display:flex;align-items:center;gap:4px;box-shadow:0 2px 6px rgba(0,0,0,.2)}
 .wbx-card-body{padding:14px;display:flex;flex-direction:column;gap:6px;flex:1}
 .wbx-card-name{font-size:.95rem;font-weight:600;color:var(--navy);line-height:1.3}
 .wbx-card-meta{font-size:.75rem;color:var(--muted);display:flex;align-items:center;gap:6px;flex-wrap:wrap}
@@ -4812,6 +4813,10 @@ tr:hover td{background:var(--b50)}
       </select>
       <select class="wbx-sel" id="wbx-province" onchange="wbExploreApply()">
         <option value="">All provinces</option>
+      </select>
+      <select class="wbx-sel" id="wbx-featured" onchange="wbExploreApply()">
+        <option value="">All experiences</option>
+        <option value="1">🔥 Featured only</option>
       </select>
       <select class="wbx-sel" id="wbx-sort" onchange="wbExploreApply()">
         <option value="rating">Top rated</option>
@@ -11736,6 +11741,7 @@ function wbExploreGetFiltered() {
   var dur  = document.getElementById('wbx-duration')?.value || '';
   var style= document.getElementById('wbx-style')?.value || '';
   var amen = document.getElementById('wbx-amenity')?.value || '';
+  var feat = document.getElementById('wbx-featured')?.value || '';
   var sort = document.getElementById('wbx-sort')?.value || 'rating';
 
   var items = (expDB || []).filter(function(e){
@@ -11760,11 +11766,23 @@ function wbExploreGetFiltered() {
       || (dur==='3plus' && nights>=3);
     var stMatch = !style || (e.weekend_type||'')===style;
     var amMatch = !amen || (Array.isArray(e.amenities) && e.amenities.includes(amen));
-    return qMatch && tMatch && pMatch && cMatch && sMatch && dMatch && stMatch && amMatch;
+    var ftMatch = !feat || (appState.boostedExpIds && appState.boostedExpIds.has(e.id));
+    return qMatch && tMatch && pMatch && cMatch && sMatch && dMatch && stMatch && amMatch && ftMatch;
   });
 
   if (sort === 'name') items.sort(function(a,b){ return (a.name||'').localeCompare(b.name||''); });
   else items.sort(function(a,b){ return (b.rating||0) - (a.rating||0); });
+
+  // Featured (boosted) experiences always float to the top of the filtered
+  // results, regardless of the chosen sort. Order among featured keeps the sort.
+  var boosted = appState.boostedExpIds;
+  if (boosted && boosted.size) {
+    items.sort(function(a,b){
+      var af = boosted.has(a.id) ? 1 : 0;
+      var bf = boosted.has(b.id) ? 1 : 0;
+      return bf - af; // stable: featured first, rest keep prior order
+    });
+  }
   return items;
 }
 
@@ -11820,8 +11838,10 @@ function wbExploreRender() {
         + '<video class="wbx-media-video" src="' + vurl + '" muted loop playsinline preload="none" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity .35s" onerror="this.remove()"></video>'
         + '</div>';
     }
+    var isFeatured = appState.boostedExpIds && appState.boostedExpIds.has(e.id);
+    var featBadge = isFeatured ? '<span class="wbx-feat-badge"><i class="fa fa-fire"></i> Featured</span>' : '';
     return '<div class="wbx-card" data-expid="' + String(e.id).replace(/"/g,'&quot;') + '" onclick="wbExploreOpen(\'' + String(e.id).replace(/'/g,"\\'") + '\')">'
-      + mediaHtml
+      + '<div style="position:relative">' + featBadge + mediaHtml + '</div>'
       + '<div class="wbx-card-body">'
       + '<div class="wbx-card-name">' + (e.name||'Untitled') + '</div>'
       + '<div class="wbx-card-meta">' + (rtIcon?rtIcon+' ':'') + rtLabel + (loc?' · '+loc:'') + '</div>'
@@ -11849,25 +11869,35 @@ function wbExploreRender() {
   }
 }
 
-var _wbxVideoObserver = null;
+var _wbxVideoScrollBound = false;
+var _wbxVideoRaf = null;
 function wbExploreSetupVideoObserver() {
-  // Play only the video of the card most centered in the viewport; pause others.
-  // preload="none" means nothing downloads until a card actually becomes active.
+  // Play the video of the card whose center is closest to the viewport center,
+  // and only if it's reasonably centered. All other videos pause + revert to
+  // their image. Recomputed on scroll/resize so playback stops as soon as a
+  // card leaves the center — keeps only ONE video playing (data-friendly).
   var vids = Array.prototype.slice.call(document.querySelectorAll('#wbx-grid .wbx-media-video'));
-  if (_wbxVideoObserver) { _wbxVideoObserver.disconnect(); _wbxVideoObserver = null; }
   if (!vids.length) return;
-  if (!('IntersectionObserver' in window)) return;
 
-  var visible = {}; // key -> ratio
-  function pickActive() {
-    var best = null, bestRatio = 0;
+  function updateActiveVideo() {
+    var winCenter = window.innerHeight / 2;
+    var best = null, bestDist = Infinity;
     vids.forEach(function(v){
-      var r = visible[v.dataset.k] || 0;
-      if (r > bestRatio) { bestRatio = r; best = v; }
+      var host = v.parentNode; // .wbx-card-media
+      if (!host) return;
+      var rect = host.getBoundingClientRect();
+      // Ignore cards not on screen at all
+      if (rect.bottom < 0 || rect.top > window.innerHeight) return;
+      var cardCenter = rect.top + rect.height / 2;
+      var dist = Math.abs(cardCenter - winCenter);
+      // Only eligible if the card center is within 40% of viewport height of center
+      if (dist < window.innerHeight * 0.4 && dist < bestDist) {
+        bestDist = dist; best = v;
+      }
     });
     vids.forEach(function(v){
       var sibImg = v.parentNode ? v.parentNode.querySelector('.wbx-media-img') : null;
-      if (v === best && bestRatio > 0.6) {
+      if (v === best) {
         if (v.paused) { try { v.play().catch(function(){}); } catch(e){} }
         v.style.opacity = '1';
         if (sibImg) sibImg.style.opacity = '0';
@@ -11879,14 +11909,22 @@ function wbExploreSetupVideoObserver() {
     });
   }
 
-  _wbxVideoObserver = new IntersectionObserver(function(entries){
-    entries.forEach(function(en){
-      visible[en.target.dataset.k] = en.isIntersecting ? en.intersectionRatio : 0;
+  function onScroll() {
+    if (_wbxVideoRaf) return;
+    _wbxVideoRaf = requestAnimationFrame(function(){
+      _wbxVideoRaf = null;
+      updateActiveVideo();
     });
-    pickActive();
-  }, { threshold: [0, 0.25, 0.5, 0.6, 0.75, 1] });
+  }
 
-  vids.forEach(function(v, i){ v.dataset.k = 'v'+i; _wbxVideoObserver.observe(v); });
+  // Bind global scroll/resize listeners once
+  if (!_wbxVideoScrollBound) {
+    window.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('resize', onScroll, { passive: true });
+    _wbxVideoScrollBound = true;
+  }
+  // Run once now to set initial state
+  updateActiveVideo();
 }
 
 function wbExploreOpen(expId) {
@@ -12006,6 +12044,14 @@ async function loadExpFromSupabase() {
     buildExpProvinceFilter();
     buildBrowseLocFilter();
     buildBrowseProvinceFilter();
+    // Ensure boosted/featured IDs are loaded so the explorer can prioritise them
+    try {
+      if (!appState.boostedExpIds) {
+        var bRes = await db_client.from('experience_boosts')
+          .select('experience_id').eq('status','active').gte('expires_at', new Date().toISOString());
+        appState.boostedExpIds = new Set((bRes.data || []).map(function(b){ return b.experience_id; }));
+      }
+    } catch(e) { console.warn('load boosts for explorer:', e.message); }
     // Populate + render the home experience explorer now that expDB is complete
     try { wbExploreInit(); } catch(e) { console.warn('wbExploreInit:', e.message); }
   } catch(err) {
