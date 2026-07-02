@@ -11804,8 +11804,19 @@ function wbExploreRender() {
     var ratingHtml = (e.rating != null && e.rv > 0)
       ? '<span class="wbx-card-rating">★ ' + e.rating + '</span>'
       : '<span class="wbx-card-rating" style="color:var(--muted)">New</span>';
-    return '<div class="wbx-card" onclick="wbExploreOpen(\'' + String(e.id).replace(/'/g,"\\'") + '\')">'
-      + '<img class="wbx-card-img" src="' + img + '" alt="" loading="lazy" onerror="this.src=\'https://images.unsplash.com/photo-1528360983277-13d401cdc186?w=800&auto=format&fit=crop\'">'
+    // Video preview only for DIRECT video files (.mp4/.webm/.mov). YouTube/Vimeo
+    // and missing URLs fall back to the main image (no <video> emitted).
+    var vurl = e.video_url || '';
+    var isDirect = /\.(mp4|webm|mov)(\?.*)?$/i.test(vurl);
+    var mediaHtml = '<img class="wbx-card-img" src="' + img + '" alt="" loading="lazy" onerror="this.src=\'https://images.unsplash.com/photo-1528360983277-13d401cdc186?w=800&auto=format&fit=crop\'">';
+    if (isDirect) {
+      mediaHtml = '<div class="wbx-card-media" style="position:relative;width:100%;height:150px">'
+        + '<img class="wbx-card-img wbx-media-img" src="' + img + '" alt="" loading="lazy" style="position:absolute;inset:0;height:100%" onerror="this.src=\'https://images.unsplash.com/photo-1528360983277-13d401cdc186?w=800&auto=format&fit=crop\'">'
+        + '<video class="wbx-media-video" src="' + vurl + '" muted loop playsinline preload="none" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity .35s" onerror="this.remove()"></video>'
+        + '</div>';
+    }
+    return '<div class="wbx-card" data-expid="' + String(e.id).replace(/"/g,'&quot;') + '" onclick="wbExploreOpen(\'' + String(e.id).replace(/'/g,"\\'") + '\')">'
+      + mediaHtml
       + '<div class="wbx-card-body">'
       + '<div class="wbx-card-name">' + (e.name||'Untitled') + '</div>'
       + '<div class="wbx-card-meta">' + (rtIcon?rtIcon+' ':'') + rtLabel + (loc?' · '+loc:'') + '</div>'
@@ -11813,6 +11824,8 @@ function wbExploreRender() {
       + '<span style="font-size:.75rem;color:var(--b600);font-weight:600">View →</span>'
       + '</div></div></div>';
   }).join('');
+
+  wbExploreSetupVideoObserver();
 
   // Pager
   var pager = document.getElementById('wbx-pager');
@@ -11829,6 +11842,46 @@ function wbExploreRender() {
     html += '<button class="wbx-pg" onclick="wbExploreGoPage(' + (_wbxPage+1) + ')" ' + (_wbxPage>=pages?'disabled':'') + '>›</button>';
     pager.innerHTML = html;
   }
+}
+
+var _wbxVideoObserver = null;
+function wbExploreSetupVideoObserver() {
+  // Play only the video of the card most centered in the viewport; pause others.
+  // preload="none" means nothing downloads until a card actually becomes active.
+  var vids = Array.prototype.slice.call(document.querySelectorAll('#wbx-grid .wbx-media-video'));
+  if (_wbxVideoObserver) { _wbxVideoObserver.disconnect(); _wbxVideoObserver = null; }
+  if (!vids.length) return;
+  if (!('IntersectionObserver' in window)) return;
+
+  var visible = {}; // key -> ratio
+  function pickActive() {
+    var best = null, bestRatio = 0;
+    vids.forEach(function(v){
+      var r = visible[v.dataset.k] || 0;
+      if (r > bestRatio) { bestRatio = r; best = v; }
+    });
+    vids.forEach(function(v){
+      var sibImg = v.parentNode ? v.parentNode.querySelector('.wbx-media-img') : null;
+      if (v === best && bestRatio > 0.6) {
+        if (v.paused) { try { v.play().catch(function(){}); } catch(e){} }
+        v.style.opacity = '1';
+        if (sibImg) sibImg.style.opacity = '0';
+      } else {
+        if (!v.paused) { try { v.pause(); } catch(e){} }
+        v.style.opacity = '0';
+        if (sibImg) sibImg.style.opacity = '1';
+      }
+    });
+  }
+
+  _wbxVideoObserver = new IntersectionObserver(function(entries){
+    entries.forEach(function(en){
+      visible[en.target.dataset.k] = en.isIntersecting ? en.intersectionRatio : 0;
+    });
+    pickActive();
+  }, { threshold: [0, 0.25, 0.5, 0.6, 0.75, 1] });
+
+  vids.forEach(function(v, i){ v.dataset.k = 'v'+i; _wbxVideoObserver.observe(v); });
 }
 
 function wbExploreOpen(expId) {
@@ -11911,6 +11964,7 @@ async function loadExpFromSupabase() {
         booking_type:     e.booking_type     || 'on_site',
         duration_nights:  e.duration_nights  || 0,
         weekend_type:     e.weekend_type     || '',
+        video_url:        e.video_url        || null,
         accessible:       e.accessible       || false,
         accommodation_type: e.accommodation_type || '',
         insolite:         e.insolite         || false,
