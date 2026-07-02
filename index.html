@@ -11804,10 +11804,12 @@ function wbExploreRender() {
     var ratingHtml = (e.rating != null && e.rv > 0)
       ? '<span class="wbx-card-rating">★ ' + e.rating + '</span>'
       : '<span class="wbx-card-rating" style="color:var(--muted)">New</span>';
-    // Video preview only for DIRECT video files (.mp4/.webm/.mov). YouTube/Vimeo
-    // and missing URLs fall back to the main image (no <video> emitted).
+    // Video preview for direct video files. We treat any URL as a direct video
+    // EXCEPT YouTube/Vimeo (which can't play in a native <video>). Covers .mp4/
+    // .webm and extension-less direct links like Pexels download URLs. The
+    // <video> onerror is the safety net if a link turns out not to be playable.
     var vurl = e.video_url || '';
-    var isDirect = /\.(mp4|webm|mov)(\?.*)?$/i.test(vurl);
+    var isDirect = vurl && !/youtube\.com|youtu\.be|vimeo\.com/i.test(vurl);
     var mediaHtml = '<img class="wbx-card-img" src="' + img + '" alt="" loading="lazy" onerror="this.src=\'https://images.unsplash.com/photo-1528360983277-13d401cdc186?w=800&auto=format&fit=crop\'">';
     if (isDirect) {
       mediaHtml = '<div class="wbx-card-media" style="position:relative;width:100%;height:150px">'
