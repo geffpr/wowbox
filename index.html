@@ -11872,58 +11872,71 @@ function wbExploreRender() {
 var _wbxVideoScrollBound = false;
 var _wbxVideoRaf = null;
 function wbExploreSetupVideoObserver() {
-  // Play the video of the card whose center is closest to the viewport center,
-  // and only if it's reasonably centered. All other videos pause + revert to
-  // their image. Recomputed on scroll/resize so playback stops as soon as a
-  // card leaves the center — keeps only ONE video playing (data-friendly).
   var vids = Array.prototype.slice.call(document.querySelectorAll('#wbx-grid .wbx-media-video'));
   if (!vids.length) return;
 
+  // Desktop (pointer + hover) → play on hover. Touch/mobile → play the card
+  // closest to viewport center on scroll. Always at most ONE video playing.
+  var canHover = window.matchMedia && window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+
+  function stopAll(except) {
+    vids.forEach(function(v){
+      var sibImg = v.parentNode ? v.parentNode.querySelector('.wbx-media-img') : null;
+      if (v === except) return;
+      if (!v.paused) { try { v.pause(); } catch(e){} }
+      v.style.opacity = '0';
+      if (sibImg) sibImg.style.opacity = '1';
+    });
+  }
+  function playOne(v) {
+    var sibImg = v.parentNode ? v.parentNode.querySelector('.wbx-media-img') : null;
+    if (v.paused) { try { v.play().catch(function(){}); } catch(e){} }
+    v.style.opacity = '1';
+    if (sibImg) sibImg.style.opacity = '0';
+    stopAll(v);
+  }
+
+  if (canHover) {
+    // DESKTOP: hover to play, leave to stop
+    vids.forEach(function(v){
+      var card = v.closest('.wbx-card') || v.parentNode;
+      if (!card || card._wbxHoverBound) return;
+      card._wbxHoverBound = true;
+      card.addEventListener('mouseenter', function(){ playOne(v); });
+      card.addEventListener('mouseleave', function(){
+        var sibImg = v.parentNode ? v.parentNode.querySelector('.wbx-media-img') : null;
+        if (!v.paused) { try { v.pause(); } catch(e){} }
+        v.style.opacity = '0';
+        if (sibImg) sibImg.style.opacity = '1';
+      });
+    });
+    return;
+  }
+
+  // MOBILE / TOUCH: play the card closest to viewport center on scroll
   function updateActiveVideo() {
     var winCenter = window.innerHeight / 2;
     var best = null, bestDist = Infinity;
     vids.forEach(function(v){
-      var host = v.parentNode; // .wbx-card-media
+      var host = v.parentNode;
       if (!host) return;
       var rect = host.getBoundingClientRect();
-      // Ignore cards not on screen at all
       if (rect.bottom < 0 || rect.top > window.innerHeight) return;
       var cardCenter = rect.top + rect.height / 2;
       var dist = Math.abs(cardCenter - winCenter);
-      // Only eligible if the card center is within 40% of viewport height of center
-      if (dist < window.innerHeight * 0.4 && dist < bestDist) {
-        bestDist = dist; best = v;
-      }
+      if (dist < window.innerHeight * 0.4 && dist < bestDist) { bestDist = dist; best = v; }
     });
-    vids.forEach(function(v){
-      var sibImg = v.parentNode ? v.parentNode.querySelector('.wbx-media-img') : null;
-      if (v === best) {
-        if (v.paused) { try { v.play().catch(function(){}); } catch(e){} }
-        v.style.opacity = '1';
-        if (sibImg) sibImg.style.opacity = '0';
-      } else {
-        if (!v.paused) { try { v.pause(); } catch(e){} }
-        v.style.opacity = '0';
-        if (sibImg) sibImg.style.opacity = '1';
-      }
-    });
+    if (best) playOne(best); else stopAll(null);
   }
-
   function onScroll() {
     if (_wbxVideoRaf) return;
-    _wbxVideoRaf = requestAnimationFrame(function(){
-      _wbxVideoRaf = null;
-      updateActiveVideo();
-    });
+    _wbxVideoRaf = requestAnimationFrame(function(){ _wbxVideoRaf = null; updateActiveVideo(); });
   }
-
-  // Bind global scroll/resize listeners once
   if (!_wbxVideoScrollBound) {
     window.addEventListener('scroll', onScroll, { passive: true });
     window.addEventListener('resize', onScroll, { passive: true });
     _wbxVideoScrollBound = true;
   }
-  // Run once now to set initial state
   updateActiveVideo();
 }
 
@@ -12044,13 +12057,13 @@ async function loadExpFromSupabase() {
     buildExpProvinceFilter();
     buildBrowseLocFilter();
     buildBrowseProvinceFilter();
-    // Ensure boosted/featured IDs are loaded so the explorer can prioritise them
+    // Ensure boosted/featured IDs are loaded so the explorer can prioritise them.
+    // (appState.boostedExpIds is pre-initialised to an empty Set, so we must load
+    // unconditionally rather than only when it's falsy.)
     try {
-      if (!appState.boostedExpIds) {
-        var bRes = await db_client.from('experience_boosts')
-          .select('experience_id').eq('status','active').gte('expires_at', new Date().toISOString());
-        appState.boostedExpIds = new Set((bRes.data || []).map(function(b){ return b.experience_id; }));
-      }
+      var bRes = await db_client.from('experience_boosts')
+        .select('experience_id').eq('status','active').gte('expires_at', new Date().toISOString());
+      appState.boostedExpIds = new Set((bRes.data || []).map(function(b){ return b.experience_id; }));
     } catch(e) { console.warn('load boosts for explorer:', e.message); }
     // Populate + render the home experience explorer now that expDB is complete
     try { wbExploreInit(); } catch(e) { console.warn('wbExploreInit:', e.message); }
