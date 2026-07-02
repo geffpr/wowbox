@@ -12062,6 +12062,7 @@ function wbExploreRenderMap() {
   if (!items.length) return;
   var bounds = new google.maps.LatLngBounds();
   items.forEach(function(e){
+    if (!e.img) e.img = 'https://images.unsplash.com/photo-1528360983277-13d401cdc186?w=800&auto=format&fit=crop';
     var pos = { lat: Number(e.lat), lng: Number(e.lng) };
     var marker = new google.maps.Marker({ position: pos, map: _wbxMap, title: e.name || '' });
     _wbxMarkers[e.id] = marker;
@@ -12072,8 +12073,8 @@ function wbExploreRenderMap() {
         wbExploreShowMapPreview(e);
       } else {
         wbExploreScrollToCard(e.id);
-        if (_wbxInfoWindow) {
-          _wbxInfoWindow.setContent('<div style="font-size:.8rem;font-weight:600;max-width:180px">' + (e.name||'') + '</div>');
+        if (_wbxInfoWindow && typeof buildRichInfoWindow === 'function') {
+          _wbxInfoWindow.setContent(buildRichInfoWindow(e, 'preview'));
           _wbxInfoWindow.open(_wbxMap, marker);
         }
       }
