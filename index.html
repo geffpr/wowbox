@@ -11560,6 +11560,7 @@ async function fetchProductExps(boxId) {
         rv:               rt1 ? rt1.count : 0,
         amenities:        e.amenities            || [],
         programme:        e.programme            || [],
+        img:              e.image_url || (Array.isArray(e.images) && e.images[0]) || (Array.isArray(e.image_urls) && e.image_urls[0]) || 'https://images.unsplash.com/photo-1528360983277-13d401cdc186?w=800&auto=format&fit=crop',
         img2:             (e.image_urls && e.image_urls[0]) || (e.images && e.images[1]) || '',
         img3:             (e.image_urls && e.image_urls[1]) || (e.images && e.images[2]) || '',
         img4:             (e.image_urls && e.image_urls[2]) || '',
