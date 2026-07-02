@@ -5216,11 +5216,11 @@ tr:hover td{background:var(--b50)}
             <div class="big-num" id="exp-rv-num">4.9</div>
             <div style="color:var(--amber);font-size:1.1rem;margin:4px 0">★★★★★</div>
             <div style="font-size:.73rem;color:var(--muted)" id="exp-rv-total">187 reviews</div>
-            <div class="rv-bars">
-              <div class="rv-bar-row">5★<div class="rv-bar-track"><div class="rv-bar-fill" style="width:78%"></div></div>78%</div>
-              <div class="rv-bar-row">4★<div class="rv-bar-track"><div class="rv-bar-fill" style="width:15%"></div></div>15%</div>
-              <div class="rv-bar-row">3★<div class="rv-bar-track"><div class="rv-bar-fill" style="width:5%"></div></div>5%</div>
-              <div class="rv-bar-row">2★<div class="rv-bar-track"><div class="rv-bar-fill" style="width:2%"></div></div>2%</div>
+            <div class="rv-bars" id="exp-rv-bars">
+              <div class="rv-bar-row">5★<div class="rv-bar-track"><div class="rv-bar-fill" id="exp-bar-fill-5" style="width:0%"></div></div><span id="exp-bar-pct-5">0%</span></div>
+              <div class="rv-bar-row">4★<div class="rv-bar-track"><div class="rv-bar-fill" id="exp-bar-fill-4" style="width:0%"></div></div><span id="exp-bar-pct-4">0%</span></div>
+              <div class="rv-bar-row">3★<div class="rv-bar-track"><div class="rv-bar-fill" id="exp-bar-fill-3" style="width:0%"></div></div><span id="exp-bar-pct-3">0%</span></div>
+              <div class="rv-bar-row">2★<div class="rv-bar-track"><div class="rv-bar-fill" id="exp-bar-fill-2" style="width:0%"></div></div><span id="exp-bar-pct-2">0%</span></div>
             </div>
           </div>
           <div class="rev-grid" style="grid-template-columns:1fr" id="exp-rev-list"></div>
@@ -5491,7 +5491,7 @@ tr:hover td{background:var(--b50)}
           <div class="big-num" id="rev-big-num">—</div>
           <div style="color:var(--amber);font-size:1.2rem;margin:6px 0">★★★★★</div>
           <div style="font-size:.75rem;color:var(--muted)" id="rev-total-cnt">Loading…</div>
-          <div class="rv-bars" style="margin-top:18px">
+          <div class="rv-bars" id="rev-bars-wrap" style="margin-top:18px">
             <div class="rv-bar-row">5★<div class="rv-bar-track"><div class="rv-bar-fill" id="rev-bar-fill-5" style="width:0%"></div></div><span id="rev-bar-pct-5">—</span></div>
             <div class="rv-bar-row">4★<div class="rv-bar-track"><div class="rv-bar-fill" id="rev-bar-fill-4" style="width:0%"></div></div><span id="rev-bar-pct-4">—</span></div>
             <div class="rv-bar-row">3★<div class="rv-bar-track"><div class="rv-bar-fill" id="rev-bar-fill-3" style="width:0%"></div></div><span id="rev-bar-pct-3">—</span></div>
@@ -13421,7 +13421,9 @@ async function renderReviewsPage() {
     var totCnt = document.getElementById('rev-total-cnt');
     if (bigNum) bigNum.textContent = avg;
     if (totCnt) totCnt.textContent = total + ' review' + (total!==1?'s':'');
-    // Update rating bars
+    // Update rating bars — only show the distribution at 5+ reviews
+    var revBarsWrap = document.getElementById('rev-bars-wrap');
+    if (revBarsWrap) revBarsWrap.style.display = (total >= 5) ? '' : 'none';
     [5,4,3,2].forEach(function(star) {
       var pct = total ? Math.round(dist[star]/total*100) : 0;
       var fill = document.getElementById('rev-bar-fill-'+star);
@@ -13726,6 +13728,27 @@ async function loadExpReviews(expId) {
       .order('created_at', { ascending: false });
     var revs = res.data || [];
     if (cntEl) cntEl.textContent = revs.length;
+    // Rating distribution bars: only meaningful with enough reviews. Compute the
+    // real distribution and show the bars only at 5+ reviews; hide otherwise so
+    // we never display a misleading spread (e.g. 100%/0% on a single review).
+    var barsWrap = document.getElementById('exp-rv-bars');
+    var DIST_MIN = 5;
+    if (barsWrap) {
+      if (revs.length >= DIST_MIN) {
+        var dist = {5:0,4:0,3:0,2:0,1:0};
+        revs.forEach(function(r){ if (dist[r.rating]!==undefined) dist[r.rating]++; });
+        [5,4,3,2].forEach(function(star){
+          var pct = Math.round(dist[star]/revs.length*100);
+          var fill = document.getElementById('exp-bar-fill-'+star);
+          var lbl  = document.getElementById('exp-bar-pct-'+star);
+          if (fill) fill.style.width = pct + '%';
+          if (lbl)  lbl.textContent  = pct + '%';
+        });
+        barsWrap.style.display = '';
+      } else {
+        barsWrap.style.display = 'none';
+      }
+    }
     if (revs.length) {
       var avg = (revs.reduce(function(s,r){ return s+r.rating; },0)/revs.length).toFixed(1);
       if (numEl) numEl.textContent = avg;
