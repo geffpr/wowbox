@@ -3137,10 +3137,12 @@ nav{position:sticky;top:0;z-index:300;background:rgba(255,255,255,.95);
 .wbx-viewtoggle{display:flex;gap:4px;background:var(--b50);border-radius:10px;padding:3px}
 .wbx-vt{padding:7px 14px;border:none;background:transparent;border-radius:8px;font-size:.8rem;font-weight:600;color:var(--slate);cursor:pointer;display:flex;align-items:center;gap:6px;transition:all .15s}
 .wbx-vt.on{background:var(--white);color:var(--b600);box-shadow:0 1px 4px rgba(0,0,0,.08)}
-.wbx-split{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:stretch}
+.wbx-split{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start}
 .wbx-split-list{display:flex;flex-direction:column;gap:12px}
-.wbx-split-map-wrap{position:relative;min-height:100%}
-.wbx-split-map{border-radius:14px;overflow:hidden;border:1px solid var(--border);width:100%;height:100%;position:sticky;top:80px;min-height:480px}
+.wbx-split-map-wrap{position:sticky;top:80px;align-self:start}
+.wbx-split-map{border-radius:14px;overflow:hidden;border:1px solid var(--border);width:100%;height:calc(100vh - 100px);max-height:760px;position:relative}
+.wbx-search-area{position:absolute;top:16px;left:50%;transform:translateX(-50%);z-index:6;background:var(--white);color:var(--navy);border:1px solid var(--border);border-radius:99px;padding:9px 18px;font-size:.8rem;font-weight:700;cursor:pointer;box-shadow:0 3px 12px rgba(0,0,0,.18);display:flex;align-items:center;gap:7px;white-space:nowrap}
+.wbx-search-area:hover{background:var(--b50);border-color:var(--b500);color:var(--b600)}
 .wbx-split-card{display:flex;gap:12px;border:1px solid var(--border);border-radius:12px;overflow:hidden;background:var(--white);cursor:pointer;transition:box-shadow .15s,border-color .15s}
 .wbx-split-card:hover,.wbx-split-card.active{border-color:var(--b500);box-shadow:0 4px 16px rgba(0,0,0,.1)}
 .wbx-split-card img{width:110px;height:110px;object-fit:cover;flex-shrink:0;background:var(--b50)}
@@ -4917,8 +4919,9 @@ tr:hover td{background:var(--b50)}
     <div id="wbx-map-view" style="display:none">
       <div class="wbx-split">
         <div class="wbx-split-list" id="wbx-split-list"></div>
-        <div class="wbx-split-map-wrap" style="position:relative">
+        <div class="wbx-split-map-wrap">
           <div class="wbx-split-map" id="wbx-split-map"></div>
+          <button class="wbx-search-area" id="wbx-search-area" onclick="wbExploreSearchThisArea()" style="display:none"><i class="fa fa-arrows-rotate"></i> Search this area</button>
           <div class="wbx-map-preview" id="wbx-map-preview"></div>
         </div>
       </div>
@@ -11839,6 +11842,9 @@ function wbExploreGetFiltered() {
 
 function wbExploreApply() {
   _wbxPage = 1;
+  // Changing top filters resets any "search this area" restriction
+  _wbxAreaFilterActive = false;
+  _wbxAreaBounds = null;
   wbExploreRender();
   if (_wbxView === 'map') wbExploreRenderMap();
 }
@@ -12015,8 +12021,15 @@ function wbExploreSetView(view) {
   }
 }
 
-function wbExploreRenderMap() {
+function wbExploreRenderMap(keepView) {
   var items = wbExploreGetFiltered().filter(function(e){ return e.lat && e.lng; });
+  // If the user has requested "search this area", further restrict to markers
+  // within the current map viewport bounds.
+  if (_wbxAreaFilterActive && _wbxAreaBounds) {
+    items = items.filter(function(e){
+      return _wbxAreaBounds.contains(new google.maps.LatLng(Number(e.lat), Number(e.lng)));
+    });
+  }
   var listEl = document.getElementById('wbx-split-list');
   var mapEl  = document.getElementById('wbx-split-map');
   if (!mapEl) return;
@@ -12053,6 +12066,12 @@ function wbExploreRenderMap() {
       mapTypeControl: false, streetViewControl: false, fullscreenControl: false,
     });
     _wbxInfoWindow = new google.maps.InfoWindow();
+    // Show "Search this area" when the user pans or zooms the map (not on our
+    // own programmatic fitBounds — guarded by _wbxProgrammaticMove).
+    _wbxMap.addListener('dragend', function(){ wbExploreShowSearchAreaBtn(); });
+    _wbxMap.addListener('zoom_changed', function(){
+      if (!_wbxProgrammaticMove) wbExploreShowSearchAreaBtn();
+    });
   }
 
   // Clear old markers
@@ -12083,10 +12102,40 @@ function wbExploreRenderMap() {
   // Tell the map its container size is final BEFORE fitting bounds, otherwise
   // markers/centering are computed against a stale (possibly zero) size.
   google.maps.event.trigger(_wbxMap, 'resize');
+  if (keepView) {
+    // User is searching within their chosen area — don't move the map.
+    return;
+  }
+  _wbxProgrammaticMove = true;
   _wbxMap.fitBounds(bounds);
   google.maps.event.addListenerOnce(_wbxMap, 'idle', function(){
     if (items.length === 1) _wbxMap.setZoom(13);
+    _wbxProgrammaticMove = false;
+    wbExploreHideSearchAreaBtn();
   });
+}
+
+var _wbxProgrammaticMove = false;
+function wbExploreShowSearchAreaBtn() {
+  if (_wbxAreaFilterActive === false && _wbxProgrammaticMove) return;
+  var btn = document.getElementById('wbx-search-area');
+  if (btn) btn.style.display = 'flex';
+}
+function wbExploreHideSearchAreaBtn() {
+  var btn = document.getElementById('wbx-search-area');
+  if (btn) btn.style.display = 'none';
+}
+
+var _wbxAreaFilterActive = false;
+var _wbxAreaBounds = null;
+function wbExploreSearchThisArea() {
+  if (!_wbxMap) return;
+  _wbxAreaBounds = _wbxMap.getBounds();
+  _wbxAreaFilterActive = true;
+  wbExploreHideSearchAreaBtn();
+  // Re-render the map list restricted to the current viewport, without moving
+  // the map (so the user keeps their chosen area).
+  wbExploreRenderMap(true);
 }
 
 var _wbxHoverTimer = null;
