@@ -25638,15 +25638,109 @@ async function loadPartnerBookings() {
   }
 }
 
+// ─── CENTRAL COMMISSION CREATION ──────────────────────────────────────────
+// Single source of truth for turning a validated booking into a commission
+// entry + payout amount. Called from every validation path so partner money is
+// ALWAYS calculated, no matter how the booking was marked used.
+// Idempotent: if a commission_entry already exists for this booking_reference,
+// it does nothing (never pays twice).
+async function wbCreateCommissionForBooking(bk, opts) {
+  opts = opts || {};
+  if (!bk || !bk.booking_reference) { console.warn('wbCreateCommission: no booking'); return; }
+  try {
+    // Anti-duplicate guard: skip if a commission already exists for this booking
+    var existing = await db_client.from('commission_entries')
+      .select('id').eq('booking_reference', bk.booking_reference).limit(1);
+    if (existing.data && existing.data.length) {
+      console.log('wbCreateCommission: entry already exists for', bk.booking_reference);
+      return;
+    }
+
+    var partnerEmail = bk.partner_email || opts.partnerEmail || '';
+    var partnerName  = bk.partner_name || opts.partnerName || appState.partnerName || 'Partner';
+
+    // Rate lookup: experience → partner → global (fallback 35%)
+    var platformRate = 35;
+    if (bk.experience_id) {
+      var rExp = await db_client.from('commission_rates')
+        .select('platform_rate').eq('rate_type','experience')
+        .eq('target_id', String(bk.experience_id)).maybeSingle();
+      if (rExp.data) { platformRate = Number(rExp.data.platform_rate); }
+      else if (partnerEmail) {
+        var rPart = await db_client.from('commission_rates')
+          .select('platform_rate').eq('rate_type','partner')
+          .eq('target_id', partnerEmail).maybeSingle();
+        if (rPart.data) { platformRate = Number(rPart.data.platform_rate); }
+        else {
+          var rGlob = await db_client.from('commission_rates')
+            .select('platform_rate').eq('rate_type','global').maybeSingle();
+          if (rGlob.data) { platformRate = Number(rGlob.data.platform_rate); }
+        }
+      }
+    } else if (partnerEmail) {
+      var rPart2 = await db_client.from('commission_rates')
+        .select('platform_rate').eq('rate_type','partner')
+        .eq('target_id', partnerEmail).maybeSingle();
+      if (rPart2.data) { platformRate = Number(rPart2.data.platform_rate); }
+      else {
+        var rGlob2 = await db_client.from('commission_rates')
+          .select('platform_rate').eq('rate_type','global').maybeSingle();
+        if (rGlob2.data) { platformRate = Number(rGlob2.data.platform_rate); }
+      }
+    }
+
+    var boxPrice       = Number(bk.box_price) || 0;
+    var platformAmount = parseFloat((boxPrice * platformRate / 100).toFixed(2));
+    var partnerPayout  = parseFloat((boxPrice - platformAmount).toFixed(2));
+    var usedAt         = bk.validated_at || new Date().toISOString();
+
+    // Mirror payout onto the booking (reporting reads from here)
+    await db_client.from('bookings').update({
+      payout_amount: partnerPayout,
+      payout_status: 'pending',
+    }).eq('booking_reference', bk.booking_reference);
+
+    var txRef = 'TXN-' + Date.now().toString(36).toUpperCase()
+              + '-' + Math.random().toString(36).substring(2,6).toUpperCase();
+
+    await db_client.from('commission_entries').insert({
+      booking_reference: bk.booking_reference,
+      partner_email:     partnerEmail,
+      partner_name:      partnerName,
+      experience_name:   bk.experience_name || '',
+      box_price:         boxPrice,
+      platform_rate:     platformRate,
+      platform_amount:   platformAmount,
+      partner_payout:    partnerPayout,
+      payout_status:     'pending',
+      validated_at:      usedAt,
+      transaction_ref:   txRef,
+    });
+    console.log('wbCreateCommission: created for', bk.booking_reference, '→ payout', partnerPayout);
+  } catch(e) {
+    console.warn('wbCreateCommissionForBooking failed:', e.message);
+  }
+}
+
 async function ppValidateBooking(bookingId, voucherCode, btn) {
   btn.disabled = true; btn.textContent = 'Validating…';
   try {
+    var usedAt = new Date().toISOString();
     // UPDATE booking → used
-    await db_client.from('bookings').update({ status: 'used', validated_at: new Date().toISOString() }).eq('id', bookingId);
+    await db_client.from('bookings').update({ status: 'used', validated_at: usedAt }).eq('id', bookingId);
     // UPDATE voucher → used
     if (voucherCode) {
-      await db_client.from('vouchers').update({ status: 'used', used_at: new Date().toISOString() }).eq('code', voucherCode);
+      await db_client.from('vouchers').update({ status: 'used', used_at: usedAt }).eq('code', voucherCode);
     }
+    // Fetch the full booking so we can compute the partner commission/payout
+    // (this path previously skipped commission creation entirely — the bug).
+    try {
+      var bkFull = await db_client.from('bookings').select('*').eq('id', bookingId).maybeSingle();
+      if (bkFull.data) {
+        if (!bkFull.data.validated_at) bkFull.data.validated_at = usedAt;
+        await wbCreateCommissionForBooking(bkFull.data);
+      }
+    } catch(commErr) { console.warn('commission on ppValidateBooking:', commErr.message); }
     admToast('✅ Booking validated — voucher marked as used');
     loadPartnerBookings();
   } catch(e) {
