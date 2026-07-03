@@ -3087,6 +3087,12 @@ nav{position:sticky;top:0;z-index:300;background:rgba(255,255,255,.95);
 
 /* ─── BOXES GRID ─── */
 .boxes-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:22px}
+/* Home: single horizontal scrolling row (does not affect the allboxes grid) */
+#home-boxes-grid{display:flex;grid-template-columns:none;gap:18px;overflow-x:auto;overflow-y:hidden;padding-bottom:10px;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;scrollbar-width:thin}
+#home-boxes-grid .bcard{flex:0 0 300px;scroll-snap-align:start}
+#home-boxes-grid::-webkit-scrollbar{height:8px}
+#home-boxes-grid::-webkit-scrollbar-thumb{background:var(--border);border-radius:99px}
+@media(max-width:640px){ #home-boxes-grid .bcard{flex:0 0 82%} }
 .bcard{background:var(--white);border-radius:var(--rl);overflow:hidden;
   box-shadow:var(--md);transition:all .26s;cursor:pointer;border:1px solid var(--border)}
 .bcard:hover{transform:translateY(-6px);box-shadow:var(--xl)}
@@ -11154,12 +11160,14 @@ async function renderBoxGrids() {
         </div>
       </div>
     </div>`;
-  }).join('');
+  });
+  const htmlHome = html.slice(0, 6).join('');  // home: featured first + top sellers, max 6
+  const htmlFull = html.join('');              // allboxes: everything
 
   const hg = document.getElementById('home-boxes-grid');
   const ag = document.getElementById('all-boxes-grid');
-  if (hg) hg.innerHTML = html;
-  if (ag) ag.innerHTML = html;
+  if (hg) hg.innerHTML = htmlHome;
+  if (ag) ag.innerHTML = htmlFull;
   wlUpdateBoxHearts();
 
   // Sync final boxDB — Supabase image_url takes priority, then local fallback
