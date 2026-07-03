@@ -15521,7 +15521,47 @@ function renderCheckout() {
       </div>
       <div id="ck-delivery-selector" style="margin-top:14px;padding:14px;background:var(--b50);border:1.5px solid var(--b200);border-radius:var(--rs)"></div>`;
   } else {
-    fields = `<div class="fg"><label>Full name *</label><input class="fi" id="ck-sender-name" placeholder="Your full name"></div><div class="fg"><label>Email address *</label><input class="fi" id="ck-sender-email" type="email" placeholder="for e-vouchers and order confirmation"></div><h4 style="font-size:.9rem;margin:16px 0 12px">Delivery address (for physical boxes)</h4><div class="fg"><label>Street address *</label><input class="fi" placeholder="123 Main Street"></div><div class="fg-row"><div class="fg"><label>City *</label><input class="fi" placeholder="Cape Town"></div><div class="fg"><label>Province *</label><select class="fi"><option>Western Cape</option><option>Gauteng</option><option>KwaZulu-Natal</option></select></div></div><div class="fg-row"><div class="fg"><label>Postal code *</label><input class="fi" placeholder="8001"></div><div class="fg"><label>Country</label><input class="fi" value="South Africa" readonly></div></div>`;
+    fields = `
+      <div style="margin-bottom:20px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
+          <div style="width:28px;height:28px;border-radius:50%;background:var(--b600);color:#fff;display:flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:700;flex-shrink:0">1</div>
+          <h4 style="margin:0;font-size:.9rem;color:var(--navy)">Your details <span style="font-size:.72rem;font-weight:400;color:var(--muted)">(the buyer)</span></h4>
+        </div>
+        <div class="fg"><label>Full name *</label><input class="fi" id="ck-sender-name" placeholder="Your full name"></div>
+        <div class="fg"><label>Email address *</label><input class="fi" id="ck-sender-email" type="email" placeholder="for order confirmation"></div>
+      </div>
+      <div style="border-top:1px solid var(--border);padding-top:18px;margin-bottom:20px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
+          <div style="width:28px;height:28px;border-radius:50%;background:var(--green);color:#fff;display:flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:700;flex-shrink:0">2</div>
+          <h4 style="margin:0;font-size:.9rem;color:var(--navy)">Recipient details <span style="font-size:.72rem;font-weight:400;color:var(--muted)">(who receives the E-Box voucher by email)</span></h4>
+        </div>
+        <div class="fg"><label>Recipient full name *</label><input class="fi" id="ck-full-name" placeholder="Recipient's name"></div>
+        <div class="fg"><label>Recipient email address *</label><input class="fi" id="ck-email" type="email" placeholder="where to send the E-Box"></div>
+      </div>
+      <div style="border-top:1px solid var(--border);padding-top:18px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
+          <div style="width:28px;height:28px;border-radius:50%;background:var(--b400);color:#fff;display:flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:700;flex-shrink:0">3</div>
+          <h4 style="margin:0;font-size:.9rem;color:var(--navy)">Delivery address <span style="font-size:.72rem;font-weight:400;color:var(--muted)">(for the physical box(es) — one shared address for the whole order)</span></h4>
+        </div>
+        <div class="fg"><label>Street address *</label><input class="fi" id="ck-street" placeholder="123 Main Street" onchange="deliveryState.geocodeDone=false;renderDeliverySelector()"></div>
+        <div class="fg-row">
+          <div class="fg"><label>City *</label><input class="fi" id="ck-city-phys" placeholder="Cape Town" onchange="deliveryState.geocodeDone=false;renderDeliverySelector()"></div>
+          <div class="fg"><label>Province *</label>
+            <select class="fi" id="ck-province" onchange="deliveryState.geocodeDone=false;renderDeliverySelector()">
+              <option>Western Cape</option><option>Gauteng</option><option>KwaZulu-Natal</option><option>Eastern Cape</option><option>Limpopo</option><option>Mpumalanga</option><option>North West</option><option>Free State</option><option>Northern Cape</option>
+            </select>
+          </div>
+        </div>
+        <div class="fg-row">
+          <div class="fg"><label>Postal code *</label><input class="fi" placeholder="8001"></div>
+          <div class="fg"><label>Country</label><input class="fi" value="South Africa" readonly></div>
+        </div>
+        <div style="margin-top:6px;margin-bottom:4px">
+          <button type="button" class="btn bg bsm" id="ck-geocode-btn" onclick="ckGeocodeAddress()" style="font-size:.75rem"><i class="fa fa-map-pin"></i> Check delivery options</button>
+          <span style="font-size:.68rem;color:var(--muted);margin-left:8px">Click to check Same Day availability for your address</span>
+        </div>
+        <div id="ck-delivery-selector" style="margin-top:14px;padding:14px;background:var(--b50);border:1.5px solid var(--b200);border-radius:var(--rs)"></div>
+      </div>`;
   }
   dc.innerHTML = `<h3>Your details</h3><p>${ct==='ebox'?'E-Box delivery — no shipping required.':ct==='physical'?'Physical box — provide your delivery address.':'Mixed order — provide email and delivery address.'}</p>${typeBadge[ct]||''}<div class="divider"></div>${fields}`;
 
