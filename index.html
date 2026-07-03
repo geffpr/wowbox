@@ -3137,10 +3137,10 @@ nav{position:sticky;top:0;z-index:300;background:rgba(255,255,255,.95);
 .wbx-viewtoggle{display:flex;gap:4px;background:var(--b50);border-radius:10px;padding:3px}
 .wbx-vt{padding:7px 14px;border:none;background:transparent;border-radius:8px;font-size:.8rem;font-weight:600;color:var(--slate);cursor:pointer;display:flex;align-items:center;gap:6px;transition:all .15s}
 .wbx-vt.on{background:var(--white);color:var(--b600);box-shadow:0 1px 4px rgba(0,0,0,.08)}
-.wbx-split{display:grid;grid-template-columns:1fr 1fr;gap:16px;height:620px}
-.wbx-split-list{overflow-y:auto;padding-right:6px;display:flex;flex-direction:column;gap:12px}
-.wbx-split-map-wrap{position:sticky;top:80px;height:620px}
-.wbx-split-map{border-radius:14px;overflow:hidden;border:1px solid var(--border);width:100%;height:100%}
+.wbx-split{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:stretch}
+.wbx-split-list{display:flex;flex-direction:column;gap:12px}
+.wbx-split-map-wrap{position:relative;min-height:100%}
+.wbx-split-map{border-radius:14px;overflow:hidden;border:1px solid var(--border);width:100%;height:100%;position:sticky;top:80px;min-height:480px}
 .wbx-split-card{display:flex;gap:12px;border:1px solid var(--border);border-radius:12px;overflow:hidden;background:var(--white);cursor:pointer;transition:box-shadow .15s,border-color .15s}
 .wbx-split-card:hover,.wbx-split-card.active{border-color:var(--b500);box-shadow:0 4px 16px rgba(0,0,0,.1)}
 .wbx-split-card img{width:110px;height:110px;object-fit:cover;flex-shrink:0;background:var(--b50)}
@@ -12089,11 +12089,26 @@ function wbExploreRenderMap() {
   });
 }
 
+var _wbxHoverTimer = null;
 function wbExploreHighlightMarker(expId, on) {
   var m = _wbxMarkers[expId];
   if (!m) return;
   m.setAnimation(on ? google.maps.Animation.BOUNCE : null);
   if (on && _wbxMap) { m.setZIndex(9999); }
+
+  // Open the rich InfoWindow on hover, with a small delay so quickly sweeping
+  // the mouse across the list doesn't flicker windows open/closed.
+  if (_wbxHoverTimer) { clearTimeout(_wbxHoverTimer); _wbxHoverTimer = null; }
+  if (on) {
+    _wbxHoverTimer = setTimeout(function(){
+      var e = (typeof expDB !== 'undefined') ? expDB.find(function(x){ return x.id === expId; }) : null;
+      if (e && _wbxInfoWindow && typeof buildRichInfoWindow === 'function') {
+        if (!e.img) e.img = 'https://images.unsplash.com/photo-1528360983277-13d401cdc186?w=800&auto=format&fit=crop';
+        _wbxInfoWindow.setContent(buildRichInfoWindow(e, 'preview'));
+        _wbxInfoWindow.open(_wbxMap, m);
+      }
+    }, 150);
+  }
 }
 
 function wbExploreScrollToCard(expId) {
