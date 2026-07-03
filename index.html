@@ -11511,7 +11511,8 @@ function prodVideoFallback() {
 }
 function updateQty(d) {
   const el = document.getElementById('qty-v');
-  let q = Math.max(1, parseInt(el.textContent) + d);
+  const max = appState.deliveryType === 'ebox' ? 1 : 99;
+  let q = Math.min(max, Math.max(1, parseInt(el.textContent) + d));
   el.textContent = q;
   document.getElementById('qty-total').textContent = 'R' + (appState.priceBase * q).toLocaleString();
 }
@@ -11525,6 +11526,13 @@ function selType(el) {
   const qrNote  = document.getElementById('vid-qr-note');
   if (dateRow) dateRow.style.display = isEbox ? 'block' : 'none';
   if (qrNote)  qrNote.style.display  = isEbox ? 'none'  : 'block';
+  // E-Box is always a single gift — reset the quantity selector back to 1
+  if (isEbox) {
+    const qtyEl = document.getElementById('qty-v');
+    if (qtyEl) qtyEl.textContent = '1';
+    const qtyTotalEl = document.getElementById('qty-total');
+    if (qtyTotalEl) qtyTotalEl.textContent = 'R' + appState.priceBase.toLocaleString();
+  }
   // Video row is always enabled for both types
   const vidRow = document.getElementById('video-option-row');
   if (vidRow) { vidRow.style.opacity = '1'; vidRow.style.pointerEvents = 'auto'; }
@@ -15179,7 +15187,8 @@ function cartReplaceConfirm(newBoxId, newType) {
 function addCurrentToCart() {
   addToCart(appState.currentBoxId, appState.deliveryType);
   const qty = parseInt(document.getElementById('qty-v').textContent);
-  if (qty > 1) { const item = appState.cart.find(c=>c.id===appState.currentBoxId+'-'+appState.deliveryType); if(item) item.qty = qty; }
+  // E-Box is always a single gift — never let the quantity selector override it
+  if (qty > 1 && appState.deliveryType !== 'ebox') { const item = appState.cart.find(c=>c.id===appState.currentBoxId+'-'+appState.deliveryType); if(item) item.qty = qty; }
   updateCartBadge();
 }
 function saveCartToStorage() {
