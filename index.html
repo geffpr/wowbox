@@ -15209,6 +15209,7 @@ function removeFromCart(id) {
 }
 function updateCartQty(id, d) {
   const item = appState.cart.find(c => c.id === id);
+  if (item && item.type === 'ebox') return; // E-Box is always qty 1 — one gift per order
   if (item) { item.qty = Math.max(1, item.qty + d); updateCartBadge(); renderCart(); }
 }
 function getCartTotal() { return appState.cart.reduce((s,c)=>s+c.price*c.qty,0); }
@@ -15244,7 +15245,7 @@ function renderCart() {
         ${isBoost?'<div style="font-size:.75rem;color:#92400e;margin-bottom:4px">+2 spins · better premium & jackpot odds</div>':''}
         <div style="font-size:.78rem;color:var(--muted)">Unit price: R${c.price.toLocaleString()}</div>
         <div class="cart-item-foot">
-          ${isBoost?'<span style="font-size:.75rem;color:var(--muted)">Linked to WowBox Surprise Experience</span>':'<div class="qty-mini"><button class="qmb" onclick="updateCartQty(\''+c.id+'\',-1)">−</button><span class="qmv">'+c.qty+'</span><button class="qmb" onclick="updateCartQty(\''+c.id+'\',1)">+</button></div>'}
+          ${isBoost?'<span style="font-size:.75rem;color:var(--muted)">Linked to WowBox Surprise Experience</span>':c.type==='ebox'?'<span style="font-size:.78rem;color:var(--muted);font-weight:600">Qty: 1</span>':'<div class="qty-mini"><button class="qmb" onclick="updateCartQty(\''+c.id+'\',-1)">−</button><span class="qmv">'+c.qty+'</span><button class="qmb" onclick="updateCartQty(\''+c.id+'\',1)">+</button></div>'}
           <button class="remove-btn" onclick="removeFromCart('${c.id}')"><i class="fa fa-trash-can"></i> Remove</button>
           <div style="margin-left:auto;font-family:'Cormorant Garamond',serif;font-size:1.2rem;font-weight:700;color:${isBoost?'#d97706':'var(--b700)'}">R${(c.price*c.qty).toLocaleString()}</div>
         </div>
@@ -21308,7 +21309,7 @@ async function loadBkwExp(expId, slug) {
 
   // Fetch experience
   var res = await db_client.from('experiences')
-    .select('id,name,category,city,description,image_url,image_urls,images,capacity,reservation_type,wow_price,wow_pricing_type,partner_email,partner_name,programme,amenities')
+    .select('id,name,category,city,description,image_url,image_urls,images,capacity,reservation_type,wow_price,wow_pricing_type,partner_email,partner_name,programme,amenities,box_id')
     .eq('id', expId).maybeSingle();
   var e = res.data;
   if (!e) return;
@@ -21902,7 +21903,34 @@ async function bkwOpenAddonsModal() {
     addons = res.data || [];
   } catch(e) { console.warn('addons fetch:', e.message); }
 
-  if (!addons.length) {
+  // Look up the WB code linked to this recipient's box (same logic as wbOpenAddonsModal)
+  // to find gift extras the giver already prepaid, so they aren't offered again here.
+  window._bkwPrepaidAddons = [];
+  _bkwState.prepaidWbCode = null;
+  try {
+    var boxId = _bkwState.exp && _bkwState.exp.box_id;
+    if (email && boxId) {
+      var vcRes = await db_client.from('vouchers')
+        .select('code')
+        .eq('user_email', email)
+        .eq('box_id', boxId)
+        .in('status', ['active', 'booked'])
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (vcRes.data && vcRes.data.code) {
+        _bkwState.prepaidWbCode = vcRes.data.code;
+        var ppRes = await db_client.from('wb_prepaid_addons').select('*').eq('wb_code', vcRes.data.code).eq('status', 'pending');
+        window._bkwPrepaidAddons = ppRes.data || [];
+      }
+    }
+  } catch(ppErr) { console.warn('wb_prepaid_addons fetch (bkw):', ppErr.message); }
+
+  var prepaid = window._bkwPrepaidAddons;
+  var prepaidIds = prepaid.map(function(p){ return p.addon_id; });
+  addons = addons.filter(function(a){ return prepaidIds.indexOf(a.id) === -1; });
+
+  if (!addons.length && !prepaid.length) {
     // No add-ons configured — skip straight to the final confirmation
     bkwOpenConfirmModal();
     return;
@@ -21915,7 +21943,11 @@ async function bkwOpenAddonsModal() {
   modal.innerHTML = '<div style="background:#fff;border-radius:16px;padding:28px;max-width:420px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.25)">'
     + '<h3 style="font-size:1.05rem;color:var(--navy);margin-bottom:6px">🎁 Add a touch of luxury?</h3>'
     + '<p style="font-size:.8rem;color:var(--muted);margin-bottom:18px">Optional extras for your booking — entirely up to you.</p>'
-    + '<div id="bkw-addons-list" style="margin-bottom:18px"></div>'
+    + (prepaid.length ? '<div style="background:#fef3c7;border-radius:10px;padding:10px 14px;margin-bottom:14px">'
+        + '<div style="font-size:.78rem;font-weight:700;color:#92400e;margin-bottom:2px">🎁 Already included with your gift</div>'
+        + prepaid.map(function(p){ return '<div style="font-size:.8rem;color:#78350f;padding:2px 0">• ' + p.addon_name + '</div>'; }).join('')
+        + '</div>' : '')
+    + (addons.length ? '<div id="bkw-addons-list" style="margin-bottom:18px"></div>' : '')
     + '<div style="display:flex;gap:10px">'
     + '<button class="btn bg" style="flex:1" onclick="bkwSkipAddons()">Skip</button>'
     + '<button class="btn bp" style="flex:1" onclick="bkwContinueWithAddons()">Continue</button>'
@@ -21924,6 +21956,7 @@ async function bkwOpenAddonsModal() {
   modal.addEventListener('click', function(e){ if(e.target===modal) modal.remove(); });
 
   var listEl = document.getElementById('bkw-addons-list');
+  if (!listEl) return;
   listEl.innerHTML = addons.map(function(a) {
     return '<label style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border);cursor:pointer">'
       + '<input type="checkbox" data-addon-id="' + a.id + '" data-addon-price="' + a.price + '" data-addon-name="' + a.name.replace(/"/g,'&quot;') + '" onchange="bkwToggleAddon(this)">'
@@ -22056,6 +22089,48 @@ async function bkwCompleteBooking(bkwRef) {
       box_price: s.expAmt, platform_rate: commRate, platform_amount: platformAmt,
       partner_payout: partnerPayout, payout_status:'pending', flow:'wow'
     });
+
+    // Process prepaid gift add-ons (paid earlier by the gift sender) — same logistics, no charge now
+    var prepaidToProcess = window._bkwPrepaidAddons || [];
+    if (prepaidToProcess.length) {
+      try {
+        var prepaidAddonIds = prepaidToProcess.map(function(p){ return p.addon_id; });
+        var prepaidDetailsRes = await db_client.from('addons').select('*').in('id', prepaidAddonIds);
+        var prepaidDetails = prepaidDetailsRes.data || [];
+
+        for (var pi = 0; pi < prepaidToProcess.length; pi++) {
+          var prow = prepaidToProcess[pi];
+          var pfull = prepaidDetails.find(function(d){ return d.id === prow.addon_id; }) || {};
+          var pCommRate = pfull.commission_rate != null ? Number(pfull.commission_rate) : 20;
+          var pPlatformAmt = Math.round(prow.addon_price * pCommRate / 100);
+          var pProviderPayout = prow.addon_price - pPlatformAmt;
+
+          await db_client.from('commission_entries').insert({
+            booking_reference: bkwRef, partner_email: pfull.provider_email||'',
+            partner_name: pfull.provider_name||prow.addon_name, experience_name: prow.addon_name + ' (gift add-on)',
+            box_price: prow.addon_price, platform_rate: pCommRate, platform_amount: pPlatformAmt,
+            partner_payout: pProviderPayout, payout_status:'pending', flow:'gift_addon'
+          });
+
+          if (pfull.provider_email) {
+            fetch('/api/send-email', {
+              method:'POST', headers:{'Content-Type':'application/json'},
+              body: JSON.stringify({ type:'addon_provider_notification', data:{
+                providerEmail: pfull.provider_email, providerName: pfull.provider_name||'',
+                addonName: prow.addon_name, bookingRef: bkwRef,
+                experienceName: s.exp.name, experienceAddress: s.exp.address||s.exp.location||'',
+                customerName: s.payerName, bookingDate: s.formData.date||'', bookingTime: s.formData.time||'',
+                providerAddress: pfull.provider_address||'',
+                commissionRate: pCommRate, providerPayout: pProviderPayout
+              }})
+            }).catch(function(){});
+          }
+        }
+        if (s.prepaidWbCode) {
+          await db_client.from('wb_prepaid_addons').update({ status: 'used' }).eq('wb_code', s.prepaidWbCode).eq('status', 'pending');
+        }
+      } catch(prepErr) { console.warn('Prepaid addon processing error (bkw):', prepErr.message); }
+    }
 
     // Save selected add-ons and create commission entries + notify providers
     var addonsList = s.addonsSelected || [];
