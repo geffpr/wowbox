@@ -13394,23 +13394,32 @@ async function wbOpenAddonsModal() {
     }
   } catch(err) { console.warn('addons fetch:', err.message); }
 
-  // Look up the WB code for this box (same logic as confirmExpBooking) to find prepaid gift add-ons
+  // Look up the WB code for this box to find prepaid gift add-ons.
+  // Prefer the exact voucher the user activated via "Browse" (appState.activatedVoucher.code) —
+  // this is the same source of truth confirmExpBooking() uses when marking the add-on as used.
+  // Falls back to the old email+box_id guess only if no activated voucher is available
+  // (e.g. deep link straight into an experience), since accounts can hold several vouchers
+  // of the same box type and the guess isn't guaranteed to pick the right one.
   window._wbPrepaidAddons = [];
   try {
-    var custEmailLookup = (currentUser && currentUser.email) ? currentUser.email : (appState.lastOrderEmail || '');
-    if (custEmailLookup && e && e.box) {
-      var vcRes2 = await db_client.from('vouchers')
-        .select('code')
-        .eq('user_email', custEmailLookup)
-        .eq('box_id', e.box)
-        .in('status', ['active', 'booked'])
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      if (vcRes2.data && vcRes2.data.code) {
-        var ppRes = await db_client.from('wb_prepaid_addons').select('*').eq('wb_code', vcRes2.data.code).eq('status', 'pending');
-        window._wbPrepaidAddons = ppRes.data || [];
+    var wbCodeLookup = (appState.activatedVoucher && appState.activatedVoucher.code) || null;
+    if (!wbCodeLookup) {
+      var custEmailLookup = (currentUser && currentUser.email) ? currentUser.email : (appState.lastOrderEmail || '');
+      if (custEmailLookup && e && e.box) {
+        var vcRes2 = await db_client.from('vouchers')
+          .select('code')
+          .eq('user_email', custEmailLookup)
+          .eq('box_id', e.box)
+          .in('status', ['active', 'booked'])
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (vcRes2.data && vcRes2.data.code) wbCodeLookup = vcRes2.data.code;
       }
+    }
+    if (wbCodeLookup) {
+      var ppRes = await db_client.from('wb_prepaid_addons').select('*').eq('wb_code', wbCodeLookup).eq('status', 'pending');
+      window._wbPrepaidAddons = ppRes.data || [];
     }
   } catch(ppErr) { console.warn('wb_prepaid_addons fetch:', ppErr.message); }
 
