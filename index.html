@@ -11512,7 +11512,12 @@ function prodVideoFallback() {
 function updateQty(d) {
   const el = document.getElementById('qty-v');
   const max = appState.deliveryType === 'ebox' ? 1 : 99;
-  let q = Math.min(max, Math.max(1, parseInt(el.textContent) + d));
+  const current = parseInt(el.textContent);
+  if (appState.deliveryType === 'ebox' && current >= max && d > 0) {
+    admToast('🎁 One E-Box per order — for multiple gifts, place separate orders.');
+    return;
+  }
+  let q = Math.min(max, Math.max(1, current + d));
   el.textContent = q;
   document.getElementById('qty-total').textContent = 'R' + (appState.priceBase * q).toLocaleString();
 }
