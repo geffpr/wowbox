@@ -15579,6 +15579,10 @@ function renderCheckout() {
   const couponRemove = document.getElementById('ck-coupon-remove');
   if (couponRemove) couponRemove.style.display = 'none';
   updateCouponSummary();
+  // Refresh the delivery fee row + total right away (updateCouponSummary doesn't
+  // account for delivery fees), so Step 1 shows the correct label/total from the
+  // start instead of the static "Delivery (E-Box) Free" placeholder in the HTML.
+  updateCkTotal();
   renderGiftAddonBlock();
   nextStep(1, true);
 }
