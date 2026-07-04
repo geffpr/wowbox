@@ -992,9 +992,11 @@ async function dashRedeemCode() {
       return;
     }
 
-    // Assign the voucher to this user
+    // Assign the voucher to this user, and record when it was first claimed
+    var redeemUpdate = { user_email: currentUser.email };
+    if (!voucher.activated_at) redeemUpdate.activated_at = new Date().toISOString();
     await db_client.from('vouchers')
-      .update({ user_email: currentUser.email })
+      .update(redeemUpdate)
       .eq('code', code);
 
     if (sucEl) {
@@ -17548,11 +17550,15 @@ function admOrderDetail(orderId) {
     const codeDisplay = pending
       ? '<div style="font-size:.75rem;color:var(--muted);font-style:italic;margin-top:2px">Awaiting fulfillment</div>'
       : `<div style="font-family:'Courier New',monospace;font-size:.75rem;color:var(--b700);margin-top:2px">${item.code}</div>`;
+    const redeemedLine = item.activatedAt
+      ? `<div style="font-size:.7rem;color:var(--green);margin-top:2px"><i class="fa fa-check-circle"></i> Redeemed ${new Date(item.activatedAt).toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'})}${item.redeemedByEmail ? ' by ' + item.redeemedByEmail : ''}</div>`
+      : '';
     return `
     <div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border)">
       <div style="flex:1">
         <div style="font-size:.85rem;font-weight:600;color:var(--navy)">${item.name}</div>
         ${codeDisplay}
+        ${redeemedLine}
       </div>
       <span style="font-size:.7rem;color:var(--muted)">${item.type}</span>
       <span class="code-badge ${statusCls[item.status]||'cs-inactive'}">${item.status}</span>
@@ -18237,7 +18243,7 @@ async function loadOrdersFromSupabase() {
   if (!tbody) return;
   tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:18px;color:var(--muted)"><i class="fa fa-circle-notch fa-spin"></i> Loading orders…</td></tr>';
   try {
-    const res = await db_client.from('vouchers').select('code,box_name,box_id,user_email,status,created_at,order_id,is_physical_box').not('order_id','is',null).order('created_at',{ascending:false});
+    const res = await db_client.from('vouchers').select('code,box_name,box_id,user_email,status,created_at,order_id,is_physical_box,activated_at').not('order_id','is',null).order('created_at',{ascending:false});
     if (res.error) throw res.error;
     const vouchers = res.data || [];
     if (!vouchers.length) {
@@ -18300,7 +18306,7 @@ async function loadOrdersFromSupabase() {
       orderDetailDB[oid] = {name:displayName,email:g.email,phone:'—',date:ds,type:g.type,
         total: g.total ? 'R' + Number(g.total).toLocaleString('en-ZA') : '—',
         boost:false,delivery:g.delivery||null,
-        items:g.items.map(function(v){ return {name:v.box_name||v.box_id||'—',type:v.is_physical_box?'Physical':'E-Box',code:v.code,status:v.status}; })};
+        items:g.items.map(function(v){ return {name:v.box_name||v.box_id||'—',type:v.is_physical_box?'Physical':'E-Box',code:v.code,status:v.status,activatedAt:v.activated_at||null,redeemedByEmail:v.user_email||null}; })};
     });
     tbody.innerHTML = Object.values(grouped).map(function(g) {
       const st = ordersState.statuses[g.id] || 'Pending';
