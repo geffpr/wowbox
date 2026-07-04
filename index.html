@@ -8781,6 +8781,7 @@ tr:hover td{background:var(--b50)}
               </div>
               <div class="ord-section" id="od-delivery-sec">
                 <h4><i class="fa fa-truck" style="color:var(--b400)"></i> Delivery address</h4>
+                <div class="ord-kv"><dt>Delivery method</dt><dd id="od-method"></dd></div>
                 <div class="ord-kv"><dt>Recipient</dt><dd id="od-recipient"></dd></div>
                 <div class="ord-kv"><dt>Street</dt><dd id="od-street"></dd></div>
                 <div class="ord-kv"><dt>City</dt><dd id="od-city"></dd></div>
@@ -16608,7 +16609,7 @@ async function completeOrderConfirm(pfRef, total, discount, delivFee) {
         discount_amount:   discount || 0,
         delivery_type:     ct,
         delivery_fee:      delivFee || 0,
-        delivery_method:   delivFee > 0 ? getDeliveryLabel() : null,
+        delivery_method:   ct !== 'ebox' ? getDeliveryLabel() : null,
         status:            'pending',
         gift_message:      giftMsg || null,
         has_video_message: hasVideoMsg,
@@ -17417,6 +17418,8 @@ function admOrderDetail(orderId) {
   const delSec = document.getElementById('od-delivery-sec');
   if (o.delivery) {
     delSec.style.display = 'block';
+    var methodEl = document.getElementById('od-method');
+    if (methodEl) methodEl.textContent = o.delivery.method ? (o.delivery.method + (o.delivery.fee ? ' — R' + Number(o.delivery.fee).toLocaleString() : ' (Free)')) : '—';
     document.getElementById('od-recipient').textContent = o.delivery.recipient;
     document.getElementById('od-street').textContent    = o.delivery.street;
     document.getElementById('od-city').textContent      = o.delivery.city;
@@ -18144,15 +18147,17 @@ async function loadOrdersFromSupabase() {
     const dbToStatus = {'pending':'Pending','in_process':'In process','in_transit':'In transit','delivered':'Delivered','refunded':'Refunded','partial_refund':'Partial refund'};
     const orderIds = Object.keys(grouped);
     try {
-      const ordRes = await db_client.from('orders').select('id,customer_name,customer_email,status,total_amount,delivery_recipient_name,delivery_street,delivery_city,delivery_province,delivery_postal_code').in('id', orderIds);
+      const ordRes = await db_client.from('orders').select('id,customer_name,customer_email,status,total_amount,delivery_method,delivery_fee,delivery_recipient_name,delivery_street,delivery_city,delivery_province,delivery_postal_code').in('id', orderIds);
       if (ordRes.data) {
         ordRes.data.forEach(function(row) {
           if (!grouped[row.id]) return;
           grouped[row.id].customerName = row.customer_name || null;
           if (row.customer_email) grouped[row.id].email = row.customer_email; // authoritative — overrides voucher-derived email
           grouped[row.id].total        = row.total_amount  || null;
-          if (row.delivery_street || row.delivery_city) {
+          if (row.delivery_street || row.delivery_city || row.delivery_method) {
             grouped[row.id].delivery = {
+              method:    row.delivery_method || '',
+              fee:       row.delivery_fee || 0,
               recipient: row.delivery_recipient_name || '',
               street:    row.delivery_street   || '',
               city:      row.delivery_city     || '',
