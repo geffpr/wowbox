@@ -108,6 +108,12 @@ function exportUsageCSV() {
 /* ── Orders ── */
 var ordersState = { statuses: {} };
 
+// A physical box that hasn't been fulfilled yet gets a 'PENDING-...' placeholder
+// instead of a real WB code. Used everywhere a code would otherwise be shown/printed.
+function isPendingCode(code) {
+  return !code || code === '—' || code.indexOf('PENDING-') === 0;
+}
+
 function renderOrdersTable() {
   const tbody   = document.getElementById('adm-orders-tbody');
   if (!tbody) return;
@@ -128,8 +134,8 @@ function renderOrdersTable() {
     })
     .map(([id, o]) => {
       const st    = ordersState.statuses[id] || 'Pending';
-      const codes = o.items.filter(i => i.code !== '—').map(i => i.code).join('<br>');
-      const first = o.items.find(i => i.code !== '—');
+      const codes = o.items.filter(i => i.code !== '—').map(i => isPendingCode(i.code) ? '<span style="color:var(--muted);font-style:italic">Pending</span>' : i.code).join('<br>');
+      const first = o.items.find(i => i.code !== '—' && !isPendingCode(i.code));
       const opts  = allStatuses.map(s => `<option${s===st?' selected':''}>${s}</option>`).join('');
       return `<tr style="cursor:pointer" onclick="admOrderDetail('${id}')">
         <td><strong>${id}</strong></td>
@@ -1088,9 +1094,13 @@ async function loadUserOrders(email) {
       var itemsHtml = realVouchers.length
         ? realVouchers.map(function(v) {
             var box = boxDB[v.box_id] || {};
+            var pending = v.status !== 'active';
+            var codeOrStatus = pending
+              ? '<span style="font-size:.72rem;color:#d97706;background:#fffbeb;padding:2px 8px;border-radius:6px;font-weight:600">⏳ Preparing your box</span>'
+              : '<code style="font-size:.75rem;color:var(--b700);background:var(--b50);padding:2px 8px;border-radius:6px;letter-spacing:.05em">' + v.code + '</code>';
             return '<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--border)">'
               + '<span style="font-size:.8rem;color:var(--navy);font-weight:600">📦 ' + (v.box_name || box.name || v.box_id) + '</span>'
-              + '<code style="font-size:.75rem;color:var(--b700);background:var(--b50);padding:2px 8px;border-radius:6px;letter-spacing:.05em">' + v.code + '</code>'
+              + codeOrStatus
               + '</div>';
           }).join('')
         : '<div style="font-size:.78rem;color:var(--muted);padding:6px 0">No voucher codes found</div>';
@@ -1114,7 +1124,7 @@ async function loadUserOrders(email) {
         hasVideo: hasVideo, giftMsg: o.gift_message || '', schedDate: o.scheduled_send_date || '',
         buyerName: o.customer_name || '', buyerEmail: o.customer_email || '',
         discountAmount: o.discount_amount || 0, couponCode: o.coupon_code || '',
-        vouchers: realVouchers.map(function(v){ return { code: v.code, name: v.box_name || v.box_id, box_id: v.box_id }; })
+        vouchers: realVouchers.filter(function(v){ return v.status === 'active'; }).map(function(v){ return { code: v.code, name: v.box_name || v.box_id, box_id: v.box_id }; })
       }));
 
       // Coupon line
@@ -1145,7 +1155,7 @@ async function loadUserOrders(email) {
         + '<div style="display:flex;gap:8px;flex-wrap:wrap">'
         + '<button class="btn bg bsm" onclick="showUserOrderReceipt(' + "'" + encodedOrder + "'" + ')" style="font-size:.75rem"><i class="fa fa-receipt"></i> Receipt</button>'
         + '<button class="btn bg bsm" onclick="printUserOrderInvoice(' + "'" + encodedOrder + "'" + ')" style="font-size:.75rem"><i class="fa fa-file-invoice"></i> Invoice</button>'
-        + (realVouchers.length ? '<button class="btn bg bsm" onclick="printUserOrderVoucher(' + "'" + encodedOrder + "'" + ')" style="font-size:.75rem"><i class="fa fa-print"></i> Voucher</button>' : '')
+        + (realVouchers.some(function(v){ return v.status === 'active'; }) ? '<button class="btn bg bsm" onclick="printUserOrderVoucher(' + "'" + encodedOrder + "'" + ')" style="font-size:.75rem"><i class="fa fa-print"></i> Voucher</button>' : '')
         + '</div>'
         + '</div>';
     }).join('');
@@ -16397,9 +16407,13 @@ async function completeOrderConfirm(pfRef, total, discount, delivFee) {
   const addonItems    = appState.cart.filter(function(c){ return c.type === 'addon'; });
   const giftAddonItems = addonItems.filter(function(c){ return c.isGiftAddon; });
 
-  // Generate WB codes only for real boxes
-  const wbCodes = realBoxItems.map(function() {
-    return 'WB-' + Math.random().toString(36).toUpperCase().slice(2,6) + '-' + Math.random().toString(36).toUpperCase().slice(2,6);
+  // Generate WB codes only for real E-Box items. Physical boxes get NO code at checkout —
+  // the admin assigns/prints a real code from stock when the box is actually prepared for shipping.
+  const wbCodes = realBoxItems.map(function(item) {
+    if (item.type === 'ebox') {
+      return 'WB-' + Math.random().toString(36).toUpperCase().slice(2,6) + '-' + Math.random().toString(36).toUpperCase().slice(2,6);
+    }
+    return null;
   });
 
   // Confirmation titles — physical is NOT yet shipped, it's just confirmed
@@ -16427,7 +16441,8 @@ async function completeOrderConfirm(pfRef, total, discount, delivFee) {
   // Build order items (real boxes only for codes, addons listed separately)
   const orderItems = realBoxItems.map(function(item, i) {
     const box = boxDB[item.boxId] || {};
-    return { name: box.name || item.name || item.boxId, code: wbCodes[i], type: item.type === 'ebox' ? 'E-Box' : 'Physical', status: 'active' };
+    const isEboxItem = item.type === 'ebox';
+    return { name: box.name || item.name || item.boxId, code: wbCodes[i], type: isEboxItem ? 'E-Box' : 'Physical', status: isEboxItem ? 'active' : 'pending' };
   });
   // Add addons without codes (video message, etc.)
   addonItems.forEach(function(item) {
@@ -16457,7 +16472,8 @@ async function completeOrderConfirm(pfRef, total, discount, delivFee) {
     + '<div class="cf"><label>Total paid</label><span style="color:var(--b700);font-weight:700">R' + total.toLocaleString() + '</span></div>'
     + '<div class="cf"><label>Payment ref</label><span style="font-size:.75rem;color:var(--muted)">' + ref + '</span></div>';
 
-  if (ct === 'ebox' || ct === 'mixed') document.getElementById('ck-voucher-btn').style.display = 'flex';
+  const hasEboxItem = realBoxItems.some(function(item){ return item.type === 'ebox'; });
+  if (hasEboxItem) document.getElementById('ck-voucher-btn').style.display = 'flex';
 
   // Save order locally for admin Orders table
   orderDetailDB[ref] = {
@@ -16491,14 +16507,17 @@ async function completeOrderConfirm(pfRef, total, discount, delivFee) {
       var voucherRows = realBoxItems.map(function(item, i) {
         var box = boxDB[item.boxId] || {};
         var expiresAt = new Date(Date.now() + 365*24*60*60*1000).toISOString();
+        var isEboxItem = item.type === 'ebox';
+        // Physical: no real code yet — placeholder row keeps box_name/status visible in
+        // My Orders + admin until the admin assigns a real code from stock and ships it.
         return {
-          code:       wbCodes[i],
+          code:       isEboxItem ? wbCodes[i] : ('PENDING-' + ref + '-' + i),
           box_id:     item.boxId,
           box_name:   box.name || item.name || item.boxId,
           user_email: custEmail || null,
-          status:     'active',
+          status:     isEboxItem ? 'active' : 'inactive',
           order_id:   ref,
-          is_physical_box: item.type !== 'ebox',
+          is_physical_box: !isEboxItem,
           expires_at: expiresAt,
         };
       });
@@ -17394,17 +17413,23 @@ function admOrderDetail(orderId) {
   }
   // Items
   const statusCls = {active:'cs-active',inactive:'cs-inactive',used:'cs-used',refunded:'cs-inactive'};
-  document.getElementById('od-items').innerHTML = o.items.map(item => `
+  document.getElementById('od-items').innerHTML = o.items.map(item => {
+    const pending = isPendingCode(item.code);
+    const codeDisplay = pending
+      ? '<div style="font-size:.75rem;color:var(--muted);font-style:italic;margin-top:2px">Awaiting fulfillment</div>'
+      : `<div style="font-family:'Courier New',monospace;font-size:.75rem;color:var(--b700);margin-top:2px">${item.code}</div>`;
+    return `
     <div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border)">
       <div style="flex:1">
         <div style="font-size:.85rem;font-weight:600;color:var(--navy)">${item.name}</div>
-        <div style="font-family:'Courier New',monospace;font-size:.75rem;color:var(--b700);margin-top:2px">${item.code}</div>
+        ${codeDisplay}
       </div>
       <span style="font-size:.7rem;color:var(--muted)">${item.type}</span>
       <span class="code-badge ${statusCls[item.status]||'cs-inactive'}">${item.status}</span>
-      ${item.code !== '—' ? `<button class="btn bg bsm" onclick="admPrintCode('${item.code}','${item.name}')"><i class="fa fa-print"></i></button>` : ''}
+      ${!pending ? `<button class="btn bg bsm" onclick="admPrintCode('${item.code}','${item.name}')"><i class="fa fa-print"></i></button>` : ''}
       ${item.status !== 'refunded' ? `<button class="btn bsm" style="background:#fef2f2;color:#dc2626;border:1px solid #fca5a5;font-size:.7rem" onclick="admRefundBox('${orderId}','${item.code}','${item.name}',${item.price||0},'${o.email}')"><i class="fa fa-rotate-left"></i> Refund</button>` : '<span style="font-size:.7rem;color:#dc2626;font-weight:600">Refunded</span>'}
-    </div>`).join('');
+    </div>`;
+  }).join('');
   var refundAllEl = document.getElementById('od-refund-all-btn');
   if (refundAllEl) {
     var allRefunded = o.items.every(function(i){ return i.status === 'refunded'; });
@@ -17428,7 +17453,7 @@ function admOrderDetail(orderId) {
   }
   document.getElementById('od-boost').innerHTML   = o.boost ? '<span style="color:#d97706;font-weight:600">🚀 Chance Boost included</span>' : 'No boost';
   // Print button
-  const firstCode = o.items.find(i => i.code !== '—');
+  const firstCode = o.items.find(i => i.code !== '—' && !isPendingCode(i.code));
   const btn = document.getElementById('od-print-btn');
   if (btn && firstCode) btn.onclick = () => admPrintCode(firstCode.code, firstCode.name);
   // Personal message
@@ -18088,7 +18113,7 @@ async function loadOrdersFromSupabase() {
     });
     tbody.innerHTML = Object.values(grouped).map(function(g) {
       const st = ordersState.statuses[g.id] || 'Pending';
-      const codes = g.items.map(function(i){ return i.code; }).join('<br>');
+      const codes = g.items.map(function(i){ return isPendingCode(i.code) ? '<span style="color:var(--muted);font-style:italic">Pending</span>' : i.code; }).join('<br>');
       const opts = allStatuses.map(function(s){ return '<option'+(s===st?' selected':'')+'>'+s+'</option>'; }).join('');
       const ds = g.date ? new Date(g.date).toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'}) : '—';
       return '<tr style="cursor:pointer" onclick="admOrderDetail(\''+g.id+'\')">'
