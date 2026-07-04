@@ -5495,7 +5495,7 @@ tr:hover td{background:var(--b50)}
             </div>
             <p class="res-form-sub">Your WowBox covers the full cost. Complete the details below to confirm.</p>
             <div id="exp-bk-fields"></div>
-            <button class="btn bp block" style="margin-top:4px" onclick="wbSaveSessionState();wbOpenAddonsModal()">
+            <button class="btn bp block" id="exp-bk-confirm-btn" style="margin-top:4px" onclick="if(!formRequiredFieldsFilled('exp-bk-fields')){admToast('Please fill in all required fields.');return;}wbSaveSessionState();wbOpenAddonsModal()">
               <i class="fa fa-check-circle"></i> Confirm reservation
             </button>
             <div style="display:flex;gap:18px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);flex-wrap:wrap">
@@ -8862,6 +8862,7 @@ tr:hover td{background:var(--b50)}
                 <div class="ord-kv"><dt>Delivery type</dt><dd id="od-type"></dd></div>
                 <div class="ord-kv"><dt>Boost</dt><dd id="od-boost"></dd></div>
                 <div class="ord-kv" id="od-msg-row" style="display:none"><dt>Gift message</dt><dd id="od-msg" style="font-style:italic;color:var(--slate)"></dd></div>
+                <div class="ord-kv" id="od-giftaddons-row" style="display:none"><dt>Gift add-ons</dt><dd id="od-giftaddons"></dd></div>
                 <div class="ord-kv" id="od-vid-row" style="display:none"><dt>Video message</dt><dd id="od-vid-status"></dd></div>
                 <div class="ord-kv" id="od-sched-row" style="display:none"><dt>Scheduled send</dt><dd id="od-sched-date" style="color:var(--b700);font-weight:600"></dd></div>
                 <div class="ord-kv" id="od-qr-row" style="display:none"><dt>QR code</dt><dd><button class="btn bg bsm" id="od-qr-btn"><i class="fa fa-qrcode"></i> View QR code</button></dd></div>
@@ -10275,7 +10276,7 @@ tr:hover td{background:var(--b50)}
             </div>
             <p class="res-form-sub">Your WowBox Surprise covers the full cost. Fill in the details to confirm your reservation.</p>
             <div id="roulette-bk-fields"></div>
-            <button class="btn bp block" onclick="confirmRouletteBooking()"><i class="fa fa-check-circle"></i> Confirm reservation</button>
+            <button class="btn bp block" id="roulette-bk-confirm-btn" onclick="if(!formRequiredFieldsFilled('roulette-bk-fields')){admToast('Please fill in all required fields.');return;}confirmRouletteBooking()"><i class="fa fa-check-circle"></i> Confirm reservation</button>
             <div style="display:flex;gap:16px;margin-top:12px;padding-top:10px;border-top:1px solid var(--border);flex-wrap:wrap">
               <span style="font-size:.68rem;color:var(--muted);display:flex;align-items:center;gap:3px"><i class="fa fa-shield-halved" style="color:var(--b400)"></i> Secure</span>
               <span style="font-size:.68rem;color:var(--muted);display:flex;align-items:center;gap:3px"><i class="fa fa-rotate-left" style="color:var(--b400)"></i> Free cancellation</span>
@@ -13069,6 +13070,8 @@ async function refreshBookingFormCapacity(rt, containerId) {
       var container = document.getElementById(containerId);
       if (container) container.innerHTML = buildBookingForm(rt);
       if (window.flatpickr) initBookingDatePickers(appState.currentExpId);
+      if (containerId === 'exp-bk-fields') wireConfirmButtonState('exp-bk-fields', 'exp-bk-confirm-btn');
+      if (containerId === 'roulette-bk-fields') wireConfirmButtonState('roulette-bk-fields', 'roulette-bk-confirm-btn');
     }
   } catch(e) { console.warn('refreshBookingFormCapacity:', e.message); }
 }
@@ -13287,6 +13290,7 @@ function loadExp(expId) {
     document.getElementById('exp-bk-title').textContent = 'Reserve this experience';
     document.getElementById('exp-bk-fields').innerHTML = buildBookingForm(rt);
     refreshBookingFormCapacity(rt, 'exp-bk-fields');
+    wireConfirmButtonState('exp-bk-fields', 'exp-bk-confirm-btn');
     // Load Flatpickr + blocked dates from iCal availability
     if (window.flatpickr) {
       initBookingDatePickers(appState.currentExpId);
@@ -13305,6 +13309,46 @@ function loadExp(expId) {
   }
   // Update wishlist heart button state
   expDetailUpdateWlBtn();
+}
+
+// Generic required-field check, works across all booking form templates (bk-*, bkw-*,
+// roulette-bk-*) by reading the "*" marker already present in each field's <label> —
+// no need to maintain a separate ID map per template.
+function formRequiredFieldsFilled(containerId) {
+  var container = document.getElementById(containerId);
+  if (!container) return false;
+  var groups = container.querySelectorAll('.fg');
+  for (var i = 0; i < groups.length; i++) {
+    var label = groups[i].querySelector('label');
+    if (!label || label.textContent.indexOf('*') === -1) continue; // not a required field
+    var field = groups[i].querySelector('input, select, textarea');
+    if (!field) continue;
+    if (!field.value || !String(field.value).trim()) return false;
+  }
+  return true;
+}
+
+// Keeps a "Confirm" button disabled until every required field in its form is filled.
+// Re-checks live on every keystroke/change. `extraLockCheck`, if provided, can force the
+// button to stay disabled for an unrelated reason (e.g. pre-launch mode) without this
+// function ever re-enabling it on its own.
+function wireConfirmButtonState(containerId, btnId, extraLockCheck) {
+  var container = document.getElementById(containerId);
+  var btn = document.getElementById(btnId);
+  if (!container || !btn) return;
+  function refresh() {
+    if (typeof extraLockCheck === 'function' && extraLockCheck()) return; // leave as-is, e.g. pre-launch lock
+    var ready = formRequiredFieldsFilled(containerId);
+    btn.disabled = !ready;
+    btn.style.opacity = ready ? '' : '.55';
+    btn.style.cursor = ready ? '' : 'not-allowed';
+  }
+  refresh();
+  if (!container._wbConfirmStateWired) {
+    container._wbConfirmStateWired = true;
+    container.addEventListener('input', refresh);
+    container.addEventListener('change', refresh);
+  }
 }
 
 const RT_REQUIRED_FIELDS = {
@@ -16607,13 +16651,14 @@ async function completeOrderConfirm(pfRef, total, discount, delivFee) {
     date:       dateStr,
     type:       ct === 'ebox' ? 'E-Box' : ct === 'physical' ? 'Physical' : 'Mixed',
     total:      'R' + total.toLocaleString(),
-    boost:      false,
+    boost:      boostAmount > 0, boostAmount: boostAmount || 0,
     items:      orderItems,
     delivery:   ct !== 'ebox' ? { method: getDeliveryLabel(), fee: delivFee, recipient: buyerName, street: delivStreet, city: delivCity, province: delivProvince, postal: delivPostal } : null,
     personalMsg:  appState.lastOrderMsg || '',
     hasVideo:     appState.lastOrderVideo || false,
     schedDate:    appState.lastScheduledDate || null,
     videoToken:   null,
+    giftAddons:   giftAddonItems.map(function(c){ return { name: c.name.replace('🎁 ','').replace(' (gift)',''), price: c.price }; }),
     coupon_code:  activeCoupon ? activeCoupon.code : null,
     discount:     discount || 0,
   };
@@ -17554,12 +17599,18 @@ function admOrderDetail(orderId) {
     const redeemedLine = item.activatedAt
       ? `<div style="font-size:.7rem;color:var(--green);margin-top:2px"><i class="fa fa-check-circle"></i> Redeemed ${new Date(item.activatedAt).toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'})}${item.redeemedByEmail ? ' by ' + item.redeemedByEmail : ''}</div>`
       : '';
+    const bookingLine = item.booking
+      ? `<div style="font-size:.7rem;color:var(--b600);margin-top:2px"><i class="fa fa-calendar-check"></i> Booked: ${item.booking.experienceName || '—'}${item.booking.date ? ' · ' + item.booking.date : ''}${item.booking.time ? ' ' + item.booking.time : ''}`
+        + (item.booking.addons && item.booking.addons.length ? ' · Add-ons: ' + item.booking.addons.map(function(a){ return a.name + (a.price ? ' (R' + Number(a.price).toLocaleString() + ')' : ''); }).join(', ') : '')
+        + '</div>'
+      : '';
     return `
     <div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border)">
       <div style="flex:1">
         <div style="font-size:.85rem;font-weight:600;color:var(--navy)">${item.name}</div>
         ${codeDisplay}
         ${redeemedLine}
+        ${bookingLine}
       </div>
       <span style="font-size:.7rem;color:var(--muted)">${item.type}</span>
       <span class="code-badge ${statusCls[item.status]||'cs-inactive'}">${item.status}</span>
@@ -17594,7 +17645,17 @@ function admOrderDetail(orderId) {
       couponRow.style.display = 'none';
     }
   }
-  document.getElementById('od-boost').innerHTML   = o.boost ? '<span style="color:#d97706;font-weight:600">🚀 Chance Boost included</span>' : 'No boost';
+  document.getElementById('od-boost').innerHTML   = o.boost ? '<span style="color:#d97706;font-weight:600">🚀 Chance Boost included' + (o.boostAmount ? ' — R' + Number(o.boostAmount).toLocaleString() : '') + '</span>' : 'No boost';
+  var giftAddonsRow = document.getElementById('od-giftaddons-row');
+  if (giftAddonsRow) {
+    if (o.giftAddons && o.giftAddons.length) {
+      giftAddonsRow.style.display = 'grid';
+      var gaEl = document.getElementById('od-giftaddons');
+      if (gaEl) gaEl.textContent = o.giftAddons.map(function(a){ return a.name + (a.price ? ' (R' + Number(a.price).toLocaleString() + ')' : ''); }).join(', ');
+    } else {
+      giftAddonsRow.style.display = 'none';
+    }
+  }
   // Print button
   const firstCode = o.items.find(i => i.code !== '—' && !isPendingCode(i.code));
   const btn = document.getElementById('od-print-btn');
@@ -18267,13 +18328,18 @@ async function loadOrdersFromSupabase() {
     const dbToStatus = {'pending':'Pending','in_process':'In process','in_transit':'In transit','delivered':'Delivered','refunded':'Refunded','partial_refund':'Partial refund'};
     const orderIds = Object.keys(grouped);
     try {
-      const ordRes = await db_client.from('orders').select('id,customer_name,customer_email,status,total_amount,delivery_method,delivery_fee,delivery_recipient_name,delivery_street,delivery_city,delivery_province,delivery_postal_code').in('id', orderIds);
+      const ordRes = await db_client.from('orders').select('id,customer_name,customer_email,status,total_amount,delivery_method,delivery_fee,delivery_recipient_name,delivery_street,delivery_city,delivery_province,delivery_postal_code,boost_amount,has_video_message,video_token,gift_message,scheduled_send_date').in('id', orderIds);
       if (ordRes.data) {
         ordRes.data.forEach(function(row) {
           if (!grouped[row.id]) return;
           grouped[row.id].customerName = row.customer_name || null;
           if (row.customer_email) grouped[row.id].email = row.customer_email; // authoritative — overrides voucher-derived email
           grouped[row.id].total        = row.total_amount  || null;
+          grouped[row.id].boostAmount  = row.boost_amount || 0;
+          grouped[row.id].hasVideo     = row.has_video_message || false;
+          grouped[row.id].videoToken   = row.video_token || null;
+          grouped[row.id].giftMsg      = row.gift_message || '';
+          grouped[row.id].schedDate    = row.scheduled_send_date || '';
           if (row.delivery_street || row.delivery_city || row.delivery_method) {
             grouped[row.id].delivery = {
               method:    row.delivery_method || '',
@@ -18293,6 +18359,38 @@ async function loadOrdersFromSupabase() {
       }
     } catch(e) { console.warn('orders merge:', e.message); }
 
+    // Gift add-ons (prepaid extras bought by the buyer) — linked via E-Box code
+    const allEboxCodesAdm = vouchers.filter(function(v){ return v.code && !v.is_physical_box; }).map(function(v){ return v.code; });
+    const giftAddonsByCodeAdm = {};
+    if (allEboxCodesAdm.length) {
+      try {
+        const gaResAdm = await db_client.from('wb_prepaid_addons').select('wb_code,addon_name,addon_price').in('wb_code', allEboxCodesAdm);
+        (gaResAdm.data || []).forEach(function(g) {
+          if (!giftAddonsByCodeAdm[g.wb_code]) giftAddonsByCodeAdm[g.wb_code] = [];
+          giftAddonsByCodeAdm[g.wb_code].push({ name: g.addon_name, price: g.addon_price });
+        });
+      } catch(gaErrAdm) { console.warn('wb_prepaid_addons fetch (admin):', gaErrAdm.message); }
+    }
+
+    // Bookings (+ their booking-time add-ons via commission_entries) — linked via voucher code
+    const allCodesAdm = vouchers.map(function(v){ return v.code; }).filter(Boolean);
+    const bookingsByCodeAdm = {};
+    const addonsByBookingRefAdm = {};
+    if (allCodesAdm.length) {
+      try {
+        const bkResAdm = await db_client.from('bookings').select('voucher_code,booking_reference,experience_name,booking_date,booking_time,status').in('voucher_code', allCodesAdm);
+        (bkResAdm.data || []).forEach(function(b) { bookingsByCodeAdm[b.voucher_code] = b; });
+        const refsAdm = (bkResAdm.data || []).map(function(b){ return b.booking_reference; }).filter(Boolean);
+        if (refsAdm.length) {
+          const ceResAdm = await db_client.from('commission_entries').select('booking_reference,experience_name,box_price,flow').in('booking_reference', refsAdm).in('flow', ['addon','gift_addon']);
+          (ceResAdm.data || []).forEach(function(c) {
+            if (!addonsByBookingRefAdm[c.booking_reference]) addonsByBookingRefAdm[c.booking_reference] = [];
+            addonsByBookingRefAdm[c.booking_reference].push({ name: (c.experience_name||'').replace(' (add-on)',''), price: c.box_price });
+          });
+        }
+      } catch(bkErrAdm) { console.warn('bookings/commission fetch (admin):', bkErrAdm.message); }
+    }
+
     const allStatuses = ['Pending','In process','In transit','Delivered'];
     const typeTag = {
       'E-Box':   '<span class="tag t-act" style="font-size:.7rem">E-Box</span>',
@@ -18304,10 +18402,24 @@ async function loadOrdersFromSupabase() {
       const g = grouped[oid];
       const ds = g.date ? new Date(g.date).toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'}) : '—';
       const displayName = g.customerName || g.email;
+      const orderGiftAddons = [];
+      g.items.forEach(function(v) { (giftAddonsByCodeAdm[v.code] || []).forEach(function(ga){ orderGiftAddons.push(ga); }); });
       orderDetailDB[oid] = {name:displayName,email:g.email,phone:'—',date:ds,type:g.type,
         total: g.total ? 'R' + Number(g.total).toLocaleString('en-ZA') : '—',
-        boost:false,delivery:g.delivery||null,
-        items:g.items.map(function(v){ return {name:v.box_name||v.box_id||'—',type:v.is_physical_box?'Physical':'E-Box',code:v.code,status:v.status,activatedAt:v.activated_at||null,redeemedByEmail:v.user_email||null}; })};
+        boost: (g.boostAmount||0) > 0, boostAmount: g.boostAmount||0,
+        hasVideo: g.hasVideo||false, videoToken: g.videoToken||null,
+        personalMsg: g.giftMsg||'', schedDate: g.schedDate||'',
+        giftAddons: orderGiftAddons,
+        delivery:g.delivery||null,
+        items:g.items.map(function(v){
+          var bk = bookingsByCodeAdm[v.code] || null;
+          var booking = bk ? {
+            reference: bk.booking_reference, experienceName: bk.experience_name,
+            date: bk.booking_date, time: bk.booking_time, status: bk.status,
+            addons: addonsByBookingRefAdm[bk.booking_reference] || []
+          } : null;
+          return {name:v.box_name||v.box_id||'—',type:v.is_physical_box?'Physical':'E-Box',code:v.code,status:v.status,activatedAt:v.activated_at||null,redeemedByEmail:v.user_email||null,booking:booking};
+        })};
     });
     tbody.innerHTML = Object.values(grouped).map(function(g) {
       const st = ordersState.statuses[g.id] || 'Pending';
@@ -20957,6 +21069,7 @@ function confirmChoice() {
   bkBadge.textContent = cfg.icon + ' ' + cfg.label;
   document.getElementById('roulette-bk-fields').innerHTML = buildBookingForm(rt);
   refreshBookingFormCapacity(rt, 'roulette-bk-fields');
+  wireConfirmButtonState('roulette-bk-fields', 'roulette-bk-confirm-btn');
   if (window.flatpickr) { initBookingDatePickers(appState.currentExpId); }
   else { var _s=document.createElement('script');_s.src='https://cdn.jsdelivr.net/npm/flatpickr';_s.onload=function(){initBookingDatePickers(appState.currentExpId);};document.head.appendChild(_s); }
 
@@ -20968,6 +21081,10 @@ function confirmChoice() {
 function confirmRouletteBooking() {
   const exp = surpriseDB.find(e => e.id === appState.surprise.selectedId);
   if (!exp) return;
+  if (!formRequiredFieldsFilled('roulette-bk-fields')) {
+    admToast('Please fill in all required fields.');
+    return;
+  }
   // Populate voucher with roulette booking data
   const rt = exp.reservation_type || 'activity';
   const data = collectBookingData(rt);
@@ -21827,6 +21944,12 @@ function bkwBuildExpForm(rt, cap, blocked) {
 
   var fields = document.getElementById('bkw-fields');
   if(fields) fields.innerHTML = html;
+  wireConfirmButtonState('bkw-fields', 'bkw-confirm-btn', function(){
+    // Don't fight the pre-launch-mode lock set in loadBkwExp() — if the button's label
+    // still says "launch" it's locked for that reason, not for missing fields.
+    var b = document.getElementById('bkw-confirm-btn');
+    return b && b.innerHTML.indexOf('launch') !== -1;
+  });
 
   var badge = document.getElementById('bkw-form-badge');
   if(badge){ badge.textContent = bkwRtLabel(rt); badge.className='rtype-badge rt-'+(rt||'activity'); }
@@ -22283,6 +22406,10 @@ function bkwContinueWithAddons() {
 
 async function bkwSubmitPayment() {
   var s = _bkwState;
+  if (!formRequiredFieldsFilled('bkw-fields')) {
+    admToast('Please fill in all required fields.');
+    return;
+  }
   var name  = document.getElementById('bkw-co-name')?.value.trim();
   var email = document.getElementById('bkw-co-email')?.value.trim();
   var statusEl = document.getElementById('bkw-co-status');
