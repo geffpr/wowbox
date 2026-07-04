@@ -15524,7 +15524,7 @@ function renderCheckout() {
         </div>
       </div>
       <div class="fg-row">
-        <div class="fg"><label>Postal code *</label><input class="fi" placeholder="8001"></div>
+        <div class="fg"><label>Postal code *</label><input class="fi" id="ck-postal" placeholder="8001"></div>
         <div class="fg"><label>Country</label><input class="fi" value="South Africa" readonly></div>
       </div>
       <div class="fg"><label>Billing same as delivery?</label><label style="display:flex;align-items:center;gap:8px;font-size:.82rem;cursor:pointer"><input type="checkbox" checked style="accent-color:var(--b600)"> Yes, same address</label></div>
@@ -15566,7 +15566,7 @@ function renderCheckout() {
           </div>
         </div>
         <div class="fg-row">
-          <div class="fg"><label>Postal code *</label><input class="fi" placeholder="8001"></div>
+          <div class="fg"><label>Postal code *</label><input class="fi" id="ck-postal" placeholder="8001"></div>
           <div class="fg"><label>Country</label><input class="fi" value="South Africa" readonly></div>
         </div>
         <div style="margin-top:6px;margin-bottom:4px">
@@ -16401,6 +16401,11 @@ async function completeOrderConfirm(pfRef, total, discount, delivFee) {
   const custName   = appState.lastOrderName   || (document.getElementById('ck-full-name') ? document.getElementById('ck-full-name').value.trim() : '') || 'Customer';
   const buyerEmail = appState.senderEmail || custEmail;
   const buyerName  = appState.senderName  || custName;
+  // Delivery address (only present in the DOM for physical/mixed orders)
+  const delivStreet   = document.getElementById('ck-street')?.value?.trim()     || '';
+  const delivCity     = document.getElementById('ck-city-phys')?.value?.trim() || '';
+  const delivProvince = document.getElementById('ck-province')?.value          || '';
+  const delivPostal   = document.getElementById('ck-postal')?.value?.trim()    || '';
 
   document.getElementById('ck-order-ref').textContent = ref;
 
@@ -16488,7 +16493,7 @@ async function completeOrderConfirm(pfRef, total, discount, delivFee) {
     total:      'R' + total.toLocaleString(),
     boost:      false,
     items:      orderItems,
-    delivery:   delivFee > 0 ? { method: getDeliveryLabel(), fee: delivFee } : null,
+    delivery:   ct !== 'ebox' ? { method: getDeliveryLabel(), fee: delivFee, recipient: buyerName, street: delivStreet, city: delivCity, province: delivProvince, postal: delivPostal } : null,
     personalMsg:  appState.lastOrderMsg || '',
     hasVideo:     appState.lastOrderVideo || false,
     schedDate:    appState.lastScheduledDate || null,
@@ -16618,6 +16623,11 @@ async function completeOrderConfirm(pfRef, total, discount, delivFee) {
         user_email:        (typeof currentUser !== 'undefined' && currentUser && currentUser.email) ? currentUser.email : (buyerEmail || null),
         user_id:           (typeof currentUser !== 'undefined' && currentUser && currentUser.id) ? currentUser.id : null,
         coupon_code:       capturedCoupon ? capturedCoupon.code : null,
+        delivery_recipient_name: ct !== 'ebox' ? (buyerName || null) : null,
+        delivery_street:         delivStreet   || null,
+        delivery_city:           delivCity     || null,
+        delivery_province:       delivProvince || null,
+        delivery_postal_code:    delivPostal   || null,
       });
       // Increment coupon used_count after confirmed payment
       if (capturedCoupon && capturedCoupon.id) {
@@ -18134,12 +18144,22 @@ async function loadOrdersFromSupabase() {
     const dbToStatus = {'pending':'Pending','in_process':'In process','in_transit':'In transit','delivered':'Delivered','refunded':'Refunded','partial_refund':'Partial refund'};
     const orderIds = Object.keys(grouped);
     try {
-      const ordRes = await db_client.from('orders').select('id,customer_name,status,total_amount').in('id', orderIds);
+      const ordRes = await db_client.from('orders').select('id,customer_name,customer_email,status,total_amount,delivery_recipient_name,delivery_street,delivery_city,delivery_province,delivery_postal_code').in('id', orderIds);
       if (ordRes.data) {
         ordRes.data.forEach(function(row) {
           if (!grouped[row.id]) return;
           grouped[row.id].customerName = row.customer_name || null;
+          if (row.customer_email) grouped[row.id].email = row.customer_email; // authoritative — overrides voucher-derived email
           grouped[row.id].total        = row.total_amount  || null;
+          if (row.delivery_street || row.delivery_city) {
+            grouped[row.id].delivery = {
+              recipient: row.delivery_recipient_name || '',
+              street:    row.delivery_street   || '',
+              city:      row.delivery_city     || '',
+              province:  row.delivery_province || '',
+              postal:    row.delivery_postal_code || '',
+            };
+          }
           if (row.status) {
             const displayStatus = dbToStatus[row.status] || row.status;
             ordersState.statuses[row.id] = displayStatus;
@@ -18161,7 +18181,7 @@ async function loadOrdersFromSupabase() {
       const displayName = g.customerName || g.email;
       orderDetailDB[oid] = {name:displayName,email:g.email,phone:'—',date:ds,type:g.type,
         total: g.total ? 'R' + Number(g.total).toLocaleString('en-ZA') : '—',
-        boost:false,delivery:null,
+        boost:false,delivery:g.delivery||null,
         items:g.items.map(function(v){ return {name:v.box_name||v.box_id||'—',type:v.is_physical_box?'Physical':'E-Box',code:v.code,status:v.status}; })};
     });
     tbody.innerHTML = Object.values(grouped).map(function(g) {
