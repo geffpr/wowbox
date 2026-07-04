@@ -1062,12 +1062,30 @@ async function loadUserOrders(email) {
     var vouchersMap = {}; // orderId → [voucher]
     if (orderIds.length) {
       var vr = await db_client.from('vouchers')
-        .select('code,box_name,box_id,status,order_id')
+        .select('code,box_name,box_id,status,order_id,is_physical_box')
         .in('order_id', orderIds);
       (vr.data || []).forEach(function(v) {
         if (!vouchersMap[v.order_id]) vouchersMap[v.order_id] = [];
         vouchersMap[v.order_id].push(v);
       });
+    }
+
+    // Gift add-ons (prepaid extras) are linked via the E-Box code, not order_id directly
+    var allEboxCodes = [];
+    Object.values(vouchersMap).forEach(function(list) {
+      list.forEach(function(v) { if (v.code && !v.is_physical_box) allEboxCodes.push(v.code); });
+    });
+    var giftAddonsByCode = {};
+    if (allEboxCodes.length) {
+      try {
+        var gaRes = await db_client.from('wb_prepaid_addons')
+          .select('wb_code,addon_name,addon_price')
+          .in('wb_code', allEboxCodes);
+        (gaRes.data || []).forEach(function(g) {
+          if (!giftAddonsByCode[g.wb_code]) giftAddonsByCode[g.wb_code] = [];
+          giftAddonsByCode[g.wb_code].push({ name: g.addon_name, price: g.addon_price });
+        });
+      } catch(gaErr) { console.warn('wb_prepaid_addons fetch:', gaErr.message); }
     }
 
     var statusBadge = {
@@ -1119,14 +1137,21 @@ async function loadUserOrders(email) {
         ? '<div style="font-size:.75rem;color:var(--muted);margin-bottom:6px"><i class="fa fa-user" style="color:var(--b400);width:14px"></i> For: <strong style="color:var(--navy)">' + o.recipient_name + '</strong></div>'
         : '';
 
+      // Gift add-ons tied to this order's E-Box codes
+      var orderGiftAddons = [];
+      realVouchers.forEach(function(v) {
+        (giftAddonsByCode[v.code] || []).forEach(function(g) { orderGiftAddons.push(g); });
+      });
+
       // Encode order data for modal
       var encodedOrder = encodeURIComponent(JSON.stringify({
         id: o.id, date: date, amount: amount, status: o.status || 'pending',
-        delivLabel: delivLabel, recipient: o.recipient_name || '', recipientEmail: o.recipient_email || '',
+        delivLabel: delivLabel, deliveryFee: o.delivery_fee || 0, recipient: o.recipient_name || '', recipientEmail: o.recipient_email || '',
         hasVideo: hasVideo, giftMsg: o.gift_message || '', schedDate: o.scheduled_send_date || '',
         buyerName: o.customer_name || '', buyerEmail: o.customer_email || '',
         discountAmount: o.discount_amount || 0, couponCode: o.coupon_code || '',
-        vouchers: realVouchers.filter(function(v){ return v.status === 'active'; }).map(function(v){ return { code: v.code, name: v.box_name || v.box_id, box_id: v.box_id }; })
+        boostAmount: o.boost_amount || 0, giftAddons: orderGiftAddons,
+        vouchers: realVouchers.filter(function(v){ return v.status === 'active'; }).map(function(v){ return { code: v.code, name: v.box_name || v.box_id, box_id: v.box_id, type: v.is_physical_box ? 'Physical' : 'E-Box' }; })
       }));
 
       // Coupon line
@@ -1175,9 +1200,17 @@ function showUserOrderReceipt(encodedOrder) {
     var existing = document.getElementById('user-receipt-modal');
     if (existing) existing.remove();
 
+    var eboxCount = (o.vouchers || []).filter(function(v){ return v.type === 'E-Box'; }).length;
+    var physCount = (o.vouchers || []).filter(function(v){ return v.type === 'Physical'; }).length;
+    var boxCount  = eboxCount + physCount;
+    var countParts = [];
+    if (eboxCount) countParts.push(eboxCount + ' E-Box');
+    if (physCount) countParts.push(physCount + ' Physical');
+    var boxCountLabel = boxCount ? boxCount + ' box' + (boxCount>1?'es':'') + (countParts.length ? ' (' + countParts.join(', ') + ')' : '') : '';
+
     var itemRows = (o.vouchers || []).map(function(v) {
       return '<div style="display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid var(--border)">'
-        + '<span style="font-size:.83rem;color:var(--navy)">📦 ' + v.name + '</span>'
+        + '<span style="font-size:.83rem;color:var(--navy)">📦 ' + v.name + ' <span style="font-size:.68rem;color:var(--muted);font-weight:600">· ' + v.type + '</span></span>'
         + '<code style="font-size:.78rem;color:var(--b700);background:var(--b50);padding:3px 10px;border-radius:6px;letter-spacing:.06em">' + v.code + '</code>'
         + '</div>';
     }).join('');
@@ -1187,6 +1220,18 @@ function showUserOrderReceipt(encodedOrder) {
         + '<span style="font-size:.73rem;color:var(--muted)">Sent to recipient</span>'
         + '</div>';
     }
+    if (o.boostAmount > 0) {
+      itemRows += '<div style="display:flex;justify-content:space-between;padding:9px 0">'
+        + '<span style="font-size:.83rem;color:var(--navy)">🚀 Chance Boost</span>'
+        + '<span style="font-size:.78rem;color:var(--b700)">R' + Number(o.boostAmount).toLocaleString() + '</span>'
+        + '</div>';
+    }
+    (o.giftAddons || []).forEach(function(g) {
+      itemRows += '<div style="display:flex;justify-content:space-between;padding:9px 0">'
+        + '<span style="font-size:.83rem;color:var(--navy)">🎁 ' + g.name + '</span>'
+        + '<span style="font-size:.78rem;color:var(--b700)">' + (g.price ? 'R' + Number(g.price).toLocaleString() : '—') + '</span>'
+        + '</div>';
+    });
 
     var statusColors = { pending:'#d97706', active:'#059669', shipped:'#2563eb', delivered:'#059669', cancelled:'#dc2626' };
     var sc = statusColors[(o.status||'pending').toLowerCase()] || '#d97706';
@@ -1210,7 +1255,8 @@ function showUserOrderReceipt(encodedOrder) {
       // Info grid
       + '<div style="background:var(--b50);border-radius:10px;padding:14px 16px;margin-bottom:18px">'
       + '<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border)"><span style="font-size:.75rem;color:var(--muted)">Date</span><span style="font-size:.75rem;font-weight:600;color:var(--navy)">' + o.date + '</span></div>'
-      + '<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border)"><span style="font-size:.75rem;color:var(--muted)">Delivery</span><span style="font-size:.75rem;font-weight:600;color:var(--navy)">' + o.delivLabel + '</span></div>'
+      + (boxCountLabel ? '<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border)"><span style="font-size:.75rem;color:var(--muted)">Boxes</span><span style="font-size:.75rem;font-weight:600;color:var(--navy)">' + boxCountLabel + '</span></div>' : '')
+      + '<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border)"><span style="font-size:.75rem;color:var(--muted)">Delivery</span><span style="font-size:.75rem;font-weight:600;color:var(--navy)">' + o.delivLabel + (o.deliveryFee > 0 ? ' — R' + Number(o.deliveryFee).toLocaleString() : (o.delivLabel && o.delivLabel !== 'E-Box' ? ' — Free' : '')) + '</span></div>'
       + (o.recipient ? '<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border)"><span style="font-size:.75rem;color:var(--muted)">Pour</span><span style="font-size:.75rem;font-weight:600;color:var(--navy)">' + o.recipient + '</span></div>' : '')
       + (o.discountAmount > 0 ? '<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border)"><span style="font-size:.75rem;color:var(--muted)">Discount' + (o.couponCode ? ' (' + o.couponCode + ')' : '') + '</span><span style="font-size:.75rem;font-weight:600;color:var(--b600)">-R' + Number(o.discountAmount).toLocaleString() + '</span></div>' : '')
       + '<div style="display:flex;justify-content:space-between;padding:8px 0 2px"><span style="font-size:.85rem;font-weight:700;color:var(--navy)">Total paid</span><span style="font-size:.95rem;font-weight:700;color:var(--b700)">' + o.amount + '</span></div>'
@@ -1245,10 +1291,19 @@ function printUserOrderInvoice(encodedOrder) {
     var itemRows = (o.vouchers || []).map(function(v) {
       var box = boxDB[v.box_id] || {};
       var price = box.price ? 'R' + Number(box.price).toLocaleString() : '';
-      return '<tr><td style="padding:8px 0;border-bottom:1px solid #e8d5c0">📦 ' + v.name + '</td><td style="padding:8px 0;border-bottom:1px solid #e8d5c0;text-align:right">' + price + '</td></tr>';
+      return '<tr><td style="padding:8px 0;border-bottom:1px solid #e8d5c0">📦 ' + v.name + ' <span style="color:#8a6a50;font-size:11px">· ' + v.type + '</span></td><td style="padding:8px 0;border-bottom:1px solid #e8d5c0;text-align:right">' + price + '</td></tr>';
     }).join('');
     if (o.hasVideo) {
       itemRows += '<tr><td style="padding:8px 0;border-bottom:1px solid #e8d5c0">🎬 Video message</td><td style="padding:8px 0;border-bottom:1px solid #e8d5c0;text-align:right">—</td></tr>';
+    }
+    if (o.boostAmount > 0) {
+      itemRows += '<tr><td style="padding:8px 0;border-bottom:1px solid #e8d5c0">🚀 Chance Boost</td><td style="padding:8px 0;border-bottom:1px solid #e8d5c0;text-align:right">R' + Number(o.boostAmount).toLocaleString() + '</td></tr>';
+    }
+    (o.giftAddons || []).forEach(function(g) {
+      itemRows += '<tr><td style="padding:8px 0;border-bottom:1px solid #e8d5c0">🎁 ' + g.name + '</td><td style="padding:8px 0;border-bottom:1px solid #e8d5c0;text-align:right">' + (g.price ? 'R' + Number(g.price).toLocaleString() : '—') + '</td></tr>';
+    });
+    if (o.deliveryFee > 0) {
+      itemRows += '<tr><td style="padding:8px 0;border-bottom:1px solid #e8d5c0">🚚 Delivery — ' + (o.delivLabel||'') + '</td><td style="padding:8px 0;border-bottom:1px solid #e8d5c0;text-align:right">R' + Number(o.deliveryFee).toLocaleString() + '</td></tr>';
     }
     if (o.discountAmount > 0) {
       itemRows += '<tr><td style="padding:8px 0;border-bottom:1px solid #e8d5c0;color:#a0522d">Discount' + (o.couponCode ? ' (' + o.couponCode + ')' : '') + '</td><td style="padding:8px 0;border-bottom:1px solid #e8d5c0;text-align:right;color:#a0522d">-R' + Number(o.discountAmount).toLocaleString() + '</td></tr>';
@@ -16417,6 +16472,8 @@ async function completeOrderConfirm(pfRef, total, discount, delivFee) {
   const realBoxItems  = appState.cart.filter(function(c){ return c.type !== 'addon'; });
   const addonItems    = appState.cart.filter(function(c){ return c.type === 'addon'; });
   const giftAddonItems = addonItems.filter(function(c){ return c.isGiftAddon; });
+  const boostItem      = appState.cart.find(function(c){ return c.id === 'chance-boost'; });
+  const boostAmount    = boostItem ? (boostItem.price * (boostItem.qty || 1)) : 0;
 
   // Generate WB codes only for real E-Box items. Physical boxes get NO code at checkout —
   // the admin assigns/prints a real code from stock when the box is actually prepared for shipping.
@@ -16608,6 +16665,7 @@ async function completeOrderConfirm(pfRef, total, discount, delivFee) {
         total_amount:      total,
         boxes_subtotal:    realBoxItems.reduce(function(s,c){ return s + c.price * c.qty; }, 0),
         video_message_amount: hasVideoMsg ? (APP_PRICES.video_message || 49) : 0,
+        boost_amount:      boostAmount || 0,
         discount_amount:   discount || 0,
         delivery_type:     ct,
         delivery_fee:      delivFee || 0,
@@ -20624,7 +20682,7 @@ function toggleBoostUpsell() {
         id: 'chance-boost',
         boxId: 'surprise',
         name: 'Chance Boost',
-        type: 'ebox',
+        type: 'addon',
         price: APP_PRICES.chance_boost,
         qty: 1,
         img: 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?q=80&w=200&auto=format&fit=crop',
