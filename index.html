@@ -8809,6 +8809,7 @@ tr:hover td{background:var(--b50)}
                 <h4><i class="fa fa-print" style="color:var(--b400)"></i> Actions</h4>
                 <div style="display:flex;gap:8px;flex-wrap:wrap">
                   <button class="btn bp bsm" id="od-print-btn" onclick=""><i class="fa fa-print"></i> Print box code</button>
+                  <button class="btn bp bsm" id="od-genall-btn" style="display:none" onclick=""><i class="fa fa-barcode"></i> Generate all codes</button>
                   <button class="btn bsm" id="od-refund-all-btn" style="background:#fef2f2;color:#dc2626;border:1px solid #fca5a5" onclick=""><i class="fa fa-rotate-left"></i> Refund full order</button>
                   <button class="btn bg bsm" onclick="admResendEmail()"><i class="fa fa-envelope"></i> Resend email</button>
                   <button class="btn bg bsm" onclick="admReissueCode()"><i class="fa fa-rotate"></i> Reissue code</button>
@@ -17429,7 +17430,7 @@ function admOrderDetail(orderId) {
       </div>
       <span style="font-size:.7rem;color:var(--muted)">${item.type}</span>
       <span class="code-badge ${statusCls[item.status]||'cs-inactive'}">${item.status}</span>
-      ${!pending ? `<button class="btn bg bsm" onclick="admPrintCode('${item.code}','${item.name}')"><i class="fa fa-print"></i></button>` : ''}
+      ${!pending ? `<button class="btn bg bsm" onclick="admPrintCode('${item.code}','${item.name}')"><i class="fa fa-print"></i></button>` : `<button class="btn bp bsm" onclick="admGeneratePhysicalCode('${orderId}','${item.code}')"><i class="fa fa-barcode"></i> Generate code</button>`}
       ${item.status !== 'refunded' ? `<button class="btn bsm" style="background:#fef2f2;color:#dc2626;border:1px solid #fca5a5;font-size:.7rem" onclick="admRefundBox('${orderId}','${item.code}','${item.name}',${item.price||0},'${o.email}')"><i class="fa fa-rotate-left"></i> Refund</button>` : '<span style="font-size:.7rem;color:#dc2626;font-weight:600">Refunded</span>'}
     </div>`;
   }).join('');
@@ -17438,6 +17439,12 @@ function admOrderDetail(orderId) {
     var allRefunded = o.items.every(function(i){ return i.status === 'refunded'; });
     refundAllEl.style.display = allRefunded ? 'none' : '';
     refundAllEl.onclick = function(){ admRefundOrder(orderId, o); };
+  }
+  var genAllEl = document.getElementById('od-genall-btn');
+  if (genAllEl) {
+    var pendingItems = o.items.filter(function(i){ return isPendingCode(i.code); });
+    genAllEl.style.display = pendingItems.length ? '' : 'none';
+    genAllEl.onclick = function(){ admGenerateAllPhysicalCodes(orderId); };
   }
   // Summary
   document.getElementById('od-total').textContent = o.total;
@@ -17483,6 +17490,49 @@ function admOrderDetail(orderId) {
     qrRow.style.display = (hasVid && isPhys) ? 'grid' : 'none';
     const qrBtn = document.getElementById('od-qr-btn');
     if (qrBtn && token) qrBtn.onclick = () => admShowVideoQR(token, orderId);
+  }
+}
+
+// Generate + activate a real WB code for ONE pending physical box in an order.
+// Does not touch order status or send an email — that stays manual (dropdown / Resend email).
+async function admGeneratePhysicalCode(orderId, placeholderCode) {
+  if (!confirm('Generate and activate a new WB code for this box now?')) return;
+  const newCode   = 'WB-' + Math.random().toString(36).toUpperCase().slice(2,6) + '-' + Math.random().toString(36).toUpperCase().slice(2,6);
+  const expiresAt = new Date(Date.now() + 365*24*60*60*1000).toISOString();
+  try {
+    const { error } = await db_client.from('vouchers')
+      .update({ code: newCode, status: 'active', expires_at: expiresAt })
+      .eq('code', placeholderCode);
+    if (error) throw error;
+    admToast('✅ Code ' + newCode + ' generated and activated');
+    if (typeof loadOrdersFromSupabase === 'function') await loadOrdersFromSupabase();
+    admOrderDetail(orderId);
+  } catch(e) {
+    admToast('⚠️ Error generating code: ' + e.message);
+  }
+}
+
+// Generate + activate real WB codes for ALL pending physical boxes in an order at once.
+async function admGenerateAllPhysicalCodes(orderId) {
+  const o = orderDetailDB[orderId];
+  if (!o) return;
+  const pendingItems = o.items.filter(function(i){ return isPendingCode(i.code); });
+  if (!pendingItems.length) { admToast('No pending boxes to generate codes for.'); return; }
+  if (!confirm('Generate and activate ' + pendingItems.length + ' WB code' + (pendingItems.length>1?'s':'') + ' for this order now?')) return;
+  const expiresAt = new Date(Date.now() + 365*24*60*60*1000).toISOString();
+  try {
+    for (const item of pendingItems) {
+      const newCode = 'WB-' + Math.random().toString(36).toUpperCase().slice(2,6) + '-' + Math.random().toString(36).toUpperCase().slice(2,6);
+      const { error } = await db_client.from('vouchers')
+        .update({ code: newCode, status: 'active', expires_at: expiresAt })
+        .eq('code', item.code);
+      if (error) throw error;
+    }
+    admToast('✅ ' + pendingItems.length + ' code' + (pendingItems.length>1?'s':'') + ' generated and activated');
+    if (typeof loadOrdersFromSupabase === 'function') await loadOrdersFromSupabase();
+    admOrderDetail(orderId);
+  } catch(e) {
+    admToast('⚠️ Error generating codes: ' + e.message);
   }
 }
 
