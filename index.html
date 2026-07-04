@@ -1558,7 +1558,9 @@ async function loadUserBoxes(email) {
   try {
     var result = await db_client.from('vouchers').select('*').eq('user_email', email).order('created_at', { ascending: false });
     if (result.error) throw result.error;
-    var vouchers = result.data || [];
+    // Physical boxes not yet fulfilled have no real code (placeholder 'PENDING-...') —
+    // they belong in My Orders only, not here in My Gift Boxes.
+    var vouchers = (result.data || []).filter(function(v){ return v.code && v.code.indexOf('PENDING-') !== 0; });
     if (!vouchers.length) {
       if (subtitle) subtitle.textContent = 'You have no gift boxes yet. Browse our collection!';
       var listDiv = document.getElementById('dash-boxes-list');
@@ -16510,6 +16512,7 @@ async function completeOrderConfirm(pfRef, total, discount, delivFee) {
         var isEboxItem = item.type === 'ebox';
         // Physical: no real code yet — placeholder row keeps box_name/status visible in
         // My Orders + admin until the admin assigns a real code from stock and ships it.
+        // No expires_at here: expiry only makes sense once the real code is activated by the recipient.
         return {
           code:       isEboxItem ? wbCodes[i] : ('PENDING-' + ref + '-' + i),
           box_id:     item.boxId,
@@ -16518,7 +16521,7 @@ async function completeOrderConfirm(pfRef, total, discount, delivFee) {
           status:     isEboxItem ? 'active' : 'inactive',
           order_id:   ref,
           is_physical_box: !isEboxItem,
-          expires_at: expiresAt,
+          expires_at: isEboxItem ? expiresAt : null,
         };
       });
       if (voucherRows.length) {
