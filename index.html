@@ -15479,6 +15479,58 @@ function updateCkTotal() {
   }
 }
 
+// Wires Google Places Autocomplete on the street address field so City/Province/Postal
+// code auto-fill from the selected suggestion, and the Same Day eligibility check runs
+// immediately (using the coordinates Google already gives us — no extra geocode call).
+function initCkAddressAutocomplete() {
+  var input = document.getElementById('ck-street');
+  if (!input || !window.google || !google.maps.places) return;
+  if (input._wbAutocompleteAttached) return; // avoid double-binding on re-render
+  input._wbAutocompleteAttached = true;
+
+  var autocomplete = new google.maps.places.Autocomplete(input, {
+    componentRestrictions: { country: 'za' },
+    fields: ['address_components', 'geometry'],
+    types: ['address'],
+  });
+
+  autocomplete.addListener('place_changed', function() {
+    var place = autocomplete.getPlace();
+    if (!place || !place.address_components) return;
+
+    var comp = {};
+    place.address_components.forEach(function(c) {
+      c.types.forEach(function(t) { comp[t] = c.long_name; });
+    });
+
+    var streetLine = (comp.street_number || '') + ' ' + (comp.route || '');
+    var city       = comp.locality || comp.sublocality || comp.administrative_area_level_2 || '';
+    var province   = comp.administrative_area_level_1 || '';
+    var postal     = comp.postal_code || '';
+
+    if (streetLine.trim()) input.value = streetLine.trim();
+
+    var cityInput = document.getElementById('ck-city-phys');
+    if (cityInput && city) cityInput.value = city;
+
+    var provinceSelect = document.getElementById('ck-province');
+    if (provinceSelect && province) {
+      Array.prototype.forEach.call(provinceSelect.options, function(opt) {
+        if (opt.text === province) provinceSelect.value = opt.text;
+      });
+    }
+
+    var postalInput = document.getElementById('ck-postal');
+    if (postalInput && postal) postalInput.value = postal;
+
+    // We already have precise coordinates from the selected place — run the
+    // Same Day availability check immediately, no need for a second geocode call.
+    if (place.geometry && place.geometry.location) {
+      ckCheckSameDayAvailability(place.geometry.location.lat(), place.geometry.location.lng());
+    }
+  });
+}
+
 function ckGeocodeAddress() {
   var street   = document.getElementById('ck-street')?.value?.trim()   || '';
   var city     = document.getElementById('ck-city-phys')?.value?.trim() || '';
@@ -15639,6 +15691,7 @@ function renderCheckout() {
   // Init delivery selector for physical/mixed
   if (ct === 'physical' || ct === 'mixed') {
     renderDeliverySelector();
+    initCkAddressAutocomplete();
   }
 
   // Reset coupon state on fresh checkout render, then sync summary
