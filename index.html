@@ -1071,11 +1071,13 @@ async function loadUserOrders(email) {
     }
 
     var statusBadge = {
-      pending:   '<span class="sbadge sb-p">Pending</span>',
-      active:    '<span class="sbadge sb-a">Active</span>',
-      shipped:   '<span class="sbadge" style="background:#dbeafe;color:#1e40af">Shipped</span>',
-      delivered: '<span class="sbadge sb-u">Delivered</span>',
-      cancelled: '<span class="sbadge sb-e">Cancelled</span>',
+      pending:    '<span class="sbadge sb-p">Pending</span>',
+      in_process: '<span class="sbadge" style="background:#fef3c7;color:#92400e">Preparing your box</span>',
+      in_transit: '<span class="sbadge" style="background:#dbeafe;color:#1e40af">In transit</span>',
+      active:     '<span class="sbadge sb-a">Active</span>',
+      shipped:    '<span class="sbadge" style="background:#dbeafe;color:#1e40af">Shipped</span>',
+      delivered:  '<span class="sbadge sb-u">Delivered</span>',
+      cancelled:  '<span class="sbadge sb-e">Cancelled</span>',
     };
 
     listEl.innerHTML = orders.map(function(o) {
