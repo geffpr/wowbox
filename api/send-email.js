@@ -571,21 +571,21 @@ function tplRecipientGift(o) {
   ).join('');
   const recipientFirst = (o.recipientName || 'there').split(' ')[0];
   const senderName = o.name || 'Someone special';
+  const voucherSectionHtml = (o.items && o.items.length)
+    ? hr() + h2('Your Voucher Code' + ((o.items||[]).length > 1 ? 's' : '')) + `<div style="background:${C.card};border-radius:10px;padding:4px 16px;margin:16px 0">${items}</div>`
+      + hr() + p('<strong>How to redeem your WowBox gift:</strong><br>1. Go to <a href="' + SITE_URL + '/redeem" style="color:' + C.goldDark + '">wowbox.co.za/redeem</a> and enter your code<br>2. Browse the experiences in your box<br>3. Book directly with the partner')
+      + btn('Redeem My Gift', SITE_URL + '/redeem')
+    : p("Your physical WowBox is on its way — you'll be able to book your experience once it arrives.");
   return {
     subject: `🎁 You've received a WowBox gift from ${senderName}!`,
     html: layout(`
       ${badge('🎁 You Have a Gift!', C.midBrown)}
       ${h1('You have received a gift, ' + recipientFirst + '!')}
-      ${p('<strong>' + senderName + '</strong> has gifted you a WowBox experience. Your voucher code is below — use it to browse and book your experience.')}
+      ${p('<strong>' + senderName + '</strong> has gifted you a WowBox experience.' + ((o.items && o.items.length) ? ' Your voucher code is below — use it to browse and book your experience.' : ''))}
       ${o.giftMsg ? highlight('<strong>💌 A message from ' + senderName + ':</strong><br><em style="font-family:Georgia,serif;font-size:15px">"' + o.giftMsg + '"</em>') : ''}
       ${o.videoToken ? highlight('<strong>🎬 Video message from ' + senderName + '</strong><br><a href="' + SITE_URL + '/gift-video/' + o.videoToken + '" style="color:' + C.goldDark + '">Watch the video &rarr;</a>') : ''}
       ${(o.giftAddons && o.giftAddons.length) ? highlight('<strong>🎁 A gift extra is included with your box!</strong><br>You\'ll discover what it is when you book your experience.') : ''}
-      ${hr()}
-      ${h2('Your Voucher Code' + ((o.items||[]).length > 1 ? 's' : ''))}
-      <div style="background:${C.card};border-radius:10px;padding:4px 16px;margin:16px 0">${items}</div>
-      ${hr()}
-      ${p('<strong>How to redeem your WowBox gift:</strong><br>1. Go to <a href="' + SITE_URL + '/redeem" style="color:' + C.goldDark + '">wowbox.co.za/redeem</a> and enter your code<br>2. Browse the experiences in your box<br>3. Book directly with the partner')}
-      ${btn('Redeem My Gift', SITE_URL + '/redeem')}
+      ${voucherSectionHtml}
       ${sm('Questions? <a href="mailto:support@wowbox.co.za" style="color:' + C.goldDark + '">support@wowbox.co.za</a>')}
     `, HEROES.order, senderName + ' has sent you an unforgettable experience'),
   };
@@ -617,6 +617,8 @@ function tplStatusPending(o) {
         ).join('')}
       </div>
       ${highlight('<strong>📬 Tracking:</strong> You\'ll receive an email with your tracking number as soon as your box ships.')}
+      ${o.giftMsg ? highlight('<strong>💌 Your gift message:</strong><br><em style="font-family:Georgia,serif;font-size:15px">"' + o.giftMsg + '"</em>') : ''}
+      ${o.videoToken ? highlight('<strong>🎬 Video message</strong><br><a href="' + SITE_URL + '/gift-video/' + o.videoToken + '" style="color:' + C.goldDark + '">Watch the video &rarr;</a>') : ''}
       ${btn('View My Account', SITE_URL + '/my-account')}
       ${sm('Questions? <a href="mailto:support@wowbox.co.za" style="color:' + C.goldDark + '">support@wowbox.co.za</a>')}
     `, HEROES.order, 'Your WowBox physical box is being prepared'),

@@ -16779,6 +16779,7 @@ async function completeOrderConfirm(pfRef, total, discount, delivFee) {
         video_created_at:  hasVideoMsg ? new Date().toISOString() : null,
         video_expires_at:  hasVideoMsg ? new Date(Date.now() + 30*24*3600*1000).toISOString() : null,
         scheduled_send_date: schedDate || null,
+        scheduled_email_sent: false,
         terms_accepted_at:  appState.termsAcceptedAt || null,
         recipient_name:    custName  || null,
         recipient_email:   custEmail || null,
@@ -16800,10 +16801,15 @@ async function completeOrderConfirm(pfRef, total, discount, delivFee) {
       if (videoToken && orderDetailDB[ref]) orderDetailDB[ref].videoToken = videoToken;
 
       // Send email
+      // If a future date was chosen, the recipient-facing gift/video email is sent by the
+      // send-scheduled cron on that day instead — sending it now too would duplicate it.
+      const todayISO = new Date().toISOString().slice(0,10);
+      const sendRecipientNow = !schedDate || schedDate <= todayISO;
+
       if (ct === 'ebox' || ct === 'mixed') {
         // Ebox: send voucher to recipient + confirmation to buyer (if different)
         var isGiftOrder = !!(buyerEmail && custEmail && buyerEmail !== custEmail);
-        if (custEmail) {
+        if (custEmail && sendRecipientNow) {
           await fetch('/api/send-email', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -16827,7 +16833,8 @@ async function completeOrderConfirm(pfRef, total, discount, delivFee) {
             })
           });
         }
-        // Also send buyer confirmation if buyer != recipient
+        // Also send buyer confirmation if buyer != recipient (always immediate — this is the
+        // buyer's own receipt, not the gift content itself, so scheduling doesn't apply to it)
         if (buyerEmail && buyerEmail !== custEmail) {
           await fetch('/api/send-email', {
             method: 'POST',
@@ -16851,7 +16858,8 @@ async function completeOrderConfirm(pfRef, total, discount, delivFee) {
           });
         }
       } else {
-        // Physical: send pending confirmation to buyer
+        // Physical: send pending confirmation to buyer (always immediate — order logistics,
+        // not the gift content itself)
         if (buyerEmail) {
           await fetch('/api/send-email', {
             method: 'POST',
@@ -16870,6 +16878,34 @@ async function completeOrderConfirm(pfRef, total, discount, delivFee) {
                 videoToken: videoToken || null,
                 schedDate:  schedDate || null,
                 giftAddons: giftAddonsForEmail,
+              }
+            })
+          });
+        }
+        // Physical + video, gift only (buyer != recipient): the video itself must reach the
+        // actual recipient (custEmail — collected separately for this purpose), not just the
+        // buyer. Self-purchases get the video inline in their own status_pending email instead
+        // (see tplStatusPending) — no need for a second email to the same inbox.
+        var isGiftOrderPhys = !!(buyerEmail && custEmail && buyerEmail !== custEmail);
+        if (hasVideoMsg && isGiftOrderPhys && custEmail && sendRecipientNow) {
+          await fetch('/api/send-email', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              type: 'recipient_gift',
+              order: {
+                id:         ref,
+                name:       buyerName,
+                email:      custEmail,
+                recipientName: custName,
+                type:       'Physical',
+                total:      'R' + total.toLocaleString(),
+                date:       dateStr,
+                items:      [], // no redeemable code exists yet for a physical box
+                giftMsg:    giftMsg || null,
+                videoToken: videoToken || null,
+                videoUrl:   videoUrlSaved || null,
+                schedDate:  schedDate || null,
               }
             })
           });

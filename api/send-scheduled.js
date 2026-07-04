@@ -36,26 +36,34 @@ async function markSent(orderId) {
 }
 
 // ── Call /api/send-email for a given order ────────────────────────────────
-async function sendGiftEmail(order, vouchers) {
-  const items = vouchers.map(v => ({
-    name:   v.box_name || 'WowBox Gift Box',
-    code:   v.code,
-    type:   order.delivery_type || 'E-Box',
-    status: 'active',
-  }));
+async function sendGiftEmail(order, vouchers, giftAddons) {
+  const isGift = !!(order.recipient_email && order.recipient_email !== order.customer_email);
+  // Physical boxes get a 'PENDING-...' placeholder code until the admin ships them — never
+  // show that to the recipient as if it were a real, redeemable voucher code.
+  const items = (vouchers || [])
+    .filter(v => v.code && v.code.indexOf('PENDING-') !== 0)
+    .map(v => ({
+      name:   v.box_name || 'WowBox Gift Box',
+      code:   v.code,
+      type:   order.delivery_type || 'E-Box',
+      status: 'active',
+    }));
 
   const payload = {
-    type: 'status_delivered',
+    type: isGift ? 'recipient_gift' : 'status_delivered',
     order: {
       id:               order.id,
-      name:             order.recipient_name || order.customer_name,
+      name:             isGift ? order.customer_name : (order.recipient_name || order.customer_name),
       email:            order.recipient_email || order.customer_email,
+      recipientName:    order.recipient_name || order.customer_name,
       type:             order.delivery_type === 'physical' ? 'Physical Box' : 'E-Box',
       total:            order.total_amount ? `R${Number(order.total_amount).toLocaleString('en-ZA')}` : '',
       date:             new Date(order.created_at).toLocaleDateString('en-ZA', { day: 'numeric', month: 'short', year: 'numeric' }),
       items,
-      giftMessage:      order.gift_message || '',
-      personalMessage:  order.personal_message || '',
+      giftMsg:          order.gift_message || '',
+      videoToken:       order.video_token || null,
+      videoUrl:         order.video_url || null,
+      giftAddons:       isGift ? (giftAddons || []) : undefined,
       bookingReference: null,
     },
   };
@@ -103,12 +111,24 @@ export default async function handler(req, res) {
       try {
         // 2. Fetch voucher codes for this order
         const vouchers = await supabaseFetch(
-          `/vouchers?order_id=eq.${order.id}&select=code,box_name`,
+          `/vouchers?order_id=eq.${order.id}&select=code,box_name,is_physical_box`,
           { headers: { 'Prefer': 'return=representation' } }
         );
 
+        // 2b. Fetch gift add-ons (prepaid extras) linked to this order's E-Box codes
+        let giftAddons = [];
+        const eboxCodes = (vouchers || []).filter(v => v.code && !v.is_physical_box).map(v => v.code);
+        if (eboxCodes.length) {
+          const codesFilter = eboxCodes.map(c => `"${c}"`).join(',');
+          const gaRows = await supabaseFetch(
+            `/wb_prepaid_addons?wb_code=in.(${codesFilter})&select=addon_name,addon_price`,
+            { headers: { 'Prefer': 'return=representation' } }
+          );
+          giftAddons = (gaRows || []).map(g => ({ name: g.addon_name, price: g.addon_price }));
+        }
+
         // 3. Send gift email
-        await sendGiftEmail(order, vouchers || []);
+        await sendGiftEmail(order, vouchers || [], giftAddons);
 
         // 4. Mark order as sent
         await markSent(order.id);
