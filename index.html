@@ -1620,6 +1620,14 @@ async function loadUserBoxes(email) {
     // Physical boxes not yet fulfilled have no real code (placeholder 'PENDING-...') —
     // they belong in My Orders only, not here in My Gift Boxes.
     var vouchers = (result.data || []).filter(function(v){ return v.code && v.code.indexOf('PENDING-') !== 0; });
+
+    // Hide a gift box until its scheduled send date arrives — same rule that already gates
+    // the email itself. Read directly off the voucher row (the recipient always has read
+    // access to their own vouchers, unlike `orders` which is gated by customer_email and
+    // would silently fail for a gift where buyer != recipient). A voucher with no scheduled
+    // date, or one whose date has passed, is unaffected and displays exactly as before.
+    var todayISOBoxes = new Date().toISOString().slice(0,10);
+    vouchers = vouchers.filter(function(v){ return !(v.scheduled_send_date && v.scheduled_send_date > todayISOBoxes); });
     if (!vouchers.length) {
       if (subtitle) subtitle.textContent = 'You have no gift boxes yet. Browse our collection!';
       var listDiv = document.getElementById('dash-boxes-list');
@@ -16689,6 +16697,7 @@ async function completeOrderConfirm(pfRef, total, discount, delivFee) {
           order_id:   ref,
           is_physical_box: !isEboxItem,
           expires_at: isEboxItem ? expiresAt : null,
+          scheduled_send_date: isEboxItem ? (appState.lastScheduledDate || null) : null,
         };
       });
       if (voucherRows.length) {
