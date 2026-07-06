@@ -17620,23 +17620,34 @@ function admPrintCode(code, boxName) {
 
 /* ── Video QR Code modal ── */
 function admShowVideoQR(token, orderId) {
-  const url   = window.location.origin + '/gift-video/' + token;
-  const modal = document.getElementById('vid-qr-modal');
-  const wrap  = document.getElementById('vid-qr-canvas');
-  const link  = document.getElementById('vid-qr-link');
-  if (!modal || !wrap) return;
-  wrap.innerHTML = '';
+  const url = window.location.origin + '/gift-video/' + token;
+  // The modal markup never existed in the page's static HTML — build it on demand instead,
+  // the same way showVoucherModal() does elsewhere in this file.
+  var old = document.getElementById('vid-qr-modal');
+  if (old) old.remove();
+  var modal = document.createElement('div');
+  modal.id = 'vid-qr-modal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  modal.innerHTML = '<div style="background:#fff;border-radius:16px;padding:32px;max-width:340px;width:100%;text-align:center">'
+    + '<div style="font-size:1.1rem;font-weight:700;color:var(--navy);margin-bottom:4px">Gift video QR code</div>'
+    + '<p style="color:var(--muted);font-size:.78rem;margin-bottom:18px">Print this and place it inside the physical box.</p>'
+    + '<div id="vid-qr-canvas" style="display:flex;justify-content:center;margin-bottom:16px"></div>'
+    + '<a id="vid-qr-link" href="' + url + '" target="_blank" style="font-size:.72rem;color:var(--b600);word-break:break-all;display:block;margin-bottom:20px">' + url + '</a>'
+    + '<div style="display:flex;gap:8px">'
+    + '<button type="button" class="btn bg block" onclick="admHideVideoQR()">Close</button>'
+    + '<button type="button" class="btn bp block" onclick="admPrintVideoQR(\'' + token + '\')"><i class="fa fa-print"></i> Print</button>'
+    + '</div></div>';
+  document.body.appendChild(modal);
+  var wrap = document.getElementById('vid-qr-canvas');
   if (window.QRCode) {
     new QRCode(wrap, { text: url, width: 200, height: 200, colorDark: '#0f172a', colorLight: '#ffffff', correctLevel: QRCode.CorrectLevel.M });
   } else {
     wrap.innerHTML = '<div style="width:200px;height:200px;background:var(--b50);border:2px dashed var(--b300);border-radius:var(--rs);display:flex;align-items:center;justify-content:center;font-size:.7rem;color:var(--muted);text-align:center;padding:12px">QR library loading…<br>' + url + '</div>';
   }
-  if (link) link.href = url;
-  modal.style.display = 'flex';
 }
 function admHideVideoQR() {
-  const modal = document.getElementById('vid-qr-modal');
-  if (modal) modal.style.display = 'none';
+  var modal = document.getElementById('vid-qr-modal');
+  if (modal) modal.remove();
 }
 function admPrintVideoQR(token) {
   const url = window.location.origin + '/gift-video/' + token;
