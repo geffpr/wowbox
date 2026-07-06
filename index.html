@@ -11649,6 +11649,14 @@ function togSwitch(id, targetId) {
   if (targetId) document.getElementById(targetId).style.display = el.classList.contains('on') ? 'block' : 'none';
 }
 
+/* ── Physical + video: reveal the recipient email field only if the buyer opts in
+   to also emailing the video immediately (default is QR-in-box only) ── */
+function ckToggleVideoEmailField() {
+  var cb   = document.getElementById('ck-video-email-now');
+  var wrap = document.getElementById('ck-video-email-wrap');
+  if (wrap) wrap.style.display = (cb && cb.checked) ? 'block' : 'none';
+}
+
 /* ── Video message helpers ── */
 function togVideoSwitch() {
   const tog    = document.getElementById('tog-vid');
@@ -15688,9 +15696,13 @@ function renderCheckout() {
     const hasVideoInCartNow = !!appState.cart.find(c => c.id === 'video-message');
     const videoEmailNote = hasVideoInCartNow
       ? `<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:.78rem;color:#1e3a5f">
-           <i class="fa fa-video" style="color:#2563eb"></i> <strong>Video message:</strong> Enter the recipient's email so we can send them the video right after payment.
+           <i class="fa fa-video" style="color:#2563eb"></i> <strong>Video message:</strong> A QR code will be printed and placed inside the physical box, so the recipient can scan it and watch when the box arrives.
+           <label style="display:flex;align-items:center;gap:6px;margin-top:8px;cursor:pointer;font-weight:400">
+             <input type="checkbox" id="ck-video-email-now" onchange="ckToggleVideoEmailField()" style="accent-color:#2563eb">
+             Also email the video to the recipient right after payment
+           </label>
          </div>
-         <div class="fg"><label>Recipient email (for video) *</label><input class="fi" id="ck-email" type="email" placeholder="recipient@email.com" onkeydown="if(event.key==='Enter'){event.preventDefault();}"></div>`
+         <div class="fg" id="ck-video-email-wrap" style="display:none"><label>Recipient email (for video) *</label><input class="fi" id="ck-email" type="email" placeholder="recipient@email.com" onkeydown="if(event.key==='Enter'){event.preventDefault();}"></div>`
       : '';
     fields = `
       <div class="fg"><label>Full name *</label><input class="fi" id="ck-sender-name" placeholder="Your full name"></div>
@@ -16467,9 +16479,12 @@ function validateDetailsAndContinue() {
     if (!rName)  { showErr("Please enter the recipient's name.", recipNameEl); return; }
     if (!rEmail || !rEmail.includes('@')) { showErr("Please enter the recipient's email address.", recipEmailEl); return; }
   }
-  // For physical + video: only recipient email required (for sending the video)
-  if (ct === 'physical' && hasVideoInCart) {
-    if (!rEmail || !rEmail.includes('@')) { showErr("Please enter the recipient's email address so we can send them the video.", recipEmailEl); return; }
+  // For physical + video: recipient email only required if the buyer opted in to
+  // emailing the video right away — otherwise it's QR-in-box only, no email needed.
+  var videoEmailNowEl = document.getElementById('ck-video-email-now');
+  var wantsVideoEmailNow = !!(videoEmailNowEl && videoEmailNowEl.checked);
+  if (ct === 'physical' && hasVideoInCart && wantsVideoEmailNow) {
+    if (!rEmail || !rEmail.includes('@')) { showErr("Please enter the recipient's email address, or untick \"Also email the video\" to only include it as a QR code in the box.", recipEmailEl); return; }
   }
 
   errEl.style.display = 'none';
@@ -16485,6 +16500,9 @@ function validateDetailsAndContinue() {
   // Save scheduled date from the inline date picker
   var sendDateEl = document.getElementById('ck-send-date');
   if (sendDateEl && sendDateEl.value) appState.scheduledDate = sendDateEl.value;
+
+  // Save physical+video "email now" opt-in (default: QR-in-box only, no email)
+  appState.videoEmailNow = wantsVideoEmailNow;
 
   // Save all to appState
   appState.senderName    = sName;
@@ -16703,6 +16721,7 @@ async function completeOrderConfirm(pfRef, total, discount, delivFee) {
       // reading appState.lastScheduledDate again later, after an await, would silently return
       // null even though the user did pick a date. Everything below reuses this one value.
       var capturedSchedDate = appState.lastScheduledDate || null;
+      var capturedSendVideoNow = !!appState.videoEmailNow;
       // Insert vouchers — only for real boxes, not addons
       var voucherRows = realBoxItems.map(function(item, i) {
         var box = boxDB[item.boxId] || {};
@@ -16924,7 +16943,7 @@ async function completeOrderConfirm(pfRef, total, discount, delivFee) {
         // buyer. Self-purchases get the video inline in their own status_pending email instead
         // (see tplStatusPending) — no need for a second email to the same inbox.
         var isGiftOrderPhys = !!(buyerEmail && custEmail && buyerEmail !== custEmail);
-        if (hasVideoMsg && isGiftOrderPhys && custEmail && sendRecipientNow) {
+        if (hasVideoMsg && isGiftOrderPhys && custEmail && capturedSendVideoNow) {
           await fetch('/api/send-email', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
