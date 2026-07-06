@@ -7756,10 +7756,16 @@ tr:hover td{background:var(--b50)}
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:12px">
           <h2 style="font-size:1.7rem;color:var(--navy)">My Bookings</h2>
         </div>
-        <div style="display:flex;gap:8px;margin-bottom:18px;flex-wrap:wrap">
+        <div style="display:flex;gap:8px;margin-bottom:18px;flex-wrap:wrap;align-items:center">
           <button class="btn bp bsm" id="pp-bk-tab-upcoming" onclick="ppFilterBookings('upcoming')" style="background:var(--b600);color:#fff">Upcoming</button>
           <button class="btn bg bsm" id="pp-bk-tab-past" onclick="ppFilterBookings('past')">Past</button>
           <button class="btn bg bsm" id="pp-bk-tab-all" onclick="ppFilterBookings('all')">All</button>
+          <select id="pp-bk-sort" class="fi" style="margin-left:auto;max-width:230px;font-size:.78rem;padding:7px 10px" onchange="ppSortBookings()">
+            <option value="created_desc">Sort: Newest booked first</option>
+            <option value="created_asc">Sort: Oldest booked first</option>
+            <option value="bookingdate_asc">Sort: Booking date (soonest)</option>
+            <option value="bookingdate_desc">Sort: Booking date (furthest)</option>
+          </select>
         </div>
         <div id="pp-bookings-list" style="display:flex;flex-direction:column;gap:12px">
           <div style="text-align:center;padding:40px;color:var(--muted)"><i class="fa fa-calendar-check" style="font-size:2rem;margin-bottom:10px;display:block"></i> Loading bookings…</div>
@@ -21549,7 +21555,26 @@ function maskBookingRef(ref) {
   return ref.replace(/[A-Za-z0-9]{4}$/, '••••');
 }
 
+var _ppBkCurrentMode = 'upcoming';
+function ppBkSortComparator(sortMode) {
+  return function(a, b) {
+    if (sortMode === 'bookingdate_asc' || sortMode === 'bookingdate_desc') {
+      var da = a.booking_date ? new Date(a.booking_date).getTime() : 0;
+      var db = b.booking_date ? new Date(b.booking_date).getTime() : 0;
+      return sortMode === 'bookingdate_asc' ? da - db : db - da;
+    }
+    var ca = a.created_at ? new Date(a.created_at).getTime() : 0;
+    var cb = b.created_at ? new Date(b.created_at).getTime() : 0;
+    return sortMode === 'created_asc' ? ca - cb : cb - ca; // default: created_desc, same as before
+  };
+}
+// Re-applies whichever tab (Upcoming/Past/All) is currently selected, with the
+// chosen sort order — called from the sort dropdown's onchange.
+function ppSortBookings() {
+  ppFilterBookings(_ppBkCurrentMode);
+}
 function ppFilterBookings(mode) {
+  _ppBkCurrentMode = mode;
   ['upcoming','past','all'].forEach(function(m){
     var btn = document.getElementById('pp-bk-tab-' + m);
     if (btn) { btn.className = m === mode ? 'btn bp bsm' : 'btn bg bsm'; btn.style.background = ''; btn.style.color = ''; }
@@ -21561,6 +21586,9 @@ function ppFilterBookings(mode) {
     if (mode === 'past')     return b.validated_at || b.status === 'used';
     return true;
   });
+  var sortSel = document.getElementById('pp-bk-sort');
+  var sortMode = sortSel ? sortSel.value : 'created_desc';
+  filtered = filtered.slice().sort(ppBkSortComparator(sortMode));
   var listEl = document.getElementById('pp-bookings-list');
   if (!listEl) return;
   if (!filtered.length) { listEl.innerHTML = '<p style="color:var(--muted);text-align:center;padding:40px">No bookings found.</p>'; return; }
