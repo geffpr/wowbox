@@ -14155,6 +14155,25 @@ async function confirmExpBooking() {
                 }})
               }).catch(function(){});
             }
+
+            // The WB code is the central record of everything ever bought for it —
+            // gift add-ons AND extras paid for at booking time alike. Recorded as
+            // 'used' immediately (paid and consumed together); if this booking is
+            // later cancelled, cancelBooking() hands it back as 'pending' so the
+            // next booking attempt with the same WB code sees it as already covered.
+            if (finalCode) {
+              try {
+                await db_client.from('wb_prepaid_addons').insert({
+                  wb_code:     finalCode,
+                  addon_id:    sel.id,
+                  addon_name:  sel.name,
+                  addon_price: sel.price,
+                  buyer_email: custEmail || null,
+                  buyer_name:  custName || null,
+                  status:      'used'
+                });
+              } catch(waErr) { console.warn('wb_prepaid_addons insert (paid addon):', waErr.message); }
+            }
           }
 
           // Send addon receipt email to customer
@@ -14218,6 +14237,20 @@ async function cancelBooking(voucherCode, bookingDate, cancelWindowHours) {
         await fetch('/api/send-email', { method:'POST', headers:{'Content-Type':'application/json'},
           body: JSON.stringify({ type:'booking_cancelled', customerEmail:bk.customer_email, partnerEmail:bk.partner_email, experienceName:bk.experience_name, guestName:bk.guest_name, bookingRef:bk.booking_reference, bookingDate:bk.checkin_date||bk.booking_date, voucherCode }) });
       } catch(emailErr){ console.warn('Cancel email failed:',emailErr.message); }
+      // The WB code is the central record of everything ever bought for it — hand any
+      // add-ons this booking consumed (gift add-ons AND extras paid at booking time
+      // alike) back to 'pending' so the next booking with this same WB code sees them
+      // as already covered, instead of asking to buy them again.
+      try {
+        await db_client.from('wb_prepaid_addons').update({ status: 'pending' }).eq('wb_code', voucherCode).eq('status', 'used');
+      } catch(waErr) { console.warn('wb_prepaid_addons revert on cancel:', waErr.message); }
+      // Void the associated add-on commission entries so a cancelled booking's extras
+      // never get paid out to the provider — 'cancelled' is excluded from every pending/paid
+      // total elsewhere, so nothing else needs to change to respect this.
+      try {
+        await db_client.from('commission_entries').update({ payout_status: 'cancelled' })
+          .eq('booking_reference', bk.booking_reference).in('flow', ['gift_addon','addon']).eq('payout_status','pending');
+      } catch(ceErr) { console.warn('commission_entries cancel on booking cancel:', ceErr.message); }
     }
     admToast('✅ Booking cancelled — your voucher is active again');
     if (typeof loadDashBoxes === 'function') loadDashBoxes();
@@ -22785,6 +22818,22 @@ async function bkwCompleteBooking(bkwRef) {
               }})
             }).catch(function(){});
           }
+
+          // Same principle as the WB flow: attach this paid extra to the WB code
+          // itself so it's never lost if the booking is later cancelled.
+          if (s.prepaidWbCode) {
+            try {
+              await db_client.from('wb_prepaid_addons').insert({
+                wb_code:     s.prepaidWbCode,
+                addon_id:    sel.id,
+                addon_name:  sel.name,
+                addon_price: sel.price,
+                buyer_email: s.payerEmail || null,
+                buyer_name:  s.payerName || null,
+                status:      'used'
+              });
+            } catch(waErr) { console.warn('wb_prepaid_addons insert (paid addon, bkw):', waErr.message); }
+          }
         }
       } catch(e) { console.warn('Addon processing error:', e.message); }
     }
@@ -25369,6 +25418,13 @@ async function loadAdminCommissionPayouts() {
   try {
     var q = db_client.from('commission_entries')
       .select('id,partner_name,partner_email,box_price,platform_rate,platform_amount,partner_payout,payout_status,validated_at,transaction_ref')
+      // This table is for experience-partner payouts only — add-on providers are paid
+      // directly/manually and must never appear here. Rows from the main validation
+      // path have no 'flow' value at all (NULL), only the BKW path sets 'wow'; both
+      // must be kept. Written as an explicit OR (not != 'addon') because in SQL a NULL
+      // never satisfies a "not equal" check, which would have silently hidden every
+      // normal experience-partner row.
+      .or('flow.is.null,flow.eq.wow')
       .order('validated_at', { ascending: false });
     if (months > 0) {
       var since = new Date(); since.setMonth(since.getMonth() - months);
