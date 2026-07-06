@@ -2757,6 +2757,7 @@ let physActivationLog = [];  // session log
 
 /* ── Input helpers ── */
 function physOnInput(el) {
+  wbFormatInputEvent(el, [{prefix:'PHYS',groups:[2,5]},{prefix:'WB',groups:[4,4]}]);
   el.classList.toggle('has-value', el.value.trim().length > 0);
   // Hide result when user types new code
   const res = document.getElementById('phys-result');
@@ -6140,7 +6141,7 @@ tr:hover td{background:var(--b50)}
             <label>Your WB code *</label>
             <input class="fi" id="dash-redeem-input" type="text" placeholder="WB-XXXX-XXXX"
               style="font-family:'Courier New',monospace;font-size:1rem;text-transform:uppercase;letter-spacing:.05em"
-              oninput="this.value=this.value.toUpperCase()"
+              oninput="wbFormatInputEvent(this,[{prefix:'WB',groups:[4,4]}])"
               onkeydown="if(event.key==='Enter'){event.preventDefault();dashRedeemCode();}">
             <div style="font-size:.72rem;color:var(--muted);margin-top:6px">You can find this code inside your WowBox packaging or in your activation email.</div>
           </div>
@@ -6260,7 +6261,7 @@ tr:hover td{background:var(--b50)}
       <p style="color:var(--muted);font-size:.82rem;margin-bottom:24px">Enter your WB code to access your included experiences.</p>
       <input class="code-in" id="act-code" type="text" placeholder="WB-XXXX-XXXX" maxlength="14"
         style="text-transform:uppercase;font-family:'Courier New',monospace;letter-spacing:.05em"
-        oninput="this.value=this.value.toUpperCase()"
+        oninput="wbFormatInputEvent(this,[{prefix:'WB',groups:[4,4]}])"
         onkeydown="if(event.key==='Enter'){event.preventDefault();activateBox();}">
       <div id="act-err" style="display:none;background:#fee2e2;border:1px solid #fca5a5;border-radius:8px;padding:10px 14px;font-size:.78rem;color:#991b1b;margin:10px 0"></div>
       <button type="button" class="btn bp block" style="margin-top:12px" onclick="activateBox()">
@@ -7123,6 +7124,7 @@ tr:hover td{background:var(--b50)}
               <label>Booking reference</label>
               <input class="fi" id="vi-input" type="text" placeholder="BK-XXXX"
                 style="font-family:'Courier New',monospace;font-size:1.05rem;letter-spacing:.13em;text-transform:uppercase;padding:12px 14px"
+                oninput="wbFormatInputEvent(this,[{prefix:'BKW',groups:[4,4]},{prefix:'BK',groups:[4,4]}])"
                 onkeydown="if(event.key==='Enter')validateVoucher()">
             </div>
             <button class="btn bp block" onclick="validateVoucher()" style="font-size:.88rem">
@@ -11655,6 +11657,43 @@ function ckToggleVideoEmailField() {
   var cb   = document.getElementById('ck-video-email-now');
   var wrap = document.getElementById('ck-video-email-wrap');
   if (wrap) wrap.style.display = (cb && cb.checked) ? 'block' : 'none';
+}
+
+/* ── Auto-insert dashes while typing a WB/BK/BKW/PHYS code, so people only
+   need to type the letters/digits — never auto-completes characters the
+   person hasn't typed themselves, only inserts the separating dashes. ── */
+function wbFormatCode(raw, patterns) {
+  var clean = (raw || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+  if (!clean) return '';
+  var pat = null;
+  for (var i = 0; i < patterns.length; i++) {
+    var p = patterns[i].prefix;
+    var matches = clean.length >= p.length ? clean.indexOf(p) === 0 : p.indexOf(clean) === 0;
+    if (matches) { pat = patterns[i]; break; }
+  }
+  if (!pat) pat = patterns[patterns.length - 1];
+  var pLen = pat.prefix.length;
+  if (clean.length <= pLen) return clean; // still typing the prefix itself — leave as-is
+  var out = clean.slice(0, pLen);
+  var rest = clean.slice(pLen);
+  var idx = 0;
+  for (var g = 0; g < pat.groups.length; g++) {
+    var len = pat.groups[g];
+    var chunk = rest.slice(idx, idx + len);
+    if (!chunk) break;
+    out += '-' + chunk;
+    idx += len;
+  }
+  if (idx < rest.length) out += rest.slice(idx);
+  return out;
+}
+function wbFormatInputEvent(el, patterns) {
+  var pos = el.selectionStart;
+  var oldLen = el.value.length;
+  var newVal = wbFormatCode(el.value, patterns);
+  el.value = newVal;
+  var newPos = Math.max(0, pos + (newVal.length - oldLen));
+  try { el.setSelectionRange(newPos, newPos); } catch(e) {}
 }
 
 /* ── Video message helpers ── */
