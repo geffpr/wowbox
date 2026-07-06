@@ -16717,13 +16717,45 @@ async function completeOrderConfirm(pfRef, total, discount, delivFee) {
 
   // Items count = real boxes only
   const boxCount = realBoxItems.reduce(function(s, c){ return s + (c.qty || 1); }, 0);
-  const itemsLabel = boxCount + ' box' + (boxCount > 1 ? 'es' : '')
-    + (hasVideoAddon ? ' + video message' : '');
+  // Actual box name(s) instead of just a generic count — Ross asked for the real detail here.
+  const boxNamesLabel = realBoxItems.map(function(item) {
+    const box = boxDB[item.boxId] || {};
+    const nm  = box.name || item.name || item.boxId;
+    return (item.qty > 1) ? (nm + ' ×' + item.qty) : nm;
+  }).join(', ') || (boxCount + ' box' + (boxCount > 1 ? 'es' : ''));
+
+  // Add-ons other than the video message (gift add-ons, chance boost, etc.)
+  const otherAddons = addonItems.filter(function(c){ return c.id !== 'video-message'; });
+  const addonsLine = otherAddons.length
+    ? '<div class="cf"><label>Add-ons</label><span>' + otherAddons.map(function(c){ return c.name; }).join(', ') + '</span></div>'
+    : '';
+
+  const videoLine = '<div class="cf"><label>Video message</label><span>' + (hasVideoAddon ? '✅ Yes' : '—') + '</span></div>';
+
+  // Buyer / recipient — only show a separate "To" row when it's actually a gift
+  // (buyer and recipient emails differ); otherwise this is a self-purchase.
+  const isGiftOrderConf = !!(buyerEmail && custEmail && buyerEmail !== custEmail);
+  const fromLine = '<div class="cf"><label>From</label><span>' + buyerName + (buyerEmail ? ' (' + buyerEmail + ')' : '') + '</span></div>';
+  const toLine = isGiftOrderConf
+    ? '<div class="cf"><label>To</label><span>' + custName + (custEmail ? ' (' + custEmail + ')' : '') + '</span></div>'
+    : '';
+
+  // Scheduled delivery date, if the buyer chose one — read before the checkout
+  // reset below clears it, same value used for the actual scheduling logic.
+  const schedDateConf = appState.lastScheduledDate || appState.scheduledDate || '';
+  const schedLine = schedDateConf
+    ? '<div class="cf"><label>Scheduled delivery</label><span>' + new Date(schedDateConf + 'T00:00:00').toLocaleDateString('en-ZA', {day:'numeric',month:'short',year:'numeric'}) + '</span></div>'
+    : ((ct === 'ebox' || ct === 'mixed') ? '<div class="cf"><label>Delivery timing</label><span>Immediate</span></div>' : '');
 
   document.getElementById('ck-conf-grid').innerHTML =
     '<div class="cf"><label>Order #</label><span>' + ref + '</span></div>'
     + '<div class="cf"><label>Date</label><span>' + dateStr + '</span></div>'
-    + '<div class="cf"><label>Items</label><span>' + itemsLabel + '</span></div>'
+    + '<div class="cf"><label>Box' + (boxCount > 1 ? 'es' : '') + '</label><span>' + boxNamesLabel + '</span></div>'
+    + addonsLine
+    + videoLine
+    + fromLine
+    + toLine
+    + schedLine
     + deliveryLine
     + couponLine
     + '<div class="cf"><label>Total paid</label><span style="color:var(--b700);font-weight:700">R' + total.toLocaleString() + '</span></div>'
