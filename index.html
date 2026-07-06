@@ -27107,8 +27107,14 @@ window.addEventListener('DOMContentLoaded', async () => {
         else if (currentUser && currentUser.role === 'pending_partner') { go('partner'); }
         else { go('login'); setNL('nl-login'); }
       } else if (currentPath === '/' || currentPath === '') {
-        localStorage.removeItem('pendingCheckout');
-        go('home'); setNL('nl-home');
+        // If a WB code was saved before a Google OAuth redirect, the auth callback
+        // (authOnSignedIn) is already handling navigation to Redeem→Browse on its
+        // own short delay — forcing Home here would race it and win a few seconds
+        // later, kicking the user off Browse right after their box was redeemed.
+        if (!sessionStorage.getItem('pendingRedeemCode') && !sessionStorage.getItem('autoRedirectBrowse')) {
+          localStorage.removeItem('pendingCheckout');
+          go('home'); setNL('nl-home');
+        }
       } else {
         goFromHash();
       }
@@ -27137,7 +27143,11 @@ window.addEventListener('DOMContentLoaded', async () => {
   } else if (protectedPages.indexOf(currentPath) >= 0) {
     go('login'); setNL('nl-login');
   } else if (currentPath === '/' || currentPath === '') {
-    go('home'); setNL('nl-home');
+    // Same race guard as above, for the not-yet-logged-in-at-this-point case
+    // (session check can still resolve a moment later and pick up the redeem flow).
+    if (!sessionStorage.getItem('pendingRedeemCode') && !sessionStorage.getItem('autoRedirectBrowse')) {
+      go('home'); setNL('nl-home');
+    }
   } else {
     goFromHash();
   }
