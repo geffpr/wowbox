@@ -15310,8 +15310,8 @@ function addToCart(boxId, type) {
   if (type === 'ebox') {
     const existingEbox = appState.cart.find(function(c){ return c.type === 'ebox'; });
     if (existingEbox) {
-      // Same box → just increment (already in cart)
-      if (existingEbox.id === id) { existingEbox.qty++; updateCartBadge(); return; }
+      // Same box already in cart → E-Box stays at qty 1, just let the person know
+      if (existingEbox.id === id) { admToast('🎁 This E-Box is already in your cart — one E-Box per order.'); updateCartBadge(); return; }
       // Different E-Box → ask to replace
       showCartReplaceModal(boxId, type, existingEbox);
       return;
