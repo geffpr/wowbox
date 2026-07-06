@@ -10823,7 +10823,7 @@ async function loadGiftVideoPage(token) {
   try {
     var res = await db_client
       .from('video_messages')
-      .select('video_url,gift_message,status,expires_at,token')
+      .select('video_url,gift_message,status,expires_at,token,order_id')
       .eq('token', token)
       .single();
 
@@ -10840,6 +10840,24 @@ async function loadGiftVideoPage(token) {
       if (expiredEl) expiredEl.style.display = 'block';
       if (placeholder) placeholder.style.display = 'none';
       return;
+    }
+
+    // Check the gift's scheduled send date — the direct link must not reveal the video before
+    // that day, even though the recipient already has the URL (e.g. from an early buyer-side
+    // preview). Only blocks when a future date is actually set; unscheduled gifts are unaffected.
+    if (vm.order_id) {
+      try {
+        var ordRes = await db_client.from('orders').select('scheduled_send_date').eq('id', vm.order_id).single();
+        var todayISOGv = new Date().toISOString().slice(0,10);
+        if (ordRes.data && ordRes.data.scheduled_send_date && ordRes.data.scheduled_send_date > todayISOGv) {
+          if (placeholder) {
+            placeholder.style.display = 'flex';
+            placeholder.innerHTML = '<i class="fa fa-gift" style="font-size:2rem;color:rgba(255,255,255,.6);margin-bottom:8px;display:block"></i><div style="font-size:.85rem">This gift will be revealed on ' + new Date(ordRes.data.scheduled_send_date + 'T00:00:00').toLocaleDateString('en-ZA',{day:'numeric',month:'long',year:'numeric'}) + '.<br>Please check back then!</div>';
+          }
+          if (videoEl) videoEl.style.display = 'none';
+          return;
+        }
+      } catch(gvSchedErr) { /* if this lookup fails, fall through and show the video as before */ }
     }
 
     // Show video
@@ -16680,10 +16698,20 @@ async function completeOrderConfirm(pfRef, total, discount, delivFee) {
   // Supabase + email (non-blocking)
   (async function() {
     try {
+      // Capture the scheduled date ONCE, right away, before any await — appState gets reset
+      // synchronously shortly after this IIFE starts (see checkout reset further below), so
+      // reading appState.lastScheduledDate again later, after an await, would silently return
+      // null even though the user did pick a date. Everything below reuses this one value.
+      var capturedSchedDate = appState.lastScheduledDate || null;
       // Insert vouchers — only for real boxes, not addons
       var voucherRows = realBoxItems.map(function(item, i) {
         var box = boxDB[item.boxId] || {};
-        var expiresAt = new Date(Date.now() + 365*24*60*60*1000).toISOString();
+        // Validity starts at purchase for an unscheduled gift, but at the scheduled send date
+        // for a gift the recipient won't actually receive until later — otherwise they'd lose
+        // however many days/weeks sit between purchase and delivery off their year of validity.
+        var expiresAt = capturedSchedDate
+          ? new Date(new Date(capturedSchedDate + 'T00:00:00Z').getTime() + 365*24*60*60*1000).toISOString()
+          : new Date(Date.now() + 365*24*60*60*1000).toISOString();
         var isEboxItem = item.type === 'ebox';
         // Physical: no real code yet — placeholder row keeps box_name/status visible in
         // My Orders + admin until the admin assigns a real code from stock and ships it.
@@ -16697,7 +16725,7 @@ async function completeOrderConfirm(pfRef, total, discount, delivFee) {
           order_id:   ref,
           is_physical_box: !isEboxItem,
           expires_at: isEboxItem ? expiresAt : null,
-          scheduled_send_date: isEboxItem ? (appState.lastScheduledDate || null) : null,
+          scheduled_send_date: isEboxItem ? capturedSchedDate : null,
         };
       });
       if (voucherRows.length) {
@@ -16730,7 +16758,7 @@ async function completeOrderConfirm(pfRef, total, discount, delivFee) {
       // Capture gift/video/schedule from state
       var giftMsg      = appState.lastOrderMsg  || '';
       var hasVideoMsg  = !!capturedVideoFile;
-      var schedDate    = appState.lastScheduledDate || null;
+      var schedDate    = capturedSchedDate;
       var videoToken   = null;
       var videoUrlSaved = null;
 
