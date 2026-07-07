@@ -11665,6 +11665,18 @@ function ckToggleVideoEmailField() {
   if (wrap) wrap.style.display = (cb && cb.checked) ? 'block' : 'none';
 }
 
+/* ── Picks a real experience photo at random, for emails about a box/gift that
+   isn't tied to one specific experience yet (nothing to lose if expDB is ever
+   empty mid-cleanup — falls back to the email template's own generic image). ── */
+function wbRandomExpImage() {
+  try {
+    if (!expDB || !expDB.length) return '';
+    var withImg = expDB.filter(function(x){ return x && x.img; });
+    if (!withImg.length) return '';
+    return withImg[Math.floor(Math.random() * withImg.length)].img;
+  } catch(e) { return ''; }
+}
+
 /* ── Auto-insert dashes while typing a WB/BK/BKW/PHYS code, so people only
    need to type the letters/digits — never auto-completes characters the
    person hasn't typed themselves, only inserts the separating dashes. ── */
@@ -14207,6 +14219,7 @@ async function confirmExpBooking() {
         phone:            e.phone    || '',
         location:         e.loc      || '',
         giftAddons:       giftAddonsBooked,
+        heroImage:        e.img || '',
       });
 
     } catch(err) {
@@ -16995,6 +17008,7 @@ async function completeOrderConfirm(pfRef, total, discount, delivFee) {
                 videoUrl:   videoUrlSaved || null,
                 schedDate:  schedDate || null,
                 giftAddons: isGiftOrder ? giftAddonsForEmail : undefined,
+                heroImage:  wbRandomExpImage(),
               }
             })
           });
@@ -17019,6 +17033,7 @@ async function completeOrderConfirm(pfRef, total, discount, delivFee) {
                 items:      orderItems.filter(function(i){ return i.code && i.type === 'E-Box'; }),
                 giftMsg:    giftMsg || null,
                 giftAddons: giftAddonsForEmail,
+                heroImage:  wbRandomExpImage(),
               }
             })
           });
@@ -22848,7 +22863,8 @@ async function bkwCompleteBooking(bkwRef) {
           bookingDate: s.formData.date||'', bookingTime: s.formData.time||'',
           guestName: s.formData.guest1||'', guests: s.formData.guests||1,
           total: s.expAmt, serviceFee: s.feeAmt||0,
-          addons: addonsList, addonsTotal: s.addonsTotal||0
+          addons: addonsList, addonsTotal: s.addonsTotal||0,
+          heroImage: s.exp.image_url || ''
         }})
       });
     } catch(e){}

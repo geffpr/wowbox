@@ -256,7 +256,7 @@ function tplBkwBookingCustomer(o) {
       ${highlight('<strong>📞 What to do next:</strong><br>Present your booking reference <strong>' + (o.bookingRef||'—') + '</strong> when you arrive. The partner will validate your visit.')}
       ${btn('View My Account', SITE_URL + '/my-account')}
       ${sm('Need help? <a href="mailto:support@wowbox.co.za" style="color:' + C.goldDark + '">support@wowbox.co.za</a>')}
-    `, HEROES.booking, 'Your ' + o.experienceName + ' booking is confirmed'),
+    `, o.heroImage || HEROES.booking, 'Your ' + o.experienceName + ' booking is confirmed'),
   };
 }
 
@@ -557,7 +557,7 @@ function tplBuyerConfirmation(o) {
       ${p('<strong>How to use WowBox:</strong><br>1. Go to <a href="' + SITE_URL + '/redeem" style="color:' + C.goldDark + '">wowbox.co.za/redeem</a> and enter your code<br>2. Browse the experiences in your box<br>3. Book directly with the partner')}
       ${btn('View My Account', SITE_URL + '/my-account')}
       ${sm('Need help? <a href="mailto:support@wowbox.co.za" style="color:' + C.goldDark + '">support@wowbox.co.za</a>')}
-    `, HEROES.order, 'Your WowBox order is confirmed'),
+    `, o.heroImage || HEROES.order, 'Your WowBox order is confirmed'),
   };
 }
 
@@ -587,7 +587,7 @@ function tplRecipientGift(o) {
       ${(o.giftAddons && o.giftAddons.length) ? highlight('<strong>🎁 A gift extra is included with your box!</strong><br>You\'ll discover what it is when you book your experience.') : ''}
       ${voucherSectionHtml}
       ${sm('Questions? <a href="mailto:support@wowbox.co.za" style="color:' + C.goldDark + '">support@wowbox.co.za</a>')}
-    `, HEROES.order, senderName + ' has sent you an unforgettable experience'),
+    `, o.heroImage || HEROES.order, senderName + ' has sent you an unforgettable experience'),
   };
 }
 
@@ -742,7 +742,7 @@ function tplBookingCustomer(o) {
       ${highlight('<strong>📞 Next step:</strong> Call <strong>' + (o.partnerName || 'the partner') + '</strong>' + (o.phone ? ' on <strong>' + o.phone + '</strong>' : '') + ' to confirm your visit.<br>Show your booking reference <strong>' + (o.bookingReference || '—') + '</strong> on arrival — the partner will enter it to validate your experience.')}
       ${btn('My Account', SITE_URL + '/my-account')}
       ${sm('WowBox is the intermediary — the experience is provided by the partner. Enjoy!')}
-    `, HEROES.booking, 'Your ' + o.experienceName + ' booking is confirmed'),
+    `, o.heroImage || HEROES.booking, 'Your ' + o.experienceName + ' booking is confirmed'),
   };
 }
 
