@@ -9718,29 +9718,59 @@ tr:hover td{background:var(--b50)}
 
         <!-- Partners tab -->
         <div id="rpt-partners" style="display:none">
+          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
+            <input class="fi" id="rpt-partners-search" type="text" placeholder="Search partner, email, bank, Paystack ID…"
+              style="max-width:320px;font-size:.8rem;padding:8px 12px" oninput="rptPartnersSearch(this.value)">
+            <button class="btn bg bsm" onclick="rptExportPartnersSelection()"><i class="fa fa-download"></i> Export</button>
+            <span id="rpt-partners-count" style="font-size:.75rem;color:var(--muted);margin-left:auto"></span>
+          </div>
           <div style="overflow-x:auto">
             <table>
               <thead><tr>
-                <th>Partner</th><th>CIPC / VAT</th><th>Bank</th><th>Paystack</th>
-                <th>Rate</th><th>Exp.</th><th>Bookings</th><th>BKW/WB</th>
-                <th>Boosts</th><th>Gross</th><th>WB keeps</th><th>Payout</th>
-                <th>Pending</th><th>My Page</th><th>Last activity</th><th>Actions</th>
+                <th style="width:34px"><input type="checkbox" id="rpt-partners-selectall" onchange="rptToggleAllPartners(this)"></th>
+                <th style="cursor:pointer" onclick="rptPartnersSort('name')">Partner <span id="rpt-psort-name"></span></th>
+                <th>CIPC / VAT</th><th>Bank</th><th>Paystack</th>
+                <th style="cursor:pointer" onclick="rptPartnersSort('rate')">Rate <span id="rpt-psort-rate"></span></th>
+                <th style="cursor:pointer" onclick="rptPartnersSort('exp')">Exp. <span id="rpt-psort-exp"></span></th>
+                <th style="cursor:pointer" onclick="rptPartnersSort('bookings')">Bookings <span id="rpt-psort-bookings"></span></th>
+                <th>BKW/WB</th><th>Boosts</th>
+                <th style="cursor:pointer" onclick="rptPartnersSort('gross')">Gross <span id="rpt-psort-gross"></span></th>
+                <th style="cursor:pointer" onclick="rptPartnersSort('wbkeeps')">WB keeps <span id="rpt-psort-wbkeeps"></span></th>
+                <th style="cursor:pointer" onclick="rptPartnersSort('payout')">Payout <span id="rpt-psort-payout"></span></th>
+                <th style="cursor:pointer" onclick="rptPartnersSort('pending')">Pending <span id="rpt-psort-pending"></span></th>
+                <th>My Page</th><th>Last activity</th><th>Actions</th>
               </tr></thead>
-              <tbody id="rpt-partners-tbody"><tr><td colspan="16" style="text-align:center;padding:28px;color:var(--muted)">Loading…</td></tr></tbody>
+              <tbody id="rpt-partners-tbody"><tr><td colspan="17" style="text-align:center;padding:28px;color:var(--muted)">Loading…</td></tr></tbody>
             </table>
           </div>
         </div>
 
         <!-- Payouts tab -->
         <div id="rpt-payouts" style="display:none">
+          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
+            <input class="fi" id="rpt-payouts-search" type="text" placeholder="Search any reference, partner, experience…"
+              style="max-width:320px;font-size:.8rem;padding:8px 12px" oninput="rptPayoutsSearch(this.value)">
+            <button class="btn bg bsm" onclick="rptExportPayoutsSelection()"><i class="fa fa-download"></i> Export</button>
+            <span id="rpt-payouts-count" style="font-size:.75rem;color:var(--muted);margin-left:auto"></span>
+          </div>
           <div style="overflow-x:auto">
             <table>
               <thead><tr>
-                <th>Partner</th><th>Booking ref</th><th>Experience</th><th>Flow</th>
-                <th>Validated</th><th>Paid at</th><th>Box price</th><th>WB keeps</th>
-                <th>Payout</th><th>Transfer ref</th><th>Status</th><th>Actions</th>
+                <th style="width:34px"><input type="checkbox" id="rpt-payouts-selectall" onchange="rptToggleAllPayouts(this)"></th>
+                <th style="cursor:pointer" onclick="rptPayoutsSort('partner_name')">Partner <span id="rpt-sort-partner_name"></span></th>
+                <th style="cursor:pointer" onclick="rptPayoutsSort('booking_reference')">Booking ref <span id="rpt-sort-booking_reference"></span></th>
+                <th style="cursor:pointer" onclick="rptPayoutsSort('experience_name')">Experience <span id="rpt-sort-experience_name"></span></th>
+                <th style="cursor:pointer" onclick="rptPayoutsSort('flow_label')">Flow <span id="rpt-sort-flow_label"></span></th>
+                <th style="cursor:pointer" onclick="rptPayoutsSort('validated_at')">Validated <span id="rpt-sort-validated_at"></span></th>
+                <th style="cursor:pointer" onclick="rptPayoutsSort('paid_at')">Paid at <span id="rpt-sort-paid_at"></span></th>
+                <th style="cursor:pointer" onclick="rptPayoutsSort('box_price')">Box price <span id="rpt-sort-box_price"></span></th>
+                <th style="cursor:pointer" onclick="rptPayoutsSort('platform_amount')">WB keeps <span id="rpt-sort-platform_amount"></span></th>
+                <th style="cursor:pointer" onclick="rptPayoutsSort('partner_payout')">Payout <span id="rpt-sort-partner_payout"></span></th>
+                <th style="cursor:pointer" onclick="rptPayoutsSort('paystack_transfer_id')">Transfer ref <span id="rpt-sort-paystack_transfer_id"></span></th>
+                <th style="cursor:pointer" onclick="rptPayoutsSort('payout_status')">Status <span id="rpt-sort-payout_status"></span></th>
+                <th>Actions</th>
               </tr></thead>
-              <tbody id="rpt-payouts-tbody"><tr><td colspan="12" style="text-align:center;padding:28px;color:var(--muted)">Loading…</td></tr></tbody>
+              <tbody id="rpt-payouts-tbody"><tr><td colspan="13" style="text-align:center;padding:28px;color:var(--muted)">Loading…</td></tr></tbody>
             </table>
           </div>
         </div>
@@ -28298,8 +28328,7 @@ function rptRenderPartners() {
       + '<button data-action="paystack" data-email="'+encodedEmail+'" onclick="rptSendPaystackReminderOne(this.dataset.email);rptCloseMenus()" style="display:block;width:100%;text-align:left;padding:10px 14px;border:none;background:none;font-size:.8rem;cursor:pointer;color:#d97706"><i class="fa fa-credit-card" style="margin-right:8px;width:14px"></i>Paystack reminder</button>'
       + '</div></div>';
 
-    return '<tr>'
-      +'<td><strong style="font-size:.82rem">'+(prof.partner_name||prof.full_name||email)+'</strong><div style="font-size:.7rem;color:var(--muted)">'+email+'</div><div style="font-size:.7rem;color:var(--muted)">'+(prof.phone||'—')+'</div></td>'
+    var rowHtml = '<td><strong style="font-size:.82rem">'+(prof.partner_name||prof.full_name||email)+'</strong><div style="font-size:.7rem;color:var(--muted)">'+email+'</div><div style="font-size:.7rem;color:var(--muted)">'+(prof.phone||'—')+'</div></td>'
       +'<td style="font-size:.75rem">'+(pData.registration_number||'—')+'<div style="color:var(--muted)">'+(pData.vat_number||'—')+'</div></td>'
       +'<td style="font-size:.75rem">'+(prof.bank_name||'—')+'<div style="color:var(--muted)">'+(prof.bank_account_number ? '••'+prof.bank_account_number.slice(-4) : '—')+'</div></td>'
       +'<td>'+paystackStatus+'<div style="font-size:.68rem;color:var(--muted)">'+(prof.paystack_account_id||'—')+'</div></td>'
@@ -28314,11 +28343,89 @@ function rptRenderPartners() {
       +'<td style="font-size:.75rem;color:#f59e0b">'+fmt(pendingAmt)+'</td>'
       +'<td>'+pageStatus+'</td>'
       +'<td style="font-size:.72rem;color:var(--muted)">'+lastAct+'</td>'
-      +'<td>'+actions+'</td>'
-      +'</tr>';
+      +'<td>'+actions+'</td>';
+
+    return {
+      html: rowHtml,
+      email: email,
+      sortVals: {
+        name: (prof.partner_name||prof.full_name||email), rate: Number(pEntries[0]?.platform_rate||0),
+        exp: pExps, bookings: total, gross: gross, wbkeeps: wbKeeps, payout: payout, pending: pendingAmt
+      },
+      search: [prof.partner_name, prof.full_name, email, prof.phone, pData.registration_number, pData.vat_number, prof.bank_name, prof.paystack_account_id].filter(Boolean).join(' ').toLowerCase()
+    };
   });
 
-  tbody.innerHTML = rows.length ? rows.join('') : '<tr><td colspan="16" style="text-align:center;padding:28px;color:var(--muted)">No partner data found.</td></tr>';
+  // Search + sort (client-side, over the already-loaded data — no extra queries)
+  var pState = _rptPartnersState;
+  if (pState.search) {
+    var pTerm = pState.search.toLowerCase();
+    rows = rows.filter(function(r){ return r.search.indexOf(pTerm) !== -1; });
+  }
+  rows.sort(function(a,b){
+    var av = a.sortVals[pState.sortField], bv = b.sortVals[pState.sortField];
+    if (typeof av === 'string') { av = av.toLowerCase(); bv = String(bv||'').toLowerCase(); }
+    if (av < bv) return pState.sortDir === 'asc' ? -1 : 1;
+    if (av > bv) return pState.sortDir === 'asc' ? 1 : -1;
+    return 0;
+  });
+  ['name','rate','exp','bookings','gross','wbkeeps','payout','pending'].forEach(function(f){
+    var el = document.getElementById('rpt-psort-'+f);
+    if (el) el.textContent = (pState.sortField===f) ? (pState.sortDir==='asc'?'▲':'▼') : '';
+  });
+  var pCountEl = document.getElementById('rpt-partners-count');
+  if (pCountEl) pCountEl.textContent = rows.length + ' partner' + (rows.length!==1?'s':'');
+
+  tbody.innerHTML = rows.length ? rows.map(function(r){
+    return '<tr><td><input type="checkbox" class="rpt-partner-check" value="'+encodeURIComponent(r.email)+'"></td>'+r.html+'</tr>';
+  }).join('') : '<tr><td colspan="17" style="text-align:center;padding:28px;color:var(--muted)">No partner data found.</td></tr>';
+}
+
+/* ── Search / sort / selection state + handlers for the Payouts & Partners tables ── */
+var _rptPartnersState = { search:'', sortField:'name', sortDir:'asc' };
+var _rptPayoutsState  = { search:'', sortField:'validated_at', sortDir:'desc' };
+
+function rptPartnersSearch(v) { _rptPartnersState.search = v || ''; rptRenderPartners(); }
+function rptPartnersSort(field) {
+  if (_rptPartnersState.sortField === field) { _rptPartnersState.sortDir = _rptPartnersState.sortDir === 'asc' ? 'desc' : 'asc'; }
+  else { _rptPartnersState.sortField = field; _rptPartnersState.sortDir = 'asc'; }
+  rptRenderPartners();
+}
+function rptToggleAllPartners(cb) {
+  document.querySelectorAll('.rpt-partner-check').forEach(function(el){ el.checked = cb.checked; });
+}
+function rptExportPartnersSelection() {
+  var checked = Array.prototype.slice.call(document.querySelectorAll('.rpt-partner-check:checked')).map(function(el){ return decodeURIComponent(el.value); });
+  var emails = checked.length ? checked : Array.prototype.slice.call(document.querySelectorAll('.rpt-partner-check')).map(function(el){ return decodeURIComponent(el.value); });
+  var profiles = _rptData.profiles;
+  var headers = ['Partner name','Full name','Email','Phone','CIPC','VAT','Bank name','Bank account (masked)','Paystack account ID','Paystack recipient code','Page status','Rate %','Active experiences','Total bookings','Validated bookings','Gross revenue','WB keeps','Partner payout','Pending payout','Last activity'];
+  var rowsOut = emails.map(function(email){
+    var prof = profiles[email] || {};
+    var pData = _rptData.partners.find(function(p){ return p.contact_email === email; }) || {};
+    var pEntries = _rptData.entries.filter(function(e){ return e.partner_email === email; });
+    var gross = pEntries.reduce(function(s,e){ return s+Number(e.box_price||0);},0);
+    var wbKeeps = pEntries.reduce(function(s,e){ return s+Number(e.platform_amount||0);},0);
+    var payout = pEntries.reduce(function(s,e){ return s+Number(e.partner_payout||0);},0);
+    var pendingAmt = pEntries.filter(function(e){ return e.payout_status==='pending';}).reduce(function(s,e){ return s+Number(e.partner_payout||0);},0);
+    var validated = pEntries.filter(function(e){ return e.payout_status==='paid';}).length;
+    var pExps = (_rptData.experiences||[]).filter(function(e){ return e.partner_email === email; }).length;
+    return [
+      prof.partner_name||'', prof.full_name||'', email, prof.phone||'',
+      pData.registration_number||'', pData.vat_number||'',
+      prof.bank_name||'', prof.bank_account_number ? '••'+prof.bank_account_number.slice(-4) : '',
+      prof.paystack_account_id||'', prof.paystack_recipient_code||'', prof.page_status||'',
+      pEntries[0]?.platform_rate||'', pExps, pEntries.length, validated,
+      gross.toFixed(2), wbKeeps.toFixed(2), payout.toFixed(2), pendingAmt.toFixed(2),
+      pEntries.length ? (pEntries[0].validated_at?.slice(0,10)||'') : ''
+    ].map(function(v){ return '"'+String(v).replace(/"/g,'""')+'"'; }).join(',');
+  });
+  var csv = [headers.join(',')].concat(rowsOut).join('\n');
+  var blob = new Blob([csv], {type:'text/csv'});
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url; a.download = 'wowbox-partners-full-'+new Date().toISOString().slice(0,10)+'.csv';
+  a.click(); URL.revokeObjectURL(url);
+  admToast('CSV exported (' + rowsOut.length + ' partner' + (rowsOut.length!==1?'s':'') + ').');
 }
 
 function rptRenderPayouts() {
@@ -28327,22 +28434,33 @@ function rptRenderPayouts() {
   var entries = _rptData.entries;
   var fmt = function(n){ return 'R'+Number(n||0).toLocaleString('en-ZA',{minimumFractionDigits:2,maximumFractionDigits:2}); };
 
-  tbody.innerHTML = entries.map(function(e) {
+  var rows = entries.map(function(e) {
     var statusHtml = e.payout_status === 'paid'
       ? '<span class="sbadge sb-a" style="font-size:.65rem">Paid</span>'
       : e.payout_status === 'dispute'
         ? '<span class="sbadge" style="font-size:.65rem;background:#fee2e2;color:#991b1b">Dispute</span>'
-        : '<span class="sbadge sb-p" style="font-size:.65rem">Pending</span>';
-    var flow = e.booking_reference?.startsWith('BKW') ? '<span style="font-size:.65rem;background:#ede9fe;color:#5b21b6;border-radius:4px;padding:2px 6px">BKW</span>' : '<span style="font-size:.65rem;background:#dcfce7;color:#166534;border-radius:4px;padding:2px 6px">WB</span>';
+        : e.payout_status === 'cancelled'
+          ? '<span class="sbadge" style="font-size:.65rem;background:#e5e7eb;color:#4b5563">Cancelled</span>'
+          : '<span class="sbadge sb-p" style="font-size:.65rem">Pending</span>';
+    // Everything must be visible here (add-ons included) — labelled by its real flow,
+    // not guessed from the booking reference prefix like before (which mislabelled
+    // add-on entries as plain "WB").
+    var flowLabel = (e.flow === 'addon' || e.flow === 'gift_addon') ? 'Add-on'
+      : (e.flow === 'wow' || (e.booking_reference||'').indexOf('BKW') === 0) ? 'BKW' : 'WB';
+    var flow = flowLabel === 'Add-on'
+      ? '<span style="font-size:.65rem;background:#fef3c7;color:#92400e;border-radius:4px;padding:2px 6px">Add-on</span>'
+      : flowLabel === 'BKW'
+        ? '<span style="font-size:.65rem;background:#ede9fe;color:#5b21b6;border-radius:4px;padding:2px 6px">BKW</span>'
+        : '<span style="font-size:.65rem;background:#dcfce7;color:#166534;border-radius:4px;padding:2px 6px">WB</span>';
     var delay = (e.validated_at && e.paid_at)
       ? Math.round((new Date(e.paid_at) - new Date(e.validated_at)) / 86400000) + 'd'
       : '—';
     var actions = '<div style="display:flex;gap:4px">'
+      + '<button class="btn bg bsm" style="font-size:.68rem" onclick="admShowPayoutDetail(\''+e.id+'\')"><i class="fa fa-eye"></i></button>'
       + (e.payout_status === 'pending' ? '<button class="btn bg bsm" style="font-size:.68rem" onclick="rptMarkEntryDispute(\''+e.id+'\')"><i class="fa fa-flag"></i></button>' : '')
       + '</div>';
 
-    return '<tr>'
-      +'<td style="font-size:.78rem"><strong>'+(e.partner_name||e.partner_email)+'</strong></td>'
+    var rowHtml = '<td style="font-size:.78rem"><strong>'+(e.partner_name||e.partner_email)+'</strong></td>'
       +'<td style="font-size:.75rem;font-family:monospace">'+(e.booking_reference||e.transaction_ref||'—')+'</td>'
       +'<td style="font-size:.75rem">'+(e.experience_name||'—')+'</td>'
       +'<td>'+flow+'</td>'
@@ -28353,9 +28471,120 @@ function rptRenderPayouts() {
       +'<td style="font-size:.75rem;color:#16a34a;font-weight:600">'+fmt(e.partner_payout)+'</td>'
       +'<td style="font-size:.68rem;color:var(--muted);font-family:monospace">'+(e.paystack_transfer_id||'—')+'</td>'
       +'<td>'+statusHtml+'</td>'
-      +'<td>'+actions+'</td>'
-      +'</tr>';
-  }).join('') || '<tr><td colspan="12" style="text-align:center;padding:28px;color:var(--muted)">No payout data found.</td></tr>';
+      +'<td>'+actions+'</td>';
+
+    return {
+      html: rowHtml,
+      id: e.id,
+      sortVals: {
+        partner_name: e.partner_name||e.partner_email||'', booking_reference: e.booking_reference||e.transaction_ref||'',
+        experience_name: e.experience_name||'', flow_label: flowLabel,
+        validated_at: e.validated_at||'', paid_at: e.paid_at||'',
+        box_price: Number(e.box_price||0), platform_amount: Number(e.platform_amount||0),
+        partner_payout: Number(e.partner_payout||0), paystack_transfer_id: e.paystack_transfer_id||'',
+        payout_status: e.payout_status||''
+      },
+      search: [e.id, e.partner_name, e.partner_email, e.booking_reference, e.transaction_ref, e.experience_name, e.paystack_transfer_id, flowLabel].filter(Boolean).join(' ').toLowerCase()
+    };
+  });
+
+  // Search + sort (client-side, over the already-loaded data — no extra queries)
+  var oState = _rptPayoutsState;
+  if (oState.search) {
+    var oTerm = oState.search.toLowerCase();
+    rows = rows.filter(function(r){ return r.search.indexOf(oTerm) !== -1; });
+  }
+  rows.sort(function(a,b){
+    var av = a.sortVals[oState.sortField], bv = b.sortVals[oState.sortField];
+    if (typeof av === 'string') { av = av.toLowerCase(); bv = String(bv||'').toLowerCase(); }
+    if (av < bv) return oState.sortDir === 'asc' ? -1 : 1;
+    if (av > bv) return oState.sortDir === 'asc' ? 1 : -1;
+    return 0;
+  });
+  ['partner_name','booking_reference','experience_name','flow_label','validated_at','paid_at','box_price','platform_amount','partner_payout','paystack_transfer_id','payout_status'].forEach(function(f){
+    var el = document.getElementById('rpt-sort-'+f);
+    if (el) el.textContent = (oState.sortField===f) ? (oState.sortDir==='asc'?'▲':'▼') : '';
+  });
+  var oCountEl = document.getElementById('rpt-payouts-count');
+  if (oCountEl) oCountEl.textContent = rows.length + ' entr' + (rows.length!==1?'ies':'y');
+
+  tbody.innerHTML = rows.length ? rows.map(function(r){
+    return '<tr><td><input type="checkbox" class="rpt-payout-check" value="'+r.id+'"></td>'+r.html+'</tr>';
+  }).join('') : '<tr><td colspan="13" style="text-align:center;padding:28px;color:var(--muted)">No payout data found.</td></tr>';
+}
+
+function rptPayoutsSearch(v) { _rptPayoutsState.search = v || ''; rptRenderPayouts(); }
+function rptPayoutsSort(field) {
+  if (_rptPayoutsState.sortField === field) { _rptPayoutsState.sortDir = _rptPayoutsState.sortDir === 'asc' ? 'desc' : 'asc'; }
+  else { _rptPayoutsState.sortField = field; _rptPayoutsState.sortDir = 'asc'; }
+  rptRenderPayouts();
+}
+function rptToggleAllPayouts(cb) {
+  document.querySelectorAll('.rpt-payout-check').forEach(function(el){ el.checked = cb.checked; });
+}
+function rptExportPayoutsSelection() {
+  var checked = Array.prototype.slice.call(document.querySelectorAll('.rpt-payout-check:checked')).map(function(el){ return el.value; });
+  var ids = checked.length ? checked : Array.prototype.slice.call(document.querySelectorAll('.rpt-payout-check')).map(function(el){ return el.value; });
+  var idSet = {}; ids.forEach(function(id){ idSet[id] = true; });
+  var entries = _rptData.entries.filter(function(e){ return idSet[e.id]; });
+  var headers = ['Commission ID','Partner name','Partner email','Booking reference','Transaction ref','Experience','Flow','Box price','Platform rate %','Platform amount','Partner payout','Validated at','Paid at','Payout status','Paystack transfer ID','Notes'];
+  var rowsOut = entries.map(function(e){
+    var flowLabel = (e.flow === 'addon' || e.flow === 'gift_addon') ? 'Add-on'
+      : (e.flow === 'wow' || (e.booking_reference||'').indexOf('BKW') === 0) ? 'BKW' : 'WB';
+    return [
+      e.id||'', e.partner_name||'', e.partner_email||'',
+      e.booking_reference||'', e.transaction_ref||'', e.experience_name||'', flowLabel,
+      e.box_price||0, e.platform_rate||0, e.platform_amount||0, e.partner_payout||0,
+      e.validated_at||'', e.paid_at||'', e.payout_status||'', e.paystack_transfer_id||'', e.notes||''
+    ].map(function(v){ return '"'+String(v).replace(/"/g,'""')+'"'; }).join(',');
+  });
+  var csv = [headers.join(',')].concat(rowsOut).join('\n');
+  var blob = new Blob([csv], {type:'text/csv'});
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url; a.download = 'wowbox-payouts-full-'+new Date().toISOString().slice(0,10)+'.csv';
+  a.click(); URL.revokeObjectURL(url);
+  admToast('CSV exported (' + rowsOut.length + ' entr' + (rowsOut.length!==1?'ies':'y') + ').');
+}
+
+function admShowPayoutDetail(id) {
+  var e = (_rptData.entries||[]).find(function(x){ return String(x.id) === String(id); });
+  if (!e) { admToast('Entry not found.'); return; }
+  var fmt = function(n){ return 'R'+Number(n||0).toLocaleString('en-ZA',{minimumFractionDigits:2,maximumFractionDigits:2}); };
+  var flowLabel = (e.flow === 'addon' || e.flow === 'gift_addon') ? 'Add-on'
+    : (e.flow === 'wow' || (e.booking_reference||'').indexOf('BKW') === 0) ? 'BKW' : 'WB';
+  var rows = [
+    ['Commission ID', e.id||'—'],
+    ['Partner', (e.partner_name||'—') + ' (' + (e.partner_email||'—') + ')'],
+    ['Experience', e.experience_name||'—'],
+    ['Flow', flowLabel],
+    ['Booking reference', e.booking_reference||'—'],
+    ['Transaction ref', e.transaction_ref||'—'],
+    ['Box price', fmt(e.box_price)],
+    ['Platform rate', (e.platform_rate||0)+'%'],
+    ['Platform amount (WB keeps)', fmt(e.platform_amount)],
+    ['Partner payout', fmt(e.partner_payout)],
+    ['Validated at', e.validated_at ? new Date(e.validated_at).toLocaleString('en-ZA') : '—'],
+    ['Paid at', e.paid_at ? new Date(e.paid_at).toLocaleString('en-ZA') : '—'],
+    ['Payout status', e.payout_status||'—'],
+    ['Paystack transfer ID', e.paystack_transfer_id||'—'],
+    ['Notes', e.notes||'—'],
+  ];
+  var modal = document.createElement('div');
+  modal.style.cssText = 'position:fixed;inset:0;z-index:9999;display:flex;align-items:flex-start;justify-content:center;padding:40px 20px;background:rgba(5,15,40,.6);backdrop-filter:blur(4px);overflow-y:auto';
+  modal.innerHTML = '<div style="background:#fff;border-radius:16px;padding:28px;max-width:520px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.25)">'
+    + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">'
+    + '<h3 style="font-size:1.05rem;color:var(--navy)">Payout detail</h3>'
+    + '<button class="btn bg bsm" onclick="this.closest(\'div[style*=fixed]\').remove()"><i class="fa fa-xmark"></i></button>'
+    + '</div>'
+    + rows.map(function(r){
+        return '<div style="display:flex;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px solid var(--border);font-size:.8rem">'
+          + '<span style="color:var(--muted)">'+r[0]+'</span><span style="text-align:right;word-break:break-all">'+r[1]+'</span></div>';
+      }).join('')
+    + '<div style="margin-top:14px;font-size:.7rem;color:var(--muted)">Tip: a Paystack transfer reference looks like <code>PAYOUT-{Commission ID}-{timestamp}</code> — use the Commission ID above to match it to an OTP or transfer notification.</div>'
+    + '</div>';
+  document.body.appendChild(modal);
+  modal.addEventListener('click', function(ev){ if(ev.target===modal) modal.remove(); });
 }
 
 function rptRenderBoosts() {
