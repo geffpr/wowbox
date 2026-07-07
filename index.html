@@ -25465,12 +25465,10 @@ async function loadAdminCommissionPayouts() {
     var q = db_client.from('commission_entries')
       .select('id,partner_name,partner_email,box_price,platform_rate,platform_amount,partner_payout,payout_status,validated_at,transaction_ref')
       // This table is for experience-partner payouts only — add-on providers are paid
-      // directly/manually and must never appear here. Rows from the main validation
-      // path have no 'flow' value at all (NULL), only the BKW path sets 'wow'; both
-      // must be kept. Written as an explicit OR (not != 'addon') because in SQL a NULL
-      // never satisfies a "not equal" check, which would have silently hidden every
-      // normal experience-partner row.
-      .or('flow.is.null,flow.eq.wow')
+      // directly/manually and must never appear here. Confirmed via direct DB check:
+      // normal validations default to flow='wowbox' (not NULL as first assumed), and
+      // the BKW path sets 'wow' — both must be kept, only 'addon'/'gift_addon' excluded.
+      .or('flow.is.null,flow.eq.wow,flow.eq.wowbox')
       .order('validated_at', { ascending: false });
     if (months > 0) {
       var since = new Date(); since.setMonth(since.getMonth() - months);
