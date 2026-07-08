@@ -9962,6 +9962,24 @@ tr:hover td{background:var(--b50)}
           </div>
         </div>
 
+        <!-- Purchases Disabled -->
+        <div class="atbl" style="padding:20px;margin-bottom:22px;border:2px solid #16a34a">
+          <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
+            <div>
+              <h3 style="font-size:.95rem;color:var(--navy);margin-bottom:3px"><i class="fa fa-cart-shopping" style="color:#16a34a"></i> Disable Purchases</h3>
+              <p style="font-size:.75rem;color:var(--muted);margin:0">Keeps the whole site browsable — Browse, box pages, experience pages, everything — but replaces "Buy this box" / "Add to cart" with a "Notify me" form. Separate from Pre-launch Mode above (which blocks the entire site behind the Coming Soon overlay).</p>
+            </div>
+            <label style="display:flex;align-items:center;gap:10px;cursor:pointer">
+              <span style="font-size:.82rem;font-weight:600;color:var(--navy)" id="adm-purchases-label">OFF</span>
+              <div style="position:relative;width:44px;height:24px" onclick="admTogglePurchasesDisabled()">
+                <input type="checkbox" id="adm-purchases-toggle" style="opacity:0;width:0;height:0;position:absolute">
+                <div id="adm-purchases-track" style="position:absolute;inset:0;border-radius:99px;background:var(--border);transition:background .2s;cursor:pointer"></div>
+                <div id="adm-purchases-thumb" style="position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:#fff;transition:transform .2s;box-shadow:0 1px 4px rgba(0,0,0,.2)"></div>
+              </div>
+            </label>
+          </div>
+        </div>
+
         <!-- Google Places Preview Experiences -->
         <div class="atbl" style="padding:20px;margin-bottom:22px;border:2px solid #4285F4">
           <div style="margin-bottom:14px">
@@ -10606,6 +10624,13 @@ function go(page) {
       document.body.style.height = '100%';
       return;
     }
+  }
+  // Separate, narrower guard: only blocks starting checkout (a box purchase) —
+  // it does not touch browsing, bookings, or add-on payments for a box someone
+  // already owns, which is a different flow entirely and shouldn't be affected.
+  if (window._wbPurchasesDisabled && page === 'checkout') {
+    wbShowNotifyMeModal();
+    return;
   }
   // While pre-launch mode is active, a partner account is restricted to their
   // Partner Portal — block any attempt to reach the public catalog, no matter
@@ -14344,6 +14369,7 @@ async function cancelBooking(voucherCode, bookingDate, cancelWindowHours) {
 }
 
 function addBoxFromExp() {
+  if (window._wbPurchasesDisabled) { wbShowNotifyMeModal(); return; }
   const e = expDB.find(x => x.id === appState.currentExpId);
   if (e && e.box) { addToCart(e.box, 'ebox'); go('cart'); }
 }
@@ -15505,6 +15531,7 @@ function cartReplaceConfirm(newBoxId, newType) {
   admToast('Your E-Box has been updated.');
 }
 function addCurrentToCart() {
+  if (window._wbPurchasesDisabled) { wbShowNotifyMeModal(); return; }
   addToCart(appState.currentBoxId, appState.deliveryType);
   const qty = parseInt(document.getElementById('qty-v').textContent);
   // E-Box is always a single gift — never let the quantity selector override it
@@ -17815,6 +17842,46 @@ function admPrintCode(code, boxName) {
   setTimeout(() => window.print(), 350);
 }
 
+/* ── Shown instead of checkout while purchases are disabled — same dynamic
+   modal pattern used elsewhere in this file (e.g. the QR code modal below). ── */
+function wbShowNotifyMeModal() {
+  var old = document.getElementById('wb-notify-modal');
+  if (old) old.remove();
+  var modal = document.createElement('div');
+  modal.id = 'wb-notify-modal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  modal.innerHTML = '<div style="background:#fff;border-radius:16px;padding:32px;max-width:360px;width:100%;text-align:center">'
+    + '<i class="fa fa-gift" style="font-size:2rem;color:var(--b500);margin-bottom:12px;display:block"></i>'
+    + '<div style="font-size:1.1rem;font-weight:700;color:var(--navy);margin-bottom:8px">Purchases aren\'t open yet</div>'
+    + '<p style="color:var(--muted);font-size:.85rem;margin-bottom:18px">Leave your email and we\'ll let you know the moment WowBox launches.</p>'
+    + '<input type="email" id="wb-notify-email" placeholder="you@example.com" class="fi" style="width:100%;margin-bottom:10px;text-align:center">'
+    + '<button type="button" class="btn bp block" onclick="wbSubmitNotifyMe()">Notify me</button>'
+    + '<div id="wb-notify-status" style="font-size:.75rem;color:var(--muted);margin-top:10px"></div>'
+    + '<button type="button" class="btn bg block" style="margin-top:10px" onclick="document.getElementById(\'wb-notify-modal\').remove()">Close</button>'
+    + '</div>';
+  document.body.appendChild(modal);
+  modal.addEventListener('click', function(ev){ if (ev.target === modal) modal.remove(); });
+}
+async function wbSubmitNotifyMe() {
+  var emailEl  = document.getElementById('wb-notify-email');
+  var statusEl = document.getElementById('wb-notify-status');
+  var email = emailEl ? emailEl.value.trim() : '';
+  if (!email || !email.includes('@')) {
+    if (statusEl) statusEl.textContent = 'Please enter a valid email address.';
+    return;
+  }
+  if (statusEl) statusEl.textContent = 'Saving…';
+  try {
+    var res = await db_client.from('waitlist').insert({ email: email, signup_type: 'purchase_notify' });
+    if (res.error && res.error.code !== '23505') throw res.error;
+    if (statusEl) statusEl.textContent = "You're on the list — thanks!";
+    if (emailEl) emailEl.value = '';
+    setTimeout(function(){ var m = document.getElementById('wb-notify-modal'); if (m) m.remove(); }, 1500);
+  } catch(e) {
+    if (statusEl) statusEl.textContent = 'Something went wrong — please try again.';
+  }
+}
+
 /* ── Video QR Code modal ── */
 function admShowVideoQR(token, orderId) {
   const url = window.location.origin + '/gift-video/' + token;
@@ -18471,7 +18538,7 @@ function switchAdm(btn, tab) {
   if (tab === 'adm-usage')         { renderUsageTable(); loadUsageFromSupabase(); }
   if (tab === 'adm-comm')          { loadAdminCommissionPayouts(); loadCommissionRates(); admLoadFeaturedBoosts(); }
   if (tab === 'adm-addons')        admLoadAddons();
-  if (tab === 'adm-settings')      { admLoadSiteSettings(); loadPrelaunchSettings(); admLoadGooglePlacesCount(); }
+  if (tab === 'adm-settings')      { admLoadSiteSettings(); loadPrelaunchSettings(); admLoadGooglePlacesCount(); admLoadPurchasesDisabled(); }
   if (tab === 'adm-pricing')       renderAdmPricing();
   if (tab === 'adm-reviews')       admLoadReviews();
   if (tab === 'adm-coupons')       loadCoupons();
@@ -29074,6 +29141,43 @@ async function admLoadPaystackSettings() {
   } catch(err) { console.warn('admLoadPaystackSettings:', err.message); }
 }
 
+async function admLoadPurchasesDisabled() {
+  var toggle = document.getElementById('adm-purchases-toggle');
+  if (!toggle) return;
+  try {
+    var res = await db_client.from('site_settings').select('value').eq('key','purchases_disabled').maybeSingle();
+    toggle.checked = !!(res.data && res.data.value === 'true');
+  } catch(e) { console.warn('admLoadPurchasesDisabled:', e.message); }
+  admUpdatePurchasesToggleUI();
+}
+function admUpdatePurchasesToggleUI() {
+  var toggle = document.getElementById('adm-purchases-toggle');
+  var track  = document.getElementById('adm-purchases-track');
+  var thumb  = document.getElementById('adm-purchases-thumb');
+  var label  = document.getElementById('adm-purchases-label');
+  var on     = toggle && toggle.checked;
+  if (track) track.style.background = on ? '#16a34a' : 'var(--border)';
+  if (thumb) thumb.style.transform  = on ? 'translateX(20px)' : 'translateX(0)';
+  if (label) label.textContent       = on ? 'ON' : 'OFF';
+}
+async function admTogglePurchasesDisabled() {
+  var toggle = document.getElementById('adm-purchases-toggle');
+  if (!toggle) return;
+  var goingOn = !toggle.checked;
+  toggle.checked = goingOn;
+  admUpdatePurchasesToggleUI();
+  try {
+    var upd = await db_client.from('site_settings').upsert({ key: 'purchases_disabled', value: goingOn ? 'true' : 'false' }, { onConflict: 'key' });
+    if (upd.error) throw upd.error;
+    window._wbPurchasesDisabled = goingOn;
+    admToast(goingOn ? '✅ Purchases disabled site-wide.' : '✅ Purchases re-enabled.');
+  } catch(e) {
+    toggle.checked = !goingOn;
+    admUpdatePurchasesToggleUI();
+    admToast('⚠️ Failed to save: ' + e.message);
+  }
+}
+
 async function admLoadGooglePlacesCount() {
   var el = document.getElementById('adm-gp-count');
   if (!el) return;
@@ -29491,6 +29595,11 @@ async function checkPrelaunchMode() {
     // function returns early below (e.g. a partner landing straight on /partner).
     var plOnly = await db_client.from('site_settings').select('value').eq('key','pre_launch_mode').maybeSingle();
     window._wbPrelaunchActive = !!(plOnly.data && plOnly.data.value === 'true');
+    // Separate from the overlay above — this lets the real site stay fully
+    // browsable while just disabling box purchases, with a "notify me" form
+    // in place of any checkout attempt.
+    var pdOnly = await db_client.from('site_settings').select('value').eq('key','purchases_disabled').maybeSingle();
+    window._wbPurchasesDisabled = !!(pdOnly.data && pdOnly.data.value === 'true');
 
     var isAdmin   = currentUser && appState.adminMode;
     var isPartner = currentUser && appState.partnerMode;
