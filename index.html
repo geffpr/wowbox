@@ -8487,6 +8487,7 @@ tr:hover td{background:var(--b50)}
             </tr></thead>
             <tbody id="adm-exp-tbody"></tbody>
           </table>
+          <div id="adm-exp-pagination" style="display:flex;justify-content:center;gap:6px;margin-top:14px;flex-wrap:wrap"></div>
           </div>
         </div>
 
@@ -19120,7 +19121,13 @@ function admExpClearFilters() {
   renderAdmExpTable();
 }
 
-async function renderAdmExpTable() {
+function admExpGoToPage(p) {
+  window._admExpPage = Math.max(1, p);
+  renderAdmExpTable(true);
+}
+
+async function renderAdmExpTable(keepPage) {
+  if (!keepPage) window._admExpPage = 1;
   const tbody = document.getElementById('adm-exp-tbody');
   if (!tbody) return;
   tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;padding:18px;color:var(--muted)"><i class="fa fa-circle-notch fa-spin"></i> Loading…</td></tr>';
@@ -19201,10 +19208,19 @@ async function renderAdmExpTable() {
 
     if (!filtered.length) {
       tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;padding:24px;color:var(--muted)">No experiences found.</td></tr>';
+      var pagEl0 = document.getElementById('adm-exp-pagination'); if (pagEl0) pagEl0.innerHTML = '';
       return;
     }
 
-    tbody.innerHTML = filtered.map(function(e){
+    // Pagination — 25 per page, over the already filtered+sorted list.
+    var pageSize = 25;
+    var totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+    if (!window._admExpPage) window._admExpPage = 1;
+    if (window._admExpPage > totalPages) window._admExpPage = totalPages;
+    var pStart = (window._admExpPage - 1) * pageSize;
+    var paged = filtered.slice(pStart, pStart + pageSize);
+
+    tbody.innerHTML = paged.map(function(e){
       var dbs = dbLinksMap[e.id] || [];
       var dbCell = dbs.length ? dbs.join(', ') : '<span style="color:var(--muted)">—</span>';
       var imgSrc = e.image_url
@@ -19229,6 +19245,22 @@ async function renderAdmExpTable() {
         +"<td><button class='btn bg bsm' onclick='admShowExpFormById(this.dataset.id)' data-id='"+e.id+"'><i class='fa fa-pen'></i> Edit</button></td>"
         +'</tr>';
     }).join('');
+
+    // Render pagination controls
+    var pagEl = document.getElementById('adm-exp-pagination');
+    if (pagEl) {
+      if (totalPages <= 1) {
+        pagEl.innerHTML = '';
+      } else {
+        var pg = window._admExpPage;
+        var btns = '<button class="btn bg bsm" ' + (pg<=1?'disabled':'') + ' onclick="admExpGoToPage(' + (pg-1) + ')"><i class="fa fa-chevron-left"></i></button>';
+        for (var pnum = 1; pnum <= totalPages; pnum++) {
+          btns += '<button class="btn ' + (pnum===pg?'bp':'bg') + ' bsm" onclick="admExpGoToPage(' + pnum + ')">' + pnum + '</button>';
+        }
+        btns += '<button class="btn bg bsm" ' + (pg>=totalPages?'disabled':'') + ' onclick="admExpGoToPage(' + (pg+1) + ')"><i class="fa fa-chevron-right"></i></button>';
+        pagEl.innerHTML = btns;
+      }
+    }
 
   } catch(err) {
     console.error('[renderAdmExpTable]', err);
