@@ -7,7 +7,10 @@
 
 const SUPABASE_URL      = process.env.SUPABASE_URL || 'https://gfqxuygfkzgmotnxrlwb.supabase.co';
 const SUPABASE_KEY      = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
+// Same public/publishable key already embedded in index.html's client-side Supabase
+// client — this key is designed to be public, so hardcoding it here (rather than an
+// env var that was never configured) is safe and matches how the site already uses it.
+const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || 'sb_publishable_NNDH11RkDff2KHghf_k-8g_wL2NtUIL';
 const GOOGLE_PLACES_KEY = process.env.GOOGLE_PLACES_API_KEY;
 
 // How many results to pull per city+category search. Google's Text Search (New)
