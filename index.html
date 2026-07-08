@@ -17878,27 +17878,52 @@ function wbShowNotifyMeModal() {
     + '<p style="color:var(--muted);font-size:.85rem;margin-bottom:18px">Leave your email and we\'ll let you know the moment WowBox launches.</p>'
     + '<input type="email" id="wb-notify-email" placeholder="you@example.com" class="fi" style="width:100%;margin-bottom:10px;text-align:center">'
     + '<button type="button" class="btn bp block" onclick="wbSubmitNotifyMe()">Notify me</button>'
+    + '<div id="wb-notify-question" style="display:none;margin-top:12px;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:14px">'
+    + '<p style="font-size:.78rem;color:var(--muted);margin-bottom:10px">One quick thing — how are you joining?</p>'
+    + '<div style="display:flex;gap:8px">'
+    + '<button type="button" class="btn bg" style="flex:1;font-size:.8rem" onclick="wbSubmitNotifyMe(\'guest\')">I\'m a guest</button>'
+    + '<button type="button" class="btn bp" style="flex:1;font-size:.8rem" onclick="wbSubmitNotifyMe(\'professional\')">I run a venue</button>'
+    + '</div></div>'
     + '<div id="wb-notify-status" style="font-size:.75rem;color:var(--muted);margin-top:10px"></div>'
     + '<button type="button" class="btn bg block" style="margin-top:10px" onclick="document.getElementById(\'wb-notify-modal\').remove()">Close</button>'
     + '</div>';
   document.body.appendChild(modal);
   modal.addEventListener('click', function(ev){ if (ev.target === modal) modal.remove(); });
 }
-async function wbSubmitNotifyMe() {
+async function wbSubmitNotifyMe(signupType) {
   var emailEl  = document.getElementById('wb-notify-email');
   var statusEl = document.getElementById('wb-notify-status');
+  var qEl      = document.getElementById('wb-notify-question');
   var email = emailEl ? emailEl.value.trim() : '';
   if (!email || !email.includes('@')) {
     if (statusEl) statusEl.textContent = 'Please enter a valid email address.';
+    if (qEl) qEl.style.display = 'none';
     return;
   }
+  // Step 1 (no type yet): ask whether they're a guest or a venue/professional,
+  // same two-step pattern already used in the pre-launch overlay.
+  if (!signupType) {
+    if (qEl) qEl.style.display = 'block';
+    if (statusEl) statusEl.textContent = '';
+    return;
+  }
+  // Step 2: actually save, tagged with the chosen type.
+  if (qEl) qEl.style.display = 'none';
   if (statusEl) statusEl.textContent = 'Saving…';
   try {
-    var res = await db_client.from('waitlist').insert({ email: email, signup_type: 'purchase_notify' });
+    var res = await db_client.from('waitlist').insert({ email: email, signup_type: signupType === 'professional' ? 'professional' : 'purchase_notify' });
     if (res.error && res.error.code !== '23505') throw res.error;
-    if (statusEl) statusEl.textContent = "You're on the list — thanks!";
     if (emailEl) emailEl.value = '';
-    setTimeout(function(){ var m = document.getElementById('wb-notify-modal'); if (m) m.remove(); }, 1500);
+    if (signupType === 'professional') {
+      if (statusEl) statusEl.textContent = "You're on the list — taking you to the partner page…";
+      setTimeout(function(){
+        var m = document.getElementById('wb-notify-modal'); if (m) m.remove();
+        go('partner-landing');
+      }, 900);
+    } else {
+      if (statusEl) statusEl.textContent = "You're on the list — thanks!";
+      setTimeout(function(){ var m = document.getElementById('wb-notify-modal'); if (m) m.remove(); }, 1500);
+    }
   } catch(e) {
     if (statusEl) statusEl.textContent = 'Something went wrong — please try again.';
   }
