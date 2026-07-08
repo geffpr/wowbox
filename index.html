@@ -17932,7 +17932,7 @@ async function wbCheckPartnerBanner() {
       + '<p style="font-size:12.5px;color:#6b5745;margin:0">' + subtitle + '</p>'
       + '</div>'
       + '<div style="display:flex;align-items:center;gap:14px;flex-shrink:0">'
-      + '<button type="button" onclick="go(\'partner-landing\')" style="background:#b5622f;color:#fdf6ee;border:none;padding:8px 16px;font-size:12.5px;font-weight:600;cursor:pointer;border-radius:4px;white-space:nowrap">List your experience</button>'
+      + '<button type="button" onclick="wbDismissPartnerBanner();go(\'partner-landing\')" style="background:#b5622f;color:#fdf6ee;border:none;padding:8px 16px;font-size:12.5px;font-weight:600;cursor:pointer;border-radius:4px;white-space:nowrap">List your experience</button>'
       + '<button type="button" aria-label="Dismiss" onclick="wbDismissPartnerBanner()" style="background:none;border:none;color:#6b5745;font-size:16px;cursor:pointer;padding:0 4px">\u2715</button>'
       + '</div></div>';
     nav.parentNode.insertBefore(banner, nav.nextSibling);
