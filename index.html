@@ -10238,6 +10238,7 @@ tr:hover td{background:var(--b50)}
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
         <p id="browse-count" style="font-size:.8rem;color:var(--muted)">Loading…</p>
         <select class="fi" id="browse-sort" onchange="renderBrowse()" style="width:auto;padding:7px 12px;font-size:.78rem">
+          <option value="mix" selected>Sort: Featured mix</option>
           <option value="rating">Sort: Highest rated</option>
           <option value="az">Name: A → Z</option>
           <option value="reviews">Most reviewed</option>
@@ -11040,7 +11041,7 @@ function openBrowsePage(boxId, expiresAt, voucherCode) {
 function getBrowseFiltered() {
   const bid      = appState.browseBoxId;
   const search   = (document.getElementById('browse-search')?.value || '').toLowerCase();
-  const sortV    = document.getElementById('browse-sort')?.value || 'rating';
+  const sortV    = document.getElementById('browse-sort')?.value || 'mix';
 
   const typeChecks     = [...document.querySelectorAll('.brtf:checked')].map(c => c.value);
   const locChecks      = [...document.querySelectorAll('.brlf:checked')].map(c => c.value);
@@ -11071,6 +11072,15 @@ function getBrowseFiltered() {
     return boxMatch && searchMatch && typeMatch && locMatch && srvMatch && groupMatch && provinceMatch && weekendMatch && bookingMatch && nightMatch && accMatch && insMatch;
   });
 
+  if (sortV === 'mix') {
+    // Fisher-Yates shuffle — a fresh random order each render, so real WowBox
+    // experiences and Google Places previews mix together unpredictably
+    // instead of ratings always pushing one group to the top.
+    for (let i = items.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [items[i], items[j]] = [items[j], items[i]];
+    }
+  }
   if (sortV === 'rating')  items = items.sort((a,b) => b.rating - a.rating);
   if (sortV === 'az')      items = items.sort((a,b) => a.name.localeCompare(b.name));
   if (sortV === 'reviews') items = items.sort((a,b) => b.rv - a.rv);
