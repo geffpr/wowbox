@@ -196,7 +196,7 @@ export default async function handler(req, res) {
 
           const imageUrl = await rehostFirstPhoto(place.photos, place.id).catch(() => null);
           const ratingLine = place.rating
-            ? `⭐ ${place.rating}${place.userRatingCount ? ` (${place.userRatingCount} reviews)` : ''} on Google — `
+            ? `⭐ ${place.rating}${place.userRatingCount ? ` (${place.userRatingCount} reviews)` : ''} on Google`
             : '';
 
           const row = {
@@ -206,7 +206,7 @@ export default async function handler(req, res) {
             city:            city,
             location:        city,
             address:         place.formattedAddress || '',
-            description:      ratingLine + `Imported from Google Places — not yet a confirmed WowBox partner.`,
+            description:      ratingLine,
             image_url:       imageUrl,
             lat:             place.location?.latitude  ?? null,
             lng:             place.location?.longitude ?? null,

@@ -4245,7 +4245,7 @@ tr:hover td{background:var(--b50)}
   .row > .btn { align-self: flex-start; }
 
   /* ── Hero ── */
-  .hero { height: 92vh; min-height: 500px; }
+  .hero { height: 92vh; height: 92dvh; min-height: 500px; }
   .hero h1 { font-size: clamp(2rem,8vw,3rem); }
   .hero p { font-size: .95rem; }
   .hero-actions { flex-direction: column; align-items: center; gap: 10px; }
@@ -10557,8 +10557,8 @@ function browseSaveToURL() {
   var q = document.getElementById('browse-search') ? document.getElementById('browse-search').value : '';
   if (q) params.set('q', q);
   var sortEl = document.getElementById('browse-sort');
-  var sort = sortEl ? sortEl.value : 'rating';
-  if (sort && sort !== 'rating') params.set('sort', sort);
+  var sort = sortEl ? sortEl.value : 'mix';
+  if (sort && sort !== 'mix') params.set('sort', sort);
   var types = Array.from(document.querySelectorAll('.brtf:checked')).map(function(c){return c.value;});
   if (types.length) params.set('types', types.join(','));
   var locs = Array.from(document.querySelectorAll('.brlf:checked')).map(function(c){return c.value;});
@@ -10577,7 +10577,7 @@ function browseRestoreFromURL() {
   var params = new URLSearchParams(window.location.search);
   var q = params.get('q') || '';
   var s = document.getElementById('browse-search'); if(s) s.value = q;
-  var sort = params.get('sort') || 'rating';
+  var sort = params.get('sort') || 'mix';
   var sortEl = document.getElementById('browse-sort'); if(sortEl) sortEl.value = sort;
   var types = params.get('types') ? params.get('types').split(',') : [];
   document.querySelectorAll('.brtf').forEach(function(c){ c.checked = types.indexOf(c.value) >= 0; });
@@ -10712,7 +10712,7 @@ function go(page) {
     cleanPath = '/experience/' + appState.currentExpId;
     // Save browse filters in sessionStorage so Back restores them
     sessionStorage.setItem('wowbox_browse_search',   document.getElementById('browse-search')?.value || '');
-    sessionStorage.setItem('wowbox_browse_sort',     document.getElementById('browse-sort')?.value || 'rating');
+    sessionStorage.setItem('wowbox_browse_sort',     document.getElementById('browse-sort')?.value || 'mix');
     sessionStorage.setItem('wowbox_browse_types',    Array.from(document.querySelectorAll('.brtf:checked')).map(function(c){return c.value;}).join(','));
     sessionStorage.setItem('wowbox_browse_locs',     Array.from(document.querySelectorAll('.brlf:checked')).map(function(c){return c.value;}).join(','));
     sessionStorage.setItem('wowbox_browse_provinces',Array.from(document.querySelectorAll('.brpf:checked')).map(function(c){return c.value;}).join(','));
@@ -10745,7 +10745,7 @@ function go(page) {
     var savedSearch = sessionStorage.getItem('wowbox_browse_search');
     if (savedSearch !== null) {
       var s = document.getElementById('browse-search'); if(s) s.value = savedSearch;
-      var sortEl = document.getElementById('browse-sort'); if(sortEl) sortEl.value = sessionStorage.getItem('wowbox_browse_sort') || 'rating';
+      var sortEl = document.getElementById('browse-sort'); if(sortEl) sortEl.value = sessionStorage.getItem('wowbox_browse_sort') || 'mix';
       var savedTypes = sessionStorage.getItem('wowbox_browse_types'); var typeArr = savedTypes ? savedTypes.split(',').filter(Boolean) : [];
       document.querySelectorAll('.brtf').forEach(function(c){ c.checked = typeArr.indexOf(c.value) >= 0; });
       var savedLocs = sessionStorage.getItem('wowbox_browse_locs'); var locArr = savedLocs ? savedLocs.split(',').filter(Boolean) : [];
