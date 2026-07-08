@@ -10066,6 +10066,21 @@ tr:hover td{background:var(--b50)}
           <div id="adm-hero-status" style="font-size:.75rem;color:var(--muted);margin-top:10px"></div>
         </div>
 
+        <!-- Mobile Hero Image -->
+        <div class="atbl" style="padding:20px;margin-bottom:22px">
+          <h3 style="font-size:.95rem;color:var(--navy);margin-bottom:6px"><i class="fa fa-mobile-screen" style="color:var(--b600)"></i> Mobile Hero Image (optional)</h3>
+          <p style="font-size:.75rem;color:var(--muted);margin-bottom:16px">A single fixed photo shown only on phones, instead of the desktop carousel above. Portrait orientation, ~1080×1620px recommended. Leave blank to use the desktop image on mobile too.</p>
+          <div style="display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap">
+            <input type="file" id="adm-hero-mobile-file" accept="image/*" class="fi" style="flex:1;min-width:200px;padding:8px">
+            <img id="adm-hero-mobile-preview" style="display:none;width:80px;height:120px;object-fit:cover;border-radius:6px">
+          </div>
+          <div style="margin-top:14px;display:flex;align-items:center;gap:10px">
+            <button class="btn bp bsm" onclick="admSaveMobileHeroImage()"><i class="fa fa-floppy-disk"></i> Save mobile image</button>
+            <button class="btn bg bsm" style="color:#dc2626;border-color:#dc2626" onclick="admRemoveMobileHeroImage()"><i class="fa fa-trash"></i> Remove</button>
+            <span id="adm-hero-mobile-status" style="font-size:.75rem;color:var(--muted)"></span>
+          </div>
+        </div>
+
         <!-- SEO Settings -->
         <div class="atbl" style="padding:20px;margin-bottom:22px">
           <h3 style="font-size:.95rem;color:var(--navy);margin-bottom:14px"><i class="fa fa-magnifying-glass" style="color:var(--b600)"></i> SEO Settings</h3>
@@ -27402,6 +27417,11 @@ async function loadSiteSettingsOnStartup() {
     }
     if (!heroUrls.length && settings.hero_image_url) heroUrls.push(settings.hero_image_url);
     if (!heroUrls.length) heroUrls.push('https://images.unsplash.com/photo-1571896349842-33c89424de2d?q=80&w=1920&auto=format&fit=crop');
+    // On phone-sized screens, a dedicated single mobile photo takes over from the
+    // desktop carousel if one has been uploaded — otherwise nothing changes here.
+    if (window.innerWidth <= 768 && settings.hero_image_mobile) {
+      heroUrls = [settings.hero_image_mobile];
+    }
     initHeroCarousel(heroUrls);
     loadActiveBadgeCoupons();
     /* SEO meta tags */
@@ -29957,6 +29977,47 @@ async function checkPrelaunchMode() {
   } catch(e) { console.warn('checkPrelaunchMode:', e.message); }
 }
 
+async function admSaveMobileHeroImage() {
+  var statusEl = document.getElementById('adm-hero-mobile-status');
+  var fileEl = document.getElementById('adm-hero-mobile-file');
+  if (!fileEl || !fileEl.files || !fileEl.files[0]) {
+    if (statusEl) statusEl.textContent = 'Choose a file first.';
+    return;
+  }
+  if (statusEl) statusEl.textContent = 'Uploading…';
+  try {
+    var file = fileEl.files[0];
+    var fname = 'hero_mobile_' + Date.now() + '.' + file.name.split('.').pop();
+    var upRes = await db_client.storage.from('site-assets').upload(fname, file, { upsert: true, contentType: file.type });
+    if (upRes.error) throw upRes.error;
+    var { data: urlData } = db_client.storage.from('site-assets').getPublicUrl(fname);
+    var res = await db_client.from('site_settings').upsert({ key: 'hero_image_mobile', value: urlData.publicUrl }, { onConflict: 'key' });
+    if (res.error) throw res.error;
+    var previewEl = document.getElementById('adm-hero-mobile-preview');
+    if (previewEl) { previewEl.src = urlData.publicUrl; previewEl.style.display = 'block'; }
+    if (statusEl) statusEl.textContent = '✅ Saved.';
+    admToast('✅ Mobile hero image saved.');
+  } catch(e) {
+    if (statusEl) statusEl.textContent = '';
+    admToast('⚠️ Failed to save: ' + e.message);
+  }
+}
+async function admRemoveMobileHeroImage() {
+  var statusEl = document.getElementById('adm-hero-mobile-status');
+  try {
+    var res = await db_client.from('site_settings').delete().eq('key', 'hero_image_mobile');
+    if (res.error) throw res.error;
+    var previewEl = document.getElementById('adm-hero-mobile-preview');
+    if (previewEl) { previewEl.src = ''; previewEl.style.display = 'none'; }
+    var fileEl = document.getElementById('adm-hero-mobile-file');
+    if (fileEl) fileEl.value = '';
+    if (statusEl) statusEl.textContent = '';
+    admToast('✅ Mobile hero image removed — desktop image will be used on mobile again.');
+  } catch(e) {
+    admToast('⚠️ Failed to remove: ' + e.message);
+  }
+}
+
 /* ── Admin Site Settings ── */
 async function admLoadSiteSettings() {
   try {
@@ -29975,6 +30036,8 @@ async function admLoadSiteSettings() {
     if (titleEl && s.seo_title)       titleEl.value = s.seo_title;
     if (descEl  && s.seo_description) descEl.value  = s.seo_description;
     if (ogEl    && s.og_image_url)    ogEl.value    = s.og_image_url;
+    var mobileHeroPreview = document.getElementById('adm-hero-mobile-preview');
+    if (mobileHeroPreview && s.hero_image_mobile) { mobileHeroPreview.src = s.hero_image_mobile; mobileHeroPreview.style.display = 'block'; }
     var slotsWrap = document.getElementById('adm-hero-slots');
     if (slotsWrap) {
       slotsWrap.innerHTML = [1,2,3,4].map(function(n) {
