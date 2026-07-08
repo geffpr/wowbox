@@ -9920,11 +9920,20 @@ tr:hover td{background:var(--b50)}
               <div id="adm-prelaunch-img-status" style="font-size:.72rem;color:var(--muted);margin-top:4px"></div>
               <img id="adm-prelaunch-preview" src="" alt="" style="margin-top:8px;width:100%;height:80px;object-fit:cover;border-radius:var(--rs);border:1.5px solid var(--border);display:none">
             </div>
-            <!-- Category images -->
-            <div style="grid-column:1/-1;margin-top:4px">
-              <label style="font-size:.72rem;color:var(--muted);display:block;margin-bottom:8px">Category images <span style="font-weight:400;font-size:.68rem">(upload your own — leave blank to use defaults)</span></label>
-              <div id="adm-cat-uploads" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px"></div>
-              <div id="adm-cat-status" style="font-size:.7rem;color:var(--muted);margin-top:4px"></div>
+            <!-- Box preview gallery toggle -->
+            <div style="grid-column:1/-1;margin-top:4px;display:flex;align-items:center;justify-content:space-between;gap:12px;background:var(--bg);border:1px solid var(--border);border-radius:var(--rs);padding:10px 14px">
+              <div>
+                <div style="font-size:.78rem;font-weight:600;color:var(--navy)">Show box preview gallery</div>
+                <div style="font-size:.7rem;color:var(--muted)">The 4 box photos (Family Fun, Chill Day, Couples Retreat, Reset) shown in the overlay.</div>
+              </div>
+              <label style="display:flex;align-items:center;gap:8px;cursor:pointer;flex-shrink:0">
+                <span style="font-size:.75rem;font-weight:600;color:var(--navy)" id="adm-prelaunch-boxes-label">ON</span>
+                <div style="position:relative;width:40px;height:22px" onclick="admTogglePrelaunchBoxes()">
+                  <input type="checkbox" id="adm-prelaunch-boxes-toggle" checked style="opacity:0;width:0;height:0;position:absolute">
+                  <div id="adm-prelaunch-boxes-track" style="position:absolute;inset:0;border-radius:99px;background:var(--b500);transition:background .2s;cursor:pointer"></div>
+                  <div id="adm-prelaunch-boxes-thumb" style="position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:50%;background:#fff;transition:transform .2s;box-shadow:0 1px 4px rgba(0,0,0,.2);transform:translateX(18px)"></div>
+                </div>
+              </label>
             </div>
             <div style="grid-column:1/-1">
               <label style="font-size:.72rem;color:var(--muted);display:block;margin-bottom:5px">Logo image (transparent PNG recommended)</label>
@@ -28952,26 +28961,12 @@ async function loadPrelaunchSettings() {
     }
     var lSize = document.getElementById('adm-prelaunch-logo-size');
     if (lSize && s.pre_launch_logo_size) { lSize.value = s.pre_launch_logo_size; document.getElementById('adm-logo-size-val').textContent = s.pre_launch_logo_size + 'px'; }
-    // Category upload inputs
-    var catLabels = ['Dining','Wellness','Safari','Wine','Events','Adventure','Culture','Stays'];
-    var catEmojis = ['🍽️','🧖','🦁','🍷','🎉','🏄','🎭','🏨'];
-    var catWrap = document.getElementById('adm-cat-uploads');
-    if (catWrap && !catWrap.children.length) {
-      catLabels.forEach(function(lbl, i) {
-        var savedUrl = s['pre_launch_cat_' + i] || '';
-        var div = document.createElement('div');
-        div.style.cssText = 'background:var(--bg);border:1px solid var(--border);border-radius:var(--rs);padding:8px;font-size:.7rem';
-        div.innerHTML = '<div style="font-weight:600;margin-bottom:4px;color:var(--navy)">' + catEmojis[i] + ' ' + lbl + '</div>'
-          + (savedUrl ? '<img src="' + savedUrl + '" style="width:100%;height:44px;object-fit:cover;border-radius:4px;margin-bottom:4px">' : '')
-          + '<input type="file" id="adm-cat-file-' + i + '" accept="image/*" style="width:100%;font-size:.65rem;padding:2px">';
-        catWrap.appendChild(div);
-      });
+    // Box preview gallery toggle
+    var boxesToggle = document.getElementById('adm-prelaunch-boxes-toggle');
+    if (boxesToggle) {
+      boxesToggle.checked = s.pre_launch_show_boxes !== 'false';
+      admUpdatePrelaunchBoxesUI();
     }
-    // Refresh overlay category images
-    catLabels.forEach(function(lbl, i) {
-      var imgEl = document.getElementById('plx-cat-img-' + i);
-      if (imgEl && s['pre_launch_cat_' + i]) imgEl.src = s['pre_launch_cat_' + i];
-    });
     // Waitlist count
     if (wlCount) {
       var wlRes = await db_client.from('waitlist').select('id', { count: 'exact', head: true });
@@ -29057,6 +29052,22 @@ function admUpdatePrelaunchToggleUI() {
   if (label) label.textContent       = on ? 'ON'  : 'OFF';
 }
 
+function admUpdatePrelaunchBoxesUI() {
+  var toggle = document.getElementById('adm-prelaunch-boxes-toggle');
+  var track  = document.getElementById('adm-prelaunch-boxes-track');
+  var thumb  = document.getElementById('adm-prelaunch-boxes-thumb');
+  var label  = document.getElementById('adm-prelaunch-boxes-label');
+  var on     = toggle && toggle.checked;
+  if (track) track.style.background = on ? 'var(--b500)' : 'var(--border)';
+  if (thumb) thumb.style.transform  = on ? 'translateX(18px)' : 'translateX(0)';
+  if (label) label.textContent       = on ? 'ON'  : 'OFF';
+}
+function admTogglePrelaunchBoxes() {
+  var toggle = document.getElementById('adm-prelaunch-boxes-toggle');
+  if (toggle) toggle.checked = !toggle.checked;
+  admUpdatePrelaunchBoxesUI();
+}
+
 function admTogglePrelaunch() {
   var toggle = document.getElementById('adm-prelaunch-toggle');
   if (toggle) toggle.checked = !toggle.checked;
@@ -29075,6 +29086,8 @@ async function admSavePrelaunch() {
       { key: 'pre_launch_mode',    value: toggle && toggle.checked ? 'true' : 'false' },
       { key: 'pre_launch_message', value: msg ? msg.value.trim() : '' },
     ];
+    var boxesToggleEl = document.getElementById('adm-prelaunch-boxes-toggle');
+    rows.push({ key: 'pre_launch_show_boxes', value: boxesToggleEl && boxesToggleEl.checked ? 'true' : 'false' });
     // Upload image if selected
     if (fileEl && fileEl.files && fileEl.files[0]) {
       var file = fileEl.files[0];
@@ -29111,24 +29124,6 @@ async function admSavePrelaunch() {
     // Save logo size
     var lSize = document.getElementById('adm-prelaunch-logo-size');
     if (lSize) rows.push({ key: 'pre_launch_logo_size', value: lSize.value });
-    // Upload category images
-    var catStatusEl2 = document.getElementById('adm-cat-status');
-    for (var ci = 0; ci < 8; ci++) {
-      var catFileEl = document.getElementById('adm-cat-file-' + ci);
-      if (catFileEl && catFileEl.files && catFileEl.files[0]) {
-        var cf = catFileEl.files[0];
-        if (catStatusEl2) catStatusEl2.textContent = 'Uploading image ' + (ci+1) + '/8…';
-        var cn = 'prelaunch_cat_' + ci + '_' + Date.now() + '.' + cf.name.split('.').pop();
-        var cr = await db_client.storage.from('site-assets').upload(cn, cf, { upsert: true, contentType: cf.type });
-        if (!cr.error) {
-          var catPubUrl = db_client.storage.from('site-assets').getPublicUrl(cn).data.publicUrl;
-          rows.push({ key: 'pre_launch_cat_' + ci, value: catPubUrl });
-          var catImgEl = document.getElementById('plx-cat-img-' + ci);
-          if (catImgEl) catImgEl.src = catPubUrl;
-        }
-      }
-    }
-    if (catStatusEl2) catStatusEl2.textContent = '';
     await db_client.from('site_settings').upsert(rows, { onConflict: 'key' });
     if (statusEl) { statusEl.textContent = '✓ Saved'; statusEl.style.color = 'var(--green)'; }
     setTimeout(function(){ if (statusEl) { statusEl.textContent = ''; statusEl.style.color = ''; } }, 3000);
@@ -29413,7 +29408,7 @@ async function checkPrelaunchMode() {
     // Bypass for admin and partner portal URLs only
     var path = window.location.pathname;
     if (path.startsWith('/admin') || path.startsWith('/partner') || path.startsWith('/wow/')) return;
-    var res = await db_client.from('site_settings').select('key,value').in('key',['pre_launch_mode','pre_launch_message','pre_launch_image','pre_launch_logo','pre_launch_logo_size','pre_launch_logo_x','pre_launch_logo_y','pre_launch_cat_0','pre_launch_cat_1','pre_launch_cat_2','pre_launch_cat_3','pre_launch_cat_4','pre_launch_cat_5','pre_launch_cat_6','pre_launch_cat_7']);
+    var res = await db_client.from('site_settings').select('key,value').in('key',['pre_launch_mode','pre_launch_message','pre_launch_image','pre_launch_logo','pre_launch_logo_size','pre_launch_logo_x','pre_launch_logo_y','pre_launch_show_boxes']);
     var s = {};
     (res.data||[]).forEach(function(r){ s[r.key] = r.value; });
     if (s.pre_launch_mode !== 'true') return;
@@ -29448,13 +29443,11 @@ async function checkPrelaunchMode() {
       var bg = document.getElementById('prelaunch-bg');
       if (bg) bg.style.backgroundImage = 'url(' + s.pre_launch_image + ')';
     }
-    // Apply custom category images
-    for (var ci = 0; ci < 8; ci++) {
-      if (s['pre_launch_cat_' + ci]) {
-        var catEl = document.getElementById('plx-cat-img-' + ci);
-        if (catEl) catEl.src = s['pre_launch_cat_' + ci];
-      }
-    }
+    // Show/hide the box preview gallery per the admin toggle (default: shown,
+    // same as the previous always-on behaviour, so nothing changes unless the
+    // admin explicitly switches it off).
+    var boxGridEl = document.getElementById('plx-box-grid');
+    if (boxGridEl) boxGridEl.style.display = (s.pre_launch_show_boxes === 'false') ? 'none' : 'flex';
     // Load real box thumbnails from Supabase (not the static boxDB demo data)
     try {
       var boxImgRes = await db_client.from('boxes').select('id,image_url,description').in('id', ['family-fun','chill-day','couples-retreat','reset']);
