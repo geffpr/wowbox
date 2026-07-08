@@ -18513,9 +18513,15 @@ async function loadAdminDashStats() {
     const monthName = now.toLocaleString('en-ZA', {month:'long'});
     set('adm-dash-period', monthName + ' ' + now.getFullYear() + ' overview');
 
-    // Boxes sold this month — use regular select (HEAD count blocked by RLS on vouchers)
-    const soldR = await db_client.from('vouchers').select('id').not('order_id','is',null).gte('created_at',monthStart);
-    const soldL = await db_client.from('vouchers').select('id').not('order_id','is',null).gte('created_at',lastMonthStart).lt('created_at',monthStart);
+    // Boxes sold this month — use regular select (HEAD count blocked by RLS on vouchers).
+    // NOTE: vouchers has no 'id' column — 'code' is its real identifier. The previous
+    // query asked for 'id', which doesn't exist (a 400 error), and since the result
+    // was never checked for .error, it silently rendered as "0 boxes sold" instead of
+    // surfacing the real problem.
+    const soldR = await db_client.from('vouchers').select('code').not('order_id','is',null).gte('created_at',monthStart);
+    const soldL = await db_client.from('vouchers').select('code').not('order_id','is',null).gte('created_at',lastMonthStart).lt('created_at',monthStart);
+    if (soldR.error) console.warn('Boxes sold (this month) query failed:', soldR.error.message);
+    if (soldL.error) console.warn('Boxes sold (last month) query failed:', soldL.error.message);
     const sold = (soldR.data||[]).length, soldLast = (soldL.data||[]).length;
     set('adm-kpi-boxes-sold', sold.toLocaleString());
     set('adm-kpi-boxes-chg', soldLast > 0 ? (sold >= soldLast ? '↑ +' : '↓ ') + Math.abs(Math.round(((sold-soldLast)/soldLast)*100)) + '% vs last month' : sold + ' this month');
@@ -21583,11 +21589,30 @@ function ppConfirmValidate(bookingId, voucherCode, actualRef, btn) {
 }
 
 // ── Partner QR Code ───────────────────────────────────────────────
-function ppGeneratePartnerQR() {
+async function ppGeneratePartnerQR() {
   var wrap = document.getElementById('pp-partner-qr');
   if (!wrap || wrap.children.length) return;
   var email = appState.partnerEmail || (currentUser && currentUser.email) || '';
-  var url = 'https://wowbox.co.za/redeem?partner=' + encodeURIComponent(email);
+  if (!email) return;
+
+  // The QR only makes sense once the partner's own public page (/wow/slug) is
+  // live — that page already does exactly what this QR promises (direct booking
+  // access). The previous /redeem?partner= URL wasn't handled by any route at
+  // all, so scanning it led nowhere; this fixes that by using the real page.
+  var pageSlug = null, pageStatus = null;
+  try {
+    var pRes = await db_client.from('user_profiles').select('page_slug,page_status').eq('email', email).maybeSingle();
+    if (pRes.data) { pageSlug = pRes.data.page_slug; pageStatus = pRes.data.page_status; }
+  } catch(e) { console.warn('ppGeneratePartnerQR: page lookup failed —', e.message); }
+
+  if (!pageSlug || pageStatus !== 'published') {
+    wrap.innerHTML = '<div style="font-size:.74rem;color:var(--muted);max-width:220px">'
+      + 'Publish your <a href="#" onclick="switchPP(document.getElementById(\'pp-nav-page\'),\'pp-page\');return false;" style="color:var(--b600);font-weight:600">public page</a> first to get your QR code.'
+      + '</div>';
+    return;
+  }
+
+  var url = window.location.origin + '/wow/' + pageSlug;
   var loadQR = function() {
     if (window.QRCode) {
       wrap.innerHTML = '';
