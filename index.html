@@ -3136,10 +3136,10 @@ nav{position:sticky;top:0;z-index:300;background:rgba(255,255,255,.95);
 .hero-carousel-arr.next{right:20px}
 .hero-ov{position:absolute;inset:0;background:linear-gradient(to bottom,rgba(5,15,40,.65)0%,rgba(5,15,40,.4)50%,rgba(5,15,40,.75)100%)}
 .hero-c{position:relative;z-index:1;max-width:760px;padding:0 24px}
-.eyebrow{display:inline-flex;align-items:center;gap:7px;background:rgba(255,255,255,.13);
-  border:1px solid rgba(255,255,255,.28);padding:7px 18px;border-radius:99px;
-  font-size:.73rem;font-weight:600;color:rgba(255,255,255,.9);margin-bottom:26px;
-  backdrop-filter:blur(8px);letter-spacing:.06em;text-transform:uppercase}
+.eyebrow{display:inline-flex;align-items:center;gap:10px;
+  font-size:.73rem;font-weight:500;color:#F0DEC4;margin-bottom:26px;
+  letter-spacing:.15em;text-transform:uppercase}
+.eyebrow::before,.eyebrow::after{content:'';width:24px;height:1px;background:#D4A853}
 .hero h1{font-size:clamp(2.8rem,6vw,4.8rem);color:#fff;margin-bottom:20px;font-weight:700;
   text-shadow:0 2px 20px rgba(0,0,0,.3)}
 .hero p{font-size:1.1rem;color:rgba(255,255,255,.82);margin-bottom:38px;
@@ -4251,7 +4251,7 @@ tr:hover td{background:var(--b50)}
   .hero-actions { flex-direction: column; align-items: center; gap: 10px; }
   .hero-actions .btn { width: 100%; max-width: 300px; justify-content: center; }
   .hero-stats { display: none; }
-  .eyebrow { font-size: .65rem; padding: 6px 14px; }
+  .eyebrow { font-size: .65rem; gap: 7px; }
 
   /* ── Filter bar ── */
   .fbar { padding: 10px 12px; gap: 7px; overflow-x: auto; flex-wrap: nowrap; -webkit-overflow-scrolling: touch; }
@@ -4854,7 +4854,7 @@ tr:hover td{background:var(--b50)}
     <button class="hero-carousel-arr next" id="hero-arr-next" onclick="heroCarouselNext()" style="display:none"><i class="fa fa-chevron-right"></i></button>
     <div class="hero-carousel-nav" id="hero-carousel-dots" style="display:none"></div>
     <div class="hero-c">
-      <div class="eyebrow"><i class="fa fa-star"></i> Premium Gift Experiences</div>
+      <div class="eyebrow">Premium Gift Experiences</div>
       <h1>Offer unforgettable<br>experiences</h1>
       <p>Discover unique gift boxes for every occasion — curated adventures, romantic escapes, culinary journeys and more across South Africa.</p>
       <div class="hero-actions">
@@ -29956,7 +29956,7 @@ async function admRunSchemaDiag() {
       <div id="prelaunch-logo-text-wrap"><div id="prelaunch-logo-text" style="font-family:'Cormorant Garamond',serif;font-size:2rem;font-weight:700;color:#fff;letter-spacing:.05em">WowBox</div></div>
       <div style="font-size:.7rem;color:rgba(255,255,255,.65);letter-spacing:.2em;text-transform:uppercase;margin-top:4px">A Gift Box, Reimagined</div>
     </div>
-    <div id="prelaunch-badge" style="background:rgba(245,158,11,.2);border:1px solid rgba(245,158,11,.5);border-radius:99px;padding:4px 14px;font-size:.7rem;font-weight:700;color:#fcd34d;letter-spacing:.1em;text-transform:uppercase;margin-bottom:1.5vh">Coming Soon</div>
+    <div id="prelaunch-badge" style="display:inline-flex;align-items:center;gap:10px;font-size:.7rem;font-weight:500;color:#F0DEC4;letter-spacing:.15em;text-transform:uppercase;margin-bottom:1.5vh"><span style="width:20px;height:1px;background:#D4A853"></span>Coming Soon<span style="width:20px;height:1px;background:#D4A853"></span></div>
     <h1 id="prelaunch-headline" style="font-family:'Cormorant Garamond',serif;font-size:clamp(1.4rem,2.5vh,2.2rem);font-weight:700;color:#fff;max-width:560px;line-height:1.2;margin-bottom:1vh">You give the gift. They choose the experience.</h1>
     <p id="prelaunch-msg" style="font-size:.82rem;color:rgba(255,255,255,.72);max-width:460px;line-height:1.5;margin-bottom:1.5vh"></p>
 
