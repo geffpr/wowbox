@@ -10008,6 +10008,7 @@ tr:hover td{background:var(--b50)}
           </div>
           <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
             <button class="btn bp bsm" id="adm-gp-import-btn" onclick="admImportGooglePlaces()"><i class="fa fa-cloud-arrow-down"></i> Import from Google Places</button>
+            <button class="btn bg bsm" onclick="admBackfillGooglePlacesCoords()"><i class="fa fa-map-pin"></i> Backfill map coordinates</button>
             <button class="btn bg bsm" style="color:#dc2626;border-color:#dc2626" onclick="admRemoveAllGooglePlaces()"><i class="fa fa-trash"></i> Remove all Google Places previews</button>
           </div>
           <div id="adm-gp-status" style="font-size:.78rem;color:var(--muted);margin-top:10px"></div>
@@ -29195,6 +29196,28 @@ async function admLoadGooglePlacesCount() {
     var res = await db_client.from('experiences').select('id', { count: 'exact', head: true }).eq('source', 'google_places');
     el.textContent = String(res.count || 0);
   } catch(e) { el.textContent = '—'; }
+}
+
+async function admBackfillGooglePlacesCoords() {
+  var statusEl = document.getElementById('adm-gp-status');
+  if (statusEl) statusEl.textContent = 'Fetching missing map coordinates…';
+  try {
+    var sessionRes = await db_client.auth.getSession();
+    var token = sessionRes && sessionRes.data && sessionRes.data.session ? sessionRes.data.session.access_token : null;
+    if (!token) throw new Error('No active session — please refresh and log in again.');
+    var res = await fetch('/api/import-places', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body:    JSON.stringify({ action: 'backfillLatLng' }),
+    });
+    var data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Backfill failed');
+    if (statusEl) statusEl.textContent = '✅ Coordinates updated for ' + data.updatedCount + ' place(s) · ' + data.failedCount + ' failed.';
+    admToast('✅ Map coordinates backfilled: ' + data.updatedCount + ' updated.');
+  } catch(e) {
+    if (statusEl) statusEl.textContent = '';
+    admToast('⚠️ Backfill failed: ' + e.message);
+  }
 }
 
 async function admImportGooglePlaces() {

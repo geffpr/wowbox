@@ -66,7 +66,7 @@ async function searchPlaces(query) {
     headers: {
       'Content-Type':     'application/json',
       'X-Goog-Api-Key':   GOOGLE_PLACES_KEY,
-      'X-Goog-FieldMask': 'places.id,places.displayName,places.formattedAddress,places.rating,places.userRatingCount,places.photos',
+      'X-Goog-FieldMask': 'places.id,places.displayName,places.formattedAddress,places.rating,places.userRatingCount,places.photos,places.location',
     },
     body: JSON.stringify({ textQuery: query, maxResultCount: RESULTS_PER_SEARCH }),
   });
@@ -106,6 +106,20 @@ async function rehostFirstPhoto(photos, placeId) {
   return `${SUPABASE_URL}/storage/v1/object/public/site-assets/${path}`;
 }
 
+// Single-field Place Details lookup — used only for backfilling coordinates on
+// places imported before this field was added to the main search.
+async function fetchPlaceLocation(placeId) {
+  const res = await fetch(`https://places.googleapis.com/v1/places/${placeId}`, {
+    headers: {
+      'X-Goog-Api-Key':   GOOGLE_PLACES_KEY,
+      'X-Goog-FieldMask': 'location',
+    },
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error?.message || `Place Details failed for ${placeId}`);
+  return data.location || null;
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
@@ -114,12 +128,49 @@ export default async function handler(req, res) {
   const isAdmin = await verifyIsAdmin(accessToken).catch(() => false);
   if (!isAdmin) return res.status(401).json({ error: 'Admin session required' });
 
+  if (!GOOGLE_PLACES_KEY) return res.status(500).json({ error: 'GOOGLE_PLACES_API_KEY is not configured' });
+
+  // Backfill mode: fills in lat/lng on previously-imported places that predate
+  // this field being requested — does not touch name, photo, address, or any
+  // other already-saved field, and only ever targets rows missing coordinates.
+  if (req.body && req.body.action === 'backfillLatLng') {
+    const backfillResults = { updated: [], failed: [] };
+    try {
+      const missing = await supabaseFetch(
+        `/experiences?source=eq.google_places&google_place_id=not.is.null&or=(lat.is.null,lng.is.null)&select=id,name,google_place_id`
+      );
+      for (const exp of (missing || [])) {
+        try {
+          const loc = await fetchPlaceLocation(exp.google_place_id);
+          if (!loc) { backfillResults.failed.push({ name: exp.name, error: 'No location returned' }); continue; }
+          const upd = await fetch(`${SUPABASE_URL}/rest/v1/experiences?id=eq.${encodeURIComponent(exp.id)}`, {
+            method: 'PATCH',
+            headers: {
+              apikey:         SUPABASE_KEY,
+              Authorization:  `Bearer ${SUPABASE_KEY}`,
+              'Content-Type': 'application/json',
+              Prefer:         'return=minimal',
+            },
+            body: JSON.stringify({ lat: loc.latitude, lng: loc.longitude }),
+          });
+          if (!upd.ok) { backfillResults.failed.push({ name: exp.name, error: await upd.text() }); continue; }
+          backfillResults.updated.push(exp.name);
+        } catch (bfErr) {
+          backfillResults.failed.push({ name: exp.name, error: bfErr.message });
+        }
+      }
+      return res.status(200).json({ updatedCount: backfillResults.updated.length, failedCount: backfillResults.failed.length, ...backfillResults });
+    } catch (err) {
+      console.error('[import-places] Backfill fatal error:', err.message);
+      return res.status(500).json({ error: err.message, ...backfillResults });
+    }
+  }
+
   const { combos } = req.body || {};
   // combos: [{ city: 'Johannesburg', category: 'Restaurant' }, ...]
   if (!Array.isArray(combos) || !combos.length) {
     return res.status(400).json({ error: 'combos (array of {city, category}) is required' });
   }
-  if (!GOOGLE_PLACES_KEY) return res.status(500).json({ error: 'GOOGLE_PLACES_API_KEY is not configured' });
 
   const results = { imported: [], skipped: [], failed: [] };
 
@@ -157,6 +208,8 @@ export default async function handler(req, res) {
             address:         place.formattedAddress || '',
             description:      ratingLine + `Imported from Google Places — not yet a confirmed WowBox partner.`,
             image_url:       imageUrl,
+            lat:             place.location?.latitude  ?? null,
+            lng:             place.location?.longitude ?? null,
             is_active:       true,
             source:          'google_places',
             is_purchasable:  false,
