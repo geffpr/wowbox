@@ -9962,6 +9962,39 @@ tr:hover td{background:var(--b50)}
           </div>
         </div>
 
+        <!-- Google Places Preview Experiences -->
+        <div class="atbl" style="padding:20px;margin-bottom:22px;border:2px solid #4285F4">
+          <div style="margin-bottom:14px">
+            <h3 style="font-size:.95rem;color:var(--navy);margin-bottom:3px"><i class="fa fa-map-location-dot" style="color:#4285F4"></i> Google Places Preview Experiences</h3>
+            <p style="font-size:.75rem;color:var(--muted);margin:0">Fills the site with real, attractive local places (not yet WowBox partners) — shown but not purchasable, with a "notify me" form instead. Currently: <strong id="adm-gp-count">—</strong> preview experiences.</p>
+          </div>
+          <div style="margin-bottom:12px">
+            <label style="font-size:.72rem;color:var(--muted);display:block;margin-bottom:6px">Cities</label>
+            <div style="display:flex;gap:16px;flex-wrap:wrap">
+              <label style="display:flex;align-items:center;gap:6px;font-size:.8rem;cursor:pointer"><input type="checkbox" class="adm-gp-city" value="Johannesburg" checked> Johannesburg</label>
+              <label style="display:flex;align-items:center;gap:6px;font-size:.8rem;cursor:pointer"><input type="checkbox" class="adm-gp-city" value="Cape Town" checked> Cape Town</label>
+            </div>
+          </div>
+          <div style="margin-bottom:14px">
+            <label style="font-size:.72rem;color:var(--muted);display:block;margin-bottom:6px">Categories</label>
+            <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px">
+              <label style="display:flex;align-items:center;gap:6px;font-size:.8rem;cursor:pointer"><input type="checkbox" class="adm-gp-cat" value="Restaurant" checked> Restaurant</label>
+              <label style="display:flex;align-items:center;gap:6px;font-size:.8rem;cursor:pointer"><input type="checkbox" class="adm-gp-cat" value="Spa" checked> Spa</label>
+              <label style="display:flex;align-items:center;gap:6px;font-size:.8rem;cursor:pointer"><input type="checkbox" class="adm-gp-cat" value="Hotel" checked> Hotel</label>
+              <label style="display:flex;align-items:center;gap:6px;font-size:.8rem;cursor:pointer"><input type="checkbox" class="adm-gp-cat" value="Lodge" checked> Lodge</label>
+              <label style="display:flex;align-items:center;gap:6px;font-size:.8rem;cursor:pointer"><input type="checkbox" class="adm-gp-cat" value="Game reserve" checked> Game reserve</label>
+              <label style="display:flex;align-items:center;gap:6px;font-size:.8rem;cursor:pointer"><input type="checkbox" class="adm-gp-cat" value="Outdoor activity" checked> Outdoor</label>
+              <label style="display:flex;align-items:center;gap:6px;font-size:.8rem;cursor:pointer"><input type="checkbox" class="adm-gp-cat" value="Cultural attraction" checked> Culture</label>
+              <label style="display:flex;align-items:center;gap:6px;font-size:.8rem;cursor:pointer"><input type="checkbox" class="adm-gp-cat" value="Pottery studio" checked> Pottery</label>
+            </div>
+          </div>
+          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+            <button class="btn bp bsm" id="adm-gp-import-btn" onclick="admImportGooglePlaces()"><i class="fa fa-cloud-arrow-down"></i> Import from Google Places</button>
+            <button class="btn bg bsm" style="color:#dc2626;border-color:#dc2626" onclick="admRemoveAllGooglePlaces()"><i class="fa fa-trash"></i> Remove all Google Places previews</button>
+          </div>
+          <div id="adm-gp-status" style="font-size:.78rem;color:var(--muted);margin-top:10px"></div>
+        </div>
+
         <!-- Hero Carousel Images -->
         <div class="atbl" style="padding:20px;margin-bottom:22px">
           <h3 style="font-size:.95rem;color:var(--navy);margin-bottom:6px"><i class="fa fa-images" style="color:var(--b600)"></i> Hero Carousel (up to 4 images)</h3>
@@ -18438,7 +18471,7 @@ function switchAdm(btn, tab) {
   if (tab === 'adm-usage')         { renderUsageTable(); loadUsageFromSupabase(); }
   if (tab === 'adm-comm')          { loadAdminCommissionPayouts(); loadCommissionRates(); admLoadFeaturedBoosts(); }
   if (tab === 'adm-addons')        admLoadAddons();
-  if (tab === 'adm-settings')      { admLoadSiteSettings(); loadPrelaunchSettings(); }
+  if (tab === 'adm-settings')      { admLoadSiteSettings(); loadPrelaunchSettings(); admLoadGooglePlacesCount(); }
   if (tab === 'adm-pricing')       renderAdmPricing();
   if (tab === 'adm-reviews')       admLoadReviews();
   if (tab === 'adm-coupons')       loadCoupons();
@@ -29039,6 +29072,63 @@ async function admLoadPaystackSettings() {
     var tk = document.getElementById('adm-paystack-test-key'); if (tk) tk.value = s.paystack_test_key || '';
     var lk = document.getElementById('adm-paystack-live-key'); if (lk) lk.value = s.paystack_live_key || '';
   } catch(err) { console.warn('admLoadPaystackSettings:', err.message); }
+}
+
+async function admLoadGooglePlacesCount() {
+  var el = document.getElementById('adm-gp-count');
+  if (!el) return;
+  try {
+    var res = await db_client.from('experiences').select('id', { count: 'exact', head: true }).eq('source', 'google_places');
+    el.textContent = String(res.count || 0);
+  } catch(e) { el.textContent = '—'; }
+}
+
+async function admImportGooglePlaces() {
+  var btn      = document.getElementById('adm-gp-import-btn');
+  var statusEl = document.getElementById('adm-gp-status');
+  var cities   = Array.prototype.slice.call(document.querySelectorAll('.adm-gp-city:checked')).map(function(el){ return el.value; });
+  var cats     = Array.prototype.slice.call(document.querySelectorAll('.adm-gp-cat:checked')).map(function(el){ return el.value; });
+  if (!cities.length || !cats.length) { admToast('Select at least one city and one category.'); return; }
+
+  var combos = [];
+  cities.forEach(function(city){ cats.forEach(function(cat){ combos.push({ city: city, category: cat }); }); });
+
+  if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Importing…'; }
+  if (statusEl) statusEl.textContent = 'Searching Google Places for ' + combos.length + ' city/category combinations — this can take a minute…';
+  try {
+    var sessionRes = await db_client.auth.getSession();
+    var token = sessionRes && sessionRes.data && sessionRes.data.session ? sessionRes.data.session.access_token : null;
+    if (!token) throw new Error('No active session — please refresh and log in again.');
+    var res = await fetch('/api/import-places', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body:    JSON.stringify({ combos: combos }),
+    });
+    var data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Import failed');
+    if (statusEl) statusEl.textContent = '✅ Imported ' + data.importedCount + ' new · skipped ' + data.skippedCount + ' already-imported · ' + data.failedCount + ' failed.';
+    admToast('✅ Google Places import complete: ' + data.importedCount + ' new experiences added.');
+    admLoadGooglePlacesCount();
+  } catch(e) {
+    if (statusEl) statusEl.textContent = '';
+    admToast('⚠️ Import failed: ' + e.message);
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa fa-cloud-arrow-down"></i> Import from Google Places'; }
+  }
+}
+
+async function admRemoveAllGooglePlaces() {
+  if (!confirm('Remove ALL Google Places preview experiences? This cannot be undone.')) return;
+  var statusEl = document.getElementById('adm-gp-status');
+  try {
+    var res = await db_client.from('experiences').delete().eq('source', 'google_places');
+    if (res.error) throw res.error;
+    admToast('✅ Google Places previews removed.');
+    if (statusEl) statusEl.textContent = '';
+    admLoadGooglePlacesCount();
+  } catch(e) {
+    admToast('⚠️ Failed to remove: ' + e.message);
+  }
 }
 
 function admUpdatePrelaunchToggleUI() {
