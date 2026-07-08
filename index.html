@@ -11074,13 +11074,14 @@ function getBrowseFiltered() {
   });
 
   if (sortV === 'mix') {
-    // Fisher-Yates shuffle — a fresh random order each render, so real WowBox
-    // experiences and Google Places previews mix together unpredictably
-    // instead of ratings always pushing one group to the top.
-    for (let i = items.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [items[i], items[j]] = [items[j], items[i]];
-    }
+    // 3 groups, in this order: featured/boosted real experiences first (they
+    // paid for that placement), then Google Places previews, then everyone else
+    // — each shuffled internally so it's not the same order every visit within a group.
+    const shuffle = (arr) => { for (let i = arr.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [arr[i], arr[j]] = [arr[j], arr[i]]; } return arr; };
+    const tierFeatured = items.filter(e => appState.boostedExpIds.has(e.id));
+    const tierGoogle   = items.filter(e => !appState.boostedExpIds.has(e.id) && e.source === 'google_places');
+    const tierRest     = items.filter(e => !appState.boostedExpIds.has(e.id) && e.source !== 'google_places');
+    items = shuffle(tierFeatured).concat(shuffle(tierGoogle), shuffle(tierRest));
   }
   if (sortV === 'rating')  items = items.sort((a,b) => b.rating - a.rating);
   if (sortV === 'az')      items = items.sort((a,b) => a.name.localeCompare(b.name));
@@ -11157,12 +11158,12 @@ function renderBrowse() {
   document.getElementById('browse-box-meta').textContent = b.cnt + ' experiences included' + browseExpiryStr;
 
   const items = getBrowseFiltered();
-  // Sort boosted experiences first
-  const sortedItems = [...items].sort((a, b) => {
-    const aB = appState.boostedExpIds.has(a.id) ? 1 : 0;
-    const bB = appState.boostedExpIds.has(b.id) ? 1 : 0;
-    return bB - aB;
-  });
+  // Sort: boosted/featured experiences first (paid placement), then Google
+  // Places previews, then everyone else — a stable sort, so it preserves the
+  // shuffle already applied per group inside getBrowseFiltered() rather than
+  // fighting it.
+  const rankOf = (e) => appState.boostedExpIds.has(e.id) ? 2 : (e.source === 'google_places' ? 1 : 0);
+  const sortedItems = [...items].sort((a, b) => rankOf(b) - rankOf(a));
   const total = sortedItems.length;
   const page  = appState.browsePage;
   const pp    = appState.browsePerPage;
@@ -12598,6 +12599,8 @@ async function loadExpFromSupabase() {
         insolite:         e.insolite         || false,
         certification:    e.certification    || '',
         ical_url:         e.ical_url         || '',
+        source:           e.source           || 'partner',
+        is_purchasable:   e.is_purchasable !== false,
         _fromSupabase: true,
       });
     });
