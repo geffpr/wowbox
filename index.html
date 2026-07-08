@@ -4937,6 +4937,7 @@ tr:hover td{background:var(--b50)}
         <option value="1">🔥 Featured only</option>
       </select>
       <select class="wbx-sel" id="wbx-sort" onchange="wbExploreApply()">
+        <option value="mix" selected>Featured mix</option>
         <option value="rating">Top rated</option>
         <option value="name">Name (A–Z)</option>
       </select>
@@ -12094,7 +12095,7 @@ function wbExploreGetFiltered() {
   var style= document.getElementById('wbx-style')?.value || '';
   var amen = document.getElementById('wbx-amenity')?.value || '';
   var feat = document.getElementById('wbx-featured')?.value || '';
-  var sort = document.getElementById('wbx-sort')?.value || 'rating';
+  var sort = document.getElementById('wbx-sort')?.value || 'mix';
 
   var items = (expDB || []).filter(function(e){
     if (!e || !e.id) return false;
@@ -12122,19 +12123,20 @@ function wbExploreGetFiltered() {
     return qMatch && tMatch && pMatch && cMatch && sMatch && dMatch && stMatch && amMatch && ftMatch;
   });
 
-  if (sort === 'name') items.sort(function(a,b){ return (a.name||'').localeCompare(b.name||''); });
+  if (sort === 'mix') {
+    for (var mi = items.length - 1; mi > 0; mi--) { var mj = Math.floor(Math.random() * (mi + 1)); var mt = items[mi]; items[mi] = items[mj]; items[mj] = mt; }
+  }
+  else if (sort === 'name') items.sort(function(a,b){ return (a.name||'').localeCompare(b.name||''); });
   else items.sort(function(a,b){ return (b.rating||0) - (a.rating||0); });
 
   // Featured (boosted) experiences always float to the top of the filtered
-  // results, regardless of the chosen sort. Order among featured keeps the sort.
+  // results, regardless of the chosen sort, then Google Places previews right
+  // after them. Order within each group otherwise keeps the sort above.
   var boosted = appState.boostedExpIds;
-  if (boosted && boosted.size) {
-    items.sort(function(a,b){
-      var af = boosted.has(a.id) ? 1 : 0;
-      var bf = boosted.has(b.id) ? 1 : 0;
-      return bf - af; // stable: featured first, rest keep prior order
-    });
-  }
+  items.sort(function(a,b){
+    var rankOf = function(e){ return (boosted && boosted.has(e.id)) ? 2 : (e.source === 'google_places' ? 1 : 0); };
+    return rankOf(b) - rankOf(a); // stable: featured first, then Google, then rest
+  });
   return items;
 }
 
