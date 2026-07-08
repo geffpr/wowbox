@@ -9969,6 +9969,43 @@ tr:hover td{background:var(--b50)}
           </div>
         </div>
 
+        <!-- Partner Recruitment Banner -->
+        <div class="atbl" style="padding:20px;margin-bottom:22px;border:2px solid #b5622f">
+          <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:14px">
+            <div>
+              <h3 style="font-size:.95rem;color:var(--navy);margin-bottom:3px"><i class="fa fa-bullhorn" style="color:#b5622f"></i> Partner Recruitment Banner</h3>
+              <p style="font-size:.75rem;color:var(--muted);margin:0">A dismissible strip above the top nav on every public page, inviting visitors to list their experience.</p>
+            </div>
+            <label style="display:flex;align-items:center;gap:10px;cursor:pointer;flex-shrink:0">
+              <span style="font-size:.82rem;font-weight:600;color:var(--navy)" id="adm-pbanner-label">OFF</span>
+              <div style="position:relative;width:44px;height:24px" onclick="admTogglePartnerBanner()">
+                <input type="checkbox" id="adm-pbanner-toggle" style="opacity:0;width:0;height:0;position:absolute">
+                <div id="adm-pbanner-track" style="position:absolute;inset:0;border-radius:99px;background:var(--border);transition:background .2s;cursor:pointer"></div>
+                <div id="adm-pbanner-thumb" style="position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:#fff;transition:transform .2s;box-shadow:0 1px 4px rgba(0,0,0,.2)"></div>
+              </div>
+            </label>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+            <div>
+              <label style="font-size:.72rem;color:var(--muted);display:block;margin-bottom:5px">Title</label>
+              <input type="text" id="adm-pbanner-title" class="fi" style="width:100%" placeholder="Have an experience worth sharing?">
+            </div>
+            <div>
+              <label style="font-size:.72rem;color:var(--muted);display:block;margin-bottom:5px">Subtitle</label>
+              <input type="text" id="adm-pbanner-subtitle" class="fi" style="width:100%" placeholder="Restaurants, spas, tours, adventures and more — we're inviting founding partners to WowBox, no upfront fees.">
+            </div>
+            <div>
+              <label style="font-size:.72rem;color:var(--muted);display:block;margin-bottom:5px">Photo</label>
+              <input type="file" id="adm-pbanner-file" accept="image/*" class="fi" style="width:100%;padding:8px">
+              <img id="adm-pbanner-preview" style="display:none;margin-top:8px;width:100%;max-width:180px;height:70px;object-fit:cover;border-radius:6px">
+            </div>
+          </div>
+          <div style="margin-top:14px;display:flex;align-items:center;gap:10px">
+            <button class="btn bp bsm" onclick="admSavePartnerBanner()"><i class="fa fa-floppy-disk"></i> Save banner</button>
+            <span id="adm-pbanner-status" style="font-size:.75rem;color:var(--muted)"></span>
+          </div>
+        </div>
+
         <!-- Purchases Disabled -->
         <div class="atbl" style="padding:20px;margin-bottom:22px;border:2px solid #16a34a">
           <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
@@ -17864,6 +17901,49 @@ function admPrintCode(code, boxName) {
   setTimeout(() => window.print(), 350);
 }
 
+/* ── Partner recruitment banner — shown above the nav on public pages only,
+   dismissible, remembered per-browser via localStorage. Inserted in normal
+   document flow (not fixed/absolute) so it simply scrolls away like any other
+   element; the nav's own position:sticky then takes over naturally. ── */
+async function wbCheckPartnerBanner() {
+  try {
+    var path = window.location.pathname;
+    if (path.startsWith('/admin') || path.startsWith('/partner') || path.startsWith('/wow/')) return;
+    if (localStorage.getItem('wb_partner_banner_dismissed') === '1') return;
+    var res = await db_client.from('site_settings').select('key,value').in('key',['partner_banner_enabled','partner_banner_title','partner_banner_subtitle','partner_banner_image']);
+    var s = {};
+    (res.data || []).forEach(function(r){ s[r.key] = r.value; });
+    if (s.partner_banner_enabled !== 'true') return;
+    var nav = document.getElementById('site-nav');
+    if (!nav || document.getElementById('wb-partner-banner')) return;
+
+    var title    = s.partner_banner_title    || 'Have an experience worth sharing?';
+    var subtitle = s.partner_banner_subtitle || "Restaurants, spas, tours, adventures and more — we're inviting founding partners to WowBox, no upfront fees.";
+    var image    = s.partner_banner_image    || '';
+
+    var banner = document.createElement('div');
+    banner.id = 'wb-partner-banner';
+    banner.style.cssText = 'background:#fdf6ee;display:flex;align-items:stretch;min-height:80px';
+    banner.innerHTML =
+      (image ? '<div style="width:100px;flex-shrink:0;background-image:url(\'' + image + '\');background-size:cover;background-position:center"></div>' : '')
+      + '<div style="flex:1;display:flex;align-items:center;justify-content:space-between;gap:14px;padding:12px 18px;border-top:1px dashed #d9c4a3;border-bottom:1px dashed #d9c4a3;flex-wrap:wrap">'
+      + '<div style="min-width:200px">'
+      + '<p style="font-family:\'Cormorant Garamond\',serif;font-size:15px;color:#2c1a0e;margin:0 0 2px;font-weight:600">' + title + '</p>'
+      + '<p style="font-size:12.5px;color:#6b5745;margin:0">' + subtitle + '</p>'
+      + '</div>'
+      + '<div style="display:flex;align-items:center;gap:14px;flex-shrink:0">'
+      + '<button type="button" onclick="go(\'partner-landing\')" style="background:#b5622f;color:#fdf6ee;border:none;padding:8px 16px;font-size:12.5px;font-weight:600;cursor:pointer;border-radius:4px;white-space:nowrap">List your experience</button>'
+      + '<button type="button" aria-label="Dismiss" onclick="wbDismissPartnerBanner()" style="background:none;border:none;color:#6b5745;font-size:16px;cursor:pointer;padding:0 4px">\u2715</button>'
+      + '</div></div>';
+    nav.parentNode.insertBefore(banner, nav);
+  } catch(e) { console.warn('wbCheckPartnerBanner:', e.message); }
+}
+function wbDismissPartnerBanner() {
+  localStorage.setItem('wb_partner_banner_dismissed', '1');
+  var banner = document.getElementById('wb-partner-banner');
+  if (banner) banner.remove();
+}
+
 /* ── Shown instead of checkout while purchases are disabled — same dynamic
    modal pattern used elsewhere in this file (e.g. the QR code modal below). ── */
 function wbShowNotifyMeModal() {
@@ -18585,7 +18665,7 @@ function switchAdm(btn, tab) {
   if (tab === 'adm-usage')         { renderUsageTable(); loadUsageFromSupabase(); }
   if (tab === 'adm-comm')          { loadAdminCommissionPayouts(); loadCommissionRates(); admLoadFeaturedBoosts(); }
   if (tab === 'adm-addons')        admLoadAddons();
-  if (tab === 'adm-settings')      { admLoadSiteSettings(); loadPrelaunchSettings(); admLoadGooglePlacesCount(); admLoadPurchasesDisabled(); }
+  if (tab === 'adm-settings')      { admLoadSiteSettings(); loadPrelaunchSettings(); admLoadGooglePlacesCount(); admLoadPurchasesDisabled(); admLoadPartnerBanner(); }
   if (tab === 'adm-pricing')       renderAdmPricing();
   if (tab === 'adm-reviews')       admLoadReviews();
   if (tab === 'adm-coupons')       loadCoupons();
@@ -27309,6 +27389,7 @@ async function loadSiteSettingsOnStartup() {
   try {
     // Check pre-launch mode first
     await checkPrelaunchMode();
+    wbCheckPartnerBanner();
     loadPaystackMode();
     var res = await db_client.from('site_settings').select('key,value');
     if (res.error || !res.data) return;
@@ -29252,6 +29333,79 @@ async function admTogglePurchasesDisabled() {
   } catch(e) {
     toggle.checked = !goingOn;
     admUpdatePurchasesToggleUI();
+    admToast('⚠️ Failed to save: ' + e.message);
+  }
+}
+
+async function admLoadPartnerBanner() {
+  try {
+    var res = await db_client.from('site_settings').select('key,value').in('key',['partner_banner_enabled','partner_banner_title','partner_banner_subtitle','partner_banner_image']);
+    var s = {};
+    (res.data || []).forEach(function(r){ s[r.key] = r.value; });
+    var toggle = document.getElementById('adm-pbanner-toggle');
+    if (toggle) toggle.checked = s.partner_banner_enabled === 'true';
+    admUpdatePartnerBannerToggleUI();
+    var titleEl = document.getElementById('adm-pbanner-title');
+    if (titleEl) titleEl.value = s.partner_banner_title || '';
+    var subEl = document.getElementById('adm-pbanner-subtitle');
+    if (subEl) subEl.value = s.partner_banner_subtitle || '';
+    var previewEl = document.getElementById('adm-pbanner-preview');
+    if (previewEl && s.partner_banner_image) { previewEl.src = s.partner_banner_image; previewEl.style.display = 'block'; }
+  } catch(e) { console.warn('admLoadPartnerBanner:', e.message); }
+}
+function admUpdatePartnerBannerToggleUI() {
+  var toggle = document.getElementById('adm-pbanner-toggle');
+  var track  = document.getElementById('adm-pbanner-track');
+  var thumb  = document.getElementById('adm-pbanner-thumb');
+  var label  = document.getElementById('adm-pbanner-label');
+  var on     = toggle && toggle.checked;
+  if (track) track.style.background = on ? '#b5622f' : 'var(--border)';
+  if (thumb) thumb.style.transform  = on ? 'translateX(20px)' : 'translateX(0)';
+  if (label) label.textContent       = on ? 'ON' : 'OFF';
+}
+async function admTogglePartnerBanner() {
+  var toggle = document.getElementById('adm-pbanner-toggle');
+  if (!toggle) return;
+  var goingOn = !toggle.checked;
+  toggle.checked = goingOn;
+  admUpdatePartnerBannerToggleUI();
+  try {
+    var upd = await db_client.from('site_settings').upsert({ key: 'partner_banner_enabled', value: goingOn ? 'true' : 'false' }, { onConflict: 'key' });
+    if (upd.error) throw upd.error;
+    admToast(goingOn ? '✅ Partner banner enabled.' : '✅ Partner banner disabled.');
+  } catch(e) {
+    toggle.checked = !goingOn;
+    admUpdatePartnerBannerToggleUI();
+    admToast('⚠️ Failed to save: ' + e.message);
+  }
+}
+async function admSavePartnerBanner() {
+  var statusEl = document.getElementById('adm-pbanner-status');
+  if (statusEl) statusEl.textContent = 'Saving…';
+  try {
+    var titleEl = document.getElementById('adm-pbanner-title');
+    var subEl   = document.getElementById('adm-pbanner-subtitle');
+    var rows = [
+      { key: 'partner_banner_title',    value: titleEl ? titleEl.value.trim() : '' },
+      { key: 'partner_banner_subtitle', value: subEl   ? subEl.value.trim()   : '' },
+    ];
+    var fileEl = document.getElementById('adm-pbanner-file');
+    if (fileEl && fileEl.files && fileEl.files[0]) {
+      var file = fileEl.files[0];
+      var fname = 'partner_banner_' + Date.now() + '.' + file.name.split('.').pop();
+      var upRes = await db_client.storage.from('site-assets').upload(fname, file, { upsert: true, contentType: file.type });
+      if (upRes.error) throw upRes.error;
+      var { data: urlData } = db_client.storage.from('site-assets').getPublicUrl(fname);
+      rows.push({ key: 'partner_banner_image', value: urlData.publicUrl });
+      var previewEl = document.getElementById('adm-pbanner-preview');
+      if (previewEl) { previewEl.src = urlData.publicUrl; previewEl.style.display = 'block'; }
+    }
+    var res = await db_client.from('site_settings').upsert(rows, { onConflict: 'key' });
+    if (res.error) throw res.error;
+    if (statusEl) statusEl.textContent = '✅ Saved.';
+    admToast('✅ Partner banner saved.');
+  } catch(e) {
+    if (statusEl) statusEl.textContent = '';
     admToast('⚠️ Failed to save: ' + e.message);
   }
 }
