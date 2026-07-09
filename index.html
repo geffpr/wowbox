@@ -10074,6 +10074,10 @@ tr:hover td{background:var(--b50)}
             <input type="file" id="adm-hero-mobile-file" accept="image/*" class="fi" style="flex:1;min-width:200px;padding:8px">
             <img id="adm-hero-mobile-preview" style="display:none;width:80px;height:120px;object-fit:cover;border-radius:6px">
           </div>
+          <div style="margin-top:14px">
+            <label style="font-size:.72rem;color:var(--muted);display:block;margin-bottom:5px">Vertical position <span id="adm-hero-mobile-pos-val">50%</span> <span style="font-weight:400">(0% = top, 100% = bottom)</span></label>
+            <input type="range" id="adm-hero-mobile-position" min="0" max="100" value="50" style="width:100%" oninput="document.getElementById('adm-hero-mobile-pos-val').textContent=this.value+'%'">
+          </div>
           <div style="margin-top:14px;display:flex;align-items:center;gap:10px">
             <button class="btn bp bsm" onclick="admSaveMobileHeroImage()"><i class="fa fa-floppy-disk"></i> Save mobile image</button>
             <button class="btn bg bsm" style="color:#dc2626;border-color:#dc2626" onclick="admRemoveMobileHeroImage()"><i class="fa fa-trash"></i> Remove</button>
@@ -27419,10 +27423,15 @@ async function loadSiteSettingsOnStartup() {
     if (!heroUrls.length) heroUrls.push('https://images.unsplash.com/photo-1571896349842-33c89424de2d?q=80&w=1920&auto=format&fit=crop');
     // On phone-sized screens, a dedicated single mobile photo takes over from the
     // desktop carousel if one has been uploaded — otherwise nothing changes here.
-    if (window.innerWidth <= 768 && settings.hero_image_mobile) {
+    var usingMobileHero = window.innerWidth <= 768 && !!settings.hero_image_mobile;
+    if (usingMobileHero) {
       heroUrls = [settings.hero_image_mobile];
     }
     initHeroCarousel(heroUrls);
+    if (usingMobileHero) {
+      var mobileSlide = document.querySelector('.hero-slide');
+      if (mobileSlide) mobileSlide.style.backgroundPosition = 'center ' + (settings.hero_image_mobile_position || '50') + '%';
+    }
     loadActiveBadgeCoupons();
     /* SEO meta tags */
     if (settings.seo_title) {
@@ -29980,21 +29989,29 @@ async function checkPrelaunchMode() {
 async function admSaveMobileHeroImage() {
   var statusEl = document.getElementById('adm-hero-mobile-status');
   var fileEl = document.getElementById('adm-hero-mobile-file');
-  if (!fileEl || !fileEl.files || !fileEl.files[0]) {
-    if (statusEl) statusEl.textContent = 'Choose a file first.';
-    return;
-  }
-  if (statusEl) statusEl.textContent = 'Uploading…';
+  var posEl = document.getElementById('adm-hero-mobile-position');
+  var hasFile = fileEl && fileEl.files && fileEl.files[0];
+  if (statusEl) statusEl.textContent = hasFile ? 'Uploading…' : 'Saving…';
   try {
-    var file = fileEl.files[0];
-    var fname = 'hero_mobile_' + Date.now() + '.' + file.name.split('.').pop();
-    var upRes = await db_client.storage.from('site-assets').upload(fname, file, { upsert: true, contentType: file.type });
-    if (upRes.error) throw upRes.error;
-    var { data: urlData } = db_client.storage.from('site-assets').getPublicUrl(fname);
-    var res = await db_client.from('site_settings').upsert({ key: 'hero_image_mobile', value: urlData.publicUrl }, { onConflict: 'key' });
+    var rows = [{ key: 'hero_image_mobile_position', value: posEl ? posEl.value : '50' }];
+    if (hasFile) {
+      var file = fileEl.files[0];
+      var fname = 'hero_mobile_' + Date.now() + '.' + file.name.split('.').pop();
+      var upRes = await db_client.storage.from('site-assets').upload(fname, file, { upsert: true, contentType: file.type });
+      if (upRes.error) throw upRes.error;
+      var { data: urlData } = db_client.storage.from('site-assets').getPublicUrl(fname);
+      rows.push({ key: 'hero_image_mobile', value: urlData.publicUrl });
+      var previewEl = document.getElementById('adm-hero-mobile-preview');
+      if (previewEl) { previewEl.src = urlData.publicUrl; previewEl.style.display = 'block'; }
+    } else {
+      var existing = await db_client.from('site_settings').select('value').eq('key','hero_image_mobile').maybeSingle();
+      if (!existing.data || !existing.data.value) {
+        if (statusEl) statusEl.textContent = 'Choose a file first (no image saved yet).';
+        return;
+      }
+    }
+    var res = await db_client.from('site_settings').upsert(rows, { onConflict: 'key' });
     if (res.error) throw res.error;
-    var previewEl = document.getElementById('adm-hero-mobile-preview');
-    if (previewEl) { previewEl.src = urlData.publicUrl; previewEl.style.display = 'block'; }
     if (statusEl) statusEl.textContent = '✅ Saved.';
     admToast('✅ Mobile hero image saved.');
   } catch(e) {
@@ -30005,12 +30022,16 @@ async function admSaveMobileHeroImage() {
 async function admRemoveMobileHeroImage() {
   var statusEl = document.getElementById('adm-hero-mobile-status');
   try {
-    var res = await db_client.from('site_settings').delete().eq('key', 'hero_image_mobile');
+    var res = await db_client.from('site_settings').delete().in('key', ['hero_image_mobile','hero_image_mobile_position']);
     if (res.error) throw res.error;
     var previewEl = document.getElementById('adm-hero-mobile-preview');
     if (previewEl) { previewEl.src = ''; previewEl.style.display = 'none'; }
     var fileEl = document.getElementById('adm-hero-mobile-file');
     if (fileEl) fileEl.value = '';
+    var posEl = document.getElementById('adm-hero-mobile-position');
+    var posVal = document.getElementById('adm-hero-mobile-pos-val');
+    if (posEl) posEl.value = '50';
+    if (posVal) posVal.textContent = '50%';
     if (statusEl) statusEl.textContent = '';
     admToast('✅ Mobile hero image removed — desktop image will be used on mobile again.');
   } catch(e) {
@@ -30038,6 +30059,12 @@ async function admLoadSiteSettings() {
     if (ogEl    && s.og_image_url)    ogEl.value    = s.og_image_url;
     var mobileHeroPreview = document.getElementById('adm-hero-mobile-preview');
     if (mobileHeroPreview && s.hero_image_mobile) { mobileHeroPreview.src = s.hero_image_mobile; mobileHeroPreview.style.display = 'block'; }
+    var mobileHeroPosEl = document.getElementById('adm-hero-mobile-position');
+    var mobileHeroPosVal = document.getElementById('adm-hero-mobile-pos-val');
+    if (mobileHeroPosEl) {
+      mobileHeroPosEl.value = s.hero_image_mobile_position || '50';
+      if (mobileHeroPosVal) mobileHeroPosVal.textContent = mobileHeroPosEl.value + '%';
+    }
     var slotsWrap = document.getElementById('adm-hero-slots');
     if (slotsWrap) {
       slotsWrap.innerHTML = [1,2,3,4].map(function(n) {
