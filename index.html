@@ -13533,7 +13533,7 @@ function loadExp(expId) {
         + '<div style="padding:10px">'
         + '<div style="font-size:.8rem;font-weight:700;color:var(--navy);margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+bx.name+'</div>'
         + '<div style="font-size:.72rem;color:var(--muted);margin-bottom:6px">'+ratingHtml+(bx.cnt||'?')+' experiences</div>'
-        + '<div style="font-size:.9rem;font-weight:700;color:var(--navy)">R'+(bx.price||0).toLocaleString()+'</div>'
+        + '<div style="font-size:.9rem;font-weight:700;color:var(--navy)">'+(window._wbPurchasesDisabled ? 'Coming soon' : 'R'+(bx.price||0).toLocaleString())+'</div>'
         + '</div></div>';
     }).join('');
 
