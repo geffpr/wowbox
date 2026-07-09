@@ -6107,6 +6107,13 @@ tr:hover td{background:var(--b50)}
         <label>Full name *</label>
         <input class="fi" id="auth-name" type="text" placeholder="Your name" onkeydown="if(event.key==='Enter')authSubmit()">
       </div>
+      <div class="fg" style="text-align:left;margin-bottom:8px">
+        <label>Password *</label>
+        <div style="position:relative">
+          <input class="fi" id="auth-password" type="password" placeholder="••••••••" onkeydown="if(event.key==='Enter')authSubmit()" style="padding-right:40px">
+          <button type="button" onclick="authTogglePw('auth-password',this)" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--muted);font-size:.9rem;padding:0"><i class="fa fa-eye"></i></button>
+        </div>
+      </div>
       <div class="fg" id="auth-confirm-pw-field" style="text-align:left;margin-bottom:8px;display:none">
         <label>Confirm password *</label>
         <div style="position:relative">
@@ -6119,13 +6126,6 @@ tr:hover td{background:var(--b50)}
           <input type="checkbox" id="auth-cgu" style="margin-top:2px;cursor:pointer;accent-color:var(--b600)">
           I agree to the <a href="/terms" style="color:var(--b600);text-decoration:underline" target="_blank">Terms of Use</a> and <a href="/privacy" style="color:var(--b600);text-decoration:underline" target="_blank">Privacy Policy</a>
         </label>
-      </div>
-      <div class="fg" style="text-align:left;margin-bottom:8px">
-        <label>Password *</label>
-        <div style="position:relative">
-          <input class="fi" id="auth-password" type="password" placeholder="••••••••" onkeydown="if(event.key==='Enter')authSubmit()" style="padding-right:40px">
-          <button type="button" onclick="authTogglePw('auth-password',this)" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--muted);font-size:.9rem;padding:0"><i class="fa fa-eye"></i></button>
-        </div>
       </div>
       <div id="auth-forgot" style="text-align:right;margin-bottom:18px">
         <span style="font-size:.73rem;color:var(--b600);cursor:pointer;font-weight:500" onclick="showForgotPasswordModal()">Forgot password?</span>
@@ -28008,6 +28008,9 @@ async function admPromoteToCreator(userId) {
     }).eq('id', userId).select('id');
     if (upd.error) { admToast('Failed: ' + upd.error.message); return; }
     if (!upd.data || !upd.data.length) { admToast('Update affected 0 rows — check RLS or user id.'); return; }
+    var localU = _admUsersData.find(function(x){ return x.id === userId; });
+    if (localU) localU.role = 'creator';
+    admRenderUsersTable();
     admToast('✅ Promoted to Creator.');
     admOpenUserDetail(userId);
   } catch(err) { admToast('Error: ' + err.message); }
@@ -28023,6 +28026,9 @@ async function admPromoteToPartner(userId, currentName) {
     }).eq('id', userId).select('id');
     if (upd.error) { admToast('Failed: ' + upd.error.message); return; }
     if (!upd.data || !upd.data.length) { admToast('Update affected 0 rows — check RLS or user id.'); return; }
+    var localU2 = _admUsersData.find(function(x){ return x.id === userId; });
+    if (localU2) { localU2.role = 'partner'; localU2.partner_name = partnerName.trim(); }
+    admRenderUsersTable();
     admToast('✅ Promoted to Partner: ' + partnerName);
     admOpenUserDetail(userId);
   } catch(err) { admToast('Error: ' + err.message); }
@@ -28033,6 +28039,9 @@ async function admRevertToCustomer(userId) {
   try {
     var upd = await db_client.from('user_profiles').update({ role: 'customer' }).eq('id', userId).select('id');
     if (upd.error) { admToast('Failed: ' + upd.error.message); return; }
+    var localU3 = _admUsersData.find(function(x){ return x.id === userId; });
+    if (localU3) localU3.role = 'customer';
+    admRenderUsersTable();
     admToast('Reverted to Customer.');
     admOpenUserDetail(userId);
   } catch(err) { admToast('Error: ' + err.message); }
