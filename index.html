@@ -11436,7 +11436,7 @@ async function renderBoxGrids() {
         <div class="bcard-desc">${b.description.substring(0,90)}…</div>
         ${renderCouponBadgeHTML(b.id)}
         <div class="bcard-foot" style="margin-top:8px">
-          <div class="price-disp"><small>From</small>R${b.price.toLocaleString()}</div>
+          <div class="price-disp">${window._wbPurchasesDisabled ? '<small>&nbsp;</small>Coming soon' : '<small>From</small>R' + b.price.toLocaleString()}</div>
           <button class="btn bp bsm" onclick="event.stopPropagation();loadProduct('${b.id}');go('product')">View box</button>
         </div>
       </div>
@@ -11673,7 +11673,7 @@ function loadProduct(boxId) {
 
   document.getElementById('prod-bc').textContent = b.name;
   document.getElementById('prod-title-r').textContent = b.name;
-  document.getElementById('prod-price-r').textContent = 'R' + b.price.toLocaleString();
+  document.getElementById('prod-price-r').textContent = window._wbPurchasesDisabled ? 'Coming soon' : 'R' + b.price.toLocaleString();
   var _pbEl = document.getElementById('prod-coupon-badge');
   if (_pbEl) _pbEl.innerHTML = renderCouponBadgeHTML(boxId);
   document.getElementById('prod-desc').textContent = b.desc;
@@ -11693,7 +11693,7 @@ function loadProduct(boxId) {
   }
   appState.priceBase = b.price;
   document.getElementById('qty-v').textContent = '1';
-  document.getElementById('qty-total').textContent = 'R' + b.price.toLocaleString();
+  document.getElementById('qty-total').textContent = window._wbPurchasesDisabled ? 'Coming soon' : 'R' + b.price.toLocaleString();
 
   const imgs = (b.images && b.images.length) ? b.images : (b.img ? [b.img] : []);
   window._galleryImgs = imgs; // store for swipe handler
@@ -13539,7 +13539,7 @@ function loadExp(expId) {
 
     // Keep legacy IDs populated for buy panel
     if (b) {
-      document.getElementById('exp-buy-price').textContent  = 'R' + b.price.toLocaleString();
+      document.getElementById('exp-buy-price').textContent  = window._wbPurchasesDisabled ? 'Coming soon' : 'R' + b.price.toLocaleString();
       document.getElementById('exp-info-count').textContent = b.cnt;
     }
   })();
