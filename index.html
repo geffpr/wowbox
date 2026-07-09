@@ -10712,7 +10712,7 @@ const PAGE_HASH = {
   home:'/',allboxes:'/boxes',product:'/box',expdetail:'/experience',
   reviews:'/reviews',cart:'/cart',checkout:'/checkout',voucher:'/confirmation',
   login:'/login',dashboard:'/my-account',activation:'/activate',
-  'partner-landing':'/partners',partner:'/partner',admin:'/admin',browse:'/browse',roulette:'/surprise',
+  'partner-landing':'/partners',partner:'/partner',creator:'/creator',admin:'/admin',browse:'/browse',roulette:'/surprise',
   'partner-storefront':'/wow',
   'reset-password':'/reset-password',
   giftvideo:'/gift-video',
@@ -11899,8 +11899,12 @@ function loadProduct(boxId) {
     // a creator previewing their own not-yet-published box). Fetch it directly,
     // cache it, then retry — the normal cached path below is completely unaffected.
     db_client.from('boxes').select('*').eq('id', boxId).maybeSingle().then(function(res){
-      if (res.data) {
-        var raw = res.data;
+      var raw = res.data;
+      // A Draft/Archived box is only viewable by an admin or its own creator —
+      // never by a regular visitor, even with the direct link. Regular Active
+      // boxes never reach this fallback at all (they're already in boxDB).
+      var isOwnerOrAdmin = !!(raw && currentUser && (currentUser.role === 'admin' || (currentUser.role === 'creator' && currentUser.email === raw.creator_email)));
+      if (raw && isOwnerOrAdmin) {
         boxDB[boxId] = {
           name: raw.name, price: raw.price, db: raw.database_name, cnt: raw.experience_count || 0,
           img: raw.image_url, images: raw.images, video_url: raw.video_url,
@@ -28095,6 +28099,9 @@ window.addEventListener('DOMContentLoaded', async () => {
         if (currentUser && (currentUser.role === 'partner' || currentUser.role === 'admin')) { go('partner'); }
         else if (currentUser && currentUser.role === 'pending_partner') { go('partner'); }
         else { go('login'); setNL('nl-login'); }
+      } else if (currentPath === '/creator') {
+        if (currentUser && (currentUser.role === 'creator' || currentUser.role === 'admin')) { go('creator'); setNL('nl-creator'); }
+        else { go('login'); setNL('nl-login'); }
       } else if (currentPath === '/' || currentPath === '') {
         // If a WB code was saved before a Google OAuth redirect, the auth callback
         // (authOnSignedIn) is already handling navigation to Redeem→Browse on its
@@ -28112,7 +28119,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   } catch(e) { console.warn('Session check:', e.message); }
 
   // Not logged in — route public pages
-  var protectedPages = ['/my-account', '/admin', '/partner'];
+  var protectedPages = ['/my-account', '/admin', '/partner', '/creator'];
   if (currentPath.startsWith('/gift-video/')) {
     var token = currentPath.replace('/gift-video/', '').replace(/\/+$/, '');
     go('giftvideo'); loadGiftVideoPage(token);
