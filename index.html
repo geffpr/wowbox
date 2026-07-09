@@ -9066,6 +9066,20 @@ tr:hover td{background:var(--b50)}
           </table>
         </div>
 
+        <!-- Per-creator overrides -->
+        <div class="atbl" style="margin-bottom:20px">
+          <div class="atbl-hdr">
+            <h3>🎨 Creator-level overrides</h3>
+            <button class="btn bp bsm" onclick="admAddCreatorComm()"><i class="fa fa-plus"></i> Add override</button>
+          </div>
+          <table>
+            <thead><tr><th>Creator</th><th>Platform rate</th><th>Creator rate</th><th>Applied since</th><th>Note</th><th></th></tr></thead>
+            <tbody id="comm-creator-tbody">
+              <tr><td colspan="6" style="text-align:center;padding:16px;color:var(--muted)">No creator overrides yet.</td></tr>
+            </tbody>
+          </table>
+        </div>
+
         <!-- Per-experience overrides -->
         <div class="atbl" style="margin-bottom:20px">
           <div class="atbl-hdr">
@@ -21310,6 +21324,9 @@ async function loadCommissionRates() {
     var expTbody=document.getElementById('comm-exp-tbody');
     var expRows=rows.filter(function(r){return r.rate_type==='experience';});
     if(expTbody){ expTbody.innerHTML=expRows.length?expRows.map(function(r){var pr=100-Number(r.platform_rate);return '<tr data-comm-id="'+r.id+'"><td><strong>'+(r.target_label||r.target_id)+'</strong></td><td style="font-size:.78rem;color:var(--muted)">'+(r.partner_email||'\u2014')+'</td><td><input type="number" value="'+Number(r.platform_rate)+'" min="1" max="99" class="fi" style="width:58px;padding:6px;text-align:center;font-size:.82rem" onchange="admUpdateExpComm(this)"> %</td><td style="color:var(--green);font-weight:600">'+pr+'%</td><td style="color:var(--muted);font-size:.75rem">'+(r.note||'')+'</td><td><button class="btn bg bsm" style="color:var(--red)" onclick="admDeleteCommRate(\''+r.id+'\',this)"><i class="fa fa-trash"></i></button></td></tr>';}).join(''):'<tr><td colspan="6" style="text-align:center;padding:16px;color:var(--muted)">No experience overrides yet.</td></tr>'; }
+    var creatorTbody=document.getElementById('comm-creator-tbody');
+    var creatorRows=rows.filter(function(r){return r.rate_type==='creator';});
+    if(creatorTbody){ creatorTbody.innerHTML=creatorRows.length?creatorRows.map(function(r){var pr=100-Number(r.platform_rate);var dt=r.created_at?new Date(r.created_at).toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'}):'\u2014';return '<tr data-comm-id="'+r.id+'"><td><strong>'+(r.target_label||r.target_id)+'</strong><div style="font-size:.7rem;color:var(--muted)">'+r.target_id+'</div></td><td><input type="number" value="'+Number(r.platform_rate)+'" min="1" max="99" class="fi" style="width:58px;padding:6px;text-align:center;font-size:.82rem" onchange="admUpdateCreatorComm(this)"> %</td><td style="color:var(--green);font-weight:600">'+pr+'%</td><td>'+dt+'</td><td style="color:var(--muted);font-size:.75rem">'+(r.note||'')+'</td><td><button class="btn bg bsm" style="color:var(--red)" onclick="admDeleteCommRate(\''+r.id+'\',this)"><i class="fa fa-trash"></i></button></td></tr>';}).join(''):'<tr><td colspan="6" style="text-align:center;padding:16px;color:var(--muted)">No creator overrides yet.</td></tr>'; }
   } catch(e){ console.warn('loadCommissionRates:',e.message); }
 }
 
@@ -21335,6 +21352,35 @@ function admUpdatePartnerComm(inp){var row=inp.closest('tr');var td=row.cells[2]
 function admUpdateExpComm(inp){var row=inp.closest('tr');var td=row.cells[3];td.textContent=(100-(parseInt(inp.value)||0))+'%';td.style.color='var(--green)';td.style.fontWeight='600';var id=row.dataset.commId;if(id)db_client.from('commission_rates').update({platform_rate:parseInt(inp.value)}).eq('id',id).then(function(r){if(!r.error)admToast('Rate updated.');});}
 
 async function admDeleteCommRate(id,btn){if(!confirm('Delete this override?'))return;try{var res=await db_client.from('commission_rates').delete().eq('id',id);if(res.error)throw res.error;btn.closest('tr').remove();admToast('Override deleted.');}catch(e){admToast('Error: '+e.message);}}
+
+async function admAddCreatorComm() {
+  document.getElementById('comm-creator-modal')?.remove();
+  var boxesRes = await db_client.from('boxes').select('creator_name,creator_email').not('creator_email','is',null);
+  var seen = {};
+  var opts = (boxesRes.data || []).filter(function(b){
+    if (!b.creator_email || seen[b.creator_email]) return false;
+    seen[b.creator_email] = true; return true;
+  }).map(function(b){ return '<option value="'+b.creator_email+'" data-label="'+(b.creator_name||b.creator_email)+'">'+(b.creator_name||b.creator_email)+'</option>'; }).join('');
+  var modal=document.createElement('div');modal.id='comm-creator-modal';modal.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';modal.onclick=function(e){if(e.target===modal)modal.remove();};
+  modal.innerHTML='<div style="background:#fff;border-radius:16px;padding:28px;max-width:420px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.25)"><h3 style="font-size:1rem;color:var(--navy);margin-bottom:18px">Add creator override</h3><div class="fg" style="margin-bottom:12px"><label style="font-size:.72rem;color:var(--muted)">Creator</label><select class="fi" id="cc-modal-creator" style="width:100%"><option value="">— Select creator —</option>'+opts+'</select></div><div class="fg" style="margin-bottom:12px"><label style="font-size:.72rem;color:var(--muted)">Platform rate %</label><input type="number" class="fi" id="cc-modal-rate" value="35" min="1" max="99" style="width:100%"></div><div class="fg" style="margin-bottom:18px"><label style="font-size:.72rem;color:var(--muted)">Note (optional)</label><input type="text" class="fi" id="cc-modal-note" placeholder="e.g. Negotiated rate"></div><div style="display:flex;gap:10px"><button class="btn bp" style="flex:1" onclick="admSaveCreatorCommModal()"><i class="fa fa-check"></i> Save</button><button class="btn bg" style="flex:1" onclick="document.getElementById(\'comm-creator-modal\').remove()">Cancel</button></div></div>';
+  document.body.appendChild(modal);
+}
+async function admSaveCreatorCommModal() {
+  var sel = document.getElementById('cc-modal-creator');
+  var email = sel ? sel.value : '';
+  var label = sel && sel.selectedOptions[0] ? sel.selectedOptions[0].dataset.label : email;
+  var rate = parseInt(document.getElementById('cc-modal-rate')?.value || '35');
+  var note = document.getElementById('cc-modal-note')?.value?.trim() || '';
+  if (!email) { admToast('Please select a creator.'); return; }
+  try {
+    var res = await db_client.from('commission_rates').upsert({rate_type:'creator', target_id:email, target_label:label, platform_rate:rate, note:note}, {onConflict:'rate_type,target_id'});
+    if (res.error) throw res.error;
+    document.getElementById('comm-creator-modal')?.remove();
+    admToast('✅ Creator override saved.');
+    loadCommissionRates();
+  } catch(e) { admToast('Error: '+e.message); }
+}
+function admUpdateCreatorComm(inp){var row=inp.closest('tr');var td=row.cells[2];td.textContent=(100-(parseInt(inp.value)||0))+'%';td.style.color='var(--green)';td.style.fontWeight='600';var id=row.dataset.commId;if(id)db_client.from('commission_rates').update({platform_rate:parseInt(inp.value)}).eq('id',id).then(function(r){if(!r.error)admToast('Rate updated.');});}
 
 async function admAddPartnerComm() {
   document.getElementById('comm-partner-modal')?.remove();
