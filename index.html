@@ -11848,6 +11848,9 @@ function wbRenderCreatorBlock(b) {
   var mosaicHTML = mosaicImgs.map(function(url){
     return '<div style="width:90px;height:90px;flex-shrink:0;border-radius:6px;background-image:url(\'' + url + '\');background-size:cover;background-position:center"></div>';
   }).join('');
+  if (postLinks.length) {
+    mosaicHTML += '<a href="' + postLinks[0] + '" target="_blank" rel="noopener" style="width:90px;height:90px;flex-shrink:0;border-radius:6px;background:#2c1a0e;display:flex;align-items:center;justify-content:center;text-decoration:none"><span style="color:#F0DEC4;font-size:.68rem;font-weight:600;text-align:center;padding:4px">' + (postLinks.length > 1 ? 'View posts' : 'View post') + '</span></a>';
+  }
 
   wrap.innerHTML = '<div style="background:#fdf6ee;padding:1.5rem;border-radius:12px">'
     + '<div style="display:flex;align-items:center;gap:16px;margin-bottom:16px;flex-wrap:wrap">'
@@ -11863,47 +11866,8 @@ function wbRenderCreatorBlock(b) {
     + '<div><p style="font-family:Georgia,serif;font-size:1.05rem;color:#2c1a0e;margin:0;font-weight:600">' + (b.sold || 0) + '</p><p style="font-size:.68rem;color:#6b5745;margin:0">gifts given</p></div>'
     + '<div><p style="font-family:Georgia,serif;font-size:1.05rem;color:#2c1a0e;margin:0;font-weight:600">' + ratingDisplay + '</p><p style="font-size:.68rem;color:#6b5745;margin:0">rating</p></div>'
     + '</div>'
-    + (mosaicImgs.length ? '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:' + (postLinks.length ? '16px' : '0') + '">' + mosaicHTML + '</div>' : '')
-    + (postLinks.length ? '<div id="prod-creator-post-embed"><div style="text-align:center;padding:20px;color:#6b5745;font-size:.78rem"><i class="fa fa-spinner fa-spin"></i> Loading post…</div></div>' : '')
+    + (mosaicImgs.length ? '<div style="display:flex;gap:6px;flex-wrap:wrap">' + mosaicHTML + '</div>' : '')
     + '</div>';
-
-  if (postLinks.length) wbLoadCreatorPostEmbed(postLinks[0]);
-}
-
-/* ── Loads a real embed for the creator's featured post — TikTok via their
-   public oEmbed API (no credentials needed), Instagram/other via a clean
-   branded link card (Instagram's oEmbed requires app credentials we don't
-   have, so a working, good-looking card is used instead of a broken embed). ── */
-async function wbLoadCreatorPostEmbed(url) {
-  var el = document.getElementById('prod-creator-post-embed');
-  if (!el) return;
-  try {
-    if (/tiktok\.com/i.test(url)) {
-      var res = await fetch('https://www.tiktok.com/oembed?url=' + encodeURIComponent(url));
-      if (!res.ok) throw new Error('oEmbed request failed');
-      var data = await res.json();
-      if (!data.html) throw new Error('No embed HTML returned');
-      el.innerHTML = '<div style="display:flex;justify-content:center">' + data.html + '</div>';
-      if (!window._wbTiktokEmbedLoaded) {
-        var s = document.createElement('script');
-        s.src = 'https://www.tiktok.com/embed.js';
-        s.async = true;
-        document.body.appendChild(s);
-        window._wbTiktokEmbedLoaded = true;
-      } else if (window.tiktokEmbed && window.tiktokEmbed.lib && window.tiktokEmbed.lib.render) {
-        window.tiktokEmbed.lib.render();
-      }
-      return;
-    }
-    throw new Error('Unsupported platform for direct embed');
-  } catch(e) {
-    // Reliable fallback: a proper branded card instead of a broken/blank embed.
-    var isInsta = /instagram\.com/i.test(url);
-    el.innerHTML = '<a href="' + url + '" target="_blank" rel="noopener" style="display:flex;align-items:center;gap:12px;background:' + (isInsta ? 'linear-gradient(135deg,#f58529,#dd2a7b,#8134af)' : '#000') + ';border-radius:10px;padding:14px 18px;text-decoration:none">'
-      + '<i class="fa-brands ' + (isInsta ? 'fa-instagram' : 'fa-tiktok') + '" style="color:#fff;font-size:1.6rem"></i>'
-      + '<div><div style="color:#fff;font-weight:600;font-size:.85rem">' + (isInsta ? 'View on Instagram' : 'View post') + '</div><div style="color:rgba(255,255,255,.75);font-size:.72rem">Opens in a new tab</div></div>'
-      + '</a>';
-  }
 }
 
 function loadProduct(boxId) {
