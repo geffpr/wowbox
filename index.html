@@ -11846,7 +11846,7 @@ function wbRenderCreatorBlock(b) {
   var postLinks = [b.creator_post_url_1, b.creator_post_url_2, b.creator_post_url_3].filter(Boolean);
 
   var mosaicHTML = mosaicImgs.map(function(url){
-    return '<div style="aspect-ratio:1;border-radius:6px;background-image:url(\'' + url + '\');background-size:cover;background-position:center"></div>';
+    return '<div style="width:90px;height:90px;flex-shrink:0;border-radius:6px;background-image:url(\'' + url + '\');background-size:cover;background-position:center"></div>';
   }).join('');
 
   wrap.innerHTML = '<div style="background:#fdf6ee;padding:1.5rem;border-radius:12px">'
@@ -11863,7 +11863,7 @@ function wbRenderCreatorBlock(b) {
     + '<div><p style="font-family:Georgia,serif;font-size:1.05rem;color:#2c1a0e;margin:0;font-weight:600">' + (b.sold || 0) + '</p><p style="font-size:.68rem;color:#6b5745;margin:0">gifts given</p></div>'
     + '<div><p style="font-family:Georgia,serif;font-size:1.05rem;color:#2c1a0e;margin:0;font-weight:600">' + ratingDisplay + '</p><p style="font-size:.68rem;color:#6b5745;margin:0">rating</p></div>'
     + '</div>'
-    + (mosaicImgs.length ? '<div style="display:grid;grid-template-columns:repeat(' + mosaicImgs.length + ',1fr);gap:6px;margin-bottom:' + (postLinks.length ? '16px' : '0') + '">' + mosaicHTML + '</div>' : '')
+    + (mosaicImgs.length ? '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:' + (postLinks.length ? '16px' : '0') + '">' + mosaicHTML + '</div>' : '')
     + (postLinks.length ? '<div id="prod-creator-post-embed"><div style="text-align:center;padding:20px;color:#6b5745;font-size:.78rem"><i class="fa fa-spinner fa-spin"></i> Loading post…</div></div>' : '')
     + '</div>';
 
