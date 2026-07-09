@@ -19206,6 +19206,8 @@ async function admShowBoxForm(boxId) {
     document.getElementById('abf-price').value = b.price;
     document.getElementById('abf-desc').value  = b.desc || '';
     document.getElementById('abf-featured').checked = b.featured || false;
+    var statusSel = document.getElementById('abf-status');
+    if (statusSel) statusSel.value = (b.is_active === false) ? 'Draft' : 'Active';
     const imgs4 = (b.images && b.images.length) ? b.images : (b.img ? [b.img] : []);
     abfLoadImgSlots(imgs4);
     var vUrlEl = document.getElementById('abf-video-url');
@@ -19245,6 +19247,8 @@ async function admShowBoxForm(boxId) {
     document.getElementById('abf-price').value = '';
     document.getElementById('abf-desc').value  = '';
     document.getElementById('abf-featured').checked = false;
+    var statusSel2 = document.getElementById('abf-status');
+    if (statusSel2) statusSel2.value = 'Active';
     abfResetImgSlots();
     var vUrlEl2 = document.getElementById('abf-video-url');
     var vSlotEl2 = document.getElementById('abf-video-slot');
@@ -19735,6 +19739,8 @@ async function admSaveBox() {
   const price    = parseInt(document.getElementById('abf-price')?.value || '0');
   const desc     = document.getElementById('abf-desc')?.value?.trim() || '';
   const featured = document.getElementById('abf-featured')?.checked || false;
+  const statusVal = document.getElementById('abf-status')?.value || 'Active';
+  const isActive = statusVal === 'Active';
 
   if (!name || !price) { admToast('Please fill in box name and price.'); return; }
 
@@ -19777,7 +19783,7 @@ async function admSaveBox() {
     name,
     price,
     description:   desc,
-    is_active:     true,
+    is_active:     isActive,
     is_featured:   featured,
     images:        allImgs,
     ...(mainImg ? { image_url: mainImg } : {}),
