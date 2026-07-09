@@ -28000,6 +28000,19 @@ function admRenderUsersTable() {
 
 // Admin bypass: directly promote an existing customer account to partner,
 // skipping the self-service signup form entirely.
+async function admPromoteToCreator(userId) {
+  if (!confirm('Promote this account to Creator? They will be able to access the Creator dashboard once it is built.')) return;
+  try {
+    var upd = await db_client.from('user_profiles').update({
+      role: 'creator', status: 'active',
+    }).eq('id', userId).select('id');
+    if (upd.error) { admToast('Failed: ' + upd.error.message); return; }
+    if (!upd.data || !upd.data.length) { admToast('Update affected 0 rows — check RLS or user id.'); return; }
+    admToast('✅ Promoted to Creator.');
+    admOpenUserDetail(userId);
+  } catch(err) { admToast('Error: ' + err.message); }
+}
+
 async function admPromoteToPartner(userId, currentName) {
   var partnerName = prompt('Business / Partner name for this account:', currentName || '');
   if (partnerName === null) return; // cancelled
@@ -28051,6 +28064,7 @@ function admOpenUserDetail(userId) {
   const roleBadge = r => {
     if (r === 'admin')   return '<span class="sbadge" style="background:#ede9fe;color:#7c3aed">Admin</span>';
     if (r === 'partner') return '<span class="sbadge sb-p">Partner</span>';
+    if (r === 'creator') return '<span class="sbadge" style="background:#fef3c7;color:#92400e">Creator</span>';
     return '<span class="sbadge" style="background:var(--b50);color:var(--b700)">Customer</span>';
   };
 
@@ -28109,10 +28123,13 @@ function admOpenUserDetail(userId) {
       ${infoRow('Phone', u.phone)}
       ${infoRow('Joined', joined)}
       ${u.role === 'customer' || u.role === 'pending_partner'
-        ? `<button class="btn bp bsm" style="margin-top:10px" onclick="admPromoteToPartner('${u.id}','${(u.full_name||'').replace(/'/g,"\\'")}')"><i class="fa fa-store"></i> Promote to Partner</button>`
+        ? `<button class="btn bp bsm" style="margin-top:10px" onclick="admPromoteToPartner('${u.id}','${(u.full_name||'').replace(/'/g,"\\'")}')"><i class="fa fa-store"></i> Promote to Partner</button>
+           <button class="btn bg bsm" style="margin-top:10px;margin-left:8px" onclick="admPromoteToCreator('${u.id}')"><i class="fa fa-palette"></i> Promote to Creator</button>`
         : u.role === 'partner'
           ? `<button class="btn bg bsm" style="margin-top:10px" onclick="admRevertToCustomer('${u.id}')"><i class="fa fa-rotate-left"></i> Revert to Customer</button>`
-          : ''}
+          : u.role === 'creator'
+            ? `<button class="btn bg bsm" style="margin-top:10px" onclick="admRevertToCustomer('${u.id}')"><i class="fa fa-rotate-left"></i> Revert to Customer</button>`
+            : ''}
     </div>
 
     <div style="margin-bottom:18px">
