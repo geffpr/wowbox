@@ -9073,7 +9073,7 @@ tr:hover td{background:var(--b50)}
             <button class="btn bp bsm" onclick="admAddCreatorComm()"><i class="fa fa-plus"></i> Add override</button>
           </div>
           <table>
-            <thead><tr><th>Creator</th><th>Platform rate</th><th>Creator rate</th><th>Applied since</th><th>Note</th><th></th></tr></thead>
+            <thead><tr><th>Creator</th><th>Creator's share % <span style="font-weight:400;color:var(--muted)">(of box price)</span></th><th>Platform keeps</th><th>Applied since</th><th>Note</th><th></th></tr></thead>
             <tbody id="comm-creator-tbody">
               <tr><td colspan="6" style="text-align:center;padding:16px;color:var(--muted)">No creator overrides yet.</td></tr>
             </tbody>
@@ -17930,6 +17930,7 @@ async function validateVoucher() {
         transaction_ref:   txRef,
       });
     } catch(insErr) { console.warn('commission_entries insert failed:', insErr.message); }
+    wbCreateCreatorCommission(Object.assign({}, bk, { booking_reference: raw, validated_at: usedAt }));
 
     resEl.innerHTML = renderValidationResult('success', {
       boxName:       bk.box_name || '—',
@@ -21362,7 +21363,7 @@ async function admAddCreatorComm() {
     seen[b.creator_email] = true; return true;
   }).map(function(b){ return '<option value="'+b.creator_email+'" data-label="'+(b.creator_name||b.creator_email)+'">'+(b.creator_name||b.creator_email)+'</option>'; }).join('');
   var modal=document.createElement('div');modal.id='comm-creator-modal';modal.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';modal.onclick=function(e){if(e.target===modal)modal.remove();};
-  modal.innerHTML='<div style="background:#fff;border-radius:16px;padding:28px;max-width:420px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.25)"><h3 style="font-size:1rem;color:var(--navy);margin-bottom:18px">Add creator override</h3><div class="fg" style="margin-bottom:12px"><label style="font-size:.72rem;color:var(--muted)">Creator</label><select class="fi" id="cc-modal-creator" style="width:100%"><option value="">— Select creator —</option>'+opts+'</select></div><div class="fg" style="margin-bottom:12px"><label style="font-size:.72rem;color:var(--muted)">Platform rate %</label><input type="number" class="fi" id="cc-modal-rate" value="35" min="1" max="99" style="width:100%"></div><div class="fg" style="margin-bottom:18px"><label style="font-size:.72rem;color:var(--muted)">Note (optional)</label><input type="text" class="fi" id="cc-modal-note" placeholder="e.g. Negotiated rate"></div><div style="display:flex;gap:10px"><button class="btn bp" style="flex:1" onclick="admSaveCreatorCommModal()"><i class="fa fa-check"></i> Save</button><button class="btn bg" style="flex:1" onclick="document.getElementById(\'comm-creator-modal\').remove()">Cancel</button></div></div>';
+  modal.innerHTML='<div style="background:#fff;border-radius:16px;padding:28px;max-width:420px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.25)"><h3 style="font-size:1rem;color:var(--navy);margin-bottom:18px">Add creator override</h3><div class="fg" style="margin-bottom:12px"><label style="font-size:.72rem;color:var(--muted)">Creator</label><select class="fi" id="cc-modal-creator" style="width:100%"><option value="">— Select creator —</option>'+opts+'</select></div><div class="fg" style="margin-bottom:12px"><label style="font-size:.72rem;color:var(--muted)">Creator\'s share % <span style="font-weight:400">(what THIS creator receives directly, of the box price — not what the platform keeps)</span></label><input type="number" class="fi" id="cc-modal-rate" value="10" min="1" max="99" style="width:100%"></div><div class="fg" style="margin-bottom:18px"><label style="font-size:.72rem;color:var(--muted)">Note (optional)</label><input type="text" class="fi" id="cc-modal-note" placeholder="e.g. Negotiated rate"></div><div style="display:flex;gap:10px"><button class="btn bp" style="flex:1" onclick="admSaveCreatorCommModal()"><i class="fa fa-check"></i> Save</button><button class="btn bg" style="flex:1" onclick="document.getElementById(\'comm-creator-modal\').remove()">Cancel</button></div></div>';
   document.body.appendChild(modal);
 }
 async function admSaveCreatorCommModal() {
@@ -27037,8 +27038,62 @@ async function wbCreateCommissionForBooking(bk, opts) {
       transaction_ref:   txRef,
     });
     console.log('wbCreateCommission: created for', bk.booking_reference, '→ payout', partnerPayout);
+    wbCreateCreatorCommission(bk);
   } catch(e) {
     console.warn('wbCreateCommissionForBooking failed:', e.message);
+  }
+}
+
+/* ── Creator commission — a SEPARATE entry (flow:'creator') from the regular
+   partner commission above. Only fires when the booking's WB code belongs to
+   a box with a creator_email set; does nothing for regular boxes. Wrapped in
+   its own try/catch so a failure here can never affect the partner payout
+   that was just created. The stored rate is the creator's DIRECT share of
+   the box price (not "platform keeps", unlike the partner/experience rates
+   above) — confirmed explicitly to avoid an inverted payout. ── */
+async function wbCreateCreatorCommission(bk) {
+  try {
+    if (!bk || !bk.booking_reference || !bk.voucher_code) return;
+    var existingC = await db_client.from('commission_entries')
+      .select('id').eq('booking_reference', bk.booking_reference).eq('flow','creator').limit(1);
+    if (existingC.data && existingC.data.length) return;
+
+    var vRes = await db_client.from('vouchers').select('box_id').eq('code', bk.voucher_code).maybeSingle();
+    if (!vRes.data || !vRes.data.box_id) return;
+
+    var boxRes = await db_client.from('boxes').select('creator_email,creator_name,price').eq('id', vRes.data.box_id).maybeSingle();
+    if (!boxRes.data || !boxRes.data.creator_email) return; // not a creator box — nothing to do
+
+    var creatorEmail = boxRes.data.creator_email;
+    var creatorName  = boxRes.data.creator_name || creatorEmail;
+    var boxPrice     = Number(boxRes.data.price) || Number(bk.box_price) || 0;
+
+    // Rate lookup: creator-specific override, else a conservative 10% default
+    // until an admin sets a real negotiated rate for this creator.
+    var creatorShare = 10;
+    var rC = await db_client.from('commission_rates').select('platform_rate').eq('rate_type','creator').eq('target_id', creatorEmail).maybeSingle();
+    if (rC.data) creatorShare = Number(rC.data.platform_rate);
+
+    var creatorAmount = parseFloat((boxPrice * creatorShare / 100).toFixed(2));
+    var txRef = 'TXN-' + Date.now().toString(36).toUpperCase() + '-' + Math.random().toString(36).substring(2,6).toUpperCase();
+
+    await db_client.from('commission_entries').insert({
+      booking_reference: bk.booking_reference,
+      partner_email:     creatorEmail,
+      partner_name:      creatorName,
+      experience_name:   bk.experience_name || '',
+      box_price:         boxPrice,
+      platform_rate:     creatorShare,
+      platform_amount:   parseFloat((boxPrice - creatorAmount).toFixed(2)),
+      partner_payout:    creatorAmount,
+      payout_status:     'pending',
+      validated_at:      bk.validated_at || new Date().toISOString(),
+      transaction_ref:   txRef,
+      flow:              'creator',
+    });
+    console.log('wbCreateCreatorCommission: created for', bk.booking_reference, '→', creatorAmount, 'to', creatorEmail);
+  } catch(e) {
+    console.warn('wbCreateCreatorCommission failed:', e.message);
   }
 }
 
