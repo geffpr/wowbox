@@ -1435,12 +1435,16 @@ async function authSignOut() {
   // Hide role-specific nav buttons
   var nlPart = document.getElementById('nl-part');
   var nlAdm  = document.getElementById('nl-adm');
+  var nlCreator = document.getElementById('nl-creator');
   var mobPart = document.getElementById('mob-nl-part');
   var mobAdm  = document.getElementById('mob-nl-adm');
+  var mobCreator = document.getElementById('mob-nl-creator');
   if (nlPart)  nlPart.style.display  = 'none';
   if (nlAdm)   nlAdm.style.display   = 'none';
+  if (nlCreator) nlCreator.style.display = 'none';
   if (mobPart) mobPart.style.display = 'none';
   if (mobAdm)  mobAdm.style.display  = 'none';
+  if (mobCreator) mobCreator.style.display = 'none';
   go('home');
   setNL('nl-home');
   // ── Mobile sidebar cleanup ──
@@ -1496,8 +1500,10 @@ async function authOnSignedIn(user, navigate) {
   // Show nav buttons based on role
   var nlPart   = document.getElementById('nl-part');
   var nlAdm    = document.getElementById('nl-adm');
+  var nlCreator = document.getElementById('nl-creator');
   var mobPart  = document.getElementById('mob-nl-part');
   var mobAdm   = document.getElementById('mob-nl-adm');
+  var mobCreator = document.getElementById('mob-nl-creator');
   if (role === 'admin') {
     if (nlAdm)   nlAdm.style.display   = 'inline-flex';
     if (mobAdm)  mobAdm.style.display  = 'flex';
@@ -1514,6 +1520,9 @@ async function authOnSignedIn(user, navigate) {
         });
       }
     }).catch(function(e){ console.warn('pre_launch_mode nav check:', e.message); });
+  } else if (role === 'creator') {
+    if (nlCreator)  nlCreator.style.display  = 'inline-flex';
+    if (mobCreator) mobCreator.style.display = 'flex';
   } else {
     // Regular customer account: if pre-launch mode is active, the overlay must
     // stay enforced — re-show it in case it was temporarily hidden via the
@@ -1594,6 +1603,7 @@ async function authOnSignedIn(user, navigate) {
   if (navigate) {
     if (role === 'admin')        { go('admin'); }
     else if (role === 'partner') { go('partner'); setNL('nl-part'); }
+    else if (role === 'creator') { go('creator'); setNL('nl-creator'); }
     else                          { go('dashboard'); setNL('nl-dash'); }
   }
   // ── Mobile sidebar user info ──
@@ -4757,6 +4767,7 @@ tr:hover td{background:var(--b50)}
     <button class="nl" id="nl-dash" onclick="goMyAccount()">My Account</button>
     <button class="nl" id="nl-adm" onclick="go('admin');setNL('nl-adm')" style="display:none">Admin</button>
     <button class="nl" id="nl-part" onclick="go('partner');setNL('nl-part')" style="display:none">Partner Portal</button>
+    <button class="nl" id="nl-creator" onclick="go('creator');setNL('nl-creator')" style="display:none">Creator Panel</button>
   </div>
   <div class="nav-right">
     <button class="nl-cta" id="nl-list-exp" onclick="go('partner-landing');setNL('nl-list-exp')">Become a Partner ✦</button>
@@ -4828,6 +4839,9 @@ tr:hover td{background:var(--b50)}
     </button>
     <button class="mob-nav-item" id="mob-nl-part" style="display:none" onclick="closeMobMenu();go('partner');setNL('nl-part')">
       <i class="fa fa-building"></i><span>Partner Portal</span>
+    </button>
+    <button class="mob-nav-item" id="mob-nl-creator" style="display:none" onclick="closeMobMenu();go('creator');setNL('nl-creator')">
+      <i class="fa fa-palette"></i><span>Creator Panel</span>
     </button>
 
     <div class="mob-nav-divider"></div>
@@ -6936,6 +6950,24 @@ tr:hover td{background:var(--b50)}
     <p style="font-size:.72rem;color:var(--muted);margin-top:16px">⏱ DNS changes can take up to 48 hours to propagate worldwide.</p>
   </div>
 </div>
+<div id="page-creator" class="page" style="display:none">
+  <div class="sec" style="max-width:960px;margin:0 auto;padding-top:40px">
+    <div style="margin-bottom:28px">
+      <h1 style="font-size:1.6rem;color:var(--navy);margin-bottom:4px" id="creator-welcome">Welcome</h1>
+      <p style="color:var(--muted);font-size:.88rem">A quick look at your collection's performance.</p>
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;margin-bottom:28px" id="creator-stats-grid">
+      <div style="text-align:center;padding:40px;color:var(--muted);grid-column:1/-1"><i class="fa fa-spinner fa-spin"></i> Loading…</div>
+    </div>
+
+    <div style="margin-bottom:16px">
+      <h2 style="font-size:1.1rem;color:var(--navy);margin-bottom:10px">Your collection(s)</h2>
+      <div id="creator-boxes-list"></div>
+    </div>
+  </div>
+</div>
+
 <div id="page-partner" class="page">
   <div class="pp-layout">
 
@@ -10798,6 +10830,7 @@ function go(page) {
     'dashboard': 'any',
     'admin':     'admin',
     'partner':   'partner',
+    'creator':   'creator',
   };
   if (protectedRoles[page]) {
     if (!currentUser) {
@@ -10832,6 +10865,9 @@ function go(page) {
       if (currentUser.role !== 'partner' && currentUser.role !== 'admin') {
         go('login'); return;
       }
+    }
+    if (protectedRoles[page] === 'creator' && currentUser.role !== 'creator' && currentUser.role !== 'admin') {
+      go('login'); return;
     }
   }
 
@@ -10949,6 +10985,7 @@ function go(page) {
   if (page === 'product' && appState.currentBoxId) { fetchProductExps(appState.currentBoxId); }
   if (page === 'roulette') initRoulettePage();
   if (page === 'partner') initPartnerPage();
+  if (page === 'creator') initCreatorPage();
   if (page === 'dashboard') {
     loadUserBoxes(currentUser.email);
     loadUserOrders(currentUser.email);
@@ -29796,6 +29833,62 @@ async function admSavePartnerBanner() {
   } catch(e) {
     if (statusEl) statusEl.textContent = '';
     admToast('⚠️ Failed to save: ' + e.message);
+  }
+}
+
+async function initCreatorPage() {
+  var welcomeEl = document.getElementById('creator-welcome');
+  var statsEl   = document.getElementById('creator-stats-grid');
+  var listEl    = document.getElementById('creator-boxes-list');
+  if (!statsEl || !currentUser || !currentUser.email) return;
+  var email = currentUser.email;
+  statsEl.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted);grid-column:1/-1"><i class="fa fa-spinner fa-spin"></i> Loading…</div>';
+  try {
+    var boxesRes = await db_client.from('boxes').select('id,name,price,image_url,creator_name').eq('creator_email', email);
+    var myBoxes = boxesRes.data || [];
+    if (welcomeEl) welcomeEl.textContent = 'Welcome' + (myBoxes[0] && myBoxes[0].creator_name ? ', ' + myBoxes[0].creator_name : '') + '!';
+
+    if (!myBoxes.length) {
+      statsEl.innerHTML = '';
+      if (listEl) listEl.innerHTML = '<div class="atbl" style="padding:24px;text-align:center;color:var(--muted)">No collection has been set up for your account yet — reach out to WowBox to get one created.</div>';
+      return;
+    }
+    var boxIds = myBoxes.map(function(b){ return b.id; });
+
+    var [vouchersRes, entriesRes] = await Promise.all([
+      db_client.from('vouchers').select('box_id,is_physical_box').in('box_id', boxIds),
+      db_client.from('commission_entries').select('box_price,partner_payout,payout_status').eq('flow','creator').eq('partner_email', email),
+    ]);
+    var vouchers = vouchersRes.data || [];
+    var entries  = entriesRes.data || [];
+    var eboxCount = vouchers.filter(function(v){ return !v.is_physical_box; }).length;
+    var physCount = vouchers.filter(function(v){ return v.is_physical_box; }).length;
+    var gross   = entries.reduce(function(s,e){ return s + Number(e.box_price||0); }, 0);
+    var earned  = entries.filter(function(e){ return e.payout_status === 'paid'; }).reduce(function(s,e){ return s + Number(e.partner_payout||0); }, 0);
+    var pending = entries.filter(function(e){ return e.payout_status === 'pending'; }).reduce(function(s,e){ return s + Number(e.partner_payout||0); }, 0);
+
+    var statCard = function(label, value) {
+      return '<div class="atbl" style="padding:16px;text-align:center"><p style="font-family:\'Cormorant Garamond\',serif;font-size:1.4rem;color:var(--navy);margin:0;font-weight:700">' + value + '</p><p style="font-size:.72rem;color:var(--muted);margin:2px 0 0">' + label + '</p></div>';
+    };
+    statsEl.innerHTML = statCard('E-Box sold', eboxCount)
+      + statCard('Physical sold', physCount)
+      + statCard('Validations', entries.length)
+      + statCard('Gross value', 'R' + gross.toLocaleString('en-ZA',{minimumFractionDigits:0}))
+      + statCard('Earned', 'R' + earned.toLocaleString('en-ZA',{minimumFractionDigits:2}))
+      + statCard('Pending', 'R' + pending.toLocaleString('en-ZA',{minimumFractionDigits:2}));
+
+    if (listEl) {
+      listEl.innerHTML = myBoxes.map(function(b){
+        return '<div class="atbl" style="padding:14px 18px;display:flex;align-items:center;gap:14px;margin-bottom:10px">'
+          + (b.image_url ? '<img src="' + b.image_url + '" style="width:56px;height:56px;object-fit:cover;border-radius:8px;flex-shrink:0">' : '')
+          + '<div style="flex:1"><div style="font-weight:600;color:var(--navy)">' + b.name + '</div><div style="font-size:.78rem;color:var(--muted)">From R' + Number(b.price||0).toLocaleString() + '</div></div>'
+          + '<button class="btn bg bsm" onclick="loadProduct(\'' + b.id + '\');go(\'product\')">View page</button>'
+          + '</div>';
+      }).join('');
+    }
+  } catch(e) {
+    statsEl.innerHTML = '<div style="text-align:center;padding:24px;color:#dc2626;grid-column:1/-1">Error loading your data: ' + e.message + '</div>';
+    console.warn('initCreatorPage failed:', e.message);
   }
 }
 
