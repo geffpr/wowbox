@@ -5163,6 +5163,9 @@ tr:hover td{background:var(--b50)}
         <div style="display:inline-flex;align-items:center;gap:6px;padding:5px 13px;background:var(--b50);border:1px solid var(--b200);border-radius:99px;font-size:.73rem;color:var(--b700);font-weight:600;margin-bottom:8px" id="prod-db-badge"></div>
       </div>
 
+      <!-- CREATOR PROFILE (only shown when this box has a creator) -->
+      <div id="prod-creator-block" style="margin-top:24px"></div>
+
       <!-- FEATURED THIS MONTH (smart pool) -->
       <div id="prod-featured-section" style="margin-bottom:8px"></div>
 
@@ -11701,6 +11704,52 @@ function ppUpdateNavArrows() {
   }
 }
 
+/* ── Creator profile block on a box's page — only rendered when the box has
+   a creator_name set; otherwise the container stays empty, so a regular box
+   looks exactly as it always has. ── */
+function wbRenderCreatorBlock(b) {
+  var wrap = document.getElementById('prod-creator-block');
+  if (!wrap) return;
+  if (!b.creator_name) { wrap.innerHTML = ''; return; }
+
+  var avatar = b.creator_avatar_url || '';
+  var avatarHTML = avatar
+    ? '<div style="width:100%;height:100%;border-radius:50%;background-image:url(\'' + avatar + '\');background-size:cover;background-position:center;border:3px solid #fdf6ee"></div>'
+    : '<div style="width:100%;height:100%;border-radius:50%;background:#fdf6ee;border:3px solid #fdf6ee;display:flex;align-items:center;justify-content:center;font-family:Georgia,serif;font-size:1.3rem;color:#b5622f;font-weight:700">' + b.creator_name.charAt(0).toUpperCase() + '</div>';
+
+  var followLinks = '';
+  if (b.creator_instagram) followLinks += '<a href="' + b.creator_instagram + '" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:6px;background:none;border:1px solid #b5622f;color:#b5622f;padding:7px 14px;border-radius:99px;font-size:.78rem;font-weight:600;text-decoration:none"><i class="fa-brands fa-instagram"></i> Follow</a>';
+  if (b.creator_tiktok)    followLinks += '<a href="' + b.creator_tiktok + '" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:6px;background:none;border:1px solid #b5622f;color:#b5622f;padding:7px 14px;border-radius:99px;font-size:.78rem;font-weight:600;text-decoration:none;margin-left:8px"><i class="fa-brands fa-tiktok"></i> Follow</a>';
+
+  var ratingDisplay = b.rating ? b.rating : 'New';
+  var mosaicImgs = (b.images || []).filter(function(u){ return u; }).slice(0, 3);
+  var postLinks = [b.creator_post_url_1, b.creator_post_url_2, b.creator_post_url_3].filter(Boolean);
+
+  var mosaicHTML = mosaicImgs.map(function(url){
+    return '<div style="aspect-ratio:1;border-radius:6px;background-image:url(\'' + url + '\');background-size:cover;background-position:center"></div>';
+  }).join('');
+  if (postLinks.length) {
+    mosaicHTML += '<a href="' + postLinks[0] + '" target="_blank" rel="noopener" style="aspect-ratio:1;border-radius:6px;background:#2c1a0e;display:flex;align-items:center;justify-content:center;text-decoration:none"><span style="color:#F0DEC4;font-size:.72rem;font-weight:600;text-align:center;padding:4px">' + (postLinks.length > 1 ? 'View posts' : 'View post') + '</span></a>';
+  }
+
+  wrap.innerHTML = '<div style="background:#fdf6ee;padding:1.5rem;border-radius:12px">'
+    + '<div style="display:flex;align-items:center;gap:16px;margin-bottom:16px;flex-wrap:wrap">'
+    + '<div style="width:64px;height:64px;border-radius:50%;padding:3px;background:linear-gradient(135deg,#D4A853,#b5622f,#D4A853);flex-shrink:0">' + avatarHTML + '</div>'
+    + '<div style="flex:1;min-width:160px">'
+    + '<div style="display:flex;align-items:center;gap:6px"><p style="font-family:Georgia,serif;font-size:1.1rem;color:#2c1a0e;margin:0;font-weight:600">' + b.creator_name + '</p><i class="fa fa-check-circle" style="color:#b5622f;font-size:.9rem"></i></div>'
+    + (b.creator_bio ? '<p style="font-size:.8rem;color:#6b5745;margin:2px 0 0">' + b.creator_bio + '</p>' : '')
+    + '</div>'
+    + (followLinks ? '<div style="flex-shrink:0">' + followLinks + '</div>' : '')
+    + '</div>'
+    + '<div style="display:flex;gap:24px;padding:12px 0;border-top:1px dashed #d9c4a3;border-bottom:1px dashed #d9c4a3;margin-bottom:' + (mosaicImgs.length ? '16px' : '0') + '">'
+    + '<div><p style="font-family:Georgia,serif;font-size:1.05rem;color:#2c1a0e;margin:0;font-weight:600">' + b.cnt + '</p><p style="font-size:.68rem;color:#6b5745;margin:0">experiences curated</p></div>'
+    + '<div><p style="font-family:Georgia,serif;font-size:1.05rem;color:#2c1a0e;margin:0;font-weight:600">' + (b.sold || 0) + '</p><p style="font-size:.68rem;color:#6b5745;margin:0">gifts given</p></div>'
+    + '<div><p style="font-family:Georgia,serif;font-size:1.05rem;color:#2c1a0e;margin:0;font-weight:600">' + ratingDisplay + '</p><p style="font-size:.68rem;color:#6b5745;margin:0">rating</p></div>'
+    + '</div>'
+    + (mosaicImgs.length ? '<div style="display:grid;grid-template-columns:repeat(' + (mosaicImgs.length + (postLinks.length ? 1 : 0)) + ',1fr);gap:6px">' + mosaicHTML + '</div>' : '')
+    + '</div>';
+}
+
 function loadProduct(boxId) {
   appState.currentBoxId = boxId;
   const b = boxDB[boxId];
@@ -11736,6 +11785,8 @@ function loadProduct(boxId) {
   appState.priceBase = b.price;
   document.getElementById('qty-v').textContent = '1';
   document.getElementById('qty-total').textContent = window._wbPurchasesDisabled ? 'Coming soon' : 'R' + b.price.toLocaleString();
+
+  wbRenderCreatorBlock(b);
 
   const imgs = (b.images && b.images.length) ? b.images : (b.img ? [b.img] : []);
   window._galleryImgs = imgs; // store for swipe handler
