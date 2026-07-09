@@ -371,6 +371,27 @@ function tplPayoutProcessed(o) {
   };
 }
 
+function tplCreatorPayoutProcessed(o) {
+  return {
+    subject: `💰 Payout processed — R${o.amount} from your collection`,
+    html: layout(`
+      ${badge('💰 Payout Processed', '#059669')}
+      ${h1('Your payout is on its way, ' + o.name + '!')}
+      ${p('Someone redeemed a gift from your collection, and it has now been validated. The amount below will appear in your bank account within 1–2 business days.')}
+      ${infoTable(
+        infoRow('Amount', o.amount ? 'R' + Number(o.amount).toLocaleString() : '—') +
+        infoRow('Box', o.boxName || '—') +
+        infoRow('WB code', o.wbCode || '—') +
+        infoRow('Transfer ref', o.transferRef || '—') +
+        infoRow('Date', new Date().toLocaleDateString('en-ZA',{day:'numeric',month:'long',year:'numeric'}))
+      )}
+      ${hr()}
+      ${btn('View Your Dashboard', SITE_URL + '/creator')}
+      ${sm('Questions? <a href="mailto:support@wowbox.co.za" style="color:' + C.goldDark + '">support@wowbox.co.za</a>')}
+    `, HEROES.partner, 'Your WowBox creator payout has been processed'),
+  };
+}
+
 // ── Partner monthly statement ─────────────────────────────────────────────────
 function tplPartnerMonthlyStatement(o) {
   const txRows = (o.transactions || []).map(t => `
@@ -1142,6 +1163,10 @@ export default async function handler(req, res) {
       }
       case 'payout_processed': {
         if (o.partnerEmail) emailJobs.push({ to: o.partnerEmail, ...tplPayoutProcessed(o) });
+        break;
+      }
+      case 'creator_payout_processed': {
+        if (o.creatorEmail) emailJobs.push({ to: o.creatorEmail, ...tplCreatorPayoutProcessed(o) });
         break;
       }
       case 'review_request': {

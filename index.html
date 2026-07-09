@@ -6965,6 +6965,24 @@ tr:hover td{background:var(--b50)}
       <h2 style="font-size:1.1rem;color:var(--navy);margin-bottom:10px">Your collection(s)</h2>
       <div id="creator-boxes-list"></div>
     </div>
+
+    <div class="atbl" style="padding:18px;margin-bottom:28px">
+      <h2 style="font-size:1.05rem;color:var(--navy);margin-bottom:4px"><i class="fa fa-building-columns" style="color:var(--b500)"></i> Payout account</h2>
+      <p style="font-size:.78rem;color:var(--muted);margin-bottom:12px">Connect your bank account so you're paid automatically after each validated gift.</p>
+      <div id="creator-paystack-status" style="font-size:.85rem;margin-bottom:10px">Checking…</div>
+      <button class="btn bp bsm" onclick="ppConnectPaystack()"><i class="fa fa-link"></i> Connect / update bank account</button>
+    </div>
+
+    <div style="margin-bottom:16px">
+      <h2 style="font-size:1.1rem;color:var(--navy);margin-bottom:10px">Payout history</h2>
+      <div class="atbl" style="overflow-x:auto">
+        <table>
+          <thead><tr><th>Transaction ref</th><th>WB code</th><th>Box amount</th><th>Your share</th><th>Status</th><th>Date</th></tr></thead>
+          <tbody id="creator-payouts-tbody"><tr><td colspan="6" style="text-align:center;padding:20px;color:var(--muted)">Loading…</td></tr></tbody>
+        </table>
+      </div>
+      <div id="creator-payouts-pagination" style="display:flex;justify-content:center;gap:6px;margin-top:14px;flex-wrap:wrap"></div>
+    </div>
   </div>
 </div>
 
@@ -9925,9 +9943,9 @@ tr:hover td{background:var(--b50)}
           <table>
             <thead><tr>
               <th>Creator</th><th>Box(es)</th><th>E-Box sold</th><th>Physical sold</th>
-              <th>Validations</th><th>Gross (box price)</th><th>Commission earned</th><th>Pending</th>
+              <th>Validations</th><th>Gross (box price)</th><th>Commission earned</th><th>Pending</th><th>Paystack</th>
             </tr></thead>
-            <tbody id="adm-creators-tbody"><tr><td colspan="8" style="text-align:center;padding:24px;color:var(--muted)">Loading…</td></tr></tbody>
+            <tbody id="adm-creators-tbody"><tr><td colspan="9" style="text-align:center;padding:24px;color:var(--muted)">Loading…</td></tr></tbody>
           </table>
         </div>
       </div>
@@ -11875,8 +11893,32 @@ function wbRenderCreatorBlock(b) {
 
 function loadProduct(boxId) {
   appState.currentBoxId = boxId;
-  const b = boxDB[boxId];
-  if (!b) return;
+  let b = boxDB[boxId];
+  if (!b) {
+    // Not in the public-filtered cache (e.g. a Draft/Archived box — common case:
+    // a creator previewing their own not-yet-published box). Fetch it directly,
+    // cache it, then retry — the normal cached path below is completely unaffected.
+    db_client.from('boxes').select('*').eq('id', boxId).maybeSingle().then(function(res){
+      if (res.data) {
+        var raw = res.data;
+        boxDB[boxId] = {
+          name: raw.name, price: raw.price, db: raw.database_name, cnt: raw.experience_count || 0,
+          img: raw.image_url, images: raw.images, video_url: raw.video_url,
+          badge: raw.badge, rating: raw.rating, sold: raw.sold_count, desc: raw.description,
+          featured: raw.is_featured || false,
+          creator_name: raw.creator_name, creator_email: raw.creator_email, creator_bio: raw.creator_bio,
+          creator_avatar_url: raw.creator_avatar_url, creator_instagram: raw.creator_instagram,
+          creator_tiktok: raw.creator_tiktok, creator_post_url_1: raw.creator_post_url_1,
+          creator_post_url_2: raw.creator_post_url_2, creator_post_url_3: raw.creator_post_url_3,
+          available_until: raw.available_until, is_active: raw.is_active,
+        };
+        loadProduct(boxId);
+      } else {
+        admToast('This box could not be found.');
+      }
+    }).catch(function(e){ console.warn('loadProduct fallback fetch failed:', e.message); });
+    return;
+  }
   const isSurprise = boxId === 'surprise';
 
   // Load featured/boosted experiences for this box
@@ -15320,7 +15362,9 @@ async function ppSubmitPaystack() {
     setTimeout(function() {
       var modal = document.getElementById('pp-paystack-modal');
       if (modal) modal.remove();
-      ppLoadSettings();
+      var creatorPageActive = document.getElementById('page-creator') && document.getElementById('page-creator').classList.contains('active');
+      if (creatorPageActive) { wbLoadCreatorPaystackStatus(); }
+      else { ppLoadSettings(); }
     }, 1500);
   } catch(e) {
     if (statEl) statEl.innerHTML = '<span style="color:#ef4444"><i class="fa fa-xmark"></i> ' + e.message + '</span>';
@@ -29955,9 +29999,10 @@ async function initCreatorPage() {
     }
     var boxIds = myBoxes.map(function(b){ return b.id; });
 
-    var [vouchersRes, entriesRes] = await Promise.all([
+    var [vouchersRes, entriesRes, rateRes] = await Promise.all([
       db_client.from('vouchers').select('box_id,is_physical_box').in('box_id', boxIds),
       db_client.from('commission_entries').select('box_price,partner_payout,payout_status').eq('flow','creator').eq('partner_email', email),
+      db_client.from('commission_rates').select('platform_rate').eq('rate_type','creator').eq('target_id', email).maybeSingle(),
     ]);
     var vouchers = vouchersRes.data || [];
     var entries  = entriesRes.data || [];
@@ -29966,6 +30011,7 @@ async function initCreatorPage() {
     var gross   = entries.reduce(function(s,e){ return s + Number(e.box_price||0); }, 0);
     var earned  = entries.filter(function(e){ return e.payout_status === 'paid'; }).reduce(function(s,e){ return s + Number(e.partner_payout||0); }, 0);
     var pending = entries.filter(function(e){ return e.payout_status === 'pending'; }).reduce(function(s,e){ return s + Number(e.partner_payout||0); }, 0);
+    var rateDisplay = rateRes.data ? Number(rateRes.data.platform_rate) + '%' : 'Not yet set';
 
     var statCard = function(label, value) {
       return '<div class="atbl" style="padding:16px;text-align:center"><p style="font-family:\'Cormorant Garamond\',serif;font-size:1.4rem;color:var(--navy);margin:0;font-weight:700">' + value + '</p><p style="font-size:.72rem;color:var(--muted);margin:2px 0 0">' + label + '</p></div>';
@@ -29975,7 +30021,8 @@ async function initCreatorPage() {
       + statCard('Validations', entries.length)
       + statCard('Gross value', 'R' + gross.toLocaleString('en-ZA',{minimumFractionDigits:0}))
       + statCard('Earned', 'R' + earned.toLocaleString('en-ZA',{minimumFractionDigits:2}))
-      + statCard('Pending', 'R' + pending.toLocaleString('en-ZA',{minimumFractionDigits:2}));
+      + statCard('Pending', 'R' + pending.toLocaleString('en-ZA',{minimumFractionDigits:2}))
+      + statCard('Your rate', rateDisplay);
 
     if (listEl) {
       listEl.innerHTML = myBoxes.map(function(b){
@@ -29986,31 +30033,117 @@ async function initCreatorPage() {
           + '</div>';
       }).join('');
     }
+    wbLoadCreatorPaystackStatus();
+    window._wbCreatorPayoutsPage = 1;
+    wbLoadCreatorPayouts();
   } catch(e) {
     statsEl.innerHTML = '<div style="text-align:center;padding:24px;color:#dc2626;grid-column:1/-1">Error loading your data: ' + e.message + '</div>';
     console.warn('initCreatorPage failed:', e.message);
   }
 }
 
+async function wbLoadCreatorPaystackStatus() {
+  var el = document.getElementById('creator-paystack-status');
+  if (!el || !currentUser) return;
+  try {
+    var res = await db_client.from('user_profiles').select('paystack_account_id,paystack_connected_at').eq('id', currentUser.id).maybeSingle();
+    var d = res.data;
+    if (d && d.paystack_account_id) {
+      el.innerHTML = '<span style="color:var(--green)"><i class="fa fa-circle-check"></i> Connected</span>' + (d.paystack_connected_at ? ' — since ' + new Date(d.paystack_connected_at).toLocaleDateString('en-ZA') : '');
+    } else {
+      el.innerHTML = '<span style="color:#f59e0b"><i class="fa fa-triangle-exclamation"></i> Not connected yet — add your bank details to get paid automatically.</span>';
+    }
+  } catch(e) { el.textContent = ''; console.warn('wbLoadCreatorPaystackStatus failed:', e.message); }
+}
+
+/* ── Individual payouts, paginated. WB codes only (looked up via the linked
+   booking), never BK references directly — those are the experience booking
+   side, not relevant to the creator. Every row here is already a validated
+   (used) gift, since a creator commission is only ever created at validation. ── */
+async function wbLoadCreatorPayouts() {
+  var tbody = document.getElementById('creator-payouts-tbody');
+  var pagEl = document.getElementById('creator-payouts-pagination');
+  if (!tbody || !currentUser || !currentUser.email) return;
+  var pageSize = 10;
+  var page = window._wbCreatorPayoutsPage || 1;
+  tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px;color:var(--muted)"><i class="fa fa-spinner fa-spin"></i> Loading…</td></tr>';
+  try {
+    var entriesRes = await db_client.from('commission_entries')
+      .select('booking_reference,transaction_ref,box_price,partner_payout,payout_status,validated_at')
+      .eq('flow','creator').eq('partner_email', currentUser.email).order('validated_at', { ascending: false });
+    var entries = entriesRes.data || [];
+    if (!entries.length) {
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px;color:var(--muted)">No payouts yet.</td></tr>';
+      if (pagEl) pagEl.innerHTML = '';
+      return;
+    }
+    var refs = entries.map(function(e){ return e.booking_reference; }).filter(Boolean);
+    var bkRes = refs.length ? await db_client.from('bookings').select('booking_reference,voucher_code').in('booking_reference', refs) : { data: [] };
+    var codeMap = {};
+    (bkRes.data || []).forEach(function(bkRow){ codeMap[bkRow.booking_reference] = bkRow.voucher_code; });
+
+    var totalPages = Math.max(1, Math.ceil(entries.length / pageSize));
+    if (page > totalPages) page = totalPages;
+    var pStart = (page - 1) * pageSize;
+    var paged = entries.slice(pStart, pStart + pageSize);
+
+    tbody.innerHTML = paged.map(function(e){
+      var statusHtml = e.payout_status === 'paid'
+        ? '<span class="sbadge sb-a">Paid</span>'
+        : e.payout_status === 'cancelled'
+          ? '<span class="sbadge" style="background:#f3f4f6;color:#6b7280">Cancelled</span>'
+          : '<span class="sbadge sb-p">Pending</span>';
+      return '<tr>'
+        + '<td style="font-family:monospace;font-size:.75rem">' + (e.transaction_ref || '—') + '</td>'
+        + '<td style="font-family:monospace;font-size:.75rem">' + (codeMap[e.booking_reference] || '—') + '</td>'
+        + '<td>R' + Number(e.box_price||0).toLocaleString('en-ZA',{minimumFractionDigits:2}) + '</td>'
+        + '<td style="font-weight:600;color:#16a34a">R' + Number(e.partner_payout||0).toLocaleString('en-ZA',{minimumFractionDigits:2}) + '</td>'
+        + '<td>' + statusHtml + '</td>'
+        + '<td style="font-size:.75rem;color:var(--muted)">' + (e.validated_at ? new Date(e.validated_at).toLocaleDateString('en-ZA') : '—') + '</td>'
+        + '</tr>';
+    }).join('');
+
+    if (pagEl) {
+      if (totalPages <= 1) { pagEl.innerHTML = ''; }
+      else {
+        var btns = '<button class="btn bg bsm" ' + (page<=1?'disabled':'') + ' onclick="wbCreatorPayoutsGoToPage(' + (page-1) + ')"><i class="fa fa-chevron-left"></i></button>';
+        for (var p = 1; p <= totalPages; p++) btns += '<button class="btn ' + (p===page?'bp':'bg') + ' bsm" onclick="wbCreatorPayoutsGoToPage(' + p + ')">' + p + '</button>';
+        btns += '<button class="btn bg bsm" ' + (page>=totalPages?'disabled':'') + ' onclick="wbCreatorPayoutsGoToPage(' + (page+1) + ')"><i class="fa fa-chevron-right"></i></button>';
+        pagEl.innerHTML = btns;
+      }
+    }
+  } catch(e) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px;color:#dc2626">Error: ' + e.message + '</td></tr>';
+  }
+}
+function wbCreatorPayoutsGoToPage(p) {
+  window._wbCreatorPayoutsPage = Math.max(1, p);
+  wbLoadCreatorPayouts();
+}
+
 async function admLoadCreators() {
   var tbody = document.getElementById('adm-creators-tbody');
   if (!tbody) return;
-  tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--muted)">Loading…</td></tr>';
+  tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:24px;color:var(--muted)">Loading…</td></tr>';
   try {
     var boxesRes = await db_client.from('boxes').select('id,name,creator_email,creator_name,price').not('creator_email','is',null);
     var creatorBoxes = boxesRes.data || [];
     if (!creatorBoxes.length) {
-      tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--muted)">No creator boxes yet.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:24px;color:var(--muted)">No creator boxes yet.</td></tr>';
       return;
     }
     var allBoxIds = creatorBoxes.map(function(b){ return b.id; });
+    var allCreatorEmails = Object.keys(creatorBoxes.reduce(function(acc,b){ acc[b.creator_email]=1; return acc; }, {}));
 
-    var [vouchersRes, entriesRes] = await Promise.all([
+    var [vouchersRes, entriesRes, profilesRes] = await Promise.all([
       db_client.from('vouchers').select('box_id,is_physical_box').in('box_id', allBoxIds),
       db_client.from('commission_entries').select('partner_email,box_price,partner_payout,payout_status').eq('flow','creator'),
+      db_client.from('user_profiles').select('email,paystack_account_id').in('email', allCreatorEmails),
     ]);
     var vouchers = vouchersRes.data || [];
     var entries  = entriesRes.data || [];
+    var paystackMap = {};
+    (profilesRes.data || []).forEach(function(p){ paystackMap[p.email] = !!p.paystack_account_id; });
 
     // Group boxes by creator email
     var byCreator = {};
@@ -30029,6 +30162,9 @@ async function admLoadCreators() {
       var gross    = eList.reduce(function(s,e){ return s + Number(e.box_price||0); }, 0);
       var earned   = eList.filter(function(e){ return e.payout_status === 'paid'; }).reduce(function(s,e){ return s + Number(e.partner_payout||0); }, 0);
       var pending  = eList.filter(function(e){ return e.payout_status === 'pending'; }).reduce(function(s,e){ return s + Number(e.partner_payout||0); }, 0);
+      var paystackHtml = paystackMap[email]
+        ? '<span class="sbadge sb-a" style="font-size:.68rem">Connected</span>'
+        : '<span class="sbadge" style="background:#fee2e2;color:#991b1b;font-size:.68rem">Not connected</span>';
       return '<tr>'
         + '<td><strong>' + c.name + '</strong><div style="font-size:.7rem;color:var(--muted)">' + email + '</div></td>'
         + '<td style="font-size:.78rem">' + c.boxNames.join(', ') + '</td>'
@@ -30038,11 +30174,12 @@ async function admLoadCreators() {
         + '<td>R' + gross.toLocaleString('en-ZA',{minimumFractionDigits:2}) + '</td>'
         + '<td style="color:#16a34a;font-weight:600">R' + earned.toLocaleString('en-ZA',{minimumFractionDigits:2}) + '</td>'
         + '<td style="color:#f59e0b">R' + pending.toLocaleString('en-ZA',{minimumFractionDigits:2}) + '</td>'
+        + '<td>' + paystackHtml + '</td>'
         + '</tr>';
     });
-    tbody.innerHTML = rows.join('') || '<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--muted)">No creator boxes yet.</td></tr>';
+    tbody.innerHTML = rows.join('') || '<tr><td colspan="9" style="text-align:center;padding:24px;color:var(--muted)">No creator boxes yet.</td></tr>';
   } catch(e) {
-    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:24px;color:#dc2626">Error: ' + e.message + '</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:24px;color:#dc2626">Error: ' + e.message + '</td></tr>';
   }
 }
 

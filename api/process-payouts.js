@@ -129,6 +129,42 @@ export default async function handler(req, res) {
           transfer_code: transferData.transfer_code,
         });
 
+        // Creator payout notification — separate from the partner flow entirely,
+        // wrapped so a failure here never affects the payout that already succeeded.
+        if (entry.flow === 'creator') {
+          try {
+            let wbCode = null, boxName = entry.experience_name || null;
+            if (entry.booking_reference) {
+              const bkRows = await supabaseFetch(`/bookings?booking_reference=eq.${encodeURIComponent(entry.booking_reference)}&select=voucher_code`);
+              if (bkRows && bkRows[0] && bkRows[0].voucher_code) {
+                wbCode = bkRows[0].voucher_code;
+                const vRows = await supabaseFetch(`/vouchers?code=eq.${encodeURIComponent(wbCode)}&select=box_id`);
+                if (vRows && vRows[0] && vRows[0].box_id) {
+                  const boxRows = await supabaseFetch(`/boxes?id=eq.${encodeURIComponent(vRows[0].box_id)}&select=name`);
+                  if (boxRows && boxRows[0] && boxRows[0].name) boxName = boxRows[0].name;
+                }
+              }
+            }
+            await fetch(`${SITE_URL}/api/send-email`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                type: 'creator_payout_processed',
+                order: {
+                  creatorEmail: entry.partner_email,
+                  name:         entry.partner_name || 'there',
+                  amount:       entry.partner_payout,
+                  boxName:      boxName,
+                  wbCode:       wbCode,
+                  transferRef:  transferData.transfer_code,
+                },
+              }),
+            });
+          } catch (emailErr) {
+            console.warn(`[process-payouts] Creator payout email failed for ${entry.id}:`, emailErr.message);
+          }
+        }
+
       } catch (err) {
         console.error(`[process-payouts] ❌ Failed ${entry.id}:`, err.message);
         results.push({ id: entry.id, status: 'error', error: err.message });
