@@ -8329,6 +8329,30 @@ tr:hover td{background:var(--b50)}
                 ⭐ Featured box — appears first in the grid with gold border
               </label>
             </div>
+            <!-- Creator (optional) -->
+            <div class="fg" style="margin-top:8px;margin-bottom:16px;background:var(--bg);border:1px solid var(--border);border-radius:var(--rs);padding:14px">
+              <label style="font-weight:600;display:block;margin-bottom:2px">Creator collection <span style="font-weight:400;color:var(--muted);font-size:.72rem">(optional — leave blank for a regular box)</span></label>
+              <p style="font-size:.72rem;color:var(--muted);margin:0 0 10px">Fill these in to show a creator profile block on this box's page (avatar, bio, follow button, curated posts).</p>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+                <div><label style="font-size:.72rem;color:var(--muted)">Creator name</label><input class="fi" id="abf-creator-name" placeholder="e.g. Sarah Mokoena"></div>
+                <div><label style="font-size:.72rem;color:var(--muted)">Available until <span style="font-weight:400">(optional)</span></label><input class="fi" id="abf-available-until" type="date"></div>
+              </div>
+              <div class="fg" style="margin-bottom:10px"><label style="font-size:.72rem;color:var(--muted)">Bio</label><input class="fi" id="abf-creator-bio" placeholder="e.g. Food blogger sharing Joburg's hidden gems"></div>
+              <div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:10px;flex-wrap:wrap">
+                <input type="file" id="abf-creator-avatar-file" accept="image/*" class="fi" style="flex:1;min-width:180px;padding:6px">
+                <img id="abf-creator-avatar-preview" style="display:none;width:52px;height:52px;object-fit:cover;border-radius:50%">
+              </div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+                <div><label style="font-size:.72rem;color:var(--muted)">Instagram URL</label><input class="fi" id="abf-creator-instagram" type="url" placeholder="https://instagram.com/..."></div>
+                <div><label style="font-size:.72rem;color:var(--muted)">TikTok URL</label><input class="fi" id="abf-creator-tiktok" type="url" placeholder="https://tiktok.com/@..."></div>
+              </div>
+              <label style="font-size:.72rem;color:var(--muted);display:block;margin-bottom:5px">Featured posts <span style="font-weight:400">(up to 3 post links, optional)</span></label>
+              <div style="display:flex;flex-direction:column;gap:6px">
+                <input class="fi" id="abf-creator-post-1" type="url" placeholder="Post link 1">
+                <input class="fi" id="abf-creator-post-2" type="url" placeholder="Post link 2">
+                <input class="fi" id="abf-creator-post-3" type="url" placeholder="Post link 3">
+              </div>
+            </div>
             <!-- Video (optional) -->
             <div class="fg" style="margin-bottom:16px">
               <label>Box video <span style="font-weight:400;color:var(--muted);font-size:.72rem">(optional — shown first in gallery)</span></label>
@@ -11373,7 +11397,16 @@ async function renderBoxGrids() {
           images: b.images || local.images,
           video_url: b.video_url || null,
           badge: b.badge, rating: b.rating, sold: b.sold_count, desc: b.description,
-          featured: b.is_featured || false
+          featured: b.is_featured || false,
+          creator_name: b.creator_name || null,
+          creator_bio: b.creator_bio || null,
+          creator_avatar_url: b.creator_avatar_url || null,
+          creator_instagram: b.creator_instagram || null,
+          creator_tiktok: b.creator_tiktok || null,
+          creator_post_url_1: b.creator_post_url_1 || null,
+          creator_post_url_2: b.creator_post_url_2 || null,
+          creator_post_url_3: b.creator_post_url_3 || null,
+          available_until: b.available_until || null
         };
       });
     }
@@ -11471,7 +11504,16 @@ async function renderBoxGrids() {
       sold:   b.sold_count,
       desc:   b.description,
       featured: b.is_featured || false,
-      video_url: b.video_url || null
+      video_url: b.video_url || null,
+      creator_name: b.creator_name || null,
+      creator_bio: b.creator_bio || null,
+      creator_avatar_url: b.creator_avatar_url || null,
+      creator_instagram: b.creator_instagram || null,
+      creator_tiktok: b.creator_tiktok || null,
+      creator_post_url_1: b.creator_post_url_1 || null,
+      creator_post_url_2: b.creator_post_url_2 || null,
+      creator_post_url_3: b.creator_post_url_3 || null,
+      available_until: b.available_until || null
     };
     // Override with real database name from Supabase databases table
     if (dbNameMap[b.id]) boxDB[b.id].db = dbNameMap[b.id];
@@ -19069,6 +19111,19 @@ async function admShowBoxForm(boxId) {
     if (vSlotEl) vSlotEl.innerHTML = b.video_url
       ? '<div style="display:flex;align-items:center;gap:8px;color:#16a34a;font-size:.78rem"><i class="fa fa-check-circle"></i> Video set</div>'
       : '<i class="fa fa-film" style="font-size:1.4rem;color:var(--b400);margin-bottom:4px"></i>Upload video (MP4, max 100MB)';
+    document.getElementById('abf-creator-name').value = b.creator_name || '';
+    document.getElementById('abf-creator-bio').value = b.creator_bio || '';
+    document.getElementById('abf-creator-instagram').value = b.creator_instagram || '';
+    document.getElementById('abf-creator-tiktok').value = b.creator_tiktok || '';
+    document.getElementById('abf-creator-post-1').value = b.creator_post_url_1 || '';
+    document.getElementById('abf-creator-post-2').value = b.creator_post_url_2 || '';
+    document.getElementById('abf-creator-post-3').value = b.creator_post_url_3 || '';
+    document.getElementById('abf-available-until').value = b.available_until || '';
+    var avatarPreview = document.getElementById('abf-creator-avatar-preview');
+    if (avatarPreview) {
+      if (b.creator_avatar_url) { avatarPreview.src = b.creator_avatar_url; avatarPreview.style.display = 'block'; }
+      else { avatarPreview.style.display = 'none'; }
+    }
     // Load databases from box_database_links
     if (dbSel) {
       try {
@@ -19092,6 +19147,18 @@ async function admShowBoxForm(boxId) {
     var vSlotEl2 = document.getElementById('abf-video-slot');
     if (vUrlEl2) vUrlEl2.value = '';
     if (vSlotEl2) vSlotEl2.innerHTML = '<i class="fa fa-film" style="font-size:1.4rem;color:var(--b400);margin-bottom:4px"></i>Upload video (MP4, max 100MB)';
+    document.getElementById('abf-creator-name').value = '';
+    document.getElementById('abf-creator-bio').value = '';
+    document.getElementById('abf-creator-instagram').value = '';
+    document.getElementById('abf-creator-tiktok').value = '';
+    document.getElementById('abf-creator-post-1').value = '';
+    document.getElementById('abf-creator-post-2').value = '';
+    document.getElementById('abf-creator-post-3').value = '';
+    document.getElementById('abf-available-until').value = '';
+    var avatarFileEl = document.getElementById('abf-creator-avatar-file');
+    if (avatarFileEl) avatarFileEl.value = '';
+    var avatarPreview2 = document.getElementById('abf-creator-avatar-preview');
+    if (avatarPreview2) { avatarPreview2.src = ''; avatarPreview2.style.display = 'none'; }
   }
 }
 function admHideBoxForm() {
@@ -19582,6 +19649,27 @@ async function admSaveBox() {
 
   const videoUrl = document.getElementById('abf-video-url')?.value?.trim() || null;
 
+  const creatorName       = document.getElementById('abf-creator-name')?.value?.trim() || null;
+  const creatorBio        = document.getElementById('abf-creator-bio')?.value?.trim() || null;
+  const creatorInstagram  = document.getElementById('abf-creator-instagram')?.value?.trim() || null;
+  const creatorTiktok     = document.getElementById('abf-creator-tiktok')?.value?.trim() || null;
+  const creatorPost1      = document.getElementById('abf-creator-post-1')?.value?.trim() || null;
+  const creatorPost2      = document.getElementById('abf-creator-post-2')?.value?.trim() || null;
+  const creatorPost3      = document.getElementById('abf-creator-post-3')?.value?.trim() || null;
+  const availableUntil    = document.getElementById('abf-available-until')?.value || null;
+  let creatorAvatarUrl = null;
+  const avatarFileEl = document.getElementById('abf-creator-avatar-file');
+  if (avatarFileEl && avatarFileEl.files && avatarFileEl.files[0]) {
+    try {
+      const avFile = avatarFileEl.files[0];
+      const avName = 'creator_avatar_' + Date.now() + '.' + avFile.name.split('.').pop();
+      const avUpRes = await db_client.storage.from('site-assets').upload(avName, avFile, { upsert: true, contentType: avFile.type });
+      if (!avUpRes.error) {
+        creatorAvatarUrl = db_client.storage.from('site-assets').getPublicUrl(avName).data.publicUrl;
+      }
+    } catch(avErr) { console.warn('Creator avatar upload failed:', avErr.message); }
+  }
+
   const payload = {
     name,
     price,
@@ -19591,6 +19679,15 @@ async function admSaveBox() {
     images:        allImgs,
     ...(mainImg ? { image_url: mainImg } : {}),
     ...(videoUrl ? { video_url: videoUrl } : {}),
+    creator_name: creatorName,
+    creator_bio: creatorBio,
+    creator_instagram: creatorInstagram,
+    creator_tiktok: creatorTiktok,
+    creator_post_url_1: creatorPost1,
+    creator_post_url_2: creatorPost2,
+    creator_post_url_3: creatorPost3,
+    available_until: availableUntil,
+    ...(creatorAvatarUrl ? { creator_avatar_url: creatorAvatarUrl } : {}),
   };
 
   try {
@@ -19607,6 +19704,15 @@ async function admSaveBox() {
         if (mainImg) boxDB[savedId].img = mainImg;
         boxDB[savedId].images = allImgs.filter(function(u){ return u && u.trim(); });
         boxDB[savedId].video_url = videoUrl;
+        boxDB[savedId].creator_name = creatorName;
+        boxDB[savedId].creator_bio = creatorBio;
+        boxDB[savedId].creator_instagram = creatorInstagram;
+        boxDB[savedId].creator_tiktok = creatorTiktok;
+        boxDB[savedId].creator_post_url_1 = creatorPost1;
+        boxDB[savedId].creator_post_url_2 = creatorPost2;
+        boxDB[savedId].creator_post_url_3 = creatorPost3;
+        boxDB[savedId].available_until = availableUntil;
+        if (creatorAvatarUrl) boxDB[savedId].creator_avatar_url = creatorAvatarUrl;
       }
     } else {
       savedId = name.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
