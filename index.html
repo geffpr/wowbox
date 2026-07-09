@@ -4913,6 +4913,14 @@ tr:hover td{background:var(--b50)}
     <div class="boxes-grid" id="home-boxes-grid"></div>
   </div>
 
+  <!-- CREATOR COLLECTIONS (only shown when at least one exists) -->
+  <div class="sec" id="home-creator-section" style="display:none">
+    <div class="row">
+      <div><h2>Creator Collections</h2><p class="txt-muted">Curated by people who know these places best</p></div>
+    </div>
+    <div class="boxes-grid" id="home-creator-grid"></div>
+  </div>
+
   <!-- EXPERIENCE EXPLORER -->
   <div class="sep"><div class="sec" id="wb-explore" style="padding-top:0">
     <div class="sec-hdr" style="text-align:center"><h2>Explore experiences</h2><p>Browse every experience available across South Africa</p></div>
@@ -5135,6 +5143,14 @@ tr:hover td{background:var(--b50)}
     </div>
     <div id="allboxes-featured-section" style="padding:0 0 8px"></div>
     <div class="boxes-grid" id="all-boxes-grid"></div>
+  </div>
+
+  <!-- CREATOR COLLECTIONS (only shown when at least one exists) -->
+  <div class="sec" id="all-creator-section" style="display:none">
+    <div class="row">
+      <div><h2>Creator Collections</h2><p class="txt-muted">Curated by people who know these places best</p></div>
+    </div>
+    <div class="boxes-grid" id="all-creator-grid"></div>
   </div>
 </div>
 
@@ -11389,7 +11405,8 @@ async function renderBoxGrids() {
       if (e.box_id) realExpCnt[e.box_id] = (realExpCnt[e.box_id] || 0) + 1;
     });
     if (!boxRes.error && boxRes.data && boxRes.data.length > 0) {
-      boxes = boxRes.data;
+      var todayStr = new Date().toISOString().slice(0,10);
+      boxes = boxRes.data.filter(function(b){ return !b.available_until || b.available_until >= todayStr; });
       // Sync Supabase data into local boxDB, keeping local image if Supabase has none
       boxes.forEach(b => {
         const local = boxDB[b.id] || {};
@@ -11454,7 +11471,7 @@ async function renderBoxGrids() {
     return (b.sold_count || 0) - (a.sold_count || 0);
   });
 
-  const html = boxes.map(b => {
+  const html = boxes.filter(function(b){ return !b.creator_name; }).map(b => {
     const isFeatured = b.is_featured || false;
     const realCnt    = realExpCnt[b.id] !== undefined ? realExpCnt[b.id] : b.experience_count;
     // Always use local image as fallback if Supabase image_url is empty
@@ -11480,6 +11497,41 @@ async function renderBoxGrids() {
   });
   const htmlHome = html.slice(0, 6).join('');  // home: featured first + top sellers, max 6
   const htmlFull = html.join('');              // allboxes: everything
+
+  // Creator Collections — a separate section, only shown when at least one
+  // creator box exists. Regular boxes are completely unaffected either way.
+  const creatorBoxes = boxes.filter(function(b){ return !!b.creator_name; });
+  const creatorHtml = creatorBoxes.map(function(b) {
+    const imgSrc = b.image_url || localImgs[b.id] || '';
+    return `<div class="bcard" onclick="loadProduct('${b.id}');go('product')">
+      <div class="bcard-img">
+        <img src="${imgSrc}" alt="${b.name}" loading="lazy">
+        <div class="bcard-ov"></div>
+        <div style="position:absolute;bottom:10px;left:10px;display:flex;align-items:center;gap:7px;background:rgba(0,0,0,.45);border-radius:99px;padding:4px 10px 4px 4px">
+          ${b.creator_avatar_url ? '<div style="width:22px;height:22px;border-radius:50%;background-image:url(\''+b.creator_avatar_url+'\');background-size:cover;background-position:center"></div>' : '<div style="width:22px;height:22px;border-radius:50%;background:#b5622f;display:flex;align-items:center;justify-content:center;color:#fff;font-size:.65rem;font-weight:700">'+b.creator_name.charAt(0).toUpperCase()+'</div>'}
+          <span style="color:#fff;font-size:.7rem;font-weight:600">${b.creator_name}</span>
+        </div>
+      </div>
+      <div class="bcard-body">
+        <div class="bcard-title">${b.name}</div>
+        <div class="bcard-desc">${(b.description||'').substring(0,90)}…</div>
+        <div class="bcard-foot" style="margin-top:8px">
+          <div class="price-disp">${window._wbPurchasesDisabled ? '<small>&nbsp;</small>Coming soon' : '<small>From</small>R' + b.price.toLocaleString()}</div>
+          <button class="btn bp bsm" onclick="event.stopPropagation();loadProduct('${b.id}');go('product')">View collection</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+  const homeCreatorSec = document.getElementById('home-creator-section');
+  const allCreatorSec  = document.getElementById('all-creator-section');
+  if (homeCreatorSec) {
+    homeCreatorSec.style.display = creatorBoxes.length ? 'block' : 'none';
+    var hcg = document.getElementById('home-creator-grid'); if (hcg) hcg.innerHTML = creatorHtml;
+  }
+  if (allCreatorSec) {
+    allCreatorSec.style.display = creatorBoxes.length ? 'block' : 'none';
+    var acg = document.getElementById('all-creator-grid'); if (acg) acg.innerHTML = creatorHtml;
+  }
 
   const hg = document.getElementById('home-boxes-grid');
   const ag = document.getElementById('all-boxes-grid');
