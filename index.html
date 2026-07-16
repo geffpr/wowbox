@@ -764,6 +764,25 @@ async function submitResetPassword() {
 
 // Centralized password strength rule, used by every signup/change-password flow.
 // Returns null when valid, or a specific message saying exactly what's missing.
+/* ── Shared validators, used across every form that collects a name, email,
+   or phone number (signup, partner applications) — one place to keep the
+   rules consistent instead of repeating ad-hoc checks everywhere. ── */
+function wbIsValidEmail(email) {
+  // Deliberately simple (not RFC-5322 exhaustive) — just enough to catch
+  // "test@", "@test.com", "test@test" (no domain extension), etc.
+  return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test((email || '').trim());
+}
+function wbPhoneDigitError(fullPhone) {
+  var digits = (fullPhone || '').replace(/\D/g, '');
+  if (digits.length < 7)  return 'Please enter a valid phone number (too short).';
+  if (digits.length > 15) return 'Please enter a valid phone number (too long).';
+  return null;
+}
+function wbNameError(name) {
+  if (!name || name.trim().length < 3) return 'Please enter a name with at least 3 characters.';
+  return null;
+}
+
 function wbPasswordError(pw) {
   if (!pw || pw.length < 8) return 'Password must be at least 8 characters.';
   if (!/[0-9]/.test(pw)) return 'Password must include at least one number.';
@@ -788,7 +807,8 @@ async function authSubmit() {
   var btn      = document.getElementById('auth-submit-btn');
   authClearMessages();
   if (!email || !password) { authShowError('Please enter your email and password.'); return; }
-  if (isSignUp && !name)   { authShowError('Please enter your full name.'); return; }
+  if (isSignUp && wbNameError(name)) { authShowError(wbNameError(name)); return; }
+  if (isSignUp && !wbIsValidEmail(email)) { authShowError('Please enter a valid email address.'); return; }
   if (isSignUp) {
     var pwErr2 = wbPasswordError(password);
     if (pwErr2) { authShowError(pwErr2); return; }
@@ -6821,10 +6841,10 @@ tr:hover td{background:var(--b50)}
       <h1 style="font-family:'Cormorant Garamond',Georgia,serif;font-size:clamp(2.4rem,5vw,4rem);font-weight:700;color:#fff;line-height:1.1;margin-bottom:20px">Reach thousands of<br>experience-seekers<br>across South Africa</h1>
       <p style="font-size:1.1rem;color:#94a3b8;margin-bottom:36px;line-height:1.7">Join WowBox and showcase your hotel, restaurant, spa or outdoor experience to a curated audience of premium gift buyers.</p>
       <div style="display:flex;gap:14px;justify-content:center;flex-wrap:wrap">
-        <button class="btn" style="background:#2563eb;color:#fff;padding:14px 32px;border-radius:var(--r);font-size:.95rem;font-weight:600" onclick="document.getElementById('partner-signup-section').scrollIntoView({behavior:'smooth'})">
+        <button class="btn" style="background:#2563eb;color:#fff;padding:14px 32px;border-radius:var(--r);font-size:.95rem;font-weight:600" onclick="plSwitchTab('signup');document.getElementById('pl-signup-tab').scrollIntoView({behavior:'smooth',block:'center'})">
           <i class="fa fa-plus"></i> Join as a partner
         </button>
-        <button class="btn bg" style="padding:14px 32px;border-radius:var(--r);font-size:.95rem" onclick="partnerAuthSwitchTab('in');document.getElementById('partner-signup-section').scrollIntoView({behavior:'smooth'})">
+        <button class="btn bg" style="padding:14px 32px;border-radius:var(--r);font-size:.95rem" onclick="plSwitchTab('signin');document.getElementById('pl-signin-tab').scrollIntoView({behavior:'smooth',block:'center'})">
           Sign in to my portal
         </button>
       </div>
@@ -6868,55 +6888,6 @@ tr:hover td{background:var(--b50)}
     </div>
   </div>
 
-  <!-- Sign in / Sign up -->
-  <div id="partner-signup-section" style="background:#fff;padding:80px 24px">
-    <div style="max-width:480px;margin:0 auto">
-      <div style="text-align:center;margin-bottom:36px">
-        <h2 style="font-family:'Cormorant Garamond',Georgia,serif;font-size:2rem;color:var(--navy);margin-bottom:8px">Partner access</h2>
-        <p style="color:var(--muted);font-size:.85rem">Sign in to your portal or apply to join WowBox.</p>
-      </div>
-      <div class="ck-card">
-        <div class="auth-tab-bar" style="margin-bottom:24px">
-          <button class="auth-tab on" id="pl-tab-in" onclick="partnerAuthSwitchTab('in')">Sign in</button>
-          <button class="auth-tab" id="pl-tab-up" onclick="partnerAuthSwitchTab('up')">Join as a partner</button>
-        </div>
-        <div id="pl-signup-error" class="auth-error"></div>
-        <div id="pl-signup-success" class="auth-success"></div>
-
-        <!-- Sign in form -->
-        <div id="pl-signin-form">
-          <div class="fg"><label>Email *</label><input class="fi" id="pl-signin2-email" type="email" placeholder="your@company.com" onkeydown="if(event.key==='Enter'){event.preventDefault();partnerSignIn();}"></div>
-          <div class="fg"><label>Password *</label><div style="position:relative"><input class="fi" id="pl-password" type="password" placeholder="••••••••" onkeydown="if(event.key==='Enter'){event.preventDefault();partnerSignIn();}" style="padding-right:38px"><button type="button" onclick="authTogglePw('pl-password',this)" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--muted);font-size:.9rem;padding:0"><i class="fa fa-eye"></i></button></div></div>
-          <button type="button" class="btn bp block" onclick="partnerSignIn()" style="margin-top:4px"><i class="fa fa-arrow-right-to-bracket"></i> Sign in</button>
-          <p style="text-align:right;margin-top:10px"><span style="font-size:.73rem;color:var(--b600);cursor:pointer" onclick="showForgotPasswordModal()">Forgot password?</span></p>
-        </div>
-
-        <!-- Sign up form -->
-        <div id="pl-signup-form" style="display:none">
-          <div class="fg"><label>Company / Venue name *</label><input class="fi" id="pl-company" type="text" placeholder="e.g. The Vineyard Hotel"></div>
-          <div class="fg"><label>Experience type *</label>
-            <select class="fi" id="pl-exp-type" style="cursor:pointer">
-              <option value="">Select a category</option>
-              <option value="Hotel & Accommodation">Hotel & Accommodation</option>
-              <option value="Restaurant & Dining">Restaurant & Dining</option>
-              <option value="Spa & Wellness">Spa & Wellness</option>
-              <option value="Safari & Wildlife">Safari & Wildlife</option>
-              <option value="Hiking & Outdoors">Hiking & Outdoors</option>
-              <option value="Activity & Adventure">Activity & Adventure</option>
-              <option value="Other">Other</option>
-            </select>
-          </div>
-          <div class="fg"><label>Contact name *</label><input class="fi" id="pl-contact" type="text" placeholder="Your full name"></div>
-          <div class="fg"><label>Email *</label><input class="fi" id="pl-reg-email" type="email" placeholder="your@company.com"></div>
-          <div class="fg"><label>Phone *</label><input class="fi" id="pl-phone" type="tel" placeholder="083 000 0000"></div>
-          <div class="fg"><label>Password *</label><div style="position:relative"><input class="fi" id="pl-reg-password" type="password" placeholder="Min. 8 characters, 1 number & 1 symbol" style="padding-right:38px"><button type="button" onclick="authTogglePw('pl-reg-password',this)" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--muted);font-size:.9rem;padding:0"><i class="fa fa-eye"></i></button></div></div>
-          <div class="fg" style="margin-bottom:20px"><label>Tell us about your experience</label><textarea class="fi" id="pl-bio" rows="3" placeholder="Briefly describe what guests can expect..." style="resize:vertical"></textarea></div>
-          <button type="button" class="btn bp block" onclick="partnerSignUp()"><i class="fa fa-paper-plane"></i> Submit application</button>
-          <p style="font-size:.72rem;color:var(--muted);margin-top:12px;text-align:center">Applications are reviewed within 48 hours. You will receive a confirmation email.</p>
-        </div>
-      </div>
-    </div>
-  </div>
 
 </div>
 
@@ -16535,8 +16506,21 @@ async function plSubmitPartner() {
     if (errEl) { errEl.textContent = 'Please fill in all required fields.'; errEl.style.display = 'block'; }
     return;
   }
-  if (!email.includes('@')) {
+  if (wbNameError(bizName)) {
+    if (errEl) { errEl.textContent = 'Business name must be at least 3 characters.'; errEl.style.display = 'block'; }
+    return;
+  }
+  if (wbNameError(contact)) {
+    if (errEl) { errEl.textContent = 'Contact person must be at least 3 characters.'; errEl.style.display = 'block'; }
+    return;
+  }
+  if (!wbIsValidEmail(email)) {
     if (errEl) { errEl.textContent = 'Please enter a valid email address.'; errEl.style.display = 'block'; }
+    return;
+  }
+  var phoneErr = wbPhoneDigitError(phone);
+  if (phoneErr) {
+    if (errEl) { errEl.textContent = phoneErr; errEl.style.display = 'block'; }
     return;
   }
   var pwErr5 = wbPasswordError(pw);
@@ -17640,129 +17624,8 @@ async function renderBoxGrid() {
 
 /* ── Partner Landing Page ── */
 
-function partnerAuthSwitchTab(tab) {
-  var signIn = document.getElementById('pl-signin-form');
-  var signUp = document.getElementById('pl-signup-form');
-  var tabIn  = document.getElementById('pl-tab-in');
-  var tabUp  = document.getElementById('pl-tab-up');
-  var errEl  = document.getElementById('pl-error');
-  var sucEl  = document.getElementById('pl-success');
-  if (errEl) errEl.style.display = 'none';
-  if (sucEl) sucEl.style.display = 'none';
-  if (tab === 'in') {
-    if (signIn) signIn.style.display = '';
-    if (signUp) signUp.style.display = 'none';
-    if (tabIn)  tabIn.className  = 'auth-tab on';
-    if (tabUp)  tabUp.className  = 'auth-tab';
-  } else {
-    if (signIn) signIn.style.display = 'none';
-    if (signUp) signUp.style.display = '';
-    if (tabIn)  tabIn.className  = 'auth-tab';
-    if (tabUp)  tabUp.className  = 'auth-tab on';
-  }
-}
 
-async function partnerSignIn() {
-  var email = (document.getElementById('pl-signin2-email') || document.getElementById('pl-email') || {value:''}).value.trim();
-  var pass  = (document.getElementById('pl-password') || {value:''}).value;
-  var errEl = document.getElementById('pl-error');
-  if (!email || !pass) {
-    if (errEl) { errEl.textContent = 'Please enter your email and password.'; errEl.style.display = 'block'; }
-    return;
-  }
-  try {
-    var res = await db_client.auth.signInWithPassword({ email: email, password: pass });
-    if (res.error) throw res.error;
-    // authOnSignedIn will handle routing - check role
-    await authOnSignedIn(res.data.user);
-  } catch(e) {
-    if (errEl) { errEl.textContent = e.message || 'Sign in failed.'; errEl.style.display = 'block'; }
-  }
-}
 
-async function partnerSignUp() {
-  var company  = (document.getElementById('pl-company') || {value:''}).value.trim();
-  var expType  = (document.getElementById('pl-exp-type') || {value:''}).value;
-  var contact  = (document.getElementById('pl-contact') || {value:''}).value.trim();
-  var email    = (document.getElementById('pl-reg-email') || {value:''}).value.trim();
-  var phone    = wbPhoneGetFull('pl-phone');
-  var pass     = (document.getElementById('pl-reg-password') || {value:''}).value;
-  var bio      = (document.getElementById('pl-bio') || {value:''}).value.trim();
-  var errEl    = document.getElementById('pl-error');
-  var sucEl    = document.getElementById('pl-success');
-
-  var fields = [
-    {id:'pl-company', val: company}, {id:'pl-exp-type', val: expType}, {id:'pl-contact', val: contact},
-    {id:'pl-reg-email', val: email}, {id:'pl-phone', val: phone}, {id:'pl-reg-password', val: pass}
-  ];
-  fields.forEach(function(f) {
-    var el = document.getElementById(f.id);
-    if (el) el.style.borderColor = (!f.val) ? '#ef4444' : '';
-  });
-
-  if (!company || !expType || !contact || !email || !phone || !pass) {
-    if (errEl) { errEl.textContent = 'Please fill in all required fields.'; errEl.style.display = 'block'; errEl.scrollIntoView({behavior:'smooth', block:'center'}); }
-    return;
-  }
-  var pwErr6 = wbPasswordError(pass);
-  if (pwErr6) {
-    if (errEl) { errEl.textContent = pwErr6; errEl.style.display = 'block'; errEl.scrollIntoView({behavior:'smooth', block:'center'}); }
-    return;
-  }
-  if (errEl) errEl.style.display = 'none';
-
-  try {
-    // Create auth account
-    var signUpRes = await db_client.auth.signUp({ email: email, password: pass });
-    if (signUpRes.error) throw signUpRes.error;
-
-    var userId = signUpRes.data.user ? signUpRes.data.user.id : null;
-
-    // Create user profile with role=partner, status=pending
-    if (userId) {
-      await db_client.from('user_profiles').insert({
-        id:           userId,
-        email:        email,
-        full_name:    contact,
-        phone:        phone,
-        role:         'partner',
-        partner_name: company,
-      });
-    }
-
-    // Send notification email to admin
-    await fetch('/api/send-email', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        type: 'partner_application',
-        order: {
-          id:    'PARTNER-' + Date.now(),
-          name:  contact,
-          email: 'geff.pr@gmail.com',
-          type:  'Partner Application',
-          total: '',
-          date:  new Date().toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'}),
-          items: [{
-            name:   company,
-            code:   expType,
-            type:   phone,
-            status: bio || 'No description'
-          }]
-        }
-      })
-    });
-
-    if (sucEl) {
-      sucEl.textContent = 'Application submitted! We will review your profile and contact you within 48 hours.';
-      sucEl.style.display = 'block';
-      sucEl.scrollIntoView({behavior:'smooth', block:'center'});
-    }
-
-  } catch(e) {
-    if (errEl) { errEl.textContent = e.message || 'Application failed. Please try again.'; errEl.style.display = 'block'; errEl.scrollIntoView({behavior:'smooth', block:'center'}); }
-  }
-}
 
 function browseActivatedBox() {
   var v = appState.activatedVoucher;
@@ -30500,8 +30363,18 @@ async function plxSubmitPartner() {
   if (!bizName||!contact||!email||!phone||!type||!regNum||!bizType||!pw||!city||!expDesc) {
     if (errEl) { errEl.textContent = 'Please fill in all required fields.'; errEl.style.display = 'block'; } return;
   }
-  if (!email.includes('@')) {
+  if (wbNameError(bizName)) {
+    if (errEl) { errEl.textContent = 'Business name must be at least 3 characters.'; errEl.style.display = 'block'; } return;
+  }
+  if (wbNameError(contact)) {
+    if (errEl) { errEl.textContent = 'Contact person must be at least 3 characters.'; errEl.style.display = 'block'; } return;
+  }
+  if (!wbIsValidEmail(email)) {
     if (errEl) { errEl.textContent = 'Please enter a valid email.'; errEl.style.display = 'block'; } return;
+  }
+  var phoneErr2 = wbPhoneDigitError(phone);
+  if (phoneErr2) {
+    if (errEl) { errEl.textContent = phoneErr2; errEl.style.display = 'block'; } return;
   }
   var pwErr7 = wbPasswordError(pw);
   if (pwErr7) {
