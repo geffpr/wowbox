@@ -711,10 +711,9 @@ function authSwitchTab(tab) {
   if (submitLabel) submitLabel.textContent = isUp ? 'Create account' : 'Sign in';
   if (isUp) {
     var authPwVal = document.getElementById('auth-password') ? document.getElementById('auth-password').value : '';
-    wbUpdatePwIndicators(authPwVal, ['auth-pw-indicator-top', 'auth-pw-indicator-bottom']);
+    wbUpdatePwIndicators(authPwVal, ['auth-pw-indicator-top']);
   } else {
     var pwTop = document.getElementById('auth-pw-indicator-top'); if (pwTop) pwTop.style.display = 'none';
-    var pwBottom = document.getElementById('auth-pw-indicator-bottom'); if (pwBottom) pwBottom.style.display = 'none';
   }
   authClearMessages();
 }
@@ -846,6 +845,23 @@ function wbUpdatePwIndicator(pw, id) {
 }
 function wbUpdatePwIndicators(pw, ids) {
   (ids || []).forEach(function (id) { wbUpdatePwIndicator(pw, id); });
+}
+
+function wbCheckPwMatch() {
+  var pwEl  = document.getElementById('auth-password');
+  var cpEl  = document.getElementById('auth-confirm-pw');
+  var msgEl = document.getElementById('auth-confirm-pw-msg');
+  if (!pwEl || !cpEl || !msgEl) return;
+  var cp = cpEl.value;
+  if (!cp) { msgEl.style.display = 'none'; return; }
+  msgEl.style.display = 'block';
+  if (cp === pwEl.value) {
+    msgEl.textContent = '✓ Passwords match';
+    msgEl.style.color = '#16a34a';
+  } else {
+    msgEl.textContent = 'Passwords do not match';
+    msgEl.style.color = '#dc2626';
+  }
 }
 
 function authTogglePw(inputId, btn) {
@@ -6204,7 +6220,7 @@ tr:hover td{background:var(--b50)}
       <div class="fg" style="text-align:left;margin-bottom:8px">
         <label>Password *</label>
         <div style="position:relative">
-          <input class="fi" id="auth-password" type="password" placeholder="••••••••" onkeydown="if(event.key==='Enter')authSubmit()" oninput="wbUpdatePwIndicators(this.value,['auth-pw-indicator-top','auth-pw-indicator-bottom'])" style="padding-right:40px">
+          <input class="fi" id="auth-password" type="password" placeholder="••••••••" onkeydown="if(event.key==='Enter')authSubmit()" oninput="wbUpdatePwIndicators(this.value,['auth-pw-indicator-top']);wbCheckPwMatch()" style="padding-right:40px">
           <button type="button" onclick="authTogglePw('auth-password',this)" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--muted);font-size:.9rem;padding:0"><i class="fa fa-eye"></i></button>
         </div>
         <div class="wb-pw-indicator" id="auth-pw-indicator-top" style="display:none;margin-top:8px;margin-bottom:4px">
@@ -6224,9 +6240,10 @@ tr:hover td{background:var(--b50)}
       <div class="fg" id="auth-confirm-pw-field" style="text-align:left;margin-bottom:8px;display:none">
         <label>Confirm password *</label>
         <div style="position:relative">
-          <input class="fi" id="auth-confirm-pw" type="password" placeholder="••••••••" onkeydown="if(event.key==='Enter')authSubmit()" style="padding-right:40px">
+          <input class="fi" id="auth-confirm-pw" type="password" placeholder="••••••••" onkeydown="if(event.key==='Enter')authSubmit()" oninput="wbCheckPwMatch()" style="padding-right:40px">
           <button type="button" onclick="authTogglePw('auth-confirm-pw',this)" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--muted);font-size:.9rem;padding:0"><i class="fa fa-eye"></i></button>
         </div>
+        <div id="auth-confirm-pw-msg" style="display:none;font-size:.72rem;font-weight:600;margin-top:5px"></div>
       </div>
       <div id="auth-cgu-field" style="display:none;margin-bottom:14px;text-align:left">
         <label style="display:flex;align-items:flex-start;gap:8px;font-size:.76rem;color:var(--muted);cursor:pointer">
@@ -6236,19 +6253,6 @@ tr:hover td{background:var(--b50)}
       </div>
       <div id="auth-forgot" style="text-align:right;margin-bottom:18px">
         <span style="font-size:.73rem;color:var(--b600);cursor:pointer;font-weight:500" onclick="showForgotPasswordModal()">Forgot password?</span>
-      </div>
-      <div class="wb-pw-indicator" id="auth-pw-indicator-bottom" style="display:none;margin-bottom:12px;text-align:left">
-        <div style="display:flex;gap:4px;margin-bottom:6px">
-          <div class="wb-pw-bar" style="flex:1;height:4px;border-radius:2px;background:var(--border);transition:background .2s"></div>
-          <div class="wb-pw-bar" style="flex:1;height:4px;border-radius:2px;background:var(--border);transition:background .2s"></div>
-          <div class="wb-pw-bar" style="flex:1;height:4px;border-radius:2px;background:var(--border);transition:background .2s"></div>
-        </div>
-        <div class="wb-pw-label" style="font-size:.72rem;font-weight:600;margin-bottom:4px"></div>
-        <ul style="list-style:none;padding:0;margin:0;font-size:.72rem;color:var(--muted)">
-          <li data-check="len" style="margin-bottom:2px"><i class="fa fa-circle" style="font-size:.5rem;margin-right:6px;color:var(--border)"></i>At least 8 characters</li>
-          <li data-check="num" style="margin-bottom:2px"><i class="fa fa-circle" style="font-size:.5rem;margin-right:6px;color:var(--border)"></i>At least 1 number</li>
-          <li data-check="special"><i class="fa fa-circle" style="font-size:.5rem;margin-right:6px;color:var(--border)"></i>At least 1 special character</li>
-        </ul>
       </div>
       <button class="btn bp block" id="auth-submit-btn" onclick="authSubmit()" style="margin-bottom:9px">
         <i class="fa fa-arrow-right-to-bracket"></i> <span id="auth-submit-label">Sign in</span>
@@ -6870,7 +6874,7 @@ tr:hover td{background:var(--b50)}
         </div>
         <div class="fg">
           <label>Password *</label>
-          <div style="position:relative"><input class="fi" id="pl-pw" type="password" placeholder="Min. 8 characters, 1 number & 1 symbol" oninput="wbUpdatePwIndicators(this.value,['pl-pw-indicator-top','pl-pw-indicator-bottom'])" style="padding-right:38px"><button type="button" onclick="authTogglePw('pl-pw',this)" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--muted);font-size:.9rem;padding:0"><i class="fa fa-eye"></i></button></div>
+          <div style="position:relative"><input class="fi" id="pl-pw" type="password" placeholder="Min. 8 characters, 1 number & 1 symbol" oninput="wbUpdatePwIndicators(this.value,['pl-pw-indicator-top'])" style="padding-right:38px"><button type="button" onclick="authTogglePw('pl-pw',this)" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--muted);font-size:.9rem;padding:0"><i class="fa fa-eye"></i></button></div>
           <div class="wb-pw-indicator" id="pl-pw-indicator-top" style="display:none;margin-top:8px">
             <div style="display:flex;gap:4px;margin-bottom:6px">
               <div class="wb-pw-bar" style="flex:1;height:4px;border-radius:2px;background:var(--border);transition:background .2s"></div>
@@ -6913,19 +6917,6 @@ tr:hover td{background:var(--b50)}
           <span>I have read and agree to the WowBox <a href="/terms" target="_blank" style="color:var(--b600);text-decoration:underline">Partner Terms & Conditions</a> and confirm I am authorised to list services on behalf of my business. *</span>
         </label>
         <div style="font-size:.72rem;color:#64748b;margin-bottom:18px">Your application will be reviewed within 24 hours. You will receive a confirmation email once approved.</div>
-        <div class="wb-pw-indicator" id="pl-pw-indicator-bottom" style="display:none;margin-bottom:14px">
-          <div style="display:flex;gap:4px;margin-bottom:6px">
-            <div class="wb-pw-bar" style="flex:1;height:4px;border-radius:2px;background:var(--border);transition:background .2s"></div>
-            <div class="wb-pw-bar" style="flex:1;height:4px;border-radius:2px;background:var(--border);transition:background .2s"></div>
-            <div class="wb-pw-bar" style="flex:1;height:4px;border-radius:2px;background:var(--border);transition:background .2s"></div>
-          </div>
-          <div class="wb-pw-label" style="font-size:.72rem;font-weight:600;margin-bottom:4px"></div>
-          <ul style="list-style:none;padding:0;margin:0;font-size:.72rem;color:var(--muted)">
-            <li data-check="len" style="margin-bottom:2px"><i class="fa fa-circle" style="font-size:.5rem;margin-right:6px;color:var(--border)"></i>At least 8 characters</li>
-            <li data-check="num" style="margin-bottom:2px"><i class="fa fa-circle" style="font-size:.5rem;margin-right:6px;color:var(--border)"></i>At least 1 number</li>
-            <li data-check="special"><i class="fa fa-circle" style="font-size:.5rem;margin-right:6px;color:var(--border)"></i>At least 1 special character</li>
-          </ul>
-        </div>
         <button type="button" class="btn bp block" id="pl-submit-btn" onclick="plSubmitPartner()"><i class="fa fa-paper-plane"></i> Submit application</button>
         <div id="pl-error-bottom" style="display:none;background:#fee2e2;border:1px solid #fca5a5;border-radius:8px;padding:10px 14px;font-size:.78rem;color:#991b1b;margin-top:14px"></div>
         <div id="pl-success-bottom" style="display:none;background:#d1fae5;border:1px solid #6ee7b7;border-radius:8px;padding:10px 14px;font-size:.78rem;color:#065f46;margin-top:14px"></div>
@@ -31344,7 +31335,7 @@ async function admRunSchemaDiag() {
           </div>
           <div>
             <label style="font-size:.72rem;color:rgba(255,255,255,.6);display:block;margin-bottom:4px">Password *</label>
-            <div style="position:relative"><input class="fi" id="plx-pw" type="password" placeholder="Min. 8 characters, 1 number & 1 symbol" oninput="wbUpdatePwIndicators(this.value,['plx-pw-indicator-top','plx-pw-indicator-bottom'])" style="padding-right:38px"><button type="button" onclick="authTogglePw('plx-pw',this)" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:rgba(255,255,255,.6);font-size:.9rem;padding:0"><i class="fa fa-eye"></i></button></div>
+            <div style="position:relative"><input class="fi" id="plx-pw" type="password" placeholder="Min. 8 characters, 1 number & 1 symbol" oninput="wbUpdatePwIndicators(this.value,['plx-pw-indicator-top'])" style="padding-right:38px"><button type="button" onclick="authTogglePw('plx-pw',this)" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:rgba(255,255,255,.6);font-size:.9rem;padding:0"><i class="fa fa-eye"></i></button></div>
             <div class="wb-pw-indicator wb-pw-dark" id="plx-pw-indicator-top" style="display:none;margin-top:8px">
               <div style="display:flex;gap:4px;margin-bottom:6px">
                 <div class="wb-pw-bar" style="flex:1;height:4px;border-radius:2px;background:rgba(255,255,255,.2);transition:background .2s"></div>
@@ -31379,19 +31370,6 @@ async function admRunSchemaDiag() {
           <input type="checkbox" id="plx-terms" style="margin-top:2px;flex-shrink:0;width:15px;height:15px;cursor:pointer">
           <span>I have read and agree to the WowBox Partner Terms &amp; Conditions *</span>
         </label>
-        <div class="wb-pw-indicator wb-pw-dark" id="plx-pw-indicator-bottom" style="display:none;margin-bottom:14px">
-          <div style="display:flex;gap:4px;margin-bottom:6px">
-            <div class="wb-pw-bar" style="flex:1;height:4px;border-radius:2px;background:rgba(255,255,255,.2);transition:background .2s"></div>
-            <div class="wb-pw-bar" style="flex:1;height:4px;border-radius:2px;background:rgba(255,255,255,.2);transition:background .2s"></div>
-            <div class="wb-pw-bar" style="flex:1;height:4px;border-radius:2px;background:rgba(255,255,255,.2);transition:background .2s"></div>
-          </div>
-          <div class="wb-pw-label" style="font-size:.7rem;font-weight:600;margin-bottom:4px"></div>
-          <ul style="list-style:none;padding:0;margin:0;font-size:.7rem;color:rgba(255,255,255,.6)">
-            <li data-check="len" style="margin-bottom:2px"><i class="fa fa-circle" style="font-size:.5rem;margin-right:6px;color:rgba(255,255,255,.3)"></i>At least 8 characters</li>
-            <li data-check="num" style="margin-bottom:2px"><i class="fa fa-circle" style="font-size:.5rem;margin-right:6px;color:rgba(255,255,255,.3)"></i>At least 1 number</li>
-            <li data-check="special"><i class="fa fa-circle" style="font-size:.5rem;margin-right:6px;color:rgba(255,255,255,.3)"></i>At least 1 special character</li>
-          </ul>
-        </div>
         <div id="plx-error" style="font-size:.78rem;color:#fca5a5;margin-bottom:10px;display:none"></div>
         <div id="plx-success" style="font-size:.78rem;color:#86efac;margin-bottom:10px;display:none"></div>
         <button onclick="plxSubmitPartner()" style="width:100%;background:#f59e0b;color:#fff;border:none;border-radius:10px;padding:13px;font-size:.9rem;font-weight:700;cursor:pointer">Submit application</button>
