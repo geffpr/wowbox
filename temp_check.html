@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel - Adult Lodging SA</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <header>
+        <h1>Admin Panel - Manage Rooms</h1>
+        <nav>
+            <ul>
+                <li><a href="index.html">Home</a></li>
+                <li><a href="products.html">Rooms</a></li>
+                <li><a href="cart.html">Cart</a></li>
+                <li><a href="checkout.html">Checkout</a></li>
+                <li><a href="admin.html">Admin</a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <section class="admin-form">
+            <h2>Add New Room</h2>
+            <form id="room-form">
+                <label for="room-name">Room Name:</label>
+                <input type="text" id="room-name" required>
+                
+                <label for="city">City:</label>
+                <select id="city" required>
+                    <option value="johannesburg">Johannesburg</option>
+                    <option value="cape-town">Cape Town</option>
+                    <option value="durban">Durban</option>
+                    <option value="pretoria">Pretoria</option>
+                </select>
+                
+                <label for="price">Price (ZAR):</label>
+                <input type="number" id="price" required>
+                
+                <label for="description">Description:</label>
+                <textarea id="description" required></textarea>
+                
+                <label for="address">Address:</label>
+                <input type="text" id="address" required>
+                
+                <label for="image">Room Image URL:</label>
+                <input type="text" id="image" required>
+                
+                <button type="button" onclick="addRoom()">Add Room</button>
+            </form>
+        </section>
+        
+        <section class="room-list">
+            <h2>Room Listings</h2>
+            <ul id="room-list"></ul>
+        </section>
+    </main>
+    <script>
+        function addRoom() {
+            const name = document.getElementById("room-name").value;
+            const city = document.getElementById("city").value;
+            const price = document.getElementById("price").value;
+            const description = document.getElementById("description").value;
+            const address = document.getElementById("address").value;
+            const image = document.getElementById("image").value;
+            
+            const roomList = document.getElementById("room-list");
+            const li = document.createElement("li");
+            li.innerHTML = `
+                <strong>${name}</strong> - ${city} - ZAR ${price}<br>
+                ${description}<br>
+                ${address}<br>
+                <img src="${image}" alt="${name}" width="200"><br>
+                <button onclick="shareRoom('${name}', '${description}', '${image}')">Share</button>
+            `;
+            roomList.appendChild(li);
+        }
+        
+        function shareRoom(name, description, image) {
+            const url = encodeURIComponent(window.location.href);
+            const text = encodeURIComponent(`${name}: ${description}`);
+            const twitter = `https://twitter.com/intent/tweet?text=${text}&url=${url}`;
+            const facebook = `https://www.facebook.com/sharer/sharer.php?u=${url}`;
+            const whatsapp = `https://api.whatsapp.com/send?text=${text} ${url}`;
+            const instagram = `https://www.instagram.com/?url=${url}`;
+            
+            window.open(twitter, '_blank');
+            window.open(facebook, '_blank');
+            window.open(whatsapp, '_blank');
+            window.open(instagram, '_blank');
+        }
+    </script>
+    <footer>
+        <p>&copy; 2025 Adult Lodging SA. All rights reserved.</p>
+    </footer>
+</body>
+</html>

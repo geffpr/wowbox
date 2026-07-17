@@ -168,7 +168,7 @@ async function sendOrderEmail(type, order) {
 // (signup, role update, transactional email already sent).
 async function wbAddToAudience(segment, email, name) {
   try {
-    const resp = await fetch('/api/add-to-audience', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({segment,email,name}) });
+    const resp = await fetch('/api/send-email', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({segment,email,name}) });
     return await resp.json();
   } catch(e) { return {success:false,error:e.message}; }
 }

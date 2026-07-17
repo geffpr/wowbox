@@ -7,6 +7,14 @@ const ADMIN_EMAIL    = 'hello@wowbox.co.za';
 const ADMIN_CC       = 'geff.pr@gmail.com';
 const SITE_URL       = 'https://wowbox.co.za';
 
+// Resend Audiences (dashboard now calls these "Segments", but the legacy
+// /audiences/{id}/contacts endpoint below still works for backward compat).
+const AUDIENCE_IDS = {
+  customers: '3b5a3ec0-f04c-472f-ba4c-7ee148ec990f',
+  partners:  '1f5d0a96-491c-4d81-afbd-9517787d0574',
+  creators:  '62583312-d68e-4d94-9291-1524e29d61d5',
+};
+
 // ── Brand colours (warm brown palette matching the site) ────────────────────
 const C = {
   darkBrown:  '#3d1008',  // logo bar, footer, code box bg
@@ -1037,6 +1045,33 @@ export default async function handler(req, res) {
 
   try {
     const body = req.body || {};
+
+    // ── Resend Audience sync — fully separate from email sending below.
+    // Returns early if `segment` is present; otherwise falls through
+    // untouched to the existing email switch(type) logic.
+    if (body.segment) {
+      const audienceId = AUDIENCE_IDS[body.segment];
+      if (!audienceId) return res.status(400).json({ error: `Unknown segment: ${body.segment}` });
+      const audEmail = (body.email || '').trim();
+      if (!audEmail) return res.status(400).json({ error: 'Missing email' });
+      const fullName = (body.name || '').trim();
+      const nameParts = fullName.split(' ').filter(Boolean);
+      const firstName = nameParts[0] || undefined;
+      const lastName  = nameParts.length > 1 ? nameParts.slice(1).join(' ') : undefined;
+      const resendContactBody = { email: audEmail, unsubscribed: false };
+      if (firstName) resendContactBody.first_name = firstName;
+      if (lastName)  resendContactBody.last_name  = lastName;
+
+      const audResp = await fetch(`https://api.resend.com/audiences/${audienceId}/contacts`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${RESEND_API_KEY}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(resendContactBody),
+      });
+      const audData = await audResp.json();
+      if (!audResp.ok) throw new Error(audData.message || 'Resend audience error');
+      return res.status(200).json({ success: true, id: audData.id });
+    }
+
     const type = body.type;
     const o    = body.order || body.data || {};
     const toOverride = body.to;
