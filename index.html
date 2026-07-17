@@ -1715,7 +1715,13 @@ async function authOnSignedIn(user, navigate) {
     if (role === 'admin')        { go('admin'); }
     else if (role === 'partner') { go('partner'); setNL('nl-part'); }
     else if (role === 'creator') { go('creator'); setNL('nl-creator'); }
-    else if (!boxCount && !orderCount) { go('home'); setNL('nl-home'); }
+    else if (!boxCount && !orderCount) {
+      go('home'); setNL('nl-home');
+      setTimeout(function() {
+        var hiw = document.getElementById('home-how-it-works');
+        if (hiw) hiw.scrollIntoView({behavior:'smooth', block:'start'});
+      }, 150);
+    }
     else                          { go('dashboard'); setNL('nl-dash'); }
   }
   // ── Mobile sidebar user info ──
