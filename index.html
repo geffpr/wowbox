@@ -720,8 +720,8 @@ function authSwitchTab(tab) {
 function authClearMessages() {
   var err = document.getElementById('auth-error');
   var suc = document.getElementById('auth-success');
-  if (err) { err.textContent = ''; err.classList.remove('show'); }
-  if (suc) { suc.textContent = ''; suc.classList.remove('show'); }
+  if (err) { err.textContent = ''; err.classList.remove('show'); err.style.display = 'none'; }
+  if (suc) { suc.textContent = ''; suc.classList.remove('show'); suc.style.display = 'none'; }
 }
 function authShowError(msg) {
   var el = document.getElementById('auth-error') || document.getElementById('pl-error');
@@ -900,8 +900,16 @@ async function authSubmit() {
       var result = await db_client.auth.signUp({ email: email, password: password, options: { data: { full_name: name } } });
       if (result.error) throw result.error;
       wbAddToAudience('customers', email, name);
-      authShowSuccess('Account created! Check your email to confirm, then sign in.');
-      authSwitchTab('in');
+      if (result.data && result.data.session && result.data.user) {
+        // Email confirmation not required on this project — signUp() already
+        // returned an active session, so log straight in like a normal sign-in.
+        await authOnSignedIn(result.data.user);
+      } else {
+        // Fallback for projects where email confirmation IS required —
+        // no session yet, so ask them to confirm before signing in.
+        authShowSuccess('Account created! Check your email to confirm, then sign in.');
+        authSwitchTab('in');
+      }
     } else {
       var result2 = await db_client.auth.signInWithPassword({ email: email, password: password });
       if (result2.error) throw result2.error;
@@ -910,7 +918,11 @@ async function authSubmit() {
   } catch(e) {
     authShowError(e.message || 'Authentication failed. Please try again.');
   }
-  if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa fa-arrow-right-to-bracket"></i> <span id="auth-submit-label">' + (isSignUp ? 'Create account' : 'Sign in') + '</span>'; }
+  if (btn) {
+    btn.disabled = false;
+    var stillSignUp = document.getElementById('auth-tab-up') ? document.getElementById('auth-tab-up').classList.contains('on') : false;
+    btn.innerHTML = '<i class="fa fa-arrow-right-to-bracket"></i> <span id="auth-submit-label">' + (stillSignUp ? 'Create account' : 'Sign in') + '</span>';
+  }
 }
 
 async function authGoogle() {
@@ -1112,7 +1124,7 @@ async function dashRedeemCode() {
 
 async function loadUserOrders(email) {
   var listEl = document.getElementById('dash-orders-list');
-  if (!listEl) return;
+  if (!listEl) return 0;
   listEl.innerHTML = '<div style="text-align:center;padding:30px;color:var(--muted)"><i class="fa fa-circle-notch fa-spin" style="font-size:1.4rem;opacity:.4"></i></div>';
   try {
     // Load orders from Supabase
@@ -1151,7 +1163,7 @@ async function loadUserOrders(email) {
         + '<p style="font-size:.9rem">No orders yet. Your purchases will appear here.</p>'
         + '<button class="btn bp bsm" style="margin-top:16px" onclick="goBrowse()">Browse gift boxes</button>'
         + '</div>';
-      return;
+      return 0;
     }
 
     // Load vouchers for all order IDs to get codes per order
@@ -1284,9 +1296,12 @@ async function loadUserOrders(email) {
         + '</div>';
     }).join('');
 
+    return orders.length;
+
   } catch(e) {
     console.warn('loadUserOrders:', e.message);
     listEl.innerHTML = '<div style="text-align:center;padding:30px;color:var(--muted)">Could not load orders.</div>';
+    return 0;
   }
 }
 
@@ -1694,12 +1709,13 @@ async function authOnSignedIn(user, navigate) {
   }
 
   // Default: go to dashboard only on active login, not session restore
-  await loadUserBoxes(email);
-  await loadUserOrders(email);
+  var boxCount   = await loadUserBoxes(email);
+  var orderCount = await loadUserOrders(email);
   if (navigate) {
     if (role === 'admin')        { go('admin'); }
     else if (role === 'partner') { go('partner'); setNL('nl-part'); }
     else if (role === 'creator') { go('creator'); setNL('nl-creator'); }
+    else if (!boxCount && !orderCount) { go('home'); setNL('nl-home'); }
     else                          { go('dashboard'); setNL('nl-dash'); }
   }
   // ── Mobile sidebar user info ──
@@ -1739,7 +1755,7 @@ async function loadUserBoxes(email) {
       var listDiv = document.getElementById('dash-boxes-list');
       if (listDiv) listDiv.innerHTML = '';
       document.querySelectorAll('#dash-boxes .dash-box-card').forEach(function(el) { el.remove(); });
-      return;
+      return 0;
     }
     if (subtitle) subtitle.textContent = vouchers.length + ' gift box' + (vouchers.length !== 1 ? 'es' : '') + ' in your account.';
 
@@ -1889,9 +1905,13 @@ async function loadUserBoxes(email) {
     if (tabs[1]) tabs[1].textContent = 'Active (' + vouchers.filter(function(v){return v.status==='active';}).length + ')';
     if (tabs[2]) tabs[2].textContent = 'Used (' + vouchers.filter(function(v){return v.status==='used';}).length + ')';
     if (tabs[3]) tabs[3].textContent = 'Expired (' + vouchers.filter(function(v){return v.status==='expired';}).length + ')';
+
+    return vouchers.length;
+
   } catch(e) {
     console.warn('loadUserBoxes:', e.message);
     if (subtitle) subtitle.textContent = 'Manage all your WowBox experiences in one place.';
+    return 0;
   }
 }
 
