@@ -163,6 +163,16 @@ async function sendOrderEmail(type, order) {
   } catch(e) { return {success:false,error:e.message}; }
 }
 
+// Non-blocking Resend Audience sync. Always resolves, never throws — a failure
+// here (segment down, bad key, etc.) must never break the calling flow
+// (signup, role update, transactional email already sent).
+async function wbAddToAudience(segment, email, name) {
+  try {
+    const resp = await fetch('/api/add-to-audience', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({segment,email,name}) });
+    return await resp.json();
+  } catch(e) { return {success:false,error:e.message}; }
+}
+
 function admResendEmail() {
   const title = document.getElementById('ord-detail-title')?.textContent || '';
   const orderId = title.replace('Order ','').trim();
@@ -873,6 +883,7 @@ async function authSubmit() {
     if (isSignUp) {
       var result = await db_client.auth.signUp({ email: email, password: password, options: { data: { full_name: name } } });
       if (result.error) throw result.error;
+      wbAddToAudience('customers', email, name);
       authShowSuccess('Account created! Check your email to confirm, then sign in.');
       authSwitchTab('in');
     } else {
@@ -1542,6 +1553,7 @@ async function authOnSignedIn(user, navigate) {
       // No profile found — create one
       var ins = await db_client.from('user_profiles').insert({ id: user.id, email: email, full_name: name, role: 'customer' });
       if (ins.error) console.warn('Profile insert error:', ins.error.message);
+      else wbAddToAudience('customers', email, name);
     }
   } catch(e) { console.error('Profile fetch EXCEPTION:', e.message); }
   console.log('[WowBox] authOnSignedIn — role:', role, 'email:', email);
@@ -20851,6 +20863,7 @@ async function admApprovePartner(userId) {
         email: profRes.data.email,
         name:  profRes.data.partner_name || profRes.data.full_name || 'Partner',
       });
+      wbAddToAudience('partners', profRes.data.email, profRes.data.partner_name || profRes.data.full_name || '');
     }
     admToast('✅ Partner approved — email sent');
     renderAdmPartnerApps();
@@ -28237,6 +28250,7 @@ async function admPromoteToCreator(userId) {
     if (!upd.data || !upd.data.length) { admToast('Update affected 0 rows — check RLS or user id.'); return; }
     var localU = _admUsersData.find(function(x){ return x.id === userId; });
     if (localU) localU.role = 'creator';
+    if (localU && localU.email) wbAddToAudience('creators', localU.email, localU.full_name || '');
     admRenderUsersTable();
     admToast('✅ Promoted to Creator.');
     admOpenUserDetail(userId);
@@ -28255,6 +28269,7 @@ async function admPromoteToPartner(userId, currentName) {
     if (!upd.data || !upd.data.length) { admToast('Update affected 0 rows — check RLS or user id.'); return; }
     var localU2 = _admUsersData.find(function(x){ return x.id === userId; });
     if (localU2) { localU2.role = 'partner'; localU2.partner_name = partnerName.trim(); }
+    if (localU2 && localU2.email) wbAddToAudience('partners', localU2.email, partnerName.trim());
     admRenderUsersTable();
     admToast('✅ Promoted to Partner: ' + partnerName);
     admOpenUserDetail(userId);
