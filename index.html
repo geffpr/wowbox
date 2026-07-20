@@ -19081,9 +19081,12 @@ async function loadAdminDashStats() {
     set('adm-kpi-databases', dbs.size || '—');
     set('adm-kpi-exp-count', (expR.count||0).toLocaleString() + ' experiences');
 
-    // Pending partner requests
-    const reqR = await db_client.from('partner_requests').select('id',{count:'exact',head:true}).eq('status','pending');
-    const reqN = reqR.count || 0;
+    // Pending partner requests — regular select + client-side count (HEAD-count
+    // queries are silently blocked by RLS on this table, same root cause we
+    // already fixed for the Boxes Sold KPI).
+    const reqR = await db_client.from('partner_requests').select('id').eq('status','pending');
+    if (reqR.error) console.warn('Partner requests KPI query failed:', reqR.error.message);
+    const reqN = (reqR.data || []).length;
     set('adm-kpi-requests', reqN.toString());
     const badge = document.getElementById('adm-req-badge');
     if (badge) { badge.textContent = reqN || ''; badge.style.display = reqN ? '' : 'none'; }
