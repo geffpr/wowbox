@@ -27275,7 +27275,12 @@ async function wbCreateCreatorCommission(bk) {
 
     var creatorEmail = boxRes.data.creator_email;
     var creatorName  = boxRes.data.creator_name || creatorEmail;
-    var boxPrice     = Number(boxRes.data.price) || Number(bk.box_price) || 0;
+    // Use the experience's own WowBox value (already correctly stored on the
+    // booking, per the earlier fix to bk.box_price) as the basis — NOT the
+    // box's sale price. This keeps Ross's markup 100% his own in every case,
+    // exactly like the partner commission, and keeps the creator's payout
+    // predictable per booking regardless of how a box happens to be priced.
+    var boxPrice = Number(bk.box_price) || Number(boxRes.data.price) || 0;
 
     // Rate lookup: creator-specific override, else a conservative 10% default
     // until an admin sets a real negotiated rate for this creator.
