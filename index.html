@@ -26181,7 +26181,7 @@ async function ppLoadPayouts() {
     const rPart = await db_client.from('commission_rates').select('platform_rate').eq('rate_type','partner').eq('target_id',email).maybeSingle();
     if (rPart.data) { appliedRate = Number(rPart.data.platform_rate); }
     else {
-      const rGlob = await db_client.from('commission_rates').select('platform_rate').eq('rate_type','global').maybeSingle();
+      const rGlob = await db_client.from('commission_rates').select('platform_rate').eq('rate_type','global').eq('target_id','__global__').maybeSingle();
       if (rGlob.data) appliedRate = Number(rGlob.data.platform_rate);
     }
     setV('pp-pay-rate', (100 - appliedRate) + '%');
@@ -27195,7 +27195,7 @@ async function wbCreateCommissionForBooking(bk, opts) {
         if (rPart.data) { platformRate = Number(rPart.data.platform_rate); }
         else {
           var rGlob = await db_client.from('commission_rates')
-            .select('platform_rate').eq('rate_type','global').maybeSingle();
+            .select('platform_rate').eq('rate_type','global').eq('target_id','__global__').maybeSingle();
           if (rGlob.data) { platformRate = Number(rGlob.data.platform_rate); }
         }
       }
@@ -27206,7 +27206,7 @@ async function wbCreateCommissionForBooking(bk, opts) {
       if (rPart2.data) { platformRate = Number(rPart2.data.platform_rate); }
       else {
         var rGlob2 = await db_client.from('commission_rates')
-          .select('platform_rate').eq('rate_type','global').maybeSingle();
+          .select('platform_rate').eq('rate_type','global').eq('target_id','__global__').maybeSingle();
         if (rGlob2.data) { platformRate = Number(rGlob2.data.platform_rate); }
       }
     }
