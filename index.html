@@ -6917,7 +6917,7 @@ tr:hover td{background:var(--b50)}
             </ul>
           </div>
         </div>
-        <div class="fg"><label>Business registration number (CIPC) *</label><input class="fi" id="pl-reg-num" type="text" placeholder="e.g. 2023/123456/07"></div>
+        <div class="fg"><label>Business registration number (CIPC) <span style="color:var(--muted);font-weight:400">(optional)</span></label><input class="fi" id="pl-reg-num" type="text" placeholder="e.g. 2023/123456/07"></div>
         <div class="fg">
           <label>Business type *</label>
           <select class="fi" id="pl-biz-type">
@@ -16636,7 +16636,7 @@ async function plSubmitPartner() {
   if (errEl) errEl.style.display = 'none';
   if (sucEl) sucEl.style.display = 'none';
 
-  if (!bizName || !contact || !email || !phone || !type || !pw || !regNum || !bizType || !expDesc || !city) {
+  if (!bizName || !contact || !email || !phone || !type || !pw || !bizType || !expDesc || !city) {
     if (errEl) { errEl.textContent = 'Please fill in all required fields.'; errEl.style.display = 'block'; }
     return;
   }
@@ -30503,7 +30503,7 @@ async function plxSubmitPartner() {
   var sucEl   = document.getElementById('plx-success');
   if (errEl) errEl.style.display = 'none';
   if (sucEl) sucEl.style.display = 'none';
-  if (!bizName||!contact||!email||!phone||!type||!regNum||!bizType||!pw||!city||!expDesc) {
+  if (!bizName||!contact||!email||!phone||!type||!bizType||!pw||!city||!expDesc) {
     if (errEl) { errEl.textContent = 'Please fill in all required fields.'; errEl.style.display = 'block'; } return;
   }
   if (wbNameError(bizName)) {
@@ -31363,7 +31363,7 @@ async function admRunSchemaDiag() {
           <div><label style="font-size:.72rem;color:rgba(255,255,255,.6);display:block;margin-bottom:4px">Experience type *</label>
             <select class="fi" id="plx-type"><option value="">Select...</option><option>Hotel / Lodge</option><option>Restaurant / Dining</option><option>Spa / Wellness</option><option>Safari / Wildlife</option><option>Hiking / Outdoor</option><option>Wine / Winelands</option><option>Adventure Activity</option><option>Cultural Experience</option><option>Other</option></select>
           </div>
-          <div><label style="font-size:.72rem;color:rgba(255,255,255,.6);display:block;margin-bottom:4px">CIPC Number *</label><input class="fi" id="plx-reg-num" type="text" placeholder="2023/123456/07"></div>
+          <div><label style="font-size:.72rem;color:rgba(255,255,255,.6);display:block;margin-bottom:4px">CIPC Number <span style="font-weight:400">(optional)</span></label><input class="fi" id="plx-reg-num" type="text" placeholder="2023/123456/07"></div>
           <div><label style="font-size:.72rem;color:rgba(255,255,255,.6);display:block;margin-bottom:4px">Business type *</label>
             <select class="fi" id="plx-biz-type"><option value="">Select...</option><option>Sole Proprietor</option><option>Private Company (Pty) Ltd</option><option>Close Corporation (CC)</option><option>Trust</option><option>Other</option></select>
           </div>
