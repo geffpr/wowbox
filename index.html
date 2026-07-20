@@ -10048,9 +10048,9 @@ tr:hover td{background:var(--b50)}
           <table>
             <thead><tr>
               <th>Creator</th><th>Box(es)</th><th>E-Box sold</th><th>Physical sold</th>
-              <th>Validations</th><th>Gross (box price)</th><th>Commission earned</th><th>Pending</th><th>Paystack</th>
+              <th>Validations</th><th>Gross (box price)</th><th>Commission earned</th><th>Pending</th><th>True WowBox profit</th><th>Paystack</th>
             </tr></thead>
-            <tbody id="adm-creators-tbody"><tr><td colspan="9" style="text-align:center;padding:24px;color:var(--muted)">Loading…</td></tr></tbody>
+            <tbody id="adm-creators-tbody"><tr><td colspan="10" style="text-align:center;padding:24px;color:var(--muted)">Loading…</td></tr></tbody>
           </table>
         </div>
       </div>
@@ -30144,12 +30144,12 @@ function wbCreatorPayoutsGoToPage(p) {
 async function admLoadCreators() {
   var tbody = document.getElementById('adm-creators-tbody');
   if (!tbody) return;
-  tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:24px;color:var(--muted)">Loading…</td></tr>';
+  tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:24px;color:var(--muted)">Loading…</td></tr>';
   try {
     var boxesRes = await db_client.from('boxes').select('id,name,creator_email,creator_name,price').not('creator_email','is',null);
     var creatorBoxes = boxesRes.data || [];
     if (!creatorBoxes.length) {
-      tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:24px;color:var(--muted)">No creator boxes yet.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:24px;color:var(--muted)">No creator boxes yet.</td></tr>';
       return;
     }
     var allBoxIds = creatorBoxes.map(function(b){ return b.id; });
@@ -30157,13 +30157,25 @@ async function admLoadCreators() {
 
     var [vouchersRes, entriesRes, profilesRes] = await Promise.all([
       db_client.from('vouchers').select('box_id,is_physical_box').in('box_id', allBoxIds),
-      db_client.from('commission_entries').select('partner_email,box_price,partner_payout,payout_status').eq('flow','creator'),
+      db_client.from('commission_entries').select('partner_email,booking_reference,box_price,partner_payout,payout_status').eq('flow','creator'),
       db_client.from('user_profiles').select('email,paystack_account_id').in('email', allCreatorEmails),
     ]);
     var vouchers = vouchersRes.data || [];
     var entries  = entriesRes.data || [];
     var paystackMap = {};
     (profilesRes.data || []).forEach(function(p){ paystackMap[p.email] = !!p.paystack_account_id; });
+
+    // For the "true profit" column: find the matching partner (wowbox) entry
+    // for each creator booking, so we can show what WowBox actually nets once
+    // BOTH payouts on that same booking are accounted for — a creator entry's
+    // own box_price minus its own payout is not the real profit on its own,
+    // since the partner also draws from that same figure.
+    var bookingRefs = entries.map(function(e){ return e.booking_reference; }).filter(Boolean);
+    var wowboxEntries = bookingRefs.length
+      ? (await db_client.from('commission_entries').select('booking_reference,partner_payout').eq('flow','wowbox').in('booking_reference', bookingRefs)).data || []
+      : [];
+    var partnerPayoutByRef = {};
+    wowboxEntries.forEach(function(w){ partnerPayoutByRef[w.booking_reference] = Number(w.partner_payout || 0); });
 
     // Group boxes by creator email
     var byCreator = {};
@@ -30182,6 +30194,10 @@ async function admLoadCreators() {
       var gross    = eList.reduce(function(s,e){ return s + Number(e.box_price||0); }, 0);
       var earned   = eList.filter(function(e){ return e.payout_status === 'paid'; }).reduce(function(s,e){ return s + Number(e.partner_payout||0); }, 0);
       var pending  = eList.filter(function(e){ return e.payout_status === 'pending'; }).reduce(function(s,e){ return s + Number(e.partner_payout||0); }, 0);
+      var trueProfit = eList.reduce(function(s,e){
+        var partnerPayout = partnerPayoutByRef[e.booking_reference] || 0;
+        return s + (Number(e.box_price||0) - Number(e.partner_payout||0) - partnerPayout);
+      }, 0);
       var paystackHtml = paystackMap[email]
         ? '<span class="sbadge sb-a" style="font-size:.68rem">Connected</span>'
         : '<span class="sbadge" style="background:#fee2e2;color:#991b1b;font-size:.68rem">Not connected</span>';
@@ -30194,12 +30210,13 @@ async function admLoadCreators() {
         + '<td>R' + gross.toLocaleString('en-ZA',{minimumFractionDigits:2}) + '</td>'
         + '<td style="color:#16a34a;font-weight:600">R' + earned.toLocaleString('en-ZA',{minimumFractionDigits:2}) + '</td>'
         + '<td style="color:#f59e0b">R' + pending.toLocaleString('en-ZA',{minimumFractionDigits:2}) + '</td>'
+        + '<td style="color:var(--navy);font-weight:600" title="Box price minus BOTH the creator payout and the experience partner payout on the same booking">R' + trueProfit.toLocaleString('en-ZA',{minimumFractionDigits:2}) + '</td>'
         + '<td>' + paystackHtml + '</td>'
         + '</tr>';
     });
-    tbody.innerHTML = rows.join('') || '<tr><td colspan="9" style="text-align:center;padding:24px;color:var(--muted)">No creator boxes yet.</td></tr>';
+    tbody.innerHTML = rows.join('') || '<tr><td colspan="10" style="text-align:center;padding:24px;color:var(--muted)">No creator boxes yet.</td></tr>';
   } catch(e) {
-    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:24px;color:#dc2626">Error: ' + e.message + '</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:24px;color:#dc2626">Error: ' + e.message + '</td></tr>';
   }
 }
 
