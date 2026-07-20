@@ -14568,7 +14568,7 @@ async function confirmExpBooking() {
         experience_name:    e.name,
         box_id:             appState.browseBoxId || null,
         box_name:           (boxDB[appState.browseBoxId] && boxDB[appState.browseBoxId].name) || '',
-        box_price:          (boxDB[appState.browseBoxId] && boxDB[appState.browseBoxId].price) || e.price || 0,
+        box_price:          e.price || (boxDB[appState.browseBoxId] && boxDB[appState.browseBoxId].price) || 0,
         partner_name:       e.partner || '',
         partner_email:      e.partnerEmail || '',
         customer_email:     custEmail,
