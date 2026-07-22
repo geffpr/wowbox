@@ -6741,10 +6741,9 @@ tr:hover td{background:var(--b50)}
 <!-- STATS -->
 <div style="padding:0 24px 0;background:#fff">
   <div class="pl-stats">
-    <div class="pl-stat"><div class="num">100+</div><div class="lbl">Gift boxes sold</div></div>
-    <div class="pl-stat"><div class="num">25+</div><div class="lbl">Experiences listed</div></div>
-    <div class="pl-stat"><div class="num">9</div><div class="lbl">Provinces covered</div></div>
-    <div class="pl-stat"><div class="num">4.9★</div><div class="lbl">Average rating</div></div>
+    <div class="pl-stat"><div class="num" id="pl-stat-experiences">—</div><div class="lbl">Experiences live on WowBox</div></div>
+    <div class="pl-stat"><div class="num" id="pl-stat-partners">—</div><div class="lbl">Partners already on board</div></div>
+    <div class="pl-stat"><div class="num" id="pl-stat-new">—</div><div class="lbl">New partners this month</div></div>
   </div>
 </div>
 
@@ -6899,23 +6898,6 @@ tr:hover td{background:var(--b50)}
             <option>Cultural Experience</option>
             <option>Other</option>
           </select>
-        </div>
-        <div class="fg">
-          <label>Password *</label>
-          <div style="position:relative"><input class="fi" id="pl-pw" type="password" placeholder="Min. 8 characters, 1 number & 1 symbol" oninput="wbUpdatePwIndicators(this.value,['pl-pw-indicator-top'])" style="padding-right:38px"><button type="button" onclick="authTogglePw('pl-pw',this)" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--muted);font-size:.9rem;padding:0"><i class="fa fa-eye"></i></button></div>
-          <div class="wb-pw-indicator" id="pl-pw-indicator-top" style="display:none;margin-top:8px">
-            <div style="display:flex;gap:4px;margin-bottom:6px">
-              <div class="wb-pw-bar" style="flex:1;height:4px;border-radius:2px;background:var(--border);transition:background .2s"></div>
-              <div class="wb-pw-bar" style="flex:1;height:4px;border-radius:2px;background:var(--border);transition:background .2s"></div>
-              <div class="wb-pw-bar" style="flex:1;height:4px;border-radius:2px;background:var(--border);transition:background .2s"></div>
-            </div>
-            <div class="wb-pw-label" style="font-size:.72rem;font-weight:600;margin-bottom:4px"></div>
-            <ul style="list-style:none;padding:0;margin:0;font-size:.72rem;color:var(--muted)">
-              <li data-check="len" style="margin-bottom:2px"><i class="fa fa-circle" style="font-size:.5rem;margin-right:6px;color:var(--border)"></i>At least 8 characters</li>
-              <li data-check="num" style="margin-bottom:2px"><i class="fa fa-circle" style="font-size:.5rem;margin-right:6px;color:var(--border)"></i>At least 1 number</li>
-              <li data-check="special"><i class="fa fa-circle" style="font-size:.5rem;margin-right:6px;color:var(--border)"></i>At least 1 special character</li>
-            </ul>
-          </div>
         </div>
         <div class="fg"><label>Business registration number (CIPC) <span style="color:var(--muted);font-weight:400">(optional)</span></label><input class="fi" id="pl-reg-num" type="text" placeholder="e.g. 2023/123456/07"></div>
         <div class="fg">
@@ -16556,6 +16538,25 @@ function nextStep(step, quiet) {
 function goBrowse(){go("allboxes");}
 
 function renderPartnerLanding() {
+  // Real, live numbers — never a static/unverifiable claim. Runs regardless
+  // of whether the category grid below exists on this page variant.
+  (async function loadPartnerLandingStats() {
+    try {
+      var monthStart = new Date(); monthStart.setDate(1); monthStart.setHours(0,0,0,0);
+      var [expRes, partnersRes, newPartnersRes] = await Promise.all([
+        db_client.from('experiences').select('id', { count: 'exact', head: false }).eq('is_active', true),
+        db_client.from('user_profiles').select('id', { count: 'exact', head: false }).eq('role', 'partner'),
+        db_client.from('user_profiles').select('id', { count: 'exact', head: false }).eq('role', 'partner').gte('role_granted_at', monthStart.toISOString()),
+      ]);
+      var expEl = document.getElementById('pl-stat-experiences');
+      var partEl = document.getElementById('pl-stat-partners');
+      var newEl = document.getElementById('pl-stat-new');
+      if (expEl)  expEl.textContent  = (expRes.data || []).length + '+';
+      if (partEl) partEl.textContent = (partnersRes.data || []).length;
+      if (newEl)  newEl.textContent  = '+' + (newPartnersRes.data || []).length;
+    } catch(e) { console.warn('loadPartnerLandingStats failed:', e.message); }
+  })();
+
   var grid = document.getElementById('pl-exp-grid');
   if (!grid) return;
   var types = [
@@ -16606,7 +16607,6 @@ async function plSubmitPartner() {
   var email    = (document.getElementById('pl-email')     ||{value:''}).value.trim();
   var phone    = wbPhoneGetFull('pl-phone');
   var type     = (document.getElementById('pl-type')      ||{value:''}).value;
-  var pw       = (document.getElementById('pl-pw')        ||{value:''}).value;
   var regNum   = (document.getElementById('pl-reg-num')   ||{value:''}).value.trim();
   var bizType  = (document.getElementById('pl-biz-type')  ||{value:''}).value;
   var vat      = (document.getElementById('pl-vat')       ||{value:''}).value.trim();
@@ -16638,7 +16638,7 @@ async function plSubmitPartner() {
   if (errEl) errEl.style.display = 'none';
   if (sucEl) sucEl.style.display = 'none';
 
-  if (!bizName || !contact || !email || !phone || !type || !pw || !bizType || !expDesc || !city) {
+  if (!bizName || !contact || !email || !phone || !type || !bizType || !expDesc || !city) {
     if (errEl) { errEl.textContent = 'Please fill in all required fields.'; errEl.style.display = 'block'; }
     return;
   }
@@ -16659,11 +16659,6 @@ async function plSubmitPartner() {
     if (errEl) { errEl.textContent = phoneErr; errEl.style.display = 'block'; }
     return;
   }
-  var pwErr5 = wbPasswordError(pw);
-  if (pwErr5) {
-    if (errEl) { errEl.textContent = pwErr5; errEl.style.display = 'block'; }
-    return;
-  }
   if (!terms) {
     if (errEl) { errEl.textContent = 'Please accept the Partner Terms & Conditions to continue.'; errEl.style.display = 'block'; }
     return;
@@ -16672,8 +16667,12 @@ async function plSubmitPartner() {
   if (btn) { btn.disabled = true; btn.textContent = 'Submitting...'; }
 
   try {
-    // Create Supabase auth account
-    var signUpRes = await db_client.auth.signUp({ email: email, password: pw });
+    // Create Supabase auth account. No password is collected at this stage —
+    // a random one is generated so a real Supabase Auth account can still be
+    // created (same mechanism as before). The applicant sets their own real
+    // password later, via the existing password-reset flow, once approved.
+    var randomPw = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2).toUpperCase() + '!7';
+    var signUpRes = await db_client.auth.signUp({ email: email, password: randomPw });
     if (signUpRes.error) throw signUpRes.error;
 
     var userId = signUpRes.data.user ? signUpRes.data.user.id : null;
@@ -16747,7 +16746,7 @@ async function plSubmitPartner() {
       sucEl.style.display = 'block';
     }
     // Clear form
-    ['pl-biz-name','pl-contact','pl-email','pl-phone','pl-pw','pl-city','pl-reg-num','pl-vat','pl-website','pl-exp-desc'].forEach(function(id) {
+    ['pl-biz-name','pl-contact','pl-email','pl-phone','pl-city','pl-reg-num','pl-vat','pl-website','pl-exp-desc'].forEach(function(id) {
       var el = document.getElementById(id); if (el) el.value = '';
     });
     var typeEl = document.getElementById('pl-type'); if (typeEl) typeEl.value = '';
@@ -20883,7 +20882,7 @@ async function renderAdmPartnerApps() {
 async function admApprovePartner(userId) {
   try {
     var profRes = await db_client.from('user_profiles').select('email,full_name,partner_name').eq('id', userId).single();
-    await db_client.from('user_profiles').update({ role: 'partner', status: 'active' }).eq('id', userId);
+    await db_client.from('user_profiles').update({ role: 'partner', status: 'active', role_granted_at: new Date().toISOString() }).eq('id', userId);
     // Send approval email
     if (profRes.data && profRes.data.email) {
       sendOrderEmail('partner_approved', {
@@ -20891,8 +20890,15 @@ async function admApprovePartner(userId) {
         name:  profRes.data.partner_name || profRes.data.full_name || 'Partner',
       });
       wbAddToAudience('partners', profRes.data.email, profRes.data.partner_name || profRes.data.full_name || '');
+      // No password was collected at application time — trigger the same
+      // password-reset flow already used for "Forgot password?" so the
+      // partner receives a real email to set their own password now that
+      // they're approved.
+      try {
+        await db_client.auth.resetPasswordForEmail(profRes.data.email, { redirectTo: 'https://wowbox.co.za/reset-password' });
+      } catch(pwErr) { console.warn('admApprovePartner: password-reset email failed:', pwErr.message); }
     }
-    admToast('✅ Partner approved — email sent');
+    admToast('✅ Partner approved — emails sent');
     renderAdmPartnerApps();
   } catch(e) { admToast('Error: ' + (e.message||'unknown')); }
 }

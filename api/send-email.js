@@ -843,6 +843,7 @@ function tplPartnerApproved(o) {
       ${badge('🎉 Welcome to WowBox', '#059669')}
       ${h1('Welcome aboard, ' + o.name + '!')}
       ${p("Your partner application has been approved. You're now officially part of the WowBox partner network — South Africa's leading gift experience platform.")}
+      ${highlight("<strong>One more step:</strong> look out for a separate email titled \"Set up a new password\" — use it to create your password and unlock your Partner Portal.")}
       ${hr()}
       ${highlight("<strong>Your partner portal is ready.</strong><br>Log in to add your experiences, manage bookings and validate customer vouchers.")}
       ${btn('Open Your Partner Portal', SITE_URL + '/partner')}
