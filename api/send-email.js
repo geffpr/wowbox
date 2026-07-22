@@ -6,6 +6,10 @@ const FROM           = 'WowBox <hello@wowbox.co.za>';
 const ADMIN_EMAIL    = 'hello@wowbox.co.za';
 const ADMIN_CC       = 'geff.pr@gmail.com';
 const SITE_URL       = 'https://wowbox.co.za';
+// Only used to generate a real "set your password" link for the partner
+// welcome email below — no new API route needed for this.
+const SUPABASE_URL         = process.env.SUPABASE_URL || 'https://gfqxuygfkzgmotnxrlwb.supabase.co';
+const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 // Resend Audiences (dashboard now calls these "Segments", but the legacy
 // /audiences/{id}/contacts endpoint below still works for backward compat).
@@ -843,10 +847,9 @@ function tplPartnerApproved(o) {
       ${badge('🎉 Welcome to WowBox', '#059669')}
       ${h1('Welcome aboard, ' + o.name + '!')}
       ${p("Your partner application has been approved. You're now officially part of the WowBox partner network — South Africa's leading gift experience platform.")}
-      ${highlight("<strong>One more step:</strong> look out for a separate email titled \"Set up a new password\" — use it to create your password and unlock your Partner Portal.")}
       ${hr()}
-      ${highlight("<strong>Your partner portal is ready.</strong><br>Log in to add your experiences, manage bookings and validate customer vouchers.")}
-      ${btn('Open Your Partner Portal', SITE_URL + '/partner')}
+      ${highlight("<strong>Your partner portal is ready.</strong><br>Set your password to log in and start adding your experiences, managing bookings and validating customer vouchers.")}
+      ${btn(o.passwordLink ? 'Set Your Password' : 'Open Your Partner Portal', o.passwordLink || (SITE_URL + '/partner'))}
       ${h2('Getting started')}
       ${p('1. <strong>Add your experiences</strong> — Go to "My Experiences" and submit your first listing<br>2. <strong>Get discovered</strong> — Once approved, your experience appears in WowBox gift boxes<br>3. <strong>Validate vouchers</strong> — Use the QR scanner or manual entry when guests arrive<br>4. <strong>Get paid</strong> — Payment processed within 2 business days of each validation')}
       ${sm('Need help? <a href="mailto:support@wowbox.co.za" style="color:' + C.goldDark + '">support@wowbox.co.za</a>')}
@@ -1040,6 +1043,36 @@ function tplBoostExpired(o) {
 }
 
 // ════════════════════════════════════════════════════════════════════════════
+// ── Generates a real "set your password" link (Supabase Admin API) so the
+// partner welcome email can include ONE working action, instead of relying
+// on Supabase's separate built-in reset-password email (which used to
+// arrive as a confusing second message). Never throws — a failure here
+// just means the email falls back to a generic login link. ──
+async function generatePasswordSetLink(email) {
+  if (!SUPABASE_SERVICE_KEY) return null;
+  try {
+    const res = await fetch(`${SUPABASE_URL}/auth/v1/admin/generate_link`, {
+      method: 'POST',
+      headers: {
+        apikey:        SUPABASE_SERVICE_KEY,
+        Authorization: `Bearer ${SUPABASE_SERVICE_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        type:  'recovery',
+        email: email,
+        options: { redirect_to: `${SITE_URL}/reset-password` },
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) { console.warn('generatePasswordSetLink failed:', data.msg || data.error_description || res.status); return null; }
+    return data.action_link || null;
+  } catch (e) {
+    console.warn('generatePasswordSetLink error:', e.message);
+    return null;
+  }
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
   if (!RESEND_API_KEY)       return res.status(500).json({ error: 'RESEND_API_KEY not set' });
@@ -1127,7 +1160,10 @@ export default async function handler(req, res) {
         break;
       }
       case 'partner_approved': {
-        if (o.email) emailJobs.push({ to: o.email, ...tplPartnerApproved(o) });
+        if (o.email) {
+          o.passwordLink = await generatePasswordSetLink(o.email);
+          emailJobs.push({ to: o.email, ...tplPartnerApproved(o) });
+        }
         break;
       }
       case 'partner_rejected': {
