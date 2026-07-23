@@ -6764,7 +6764,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     <p>List for free. Get paid when a voucher is redeemed — we only keep a small commission.</p>
     <p style="font-size:.82rem;font-weight:400;color:#a68a6e;margin-top:-24px;margin-bottom:28px;line-height:1.5">We charge a commission on redeemed WowBox vouchers, typically between 15% and 35% depending on the experience and partnership. There are no upfront fees, no listing fees, and no subscription costs.</p>
     <div class="pl-cta-row">
-      <button class="btn-w" onclick="document.getElementById('pl-signup-section').scrollIntoView({behavior:'smooth'})">Become a Partner <i class="fa fa-arrow-right"></i></button>
+      <button class="btn-w" onclick="window.dataLayer=window.dataLayer||[];window.dataLayer.push({event:'partner_signup_click'});document.getElementById('pl-signup-section').scrollIntoView({behavior:'smooth'})">Become a Partner <i class="fa fa-arrow-right"></i></button>
       <button class="btn-o" onclick="document.getElementById('pl-signup-section').scrollIntoView({behavior:'smooth'});document.getElementById('pl-signin-tab').click()">Partner login</button>
     </div>
   </div>
@@ -16416,6 +16416,8 @@ async function plSubmitPartner() {
     var randomPw = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2).toUpperCase() + '!7';
     var signUpRes = await db_client.auth.signUp({ email: email, password: randomPw });
     if (signUpRes.error) throw signUpRes.error;
+    window.dataLayer = window.dataLayer || [];
+    window.dataLayer.push({ event: 'account_created' });
 
     var userId = signUpRes.data.user ? signUpRes.data.user.id : null;
 
@@ -20938,6 +20940,8 @@ async function admConfirmApprove(id) {
         ...(req.video_url ? { video_url: req.video_url, video_position: req.video_position || 1 } : {}),
       });
       if (ins.error && !ins.error.message.includes('duplicate')) throw ins.error;
+      window.dataLayer = window.dataLayer || [];
+      window.dataLayer.push({ event: 'experience_published' });
       // Link experience to selected databases
       if (selDbIds.length) {
         var linkRows = selDbIds.map(function(dbId){ return { experience_id: expId, database_id: dbId }; });
@@ -26398,6 +26402,8 @@ async function submitNewExp() {
     admToast('⚠️ Error submitting: ' + (e.message || 'unknown error'));
     return;
   }
+  window.dataLayer = window.dataLayer || [];
+  window.dataLayer.push({ event: 'experience_created' });
 
   // Success — clear form and show confirmation
   ['pp-new-name','pp-new-desc','pp-new-img-0','pp-new-img-1','pp-new-img-2','pp-new-img-3','pp-new-img-4','pp-new-img-5','pp-new-video-url','pp-new-city','pp-new-city-real','pp-new-capacity','pp-new-price','pp-new-wow-price','pp-new-certification','pp-new-nights'].forEach(function(id){ var el=document.getElementById(id); if(el) el.value=''; });
