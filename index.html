@@ -5018,10 +5018,10 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       </div>
     </div>
     <div class="hero-stats">
-      <div class="hs-item"><strong>140k+</strong><span>Experiences</span></div>
-      <div class="hs-item"><strong>12</strong><span>Gift boxes</span></div>
-      <div class="hs-item"><strong>850+</strong><span>Partners</span></div>
-      <div class="hs-item"><strong>4.9★</strong><span>Avg rating</span></div>
+      <div class="hs-item"><strong id="hero-stat-experiences">—</strong><span>Experiences</span></div>
+      <div class="hs-item"><strong id="hero-stat-boxes">—</strong><span>Gift boxes</span></div>
+      <div class="hs-item"><strong id="hero-stat-partners">—</strong><span>Partners</span></div>
+      <div class="hs-item"><strong id="hero-stat-new">—</strong><span>New this month</span></div>
     </div>
   </div>
 
@@ -6696,7 +6696,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 .pl-cta-row .btn-o{background:transparent;color:#fff;font-weight:600;padding:14px 32px;border-radius:99px;border:2px solid rgba(255,255,255,.4);cursor:pointer;font-family:"DM Sans",sans-serif;font-size:.95rem;transition:all .15s}
 .pl-cta-row .btn-o:hover{border-color:#fff;background:rgba(255,255,255,.08)}
 
-.pl-stats{display:flex;gap:0;background:#fff;border-radius:20px;box-shadow:0 20px 60px rgba(0,0,0,.1);overflow:hidden;max-width:700px;margin:-50px auto 0;position:relative;z-index:3}
+.pl-stats{display:flex;gap:0;background:#fff;border-radius:20px;box-shadow:0 20px 60px rgba(0,0,0,.1);overflow:hidden;max-width:700px;margin:32px auto 0;position:relative;z-index:3}
 .pl-stat{flex:1;padding:28px 20px;text-align:center;border-right:1px solid #f1f5f9}
 .pl-stat:last-child{border-right:none}
 .pl-stat .num{font-family:'Cormorant Garamond',serif;font-size:2.2rem;font-weight:700;color:#1e3a5f}
@@ -6738,12 +6738,29 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 </style>
 
 <!-- HERO -->
+<div id="pl-email-capture-popup" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(15,23,42,.6);align-items:center;justify-content:center;padding:20px">
+  <div style="background:#fff;border-radius:16px;padding:32px;max-width:420px;width:100%;position:relative;box-shadow:0 20px 60px rgba(0,0,0,.3)">
+    <button onclick="wbClosePartnerEmailPopup()" style="position:absolute;top:14px;right:14px;background:none;border:none;font-size:1.2rem;color:#94a3b8;cursor:pointer;line-height:1">✕</button>
+    <div id="pl-popup-form">
+      <h3 style="font-family:'Cormorant Garamond',Georgia,serif;font-size:1.5rem;color:#0f172a;margin-bottom:8px">Not ready to apply yet?</h3>
+      <p style="font-size:.88rem;color:#64748b;margin-bottom:20px">Leave your email and we'll send you more details about becoming a WowBox partner — no commitment.</p>
+      <input type="email" id="pl-popup-email" placeholder="your@email.com" class="fi" style="width:100%;margin-bottom:12px">
+      <button onclick="wbSubmitPartnerEmailPopup()" class="btn-w" style="width:100%;justify-content:center">Send me the details</button>
+      <div id="pl-popup-error" style="color:#dc2626;font-size:.78rem;margin-top:8px;display:none"></div>
+    </div>
+    <div id="pl-popup-success" style="display:none;text-align:center;padding:12px 0">
+      <div style="font-size:2rem;margin-bottom:10px">✅</div>
+      <h3 style="font-family:'Cormorant Garamond',Georgia,serif;font-size:1.3rem;color:#0f172a;margin-bottom:6px">Thanks!</h3>
+      <p style="font-size:.88rem;color:#64748b">We'll be in touch with more details soon.</p>
+    </div>
+  </div>
+</div>
 <div class="pl-hero">
   <div class="pl-hero-bg"></div>
   <div class="pl-hero-content">
     <div style="display:inline-block;background:rgba(147,197,253,.15);border:1px solid rgba(147,197,253,.3);border-radius:99px;padding:6px 18px;font-size:.75rem;font-weight:600;color:#93c5fd;margin-bottom:20px;letter-spacing:.05em">FOR EXPERIENCE PROVIDERS</div>
     <h1>Grow your business<br><span>with WowBox</span></h1>
-    <p>List your experience for free. Reach new customers. Pay only when a voucher is redeemed.</p>
+    <p>List for free. Get paid when a voucher is redeemed — we only keep a small commission.</p>
     <p style="font-size:.82rem;font-weight:400;color:#94a3b8;margin-top:-24px;margin-bottom:28px;line-height:1.5">We charge a commission on redeemed WowBox vouchers, typically between 15% and 35% depending on the experience and partnership. There are no upfront fees, no listing fees, and no subscription costs.</p>
     <div class="pl-cta-row">
       <button class="btn-w" onclick="document.getElementById('pl-signup-section').scrollIntoView({behavior:'smooth'})">Become a Partner <i class="fa fa-arrow-right"></i></button>
@@ -16551,7 +16568,57 @@ function nextStep(step, quiet) {
 
 function goBrowse(){go("allboxes");}
 
+function wbClosePartnerEmailPopup() {
+  var popup = document.getElementById('pl-email-capture-popup');
+  if (popup) popup.style.display = 'none';
+}
+async function wbSubmitPartnerEmailPopup() {
+  var emailEl = document.getElementById('pl-popup-email');
+  var errEl = document.getElementById('pl-popup-error');
+  var email = emailEl ? emailEl.value.trim() : '';
+  if (!wbIsValidEmail(email)) {
+    if (errEl) { errEl.textContent = 'Please enter a valid email address.'; errEl.style.display = 'block'; }
+    return;
+  }
+  if (errEl) errEl.style.display = 'none';
+  try {
+    await db_client.from('waitlist').insert({ email: email, signup_type: 'partner_interest' });
+  } catch(e) { console.warn('wbSubmitPartnerEmailPopup failed:', e.message); }
+  var formEl = document.getElementById('pl-popup-form');
+  var successEl = document.getElementById('pl-popup-success');
+  if (formEl) formEl.style.display = 'none';
+  if (successEl) successEl.style.display = 'block';
+  setTimeout(wbClosePartnerEmailPopup, 3000);
+}
+
 function renderPartnerLanding() {
+  // Email-capture popup — shown once per session, only after the visitor has
+  // shown some engagement (scrolled a good way down, or spent 20s on the
+  // page), never immediately on arrival. Skipped entirely if they've already
+  // started filling in the real application form.
+  (function setupPartnerEmailPopup() {
+    if (sessionStorage.getItem('wb_partner_popup_shown')) return;
+    var shown = false;
+    function maybeShow() {
+      if (shown || sessionStorage.getItem('wb_partner_popup_shown')) return;
+      var bizNameEl = document.getElementById('pl-biz-name');
+      if (bizNameEl && bizNameEl.value.trim()) return; // already engaging with the real form
+      shown = true;
+      sessionStorage.setItem('wb_partner_popup_shown', '1');
+      var popup = document.getElementById('pl-email-capture-popup');
+      if (popup) popup.style.display = 'flex';
+      window.removeEventListener('scroll', onScroll);
+      clearTimeout(delayTimer);
+    }
+    function onScroll() {
+      var scrolled = window.scrollY + window.innerHeight;
+      var full = document.body.scrollHeight;
+      if (full > 0 && scrolled / full > 0.5) maybeShow();
+    }
+    window.addEventListener('scroll', onScroll, { passive: true });
+    var delayTimer = setTimeout(maybeShow, 20000);
+  })();
+
   // Reuse the same hero image as the main site (first slide / fallback),
   // so this page's background always matches whatever is actually showing
   // on the homepage, rather than a separate hardcoded photo.
@@ -27965,6 +28032,24 @@ async function admDeleteCoupon(id, code) {
 /* ── Site Settings — load hero image + SEO from Supabase on startup ── */
 async function loadSiteSettingsOnStartup() {
   try {
+    // Real, live homepage hero stats — never a static/unverifiable claim.
+    (async function loadHomeHeroStats() {
+      try {
+        var monthStart = new Date(); monthStart.setDate(1); monthStart.setHours(0,0,0,0);
+        var [expRes, boxRes, partnersRes, newPartnersRes] = await Promise.all([
+          db_client.from('experiences').select('id').eq('is_active', true),
+          db_client.from('boxes').select('id').eq('is_active', true),
+          db_client.from('user_profiles').select('id').eq('role', 'partner'),
+          db_client.from('user_profiles').select('id').eq('role', 'partner').gte('role_granted_at', monthStart.toISOString()),
+        ]);
+        var setStat = function(id, val){ var el = document.getElementById(id); if (el) el.textContent = val; };
+        setStat('hero-stat-experiences', (expRes.data || []).length + '+');
+        setStat('hero-stat-boxes', (boxRes.data || []).length);
+        setStat('hero-stat-partners', (partnersRes.data || []).length + '+');
+        setStat('hero-stat-new', '+' + (newPartnersRes.data || []).length);
+      } catch(e) { console.warn('loadHomeHeroStats failed:', e.message); }
+    })();
+
     // Check pre-launch mode first
     await checkPrelaunchMode();
     wbCheckPartnerBanner();
