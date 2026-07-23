@@ -16552,6 +16552,20 @@ function nextStep(step, quiet) {
 function goBrowse(){go("allboxes");}
 
 function renderPartnerLanding() {
+  // Reuse the same hero image as the main site (first slide / fallback),
+  // so this page's background always matches whatever is actually showing
+  // on the homepage, rather than a separate hardcoded photo.
+  (async function loadPartnerHeroImage() {
+    try {
+      var res = await db_client.from('site_settings').select('key,value').in('key', ['hero_image_1','hero_image_url']);
+      var settings = {};
+      (res.data || []).forEach(function(r){ settings[r.key] = r.value; });
+      var heroUrl = settings.hero_image_1 || settings.hero_image_url || 'https://images.unsplash.com/photo-1571896349842-33c89424de2d?q=80&w=1920&auto=format&fit=crop';
+      var bgEl = document.querySelector('.pl-hero-bg');
+      if (bgEl) bgEl.style.backgroundImage = "url('" + heroUrl + "')";
+    } catch(e) { console.warn('loadPartnerHeroImage failed:', e.message); }
+  })();
+
   // Real, live numbers — never a static/unverifiable claim. Runs regardless
   // of whether the category grid below exists on this page variant.
   (async function loadPartnerLandingStats() {
