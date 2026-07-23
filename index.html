@@ -1718,6 +1718,7 @@ async function authOnSignedIn(user, navigate) {
   // Default: go to dashboard only on active login, not session restore
   var boxCount   = await loadUserBoxes(email);
   var orderCount = await loadUserOrders(email);
+  window._wbDashboardJustLoaded = { email: email, time: Date.now() };
   if (navigate) {
     if (role === 'admin')        { go('admin'); }
     else if (role === 'partner') { go('partner'); setNL('nl-part'); }
@@ -10782,8 +10783,12 @@ function go(page) {
   if (page === 'partner') initPartnerPage();
   if (page === 'creator') initCreatorPage();
   if (page === 'dashboard') {
-    loadUserBoxes(currentUser.email);
-    loadUserOrders(currentUser.email);
+    var justLoaded = window._wbDashboardJustLoaded;
+    var recent = justLoaded && justLoaded.email === currentUser.email && (Date.now() - justLoaded.time) < 3000;
+    if (!recent) {
+      loadUserBoxes(currentUser.email);
+      loadUserOrders(currentUser.email);
+    }
   }
   var loader = document.getElementById('app-loader');
   if (loader) loader.style.display = 'none';
@@ -16447,31 +16452,7 @@ async function plSubmitPartner() {
       });
     } catch(e2) { console.warn('partners table:', e2.message); }
 
-    // Send notification email
-    try {
-      await fetch('/api/send-email', {
-        method: 'POST',
-        headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({
-          type: 'partner_application',
-          order: {
-            id:    'PARTNER-' + Date.now(),
-            name:  contact,
-            email: 'geff.pr@gmail.com',
-            type:  'Partner Application',
-            total: '',
-            date:  new Date().toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'}),
-            items: [{
-              name:   bizName + ' (' + type + ')',
-              code:   email,
-              type:   city,
-              status: phone,
-            }],
-          }
-        })
-      });
-    } catch(e3) { console.warn('notification email:', e3.message); }
-    // Also send structured admin notification
+    // Send structured admin notification
     fetch('/api/send-email', { method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({ type:'admin_new_partner', data:{
         bizName: bizName, name: contact, email: email, phone: phone, location: city, type: type
