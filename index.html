@@ -1,6 +1,13 @@
 <!DOCTYPE html>
 <html lang="en-ZA">
 <head>
+<!-- Google Tag Manager -->
+<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+})(window,document,'script','dataLayer','GTM-N4SNWZJ7');</script>
+<!-- End Google Tag Manager -->
 <!-- Connexion Supabase -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.0/dist/umd/supabase.js"></script>
 <script>
@@ -1933,23 +1940,8 @@ db_client.auth.onAuthStateChange(function(event, session) {
 
 <!-- Payfast Onsite Payments -->
 <script src="https://js.paystack.co/v1/inline.js"></script>
-<!-- Meta Pixel Code -->
-<script>
-!function(f,b,e,v,n,t,s)
-{if(f.fbq)return;n=f.fbq=function(){n.callMethod?
-n.callMethod.apply(n,arguments):n.queue.push(arguments)};
-if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
-n.queue=[];t=b.createElement(e);t.async=!0;
-t.src=v;s=b.getElementsByTagName(e)[0];
-s.parentNode.insertBefore(t,s)}(window, document,'script',
-'https://connect.facebook.net/en_US/fbevents.js');
-fbq('init', '2019312575344909');
-fbq('track', 'PageView');
-</script>
-<noscript><img height="1" width="1" style="display:none"
-src="https://www.facebook.com/tr?id=2019312575344909&ev=PageView&noscript=1"
-/></noscript>
-<!-- End Meta Pixel Code -->
+<!-- Meta Pixel now managed via Google Tag Manager (see GTM-N4SNWZJ7) —
+     removed from here to avoid double-counting PageView events. -->
 
 <!-- Vercel Web Analytics (static-site snippet — no npm/build step needed) -->
 <script>
@@ -4890,6 +4882,10 @@ tr:hover td{background:var(--b50)}
 <style>.flatpickr-day.flatpickr-disabled,.flatpickr-day.flatpickr-disabled:hover{color:#ccc;background:#f5f5f5;cursor:not-allowed;text-decoration:line-through}</style>
 </head>
 <body>
+<!-- Google Tag Manager (noscript) -->
+<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-N4SNWZJ7"
+height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+<!-- End Google Tag Manager (noscript) -->
 <!-- App Loader -->
 <div id="app-loader" style="position:fixed;inset:0;z-index:99999;background:#fdf8f3;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px">
   <div style="font-family:Georgia,serif;font-size:2rem;font-weight:700;color:#3d1008;letter-spacing:2px">WowBox</div>
@@ -31167,7 +31163,7 @@ async function admRunSchemaDiag() {
       <div><h3 style="color:var(--navy);font-size:1rem;margin-bottom:6px">5. Who We Share It With</h3><p>We share the minimum necessary information with: <strong>Participating Partners</strong> (experience providers) to facilitate bookings; <strong>Paystack</strong> for payment processing; <strong>Resend</strong> for transactional email delivery; <strong>Vercel</strong> for website hosting. We do not sell your personal information to third parties.</p></div>
       <div><h3 style="color:var(--navy);font-size:1rem;margin-bottom:6px">6. Video Messages</h3><p>Video messages you upload are stored securely in Supabase Storage and are accessible only via a unique private link. Videos expire automatically after 30 days from purchase.</p></div>
       <div><h3 style="color:var(--navy);font-size:1rem;margin-bottom:6px">7. Your Rights (POPIA)</h3><p>Under POPIA you have the right to: access your personal information; request correction of inaccurate information; request deletion of your information (subject to legal obligations); object to processing; lodge a complaint with the Information Regulator. To exercise these rights, contact <a href="mailto:info@wowbox.co.za" style="color:var(--b600)">info@wowbox.co.za</a>.</p></div>
-      <div><h3 style="color:var(--navy);font-size:1rem;margin-bottom:6px">8. Cookies</h3><p>We use essential cookies only to maintain your session and cart. We do not use advertising or tracking cookies. You may disable cookies in your browser settings, though this may affect functionality.</p></div>
+      <div><h3 style="color:var(--navy);font-size:1rem;margin-bottom:6px">8. Cookies</h3><p>We use essential cookies to maintain your session and cart. We also use Google Analytics and Meta Pixel (via Google Tag Manager) to understand site usage and measure the performance of our advertising campaigns. You may disable cookies in your browser settings, though this may affect functionality.</p></div>
       <div><h3 style="color:var(--navy);font-size:1rem;margin-bottom:6px">9. Security</h3><p>We implement appropriate technical and organisational measures to protect your personal information against unauthorised access, disclosure, or loss. However, no internet transmission is completely secure.</p></div>
       <div><h3 style="color:var(--navy);font-size:1rem;margin-bottom:6px">10. Changes to This Policy</h3><p>We may update this Privacy Policy from time to time. The current version will always be available at wowbox.co.za/privacy. Material changes will be communicated by email.</p></div>
       <div><h3 style="color:var(--navy);font-size:1rem;margin-bottom:6px">11. Contact</h3><p>For any privacy-related queries or to exercise your rights, contact our Information Officer at <a href="mailto:info@wowbox.co.za" style="color:var(--b600)">info@wowbox.co.za</a> or write to: RC Tradeworx Holdings (Pty) Ltd, 29 North Road, Benoni, Gauteng, 1514, South Africa.</p></div>
