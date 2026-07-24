@@ -44,16 +44,16 @@
 <meta property="og:type" content="website">
 <meta id="og-title"       property="og:title"       content="WowBox — Offer Unforgettable Experiences">
 <meta id="og-description" property="og:description" content="Curated gift boxes for couples, adventurers and dreamers across South Africa.">
-<meta id="og-image"       property="og:image"       content="https://wowbox.co.za/og-default.jpg">
+<meta id="og-image"       property="og:image"       content="https://gfqxuygfkzgmotnxrlwb.supabase.co/storage/v1/object/public/site-assets/hero/hero-1-1784798775695.png">
 <meta name="twitter:card"        content="summary_large_image">
 <meta id="tw-title"       name="twitter:title"       content="WowBox — Offer Unforgettable Experiences">
 <meta id="tw-description" name="twitter:description" content="Curated gift boxes for couples, adventurers and dreamers across South Africa.">
-<meta id="tw-image"       name="twitter:image"       content="https://wowbox.co.za/og-default.jpg">
+<meta id="tw-image"       name="twitter:image"       content="https://gfqxuygfkzgmotnxrlwb.supabase.co/storage/v1/object/public/site-assets/hero/hero-1-1784798775695.png">
 <meta id="og-url"         property="og:url"         content="https://wowbox.co.za">
 <meta name="twitter:card" content="summary_large_image">
 <meta id="tw-title"       name="twitter:title"      content="WowBox — Offer Unforgettable Experiences">
 <meta id="tw-description" name="twitter:description" content="Curated gift boxes for couples, adventurers and dreamers across South Africa.">
-<meta id="tw-image"       name="twitter:image"      content="https://wowbox.co.za/og-default.jpg">
+<meta id="tw-image"       name="twitter:image"      content="https://gfqxuygfkzgmotnxrlwb.supabase.co/storage/v1/object/public/site-assets/hero/hero-1-1784798775695.png">
 <!-- ===== End SEO / Social meta ===== -->
 <!-- Google Tag Manager -->
 <script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
@@ -10241,7 +10241,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
           </div>
           <div class="fg" style="margin-bottom:16px">
             <label style="font-size:.72rem;color:var(--muted);display:block;margin-bottom:5px">OG / Social share image URL</label>
-            <input class="fi" id="adm-seo-og" type="url" placeholder="https://wowbox.co.za/og-default.jpg">
+            <input class="fi" id="adm-seo-og" type="url" placeholder="https://gfqxuygfkzgmotnxrlwb.supabase.co/storage/v1/object/public/site-assets/hero/hero-1-1784798775695.png">
           </div>
           <div style="display:flex;gap:10px;align-items:center">
             <button class="btn bp bsm" onclick="admSaveSiteSettings()"><i class="fa fa-floppy-disk"></i> Save SEO settings</button>
@@ -10742,7 +10742,7 @@ Object.entries(PAGE_HASH).forEach(function(e){ HASH_PAGE[e[1]] = e[0]; });
 function updateOGTags(opts) {
   var title = opts.title || 'WowBox — Offer Unforgettable Experiences';
   var desc  = opts.desc  || 'Curated gift boxes for couples, adventurers and dreamers across South Africa.';
-  var img   = opts.img   || 'https://wowbox.co.za/og-default.jpg';
+  var img   = opts.img   || 'https://gfqxuygfkzgmotnxrlwb.supabase.co/storage/v1/object/public/site-assets/hero/hero-1-1784798775695.png';
   document.title = title;
   document.getElementById('og-title')       && document.getElementById('og-title').setAttribute('content', title);
   document.getElementById('og-description') && document.getElementById('og-description').setAttribute('content', desc);
@@ -10933,7 +10933,7 @@ function go(page) {
       updateOGTags({
         title: expE.name + ' — WowBox',
         desc:  expE.desc ? expE.desc.substring(0, 160) : '',
-        img:   expE.img || 'https://wowbox.co.za/og-default.jpg'
+        img:   expE.img || 'https://gfqxuygfkzgmotnxrlwb.supabase.co/storage/v1/object/public/site-assets/hero/hero-1-1784798775695.png'
       });
     }
   } else if (page === 'product' && appState.currentBoxId) {
@@ -10947,7 +10947,7 @@ function go(page) {
       updateOGTags({
         title: boxB.name + ' — WowBox Gift Box',
         desc:  boxB.desc ? boxB.desc.substring(0, 160) : '',
-        img:   boxB.img || 'https://wowbox.co.za/og-default.jpg'
+        img:   boxB.img || 'https://gfqxuygfkzgmotnxrlwb.supabase.co/storage/v1/object/public/site-assets/hero/hero-1-1784798775695.png'
       });
     }
   } else if (page === 'browse') {
@@ -10964,7 +10964,7 @@ function go(page) {
       document.querySelectorAll('.brpf').forEach(function(c){ c.checked = provArr.indexOf(c.value) >= 0; });
       var savedBox = sessionStorage.getItem('wowbox_browse_box'); if(savedBox && boxDB[savedBox]) appState.browseBoxId = savedBox;
     }
-    updateOGTags({ title: 'Browse Experiences — WowBox', desc: 'Discover hundreds of curated experiences across South Africa.', img: 'https://wowbox.co.za/og-default.jpg' });
+    updateOGTags({ title: 'Browse Experiences — WowBox', desc: 'Discover hundreds of curated experiences across South Africa.', img: 'https://gfqxuygfkzgmotnxrlwb.supabase.co/storage/v1/object/public/site-assets/hero/hero-1-1784798775695.png' });
   } else {
     updateOGTags({});
   }
