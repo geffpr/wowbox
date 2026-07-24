@@ -1103,6 +1103,26 @@ export default async function handler(req, res) {
       });
       const audData = await audResp.json();
       if (!audResp.ok) throw new Error(audData.message || 'Resend audience error');
+
+      // ── Fire a custom event so event-based Automations (e.g. "Welcome
+      // Partner") actually trigger. Adding a contact to a segment/audience
+      // does NOT start an Automation on its own — Resend Automations only
+      // react to events sent via /events. This is non-blocking: an event
+      // failure must never break the audience sync that already succeeded.
+      try {
+        await fetch('https://api.resend.com/events', {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${RESEND_API_KEY}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            event: `${body.segment}.added`, // e.g. "partners.added", "customers.added", "creators.added"
+            email: audEmail,
+            payload: { segmentId: audienceId, name: fullName || undefined },
+          }),
+        });
+      } catch (evtErr) {
+        console.warn('Resend event send failed (non-blocking):', evtErr.message);
+      }
+
       return res.status(200).json({ success: true, id: audData.id });
     }
 
