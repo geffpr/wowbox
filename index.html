@@ -9896,12 +9896,13 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
                 <th style="cursor:pointer" onclick="rptPayoutsSort('paid_at')">Paid at <span id="rpt-sort-paid_at"></span></th>
                 <th style="cursor:pointer" onclick="rptPayoutsSort('box_price')">Box price <span id="rpt-sort-box_price"></span></th>
                 <th style="cursor:pointer" onclick="rptPayoutsSort('platform_amount')">WB keeps <span id="rpt-sort-platform_amount"></span></th>
+                <th title="Box sale price minus the experience value used for commission — only shown for classic WowBox box sales">Margin</th>
                 <th style="cursor:pointer" onclick="rptPayoutsSort('partner_payout')">Payout <span id="rpt-sort-partner_payout"></span></th>
                 <th style="cursor:pointer" onclick="rptPayoutsSort('paystack_transfer_id')">Transfer ref <span id="rpt-sort-paystack_transfer_id"></span></th>
                 <th style="cursor:pointer" onclick="rptPayoutsSort('payout_status')">Status <span id="rpt-sort-payout_status"></span></th>
                 <th>Actions</th>
               </tr></thead>
-              <tbody id="rpt-payouts-tbody"><tr><td colspan="13" style="text-align:center;padding:28px;color:var(--muted)">Loading…</td></tr></tbody>
+              <tbody id="rpt-payouts-tbody"><tr><td colspan="14" style="text-align:center;padding:28px;color:var(--muted)">Loading…</td></tr></tbody>
             </table>
           </div>
         </div>
@@ -29033,6 +29034,38 @@ async function admLoadReporting() {
     var ceRes = await ceQ;
     _rptData.entries = ceRes.data || [];
 
+    // Margin per booking (box sale price minus the true experience value used
+    // for commission) — only meaningful for the classic 'wowbox' flow, since
+    // that's the only flow where box_price ≠ what the customer actually paid.
+    _rptData.marginBoxPrice = {};
+    try {
+      var wowboxRefs = _rptData.entries
+        .filter(function(e){ return (e.flow || 'wowbox') === 'wowbox' && e.booking_reference; })
+        .map(function(e){ return e.booking_reference; });
+      if (wowboxRefs.length) {
+        var mBkRes = await db_client.from('bookings').select('booking_reference,voucher_code').in('booking_reference', wowboxRefs);
+        var codeByRef = {};
+        (mBkRes.data || []).forEach(function(b){ if (b.voucher_code) codeByRef[b.booking_reference] = b.voucher_code; });
+        var codes = Object.values(codeByRef);
+        if (codes.length) {
+          var mVRes = await db_client.from('vouchers').select('code,box_id').in('code', codes);
+          var boxIdByCode = {};
+          (mVRes.data || []).forEach(function(v){ if (v.box_id) boxIdByCode[v.code] = v.box_id; });
+          var boxIds = [...new Set(Object.values(boxIdByCode))];
+          if (boxIds.length) {
+            var mBxRes = await db_client.from('boxes').select('id,price').in('id', boxIds);
+            var priceByBoxId = {};
+            (mBxRes.data || []).forEach(function(bx){ priceByBoxId[bx.id] = Number(bx.price || 0); });
+            wowboxRefs.forEach(function(ref){
+              var code = codeByRef[ref];
+              var boxId = code ? boxIdByCode[code] : null;
+              if (boxId && priceByBoxId[boxId] !== undefined) _rptData.marginBoxPrice[ref] = priceByBoxId[boxId];
+            });
+          }
+        }
+      }
+    } catch(marginErr) { console.warn('Margin lookup failed:', marginErr.message); }
+
     // Fetch all partners
     var pRes = await db_client.from('partners').select('*');
     _rptData.partners = pRes.data || [];
@@ -29322,6 +29355,12 @@ function rptRenderPayouts() {
       + (e.payout_status === 'pending' ? '<button class="btn bg bsm" style="font-size:.68rem" onclick="rptMarkEntryDispute(\''+e.id+'\')"><i class="fa fa-flag"></i></button>' : '')
       + '</div>';
 
+    var marginHtml = '<span style="color:var(--muted)">—</span>';
+    if ((e.flow || 'wowbox') === 'wowbox' && e.booking_reference && _rptData.marginBoxPrice[e.booking_reference] !== undefined) {
+      var margin = _rptData.marginBoxPrice[e.booking_reference] - Number(e.box_price || 0);
+      marginHtml = '<span style="color:var(--navy);font-weight:600">'+fmt(margin)+'</span>';
+    }
+
     var rowHtml = '<td style="font-size:.78rem"><strong>'+(e.partner_name||e.partner_email)+'</strong></td>'
       +'<td style="font-size:.75rem;font-family:monospace">'+(e.booking_reference||e.transaction_ref||'—')+'</td>'
       +'<td style="font-size:.75rem">'+(e.experience_name||'—')+'</td>'
@@ -29330,6 +29369,7 @@ function rptRenderPayouts() {
       +'<td style="font-size:.72rem;color:var(--muted)">'+(e.paid_at?.slice(0,10)||delay)+'</td>'
       +'<td style="font-size:.75rem">'+fmt(e.box_price)+'</td>'
       +'<td style="font-size:.75rem;color:var(--b600)">'+fmt(e.platform_amount)+'</td>'
+      +'<td style="font-size:.75rem">'+marginHtml+'</td>'
       +'<td style="font-size:.75rem;color:#16a34a;font-weight:600">'+fmt(e.partner_payout)+'</td>'
       +'<td style="font-size:.68rem;color:var(--muted);font-family:monospace">'+(e.paystack_transfer_id||'—')+'</td>'
       +'<td>'+statusHtml+'</td>'
@@ -29372,7 +29412,7 @@ function rptRenderPayouts() {
 
   tbody.innerHTML = rows.length ? rows.map(function(r){
     return '<tr><td><input type="checkbox" class="rpt-payout-check" value="'+r.id+'"></td>'+r.html+'</tr>';
-  }).join('') : '<tr><td colspan="13" style="text-align:center;padding:28px;color:var(--muted)">No payout data found.</td></tr>';
+  }).join('') : '<tr><td colspan="14" style="text-align:center;padding:28px;color:var(--muted)">No payout data found.</td></tr>';
 }
 
 function rptPayoutsSearch(v) { _rptPayoutsState.search = v || ''; rptRenderPayouts(); }
