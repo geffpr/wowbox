@@ -4887,6 +4887,30 @@ tr:hover td{background:var(--b50)}
 <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-N4SNWZJ7"
 height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 <!-- End Google Tag Manager (noscript) -->
+<!-- Cookie consent banner (informational — never blocks GA4/Meta Pixel from
+     loading; just discloses their use, per the earlier privacy policy update) -->
+<div id="wb-cookie-banner" style="display:none;position:fixed;left:0;right:0;bottom:0;z-index:9998;background:var(--bg);border-top:1px solid var(--border);padding:14px 20px;box-shadow:0 -4px 20px rgba(0,0,0,.08)">
+  <div style="max-width:1100px;margin:0 auto;display:flex;align-items:center;justify-content:center;gap:16px;flex-wrap:wrap">
+    <p style="margin:0;font-size:.82rem;color:var(--navy);flex:1;min-width:240px;max-width:640px">We use cookies to improve your experience and measure site performance (including Google Analytics and Meta Pixel). <a href="#" onclick="go('privacy');return false;" style="color:var(--b500);text-decoration:underline">Learn more</a></p>
+    <button onclick="wbAcceptCookieBanner()" style="background:var(--b500);color:#fff;border:none;padding:9px 22px;border-radius:99px;font-size:.82rem;font-weight:600;cursor:pointer;white-space:nowrap;flex-shrink:0">Got it</button>
+  </div>
+</div>
+<script>
+  function wbAcceptCookieBanner() {
+    try { localStorage.setItem('wb_cookie_consent', '1'); } catch(e) {}
+    var el = document.getElementById('wb-cookie-banner');
+    if (el) el.style.display = 'none';
+  }
+  (function initCookieBanner() {
+    var alreadyAccepted = false;
+    try { alreadyAccepted = localStorage.getItem('wb_cookie_consent') === '1'; } catch(e) {}
+    if (alreadyAccepted) return;
+    setTimeout(function() {
+      var el = document.getElementById('wb-cookie-banner');
+      if (el) el.style.display = 'block';
+    }, 1200);
+  })();
+</script>
 <!-- App Loader -->
 <div id="app-loader" style="position:fixed;inset:0;z-index:99999;background:#fdf8f3;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px">
   <div style="font-family:Georgia,serif;font-size:2rem;font-weight:700;color:#3d1008;letter-spacing:2px">WowBox</div>
