@@ -12004,7 +12004,7 @@ function loadProduct(boxId) {
     const vDiv = document.createElement('div');
     vDiv.className = 'gthumb on';
     vDiv.onclick = () => prodShowVideo(vDiv);
-    vDiv.innerHTML = '<div style="width:100%;height:100%;background:#111;display:flex;align-items:center;justify-content:center;color:#fff;font-size:1.1rem"><i class="fa fa-circle-play"></i></div>';
+    vDiv.innerHTML = '<div style="width:100%;height:100%;position:relative;overflow:hidden;border-radius:inherit"><video src="'+b.video_url+'" muted preload="metadata" style="width:100%;height:100%;object-fit:cover;display:block"></video><div style="position:absolute;inset:0;background:rgba(0,0,0,.25);display:flex;align-items:center;justify-content:center;color:#fff;font-size:1.3rem"><i class="fa fa-circle-play"></i></div></div>';
     thumbsEl.appendChild(vDiv);
   }
   imgs.forEach((s, i) => {
