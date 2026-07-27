@@ -16886,6 +16886,7 @@ async function plSubmitPartner() {
         contact_phone:           phone,
         category:                type,
         location:                city,
+        region:                  (document.getElementById('pl-city')||{}).dataset?.province || null,
         page_status:             'pending',
         registration_number:     regNum,
         business_type:           bizType,
@@ -16966,6 +16967,7 @@ async function plLinkWithGoogle() {
       contact_phone: wbPhoneGetFull('pl-phone'),
       category:      (document.getElementById('pl-type')||{value:''}).value,
       location:      (document.getElementById('pl-city')||{value:''}).value.trim(),
+      region:        (document.getElementById('pl-city')||{}).dataset?.province || null,
       page_status:   'pending',
       registration_number: (document.getElementById('pl-reg-num')||{value:''}).value.trim(),
       business_type: (document.getElementById('pl-biz-type')||{value:''}).value,
@@ -17024,6 +17026,7 @@ async function plLinkExistingAsPartner() {
     try {
       await db_client.from('partners').insert({
         business_name: bizName, contact_name: contact, contact_email: email, contact_phone: phone, category: type, location: city,
+        region: (document.getElementById('pl-city')||{}).dataset?.province || null,
         page_status: 'pending', registration_number: regNum, business_type: bizType,
         vat_number: vat || null, website_url: website || null,
         experience_description: expDesc, terms_accepted_at: new Date().toISOString(),
@@ -28999,9 +29002,11 @@ async function admLoadPartnersCRM() {
       .from('bookings')
       .select('partner_name, status, experience_name, created_at, customer_email, booking_date');
 
-    // Partner requests (application form data)
+    // Partner application/business data (real table is "partners", matched by email —
+    // "partner_requests" doesn't exist in this schema, which is why every detail
+    // field below used to come back empty)
     const { data: requests } = await db_client
-      .from('partner_requests')
+      .from('partners')
       .select('*');
 
     _admPCRMData = (partners || []).map(p => {
@@ -29009,7 +29014,7 @@ async function admLoadPartnersCRM() {
       const pBookings = (bookings    || []).filter(b =>
         (b.partner_name || '').toLowerCase() === (p.company_name || p.full_name || '').toLowerCase()
       );
-      const pRequest  = (requests   || []).find(r => r.email === p.email) || null;
+      const pRequest  = (requests   || []).find(r => r.contact_email === p.email) || null;
       return { ...p, _experiences: pExps, _bookings: pBookings, _request: pRequest };
     });
 
@@ -29031,8 +29036,8 @@ function admRenderPartnersCRMTable() {
     const matchSearch = !search ||
       (p.company_name||p.full_name||'').toLowerCase().includes(search) ||
       (p.email||'').toLowerCase().includes(search) ||
-      (p.city||'').toLowerCase().includes(search);
-    const matchStatus = !status || (p.partner_status || 'pending') === status;
+      (p._request?.location||p.partner_address||'').toLowerCase().includes(search);
+    const matchStatus = !status || (p.status || 'pending') === status;
     const d = p.created_at ? p.created_at.slice(0,10) : '';
     return matchSearch && matchStatus && (!from || d >= from) && (!to || d <= to);
   });
@@ -29046,10 +29051,10 @@ function admRenderPartnersCRMTable() {
   tbody.innerHTML = filtered.map(p => {
     const name    = p.company_name || p.full_name || '—';
     const email   = p.email || '—';
-    const type    = p.experience_type || p.business_type || '—';
-    const city    = p.city || '—';
+    const type    = p._request?.category || p._request?.business_type || '—';
+    const city    = p._request?.location || p.partner_address || '—';
     const joined  = p.created_at ? new Date(p.created_at).toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'}) : '—';
-    const pStatus = p.partner_status || 'pending';
+    const pStatus = p.status || 'pending';
     const statusBadge = pStatus === 'active'   ? '<span class="sbadge sb-a">Active</span>' :
                         pStatus === 'rejected' ? '<span class="sbadge" style="background:#fee2e2;color:#991b1b">Rejected</span>' :
                         '<span class="sbadge sb-p">Pending</span>';
@@ -29125,12 +29130,12 @@ function admOpenPCRMDetail(partnerId) {
     <!-- Profile info -->
     <div style="margin-bottom:18px">
       ${infoRow('Email', p.email)}
-      ${infoRow('Phone', p.phone || req?.phone)}
-      ${infoRow('Contact', p.contact_name || req?.contact_name)}
-      ${infoRow('Type', p.experience_type || p.business_type || req?.experience_type)}
-      ${infoRow('City', p.city || req?.city)}
-      ${infoRow('Province', p.province || req?.province)}
-      ${infoRow('Status', p.partner_status || 'pending')}
+      ${infoRow('Phone', p.phone || req?.contact_phone)}
+      ${infoRow('Contact', p.full_name || req?.contact_name)}
+      ${infoRow('Type', req?.category || req?.business_type)}
+      ${infoRow('City', p.partner_address || req?.location)}
+      ${infoRow('Province', req?.region)}
+      ${infoRow('Status', p.status || 'pending')}
       ${infoRow('Joined', p.created_at ? new Date(p.created_at).toLocaleDateString('en-ZA',{day:'numeric',month:'long',year:'numeric'}) : '—')}
     </div>
     ${req?.bio ? `<div style="margin-bottom:16px;padding:10px 12px;background:var(--bg);border-radius:var(--rs);font-size:.8rem;color:var(--slate);line-height:1.6;font-style:italic">"${req.bio}"</div>` : ''}
@@ -30796,7 +30801,8 @@ async function plxSubmitPartner() {
     }
     await db_client.from('partners').insert({
       business_name: bizName, contact_name: contact, contact_email: email, contact_phone: phone, category: type,
-      location: city, page_status: 'pending', registration_number: regNum, business_type: bizType,
+      location: city, region: (document.getElementById('plx-city')||{}).dataset?.province || null,
+      page_status: 'pending', registration_number: regNum, business_type: bizType,
       experience_description: expDesc, terms_accepted_at: new Date().toISOString()
     });
     if (sucEl) { sucEl.textContent = 'Application submitted! We will review it within 24 hours and contact you at ' + email + '.'; sucEl.style.display = 'block'; }
