@@ -16897,11 +16897,22 @@ async function plSubmitPartner() {
     } catch(e2) { console.warn('partners table:', e2.message); }
 
     // Send structured admin notification
-    fetch('/api/send-email', { method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ type:'admin_new_partner', data:{
-        bizName: bizName, name: contact, email: email, phone: phone, location: city, type: type
-      }})
-    }).catch(function(){});
+    // Awaited (rather than fire-and-forget) so the request isn't at risk of being
+    // cut short if the applicant navigates away right after seeing "Submitted!".
+    // Failures are logged (not surfaced to the applicant — their application is
+    // already saved above regardless of whether this notification succeeds).
+    try {
+      var notifRes = await fetch('/api/send-email', { method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ type:'admin_new_partner', data:{
+          bizName: bizName, name: contact, email: email, phone: phone, location: city, type: type
+        }})
+      });
+      if (!notifRes.ok) {
+        console.error('admin_new_partner notification failed:', notifRes.status, await notifRes.text());
+      }
+    } catch (notifErr) {
+      console.error('admin_new_partner notification error:', notifErr.message);
+    }
 
     if (sucEl) {
       sucEl.innerHTML = '<strong>Application submitted!</strong> We will review your listing within 24 hours and contact you at <strong>' + email + '</strong>.';
