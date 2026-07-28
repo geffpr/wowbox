@@ -8826,6 +8826,12 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
                   <div class="fg"><label>Experience name *</label><input class="fi" id="aef-name" placeholder="e.g. Clifton Penthouse Stay"></div>
                   <div class="fg"><label>Partner / Venue *</label><input class="fi" id="aef-partner" placeholder="Partner name"></div>
                 </div>
+                <div class="fg">
+                  <label>Linked partner account <span style="font-weight:400;color:var(--muted)">(optional — controls who manages this experience, validates bookings, and receives commissions)</span></label>
+                  <select class="fi" id="aef-linked-partner" onchange="admOnLinkedPartnerChange()">
+                    <option value="">— No linked account (house-managed) —</option>
+                  </select>
+                </div>
                 <div class="fg-row">
                   <div class="fg">
                     <label>Reservation type *</label>
@@ -20094,6 +20100,45 @@ async function renderAdmExpTable(keepPage) {
   }
 }
 
+// Loads active partner accounts into the "Linked partner account" dropdown and
+// pre-selects the given email (used both when opening a blank form and when
+// editing an existing experience).
+var _admLinkedPartnersCache = null;
+async function admPopulateLinkedPartnerSelect(selectedEmail) {
+  var sel = document.getElementById('aef-linked-partner');
+  if (!sel) return;
+  if (!_admLinkedPartnersCache) {
+    try {
+      var res = await db_client.from('partners').select('contact_email, business_name').eq('is_active', true).order('business_name');
+      _admLinkedPartnersCache = res.data || [];
+    } catch (e) { console.warn('admPopulateLinkedPartnerSelect:', e.message); _admLinkedPartnersCache = []; }
+  }
+  sel.innerHTML = '<option value="">— No linked account (house-managed) —</option>'
+    + _admLinkedPartnersCache.map(function(p) {
+        return '<option value="' + (p.contact_email||'').replace(/"/g,'&quot;') + '" data-name="' + (p.business_name||'').replace(/"/g,'&quot;') + '">'
+          + (p.business_name || p.contact_email) + ' — ' + (p.contact_email||'') + '</option>';
+      }).join('');
+  // If the experience's current partner_email doesn't match any active partner
+  // (e.g. a deactivated account), keep it as its own option instead of silently
+  // losing it the next time this form is saved.
+  var matches = selectedEmail && _admLinkedPartnersCache.some(function(p){ return p.contact_email === selectedEmail; });
+  if (selectedEmail && !matches) {
+    sel.innerHTML += '<option value="' + selectedEmail.replace(/"/g,'&quot;') + '">⚠️ ' + selectedEmail + ' (not an active partner)</option>';
+  }
+  sel.value = selectedEmail || '';
+}
+
+// Convenience only — pre-fills the display name text field when a partner account
+// is linked. The admin keeps full control and can still edit it freely afterward.
+function admOnLinkedPartnerChange() {
+  var sel = document.getElementById('aef-linked-partner');
+  var nameEl = document.getElementById('aef-partner');
+  if (!sel || !nameEl) return;
+  var opt = sel.options[sel.selectedIndex];
+  var name = opt ? opt.getAttribute('data-name') : '';
+  if (name) nameEl.value = name;
+}
+
 async function admShowExpFormById(expId) {
   appState.editingExpId = expId || null;
   const listWrap = document.getElementById('adm-exp-list-wrap');
@@ -20134,6 +20179,7 @@ async function admShowExpFormById(expId) {
     if (amWrap) amWrap.innerHTML = buildAmenitiesCheckboxes('aef', []);
     admExpTypeNote();
     if (window.google) initPlacesAC('aef-loc', 'aef-lat', 'aef-lng');
+    admPopulateLinkedPartnerSelect('');
     return;
   }
 
@@ -20157,6 +20203,7 @@ async function admShowExpFormById(expId) {
     // ── Populate all fields ──
     document.getElementById('aef-name').value    = e.name          || '';
     document.getElementById('aef-partner').value = e.partner_name  || '';
+    admPopulateLinkedPartnerSelect(e.partner_email || '');
     document.getElementById('aef-loc').value     = e.location      || '';
     document.getElementById('aef-lat').value     = e.lat           || '';
     document.getElementById('aef-lng').value     = e.lng           || '';
@@ -21004,6 +21051,7 @@ function admRemoveExpImg(idx) {
 async function admSaveExp() {
   const name    = document.getElementById('aef-name')?.value?.trim();
   const partner = document.getElementById('aef-partner')?.value?.trim() || '';
+  const linkedPartnerEmail = document.getElementById('aef-linked-partner')?.value?.trim() || null;
   const rt      = document.getElementById('aef-rt')?.value || '';
   const loc     = document.getElementById('aef-loc')?.value?.trim() || '';
   const lat     = parseFloat(document.getElementById('aef-lat')?.value) || null;
@@ -21051,6 +21099,7 @@ async function admSaveExp() {
   const payload = {
     name,
     partner_name:       partner,
+    partner_email:      linkedPartnerEmail,
     reservation_type:   rt,
     location:           city || loc,
     address:            address,
