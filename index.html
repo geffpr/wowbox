@@ -10791,7 +10791,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
             </div>
             <p class="res-form-sub">Your WowBox Surprise covers the full cost. Fill in the details to confirm your reservation.</p>
             <div id="roulette-bk-fields"></div>
-            <button class="btn bp block" id="roulette-bk-confirm-btn" onclick="if(!formRequiredFieldsFilled('roulette-bk-fields')){admToast('Please fill in all required fields.');return;}confirmRouletteBooking()"><i class="fa fa-check-circle"></i> Confirm reservation</button>
+            <button class="btn bp block" id="roulette-bk-confirm-btn" onclick="if(!formRequiredFieldsFilled('roulette-bk-fields')){admToast('Please fill in all required fields.');return;}wbOpenAddonsModal()"><i class="fa fa-check-circle"></i> Confirm reservation</button>
             <div style="display:flex;gap:16px;margin-top:12px;padding-top:10px;border-top:1px solid var(--border);flex-wrap:wrap">
               <span style="font-size:.68rem;color:var(--muted);display:flex;align-items:center;gap:3px"><i class="fa fa-shield-halved" style="color:var(--b400)"></i> Secure</span>
               <span style="font-size:.68rem;color:var(--muted);display:flex;align-items:center;gap:3px"><i class="fa fa-rotate-left" style="color:var(--b400)"></i> Free cancellation</span>
@@ -22086,6 +22086,7 @@ function openRoulettePage() {
   appState.surprise.phase = 'pre-spin';
   appState.surprise.selectedId = null;
   appState.surprise.results = [];
+  appState.browseBoxId = 'surprise'; // so confirmExpBooking() tags the real booking with the right box
   go('roulette');
 }
 
@@ -22282,46 +22283,11 @@ function confirmChoice() {
   if (window.flatpickr) { initBookingDatePickers(appState.currentExpId); }
   else { var _s=document.createElement('script');_s.src='https://cdn.jsdelivr.net/npm/flatpickr';_s.onload=function(){initBookingDatePickers(appState.currentExpId);};document.head.appendChild(_s); }
 
-  // Store as current exp so confirmExpBooking can find it if needed
+  // The experience already exists in expDB (getSurprisePool() reads straight from
+  // it), so confirmExpBooking() will find it there directly — no need to inject it.
   appState.currentExpId = exp.id;
-  expDB.push(exp); // make it findable by confirmExpBooking (idempotent)
 }
 
-function confirmRouletteBooking() {
-  const exp = getSurprisePool().find(e => e.id === appState.surprise.selectedId);
-  if (!exp) return;
-  if (!formRequiredFieldsFilled('roulette-bk-fields')) {
-    admToast('Please fill in all required fields.');
-    return;
-  }
-  // Populate voucher with roulette booking data
-  const rt = exp.reservation_type || 'activity';
-  const data = collectBookingData(rt);
-  const fmt = d => d ? new Date(d).toLocaleDateString('en-ZA',{weekday:'short',day:'numeric',month:'short',year:'numeric'}) : 'TBD';
-
-  document.getElementById('v-exp').textContent = exp.name;
-  document.getElementById('v-box').textContent = 'WowBox Surprise Experience · ' + exp.loc;
-  document.getElementById('v-g1').textContent = data.guest1 || 'Guest';
-  document.getElementById('v-g2').textContent = data.guest2 || '—';
-  document.getElementById('v-loc').textContent = exp.loc;
-  document.getElementById('v-bcode').textContent = 'WB-2025-SURP';
-
-  if (rt === 'accommodation' || rt === 'rental') {
-    document.getElementById('v-lbl1').textContent = rt==='rental'?'Start date':'Check-in';
-    document.getElementById('v-lbl2').textContent = rt==='rental'?'End date':'Check-out';
-    document.getElementById('v-d1').textContent = fmt(data.checkin||data.start);
-    document.getElementById('v-d2').textContent = fmt(data.checkout||data.end);
-    const n = (data.checkin||data.start)&&(data.checkout||data.end)?Math.round((new Date(data.checkout||data.end)-new Date(data.checkin||data.start))/86400000):1;
-    document.getElementById('v-det').textContent = `${n} night${n>1?'s':''} · ${data.guests||'2'} guests`;
-  } else {
-    document.getElementById('v-lbl1').textContent = 'Date';
-    document.getElementById('v-lbl2').textContent = rt==='wellness'?'Treatment':rt==='dining'?'Time':'Session';
-    document.getElementById('v-d1').textContent = fmt(data.date);
-    document.getElementById('v-d2').textContent = rt==='wellness'?(data.treatment||'Therapist\'s choice'):data.time||data.session||'Confirmed';
-    document.getElementById('v-det').textContent = `${data.guests||'2'} guests · ${rtConfig[rt]?.label||rt}`;
-  }
-  go('voucher');
-}
 
 /* ══════════════════════════════════════════════════════════════
    PARTNER PORTAL
