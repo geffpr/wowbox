@@ -1889,6 +1889,7 @@ async function loadUserBoxes(email) {
         browseBtn = canCancel
           ? '<button class="btn bsm" style="background:#fef2f2;color:#dc2626;border:1px solid #fca5a5" onclick="cancelBooking(\'' + v.code + '\',\'' + (bkInfo.booking_date||'') + '\',' + cancelWindow + ')"><i class="fa fa-xmark"></i> Cancel booking</button>'
           : '<button class="btn bsm" style="background:#f8fafc;color:#94a3b8;border:1px solid #e2e8f0;cursor:not-allowed" disabled title="Cannot cancel within ' + cancelWindow + 'h of experience"><i class="fa fa-lock"></i> Non-cancellable</button>';
+        browseBtn += ' <button class="btn bp bsm" onclick="openAddExtrasForBooking(\'' + v.code + '\')"><i class="fa fa-gift"></i> Add extras</button>';
       }
       // Leave a review button for used vouchers — fetch linked booking
       if (st === 'used') {
@@ -14254,6 +14255,40 @@ function wbClearSessionState() {
 
 var _wbAddonsSelected = [];
 
+// ── Add extras to an ALREADY-confirmed booking (post-booking "second chance") ──
+// Reuses the exact same add-ons modal as a fresh booking; only the finalization
+// step differs (see wbFinishBookingOrExtras / finalizeExtraAddons below), so this
+// never touches or duplicates the normal booking-creation path.
+appState.extraAddonsMode = { active: false };
+
+async function openAddExtrasForBooking(voucherCode) {
+  if (!voucherCode) return;
+  try {
+    var bkRes = await db_client.from('bookings')
+      .select('booking_reference, experience_id, customer_name, guest_name, booking_date, booking_time')
+      .eq('voucher_code', voucherCode).neq('status', 'cancelled')
+      .order('created_at', { ascending: false }).limit(1).maybeSingle();
+    if (!bkRes.data) { admToast('Could not find this booking.'); return; }
+    var bk = bkRes.data;
+    appState.extraAddonsMode = {
+      active: true,
+      voucherCode: voucherCode,
+      bookingRef: bk.booking_reference,
+      expId: bk.experience_id,
+      customerName: bk.customer_name || bk.guest_name || '',
+      bookingDate: bk.booking_date,
+      bookingTime: bk.booking_time,
+    };
+    appState.currentExpId = bk.experience_id;
+    appState.activatedVoucher = { code: voucherCode };
+    await wbOpenAddonsModal();
+  } catch (e) {
+    console.error('openAddExtrasForBooking:', e.message);
+    admToast('Something went wrong loading this booking.');
+  }
+}
+
+
 function haversineDistanceKm(lat1, lng1, lat2, lng2) {
   if (!lat1 || !lng1 || !lat2 || !lng2) return null;
   var R = 6371;
@@ -14453,6 +14488,7 @@ function wbProceedWithAddons() {
 function wbOpenConfirmModal() {
   var e = expDB.find(x => x.id === appState.currentExpId);
   if (!e) return;
+  var isExtrasMode = !!(appState.extraAddonsMode && appState.extraAddonsMode.active);
   var addons = _wbAddonsSelected || [];
   var addonsTotal = addons.reduce(function(s,a){ return s + a.price; }, 0);
   var existing = document.getElementById('wb-confirm-modal');
@@ -14493,14 +14529,16 @@ function wbOpenConfirmModal() {
 
   modal.style.cssText = 'position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(5,15,40,.6);backdrop-filter:blur(4px)';
   modal.innerHTML = '<div style="background:#fff;border-radius:16px;padding:28px;max-width:380px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.25)">'
-    + '<div style="font-size:1.6rem;margin-bottom:10px">🔒</div>'
-    + '<h3 style="font-size:1.05rem;color:var(--navy);margin-bottom:14px">Confirm your booking</h3>'
+    + '<div style="font-size:1.6rem;margin-bottom:10px">' + (isExtrasMode ? '🎁' : '🔒') + '</div>'
+    + '<h3 style="font-size:1.05rem;color:var(--navy);margin-bottom:14px">' + (isExtrasMode ? 'Confirm your extras' : 'Confirm your booking') + '</h3>'
     + checkoutBlock
-    + '<p style="font-size:.78rem;color:var(--muted);margin-bottom:14px">You are about to book <strong>' + e.name + '</strong>.</p>'
-    + cancelBlock
+    + '<p style="font-size:.78rem;color:var(--muted);margin-bottom:14px">' + (isExtrasMode
+        ? 'These extras will be added to your existing booking of <strong>' + e.name + '</strong>.'
+        : 'You are about to book <strong>' + e.name + '</strong>.') + '</p>'
+    + (isExtrasMode ? '' : cancelBlock)
     + '<div style="display:flex;gap:10px">'
     + '<button class="btn bg" style="flex:1" onclick="document.getElementById(\'wb-confirm-modal\').remove()">Cancel</button>'
-    + '<button class="btn bp" id="wb-confirm-btn" style="flex:1" disabled onclick="wbConfirmAndContinue()"><i class="fa fa-check"></i> Confirm booking</button>'
+    + '<button class="btn bp" id="wb-confirm-btn" style="flex:1"' + (isExtrasMode ? '' : ' disabled') + ' onclick="wbConfirmAndContinue()"><i class="fa fa-check"></i> ' + (isExtrasMode ? 'Pay & add extras' : 'Confirm booking') + '</button>'
     + '</div></div>';
   document.body.appendChild(modal);
   modal.addEventListener('click', function(ev){ if(ev.target===modal) modal.remove(); });
@@ -14512,6 +14550,17 @@ function wbConfirmAndContinue() {
   var addonsTotal = (_wbAddonsSelected||[]).reduce(function(s,a){ return s + a.price; }, 0);
   if (addonsTotal > 0) {
     wbPayForAddons(addonsTotal);
+  } else {
+    wbFinishBookingOrExtras();
+  }
+}
+
+// Dispatch to the normal booking-creation flow, or — if this is a post-booking
+// "Add extras" purchase — to finalizeExtraAddons() instead. confirmExpBooking()
+// itself is never modified, so the normal path behaves exactly as before.
+function wbFinishBookingOrExtras() {
+  if (appState.extraAddonsMode && appState.extraAddonsMode.active) {
+    finalizeExtraAddons();
   } else {
     confirmExpBooking();
   }
@@ -14537,11 +14586,11 @@ function wbPayForAddons(amount) {
       callback: function(response) {
         if (response.status === 'success') {
           _wbAddonsPaymentRef = ref;
-          confirmExpBooking();
+          wbFinishBookingOrExtras();
         } else {
           admToast('Payment was not successful — your extras were not added.');
           _wbAddonsSelected = [];
-          confirmExpBooking();
+          wbFinishBookingOrExtras();
         }
       },
       onClose: function() {
@@ -14554,11 +14603,79 @@ function wbPayForAddons(amount) {
     console.error('Addon payment error:', err);
     admToast('Could not open payment for extras. Continuing without them.');
     _wbAddonsSelected = [];
-    confirmExpBooking();
+    wbFinishBookingOrExtras();
   }
 }
 
 var _wbAddonsPaymentRef = null;
+
+// Finalizes a post-booking "Add extras" purchase: records each selected add-on
+// against the ALREADY-existing booking (commission entry + partner notification,
+// same shape confirmExpBooking() uses for extras bought at booking time), without
+// touching the voucher status or creating a new booking.
+async function finalizeExtraAddons() {
+  var mode = appState.extraAddonsMode;
+  var modal = document.getElementById('wb-confirm-modal');
+  if (modal) modal.remove();
+  if (!mode || !mode.active) return;
+
+  var e = expDB.find(function(x){ return x.id === mode.expId; });
+  var addonsList = _wbAddonsSelected || [];
+
+  if (addonsList.length && e) {
+    try {
+      var addonIds = addonsList.map(function(a){ return a.id; });
+      var addonDetailsRes = await db_client.from('addons').select('*').in('id', addonIds);
+      var addonDetails = addonDetailsRes.data || [];
+
+      for (var i = 0; i < addonsList.length; i++) {
+        var sel = addonsList[i];
+        var full = addonDetails.find(function(d){ return d.id === sel.id; }) || {};
+        var addonCommRate = full.commission_rate != null ? Number(full.commission_rate) : 20;
+        var addonPlatformAmt = Math.round(sel.price * addonCommRate / 100);
+        var addonProviderPayout = sel.price - addonPlatformAmt;
+        var distanceKm = sel.type === 'driver'
+          ? haversineDistanceKm(window._wbDriverPickupLat, window._wbDriverPickupLng, e.lat, e.lng)
+          : haversineDistanceKm(full.provider_lat, full.provider_lng, e.lat, e.lng);
+
+        await db_client.from('commission_entries').insert({
+          booking_reference: mode.bookingRef, partner_email: full.provider_email||'',
+          partner_name: full.provider_name||sel.name, experience_name: sel.name + ' (add-on)',
+          box_price: sel.price, platform_rate: addonCommRate, platform_amount: addonPlatformAmt,
+          partner_payout: addonProviderPayout, payout_status:'pending', flow:'addon',
+          notes: distanceKm != null ? ('Estimated distance: ' + distanceKm + ' km') : null
+        });
+
+        if (full.provider_email) {
+          fetch('/api/send-email', {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({ type:'addon_provider_notification', data:{
+              providerEmail: full.provider_email, providerName: full.provider_name||'',
+              addonName: sel.name, bookingRef: mode.bookingRef,
+              experienceName: e.name, experienceAddress: e.address||e.loc||'',
+              customerName: mode.customerName||'', customerPhone: '',
+              bookingDate: mode.bookingDate||'', bookingTime: mode.bookingTime||'',
+              providerAddress: full.provider_address||'',
+              pickupAddress: sel.type === 'driver' ? (window._wbDriverPickupAddress||'') : '',
+              distanceKm: distanceKm,
+              commissionRate: addonCommRate, providerPayout: addonProviderPayout
+            }})
+          }).catch(function(){});
+        }
+      }
+      admToast('✅ Extras added to your booking!');
+    } catch (err) {
+      console.error('finalizeExtraAddons error:', err.message);
+      admToast('Something went wrong adding your extras — please contact support.');
+    }
+  } else {
+    admToast('No extras selected.');
+  }
+
+  appState.extraAddonsMode = { active: false };
+  _wbAddonsSelected = [];
+  if (currentUser && typeof loadUserBoxes === 'function') loadUserBoxes(currentUser.email);
+}
 
 async function confirmExpBooking() {
   const e = expDB.find(x => x.id === appState.currentExpId);
