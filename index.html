@@ -10678,7 +10678,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       <button class="btn bg bsm" onclick="go('dashboard')"><i class="fa fa-arrow-left"></i> My Account</button>
       <div style="flex:1">
         <h1 style="font-size:2rem;color:var(--navy);margin-bottom:2px">WowBox Surprise Experience</h1>
-        <p style="font-size:.8rem;color:var(--muted)">Code: WB-2025-SURP · Activated 10 Apr 2025</p>
+        <p style="font-size:.8rem;color:var(--muted)" id="roulette-voucher-meta">Code: — · Activated —</p>
       </div>
     </div>
 
@@ -22098,15 +22098,23 @@ async function openRoulettePage() {
   // Real state from Supabase: spins already used and whether Chance Boost was actually
   // purchased for THIS voucher — not the live cart, which is empty by the time someone
   // comes back to redeem, and not reliable for multi-box orders anyway.
-  var spinsUsed = 0, hasBoost = false;
+  var spinsUsed = 0, hasBoost = false, activatedAt = null;
   if (voucherCode && typeof db_client !== 'undefined') {
     try {
-      var vRes = await db_client.from('vouchers').select('surprise_spins_used, has_boost').eq('code', voucherCode).maybeSingle();
+      var vRes = await db_client.from('vouchers').select('surprise_spins_used, has_boost, activated_at').eq('code', voucherCode).maybeSingle();
       if (vRes.data) {
         spinsUsed = vRes.data.surprise_spins_used || 0;
         hasBoost  = !!vRes.data.has_boost;
+        activatedAt = vRes.data.activated_at || null;
       }
     } catch (e) { console.warn('roulette voucher fetch:', e.message); }
+  }
+
+  // Replace the static demo placeholder with the real code/date
+  var metaEl = document.getElementById('roulette-voucher-meta');
+  if (metaEl) {
+    var dateStr = activatedAt ? new Date(activatedAt).toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'}) : '—';
+    metaEl.textContent = 'Code: ' + (voucherCode || '—') + ' · Activated ' + dateStr;
   }
 
   appState.surprise.hasBoost = hasBoost;
