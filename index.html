@@ -22095,17 +22095,19 @@ async function openRoulettePage() {
   var voucherCode = (appState.activatedVoucher && appState.activatedVoucher.code) || appState.currentBoxCode || '';
   appState.surprise.voucherCode = voucherCode;
 
-  // Real state from Supabase: spins already used and whether Chance Boost was actually
-  // purchased for THIS voucher — not the live cart, which is empty by the time someone
-  // comes back to redeem, and not reliable for multi-box orders anyway.
-  var spinsUsed = 0, hasBoost = false, activatedAt = null;
+  // Real state from Supabase: spins already used, whether Chance Boost was actually
+  // purchased for THIS voucher, and the last spin's results (so leaving the page
+  // before booking doesn't lose the reveal) — not the live cart/memory, which is
+  // gone by the time someone comes back to redeem.
+  var spinsUsed = 0, hasBoost = false, activatedAt = null, lastResultIds = null;
   if (voucherCode && typeof db_client !== 'undefined') {
     try {
-      var vRes = await db_client.from('vouchers').select('surprise_spins_used, has_boost, activated_at').eq('code', voucherCode).maybeSingle();
+      var vRes = await db_client.from('vouchers').select('surprise_spins_used, has_boost, activated_at, surprise_last_results').eq('code', voucherCode).maybeSingle();
       if (vRes.data) {
         spinsUsed = vRes.data.surprise_spins_used || 0;
         hasBoost  = !!vRes.data.has_boost;
         activatedAt = vRes.data.activated_at || null;
+        lastResultIds = vRes.data.surprise_last_results || null;
       }
     } catch (e) { console.warn('roulette voucher fetch:', e.message); }
   }
@@ -22120,13 +22122,21 @@ async function openRoulettePage() {
   appState.surprise.hasBoost = hasBoost;
   appState.surprise.spinsTotal = hasBoost ? 5 : 3;
   appState.surprise.spinsUsed = spinsUsed;
-  appState.surprise.phase = 'pre-spin';
   appState.surprise.selectedId = null;
-  appState.surprise.results = [];
   appState.browseBoxId = 'surprise'; // so confirmExpBooking() tags the real booking with the right box
 
   // Make sure the real (non-demo) experiences for this box are loaded before spinning
   await fetchProductExps('surprise');
+
+  // Restore the last spin's results (if any) now that real data is loaded, so leaving
+  // the page before booking doesn't lose the reveal. initRoulettePage() shows the
+  // results phase automatically when appState.surprise.results is non-empty.
+  if (lastResultIds && lastResultIds.length) {
+    var pool = getSurprisePool();
+    appState.surprise.results = lastResultIds.map(function(id){ return pool.find(function(e){ return e.id === id; }); }).filter(Boolean);
+  } else {
+    appState.surprise.results = [];
+  }
 
   go('roulette');
 }
@@ -22136,6 +22146,14 @@ function initRoulettePage() {
   // Boost banner
   const boostBanner = document.getElementById('roulette-boost-banner');
   if (boostBanner) boostBanner.style.display = s.hasBoost ? 'flex' : 'none';
+
+  // If the last spin's results were restored (voucher not yet booked), show them
+  // directly instead of a blank pre-spin screen with nothing left to choose from.
+  if (s.results && s.results.length) {
+    showResults();
+    return;
+  }
+
   // Show pre-spin phase
   showRoulettePhase('pre-spin');
   renderSpinsTrack('spins-track');
@@ -22206,9 +22224,13 @@ function doSpin() {
   // After all reels stop: show results
   setTimeout(() => {
     s.spinsUsed++;
-    // Persist the real count so it can't be reset by navigating back and re-entering
+    // Persist the real count and this spin's results, so neither is lost by
+    // navigating back and re-entering
     if (s.voucherCode && typeof db_client !== 'undefined') {
-      db_client.from('vouchers').update({ surprise_spins_used: s.spinsUsed }).eq('code', s.voucherCode)
+      db_client.from('vouchers').update({
+        surprise_spins_used: s.spinsUsed,
+        surprise_last_results: results.map(function(r){ return r.id; }),
+      }).eq('code', s.voucherCode)
         .then(function(r){ if (r.error) console.error('spin count persist failed:', r.error.message); });
     }
     // Jackpot overlay before results
