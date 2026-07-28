@@ -12558,6 +12558,7 @@ async function fetchProductExps(boxId) {
         phone:            e.phone               || '',
         rating:           rt1 ? rt1.avg : null,
         rv:               rt1 ? rt1.count : 0,
+        price:            e.price || null,
         amenities:        e.amenities            || [],
         programme:        e.programme            || [],
         img:              e.image_url || (Array.isArray(e.images) && e.images[0]) || (Array.isArray(e.image_urls) && e.image_urls[0]) || 'https://images.unsplash.com/photo-1528360983277-13d401cdc186?w=800&auto=format&fit=crop',
@@ -13128,6 +13129,7 @@ async function loadExpFromSupabase() {
         phone:            e.phone            || '',
         rating:           rt2 ? rt2.avg : null,
         rv:               rt2 ? rt2.count : 0,
+        price:            e.price || null,
         amenities:        e.amenities         || [],
         programme:        e.programme         || [],
         img:              e.image_url || (Array.isArray(e.images) && e.images[0]) || (Array.isArray(e.image_urls) && e.image_urls[0]) || 'https://images.unsplash.com/photo-1528360983277-13d401cdc186?w=800&auto=format&fit=crop',
@@ -21889,18 +21891,25 @@ function admToast(msg) {
 /* ══════════════════════════════════════════════════════════════
    SURPRISE BOX — DATA & ENGINE
 ══════════════════════════════════════════════════════════════ */
-const surpriseDB = [
-  { id:'sx1',  name:'Helicopter Sunset Flight',      rarity:'jackpot',  reservation_type:'activity',      loc:'Cape Town',      partner:'Cape Heli Tours',       img:'https://images.unsplash.com/photo-1436891678271-9c672565d8f6?q=80&w=800&auto=format&fit=crop', img2:'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?q=80&w=400', img3:'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=400', desc:'An exclusive 45-minute helicopter flight over the Cape Peninsula at golden hour. Fly past Table Mountain, Clifton beaches, and the Cape Point reserve. Champagne on arrival included.' },
-  { id:'sx2',  name:'Private Island Picnic',          rarity:'jackpot',  reservation_type:'event',         loc:'Langebaan',      partner:'Club Mykonos',          img:'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?q=80&w=800&auto=format&fit=crop', img2:'https://images.unsplash.com/photo-1502680390469-be75c86b636f?q=80&w=400', img3:'https://images.unsplash.com/photo-1499244571948-7ccddb3583f1?q=80&w=400', desc:'A private boat transfers you to a secluded island in Langebaan Lagoon for an exclusive champagne picnic — just you, the water, and the sky.' },
-  { id:'sx3',  name:'Private Chef Dinner at Home',    rarity:'premium',  reservation_type:'dining',        loc:'Johannesburg',   partner:'Chef Direct SA',        img:'https://images.unsplash.com/photo-1414235077428-338989a2e8c0?q=80&w=800&auto=format&fit=crop', img2:'https://images.unsplash.com/photo-1424847651672-bf20a4b0982b?q=80&w=400', img3:'https://images.unsplash.com/photo-1559339352-11d035aa65de?q=80&w=400', desc:'A celebrated chef comes to your home for an intimate 5-course private dining experience. The chef plans the menu, sources fresh ingredients, cooks, serves, and cleans up — you just enjoy.' },
-  { id:'sx4',  name:'Shark Cage Diving',              rarity:'premium',  reservation_type:'activity',      loc:'Gansbaai',       partner:'Marine Dynamics',       img:'https://images.unsplash.com/photo-1544551763-46a013bb70d5?q=80&w=800&auto=format&fit=crop', img2:'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?q=80&w=400', img3:'https://images.unsplash.com/photo-1502680390469-be75c86b636f?q=80&w=400', desc:'Come face-to-face with Great White Sharks from the safety of a professional dive cage off Dyer Island in Gansbaai — the Great White Shark capital of the world.' },
-  { id:'sx5',  name:'Sunrise Hot Air Balloon',        rarity:'premium',  reservation_type:'activity',      loc:'Pilanesberg',    partner:'Air Ventures SA',       img:'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=800&auto=format&fit=crop', img2:'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?q=80&w=400', img3:'https://images.unsplash.com/photo-1530103862676-de8c9debad1d?q=80&w=400', desc:'Rise above Pilanesberg Game Reserve at dawn in a luxury hot air balloon. Spot wildlife from the air, then land for a bush breakfast with sparkling wine.' },
-  { id:'sx6',  name:'Treehouse Bush Overnight',       rarity:'premium',  reservation_type:'accommodation', loc:'Hoedspruit',     partner:'Makuleke Treehouse',    img:'https://images.unsplash.com/photo-1448375240586-882707db888b?q=80&w=800&auto=format&fit=crop', img2:'https://images.unsplash.com/photo-1619468129361-605ebea04b44?q=80&w=400', img3:'https://images.unsplash.com/photo-1516426122078-c23e76319801?q=80&w=400', desc:'Spend a night in a luxury treehouse suspended 8 metres above the bush. Fall asleep to African sounds, wake to elephant and giraffe below. Full board included.' },
-  { id:'sx7',  name:'Winelands Cycling Tour',         rarity:'normal',   reservation_type:'activity',      loc:'Stellenbosch',   partner:'Bike & Wine',           img:'https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?q=80&w=800&auto=format&fit=crop', img2:'https://images.unsplash.com/photo-1506377247377-2a5b3b417ebb?q=80&w=400', img3:'https://images.unsplash.com/photo-1559339352-11d035aa65de?q=80&w=400', desc:'Cycle through iconic Stellenbosch wine estates with guided tastings at 4 stops. E-bikes available. Includes a picnic lunch with local charcuterie and cheese.' },
-  { id:'sx8',  name:'Sunset Kayak with Dolphins',     rarity:'normal',   reservation_type:'activity',      loc:'Knysna',         partner:'Knysna Heads Tours',    img:'https://images.unsplash.com/photo-1502680390469-be75c86b636f?q=80&w=800&auto=format&fit=crop', img2:'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?q=80&w=400', img3:'https://images.unsplash.com/photo-1499244571948-7ccddb3583f1?q=80&w=400', desc:'Paddle through the famous Knysna Heads as the sun sets. This stretch of coast is a dolphin corridor — encounters are frequent and magical.' },
-  { id:'sx9',  name:'African Cookery Masterclass',    rarity:'normal',   reservation_type:'event',         loc:'Cape Town',      partner:'Cape Malay Kitchen',    img:'https://images.unsplash.com/photo-1559339352-11d035aa65de?q=80&w=800&auto=format&fit=crop', img2:'https://images.unsplash.com/photo-1414235077428-338989a2e8c0?q=80&w=400', img3:'https://images.unsplash.com/photo-1530103862676-de8c9debad1d?q=80&w=400', desc:'Learn the art of Cape Malay and traditional African cuisine with an award-winning chef in Bo-Kaap. Market tour, hands-on cooking, full feast to finish.' },
-  { id:'sx10', name:'Stargazing Night in the Karoo',  rarity:'normal',   reservation_type:'event',         loc:'Karoo',          partner:'Sutherland Astronomy',  img:'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?q=80&w=800&auto=format&fit=crop', img2:'https://images.unsplash.com/photo-1530103862676-de8c9debad1d?q=80&w=400', img3:'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=400', desc:'Head to the Karoo — one of the world\'s darkest sky reserves — for a private stargazing session guided by an astronomer. Hot chocolate and a night under the Milky Way.' },
-];
+// Surprise Box pool: real active experiences tagged for the "surprise" box,
+// drawn live from expDB (same hydrated data every other box uses — see
+// loadExpFromSupabase() / fetchProductExps()). Not a fixed snapshot: a plain
+// function, so it always reflects the current state of expDB when called.
+// Rarity (normal/premium/jackpot) is derived from each experience's real
+// `price` field, since there is no dedicated rarity column. Experiences
+// without a price default to 'normal'.
+function surpriseRarityFromPrice(price) {
+  const p = Number(price);
+  if (!p || isNaN(p)) return 'normal';
+  if (p >= 1500) return 'jackpot';
+  if (p >= 500)  return 'premium';
+  return 'normal';
+}
+function getSurprisePool() {
+  return expDB
+    .filter(e => e.box === 'surprise')
+    .map(e => Object.assign({}, e, { rarity: e.rarity || surpriseRarityFromPrice(e.price) }));
+}
 
 /* Rarity probabilities — base vs boost */
 const rarityProb = {
@@ -21921,7 +21930,7 @@ function drawRarity(hasBoost) {
 
 function drawSurpriseResults(hasBoost) {
   /* Draw 3 unique experiences, no duplicates, rarities drawn independently */
-  const pool = [...surpriseDB];
+  const pool = getSurprisePool();
   const results = [];
   const usedIds = new Set();
   let jackpotFound = false;
@@ -21996,7 +22005,7 @@ function previewSpin() {
     </div>`).join('');
 
   // Cycle images during spin
-  const allImgs = surpriseDB.map(e => e.img);
+  const allImgs = getSurprisePool().map(e => e.img);
   const intervals = results.map((_, i) => {
     let tick = i;
     return setInterval(() => {
@@ -22129,7 +22138,7 @@ function doSpin() {
   s.jackpotTriggered = jackpotFound;
 
   // Cycle spinning images
-  const allImgs = surpriseDB.map(e => e.img);
+  const allImgs = getSurprisePool().map(e => e.img);
   const spinIntervals = [];
   for (let i = 0; i < 3; i++) {
     const imgEl = document.getElementById('spin-img-'+i);
@@ -22225,7 +22234,7 @@ function selectResult(expId, slotIdx) {
   });
 
   // Show confirm bar with selected experience info
-  const exp = surpriseDB.find(e => e.id === expId);
+  const exp = getSurprisePool().find(e => e.id === expId);
   const bar  = document.getElementById('rsl-confirm-bar');
   const abar = document.getElementById('rsl-action-bar');
   const cfbf = document.getElementById('confirm-choice-btn-fallback');
@@ -22244,7 +22253,7 @@ function selectResult(expId, slotIdx) {
 function confirmChoice() {
   const s = appState.surprise;
   if (!s.selectedId) return;
-  const exp = surpriseDB.find(e => e.id === s.selectedId);
+  const exp = getSurprisePool().find(e => e.id === s.selectedId);
   if (!exp) return;
 
   // Populate booking phase
@@ -22279,7 +22288,7 @@ function confirmChoice() {
 }
 
 function confirmRouletteBooking() {
-  const exp = surpriseDB.find(e => e.id === appState.surprise.selectedId);
+  const exp = getSurprisePool().find(e => e.id === appState.surprise.selectedId);
   if (!exp) return;
   if (!formRequiredFieldsFilled('roulette-bk-fields')) {
     admToast('Please fill in all required fields.');

@@ -1110,11 +1110,11 @@ export default async function handler(req, res) {
       // react to events sent via /events. This is non-blocking: an event
       // failure must never break the audience sync that already succeeded.
       try {
-        const evtResp = await fetch('https://api.resend.com/events', {
+        const evtResp = await fetch('https://api.resend.com/events/send', {
           method: 'POST',
           headers: { 'Authorization': `Bearer ${RESEND_API_KEY}`, 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            name: `${body.segment}.added`, // e.g. "partners.added", "customers.added", "creators.added"
+            event: `${body.segment}.added`, // e.g. "partners.added", "customers.added", "creators.added"
             email: audEmail,
             payload: { segmentId: audienceId, name: fullName || undefined },
           }),
