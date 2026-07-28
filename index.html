@@ -11420,11 +11420,21 @@ function setNL(id) {
    BROWSE EXPERIENCES PAGE (post-purchase)
 ══════════════════════════════════════════════════════════════ */
 function openBrowsePage(boxId, expiresAt, voucherCode) {
-  appState.browseBoxId = boxId || appState.currentBoxId;
+  var resolvedBoxId = boxId || appState.currentBoxId;
+  appState.browseBoxId = resolvedBoxId;
   appState.browseVoucherExpiry = expiresAt || null;
   appState.boxActivated = true;
   if (voucherCode) appState.activatedVoucher = { code: voucherCode };
   if (typeof wbSaveSessionState === 'function') wbSaveSessionState();
+
+  // Surprise Box: launch the mystery-spin game instead of the classic browse list.
+  // Voucher/expiry context above is preserved so the real booking pipeline
+  // (confirmExpBooking/wbOpenAddonsModal) still has it once an experience is chosen.
+  if (resolvedBoxId === 'surprise') {
+    openRoulettePage();
+    return;
+  }
+
   appState.browsePage = 1;
   clearBrowseFilters(true);
   sessionStorage.setItem('wowbox_browse_box', appState.browseBoxId || '');
