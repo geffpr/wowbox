@@ -10689,7 +10689,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     </div>
 
     <!-- PHASE: PRE-SPIN -->
-    <div id="roulette-phase-pre">
+    <div id="roulette-phase-pre-spin">
       <!-- Spins counter -->
       <div class="spins-track" id="spins-track"></div>
 
@@ -10699,7 +10699,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         <h2>Your surprise awaits</h2>
         <p id="spin-hero-sub">Each spin reveals 3 real experiences. Pick your favourite and book it &mdash; fully covered by your WowBox.</p>
         <button class="spin-btn" id="main-spin-btn" onclick="doSpin()">
-          <i class="fa fa-dice"></i> Spin the wheel
+          <i class="fa fa-dice"></i> Reveal 3 surprises
         </button>
         <p id="spins-left-hint" style="font-size:.73rem;color:var(--muted);margin-top:12px"></p>
       </div>
@@ -17613,6 +17613,8 @@ async function completeOrderConfirm(pfRef, total, discount, delivFee) {
           user_email: isEboxItem ? (custEmail || null) : null,
           status:     isEboxItem ? 'active' : 'inactive',
           order_id:   ref,
+          has_boost:  !!(boostItem && boostItem.boxId === item.boxId),
+          surprise_spins_used: 0,
           is_physical_box: !isEboxItem,
           expires_at: isEboxItem ? expiresAt : null,
           scheduled_send_date: isEboxItem ? capturedSchedDate : null,
@@ -22088,15 +22090,36 @@ function toggleBoostUpsell() {
 }
 
 /* ── POST-PURCHASE ROULETTE PAGE ── */
-function openRoulettePage() {
-  // Detect boost from cart or simulate it already purchased (demo: treat dashboard as post-purchase)
-  appState.surprise.hasBoost = appState.cart.some(c => c.id === 'chance-boost') || appState.boostInCart;
-  appState.surprise.spinsTotal = appState.surprise.hasBoost ? 5 : 3;
-  appState.surprise.spinsUsed = 0;
+async function openRoulettePage() {
+  // Resolve which voucher this playthrough belongs to (same priority order confirmExpBooking() uses)
+  var voucherCode = (appState.activatedVoucher && appState.activatedVoucher.code) || appState.currentBoxCode || '';
+  appState.surprise.voucherCode = voucherCode;
+
+  // Real state from Supabase: spins already used and whether Chance Boost was actually
+  // purchased for THIS voucher — not the live cart, which is empty by the time someone
+  // comes back to redeem, and not reliable for multi-box orders anyway.
+  var spinsUsed = 0, hasBoost = false;
+  if (voucherCode && typeof db_client !== 'undefined') {
+    try {
+      var vRes = await db_client.from('vouchers').select('surprise_spins_used, has_boost').eq('code', voucherCode).maybeSingle();
+      if (vRes.data) {
+        spinsUsed = vRes.data.surprise_spins_used || 0;
+        hasBoost  = !!vRes.data.has_boost;
+      }
+    } catch (e) { console.warn('roulette voucher fetch:', e.message); }
+  }
+
+  appState.surprise.hasBoost = hasBoost;
+  appState.surprise.spinsTotal = hasBoost ? 5 : 3;
+  appState.surprise.spinsUsed = spinsUsed;
   appState.surprise.phase = 'pre-spin';
   appState.surprise.selectedId = null;
   appState.surprise.results = [];
   appState.browseBoxId = 'surprise'; // so confirmExpBooking() tags the real booking with the right box
+
+  // Make sure the real (non-demo) experiences for this box are loaded before spinning
+  await fetchProductExps('surprise');
+
   go('roulette');
 }
 
@@ -22175,6 +22198,11 @@ function doSpin() {
   // After all reels stop: show results
   setTimeout(() => {
     s.spinsUsed++;
+    // Persist the real count so it can't be reset by navigating back and re-entering
+    if (s.voucherCode && typeof db_client !== 'undefined') {
+      db_client.from('vouchers').update({ surprise_spins_used: s.spinsUsed }).eq('code', s.voucherCode)
+        .then(function(r){ if (r.error) console.error('spin count persist failed:', r.error.message); });
+    }
     // Jackpot overlay before results
     if (s.jackpotTriggered) {
       const jackpotName = results.find(r => r.rarity === 'jackpot')?.name || '';
@@ -22205,7 +22233,7 @@ function showResults() {
     const isJackpot = e.rarity === 'jackpot';
     return `<div class="rsl-card${isJackpot?' jackpot-glow':''}" id="rsl-${i}" onclick="selectResult('${e.id}',${i})">
       <div class="rsl-check"><i class="fa fa-check"></i></div>
-      <div class="rsl-img"><img src="${e.img}&w=600&h=380&auto=format&fit=crop" alt="${e.name}" loading="lazy"></div>
+      <div class="rsl-img"><img src="${e.img}${e.img.includes('?') ? '&' : '?'}w=600&h=380&auto=format&fit=crop" alt="${e.name}" loading="lazy"></div>
       <div class="rsl-body">
         <div class="rsl-rarity" style="background:${bg};color:${clr}">${rariLabel[e.rarity]}</div>
         <div class="rsl-name">${e.name}</div>
