@@ -22303,35 +22303,15 @@ function confirmChoice() {
   const exp = getSurprisePool().find(e => e.id === s.selectedId);
   if (!exp) return;
 
-  // Populate booking phase
-  showRoulettePhase('booking');
-
-  document.getElementById('booking-exp-img').src = exp.img;
-  document.getElementById('booking-exp-name').textContent = exp.name;
-  document.getElementById('booking-exp-loc').textContent = exp.loc;
-  document.getElementById('booking-exp-partner').textContent = exp.partner;
-  document.getElementById('booking-exp-desc').textContent = exp.desc;
-
-  const rariLabels = {normal:'Standard',premium:'⭐ Premium',jackpot:'👑 Jackpot'};
-  const rariClass  = {normal:'r-normal',premium:'r-premium',jackpot:'r-jackpot'};
-  const rariEl = document.getElementById('booking-exp-rarity');
-  rariEl.className = 'reel-rarity ' + rariClass[exp.rarity];
-  rariEl.textContent = rariLabels[exp.rarity];
-
-  const rt = exp.reservation_type || 'activity';
-  const cfg = rtConfig[rt] || rtConfig.activity;
-  const bkBadge = document.getElementById('roulette-bk-badge');
-  bkBadge.className = 'rtype-badge ' + cfg.cls;
-  bkBadge.textContent = cfg.icon + ' ' + cfg.label;
-  document.getElementById('roulette-bk-fields').innerHTML = buildBookingForm(rt);
-  refreshBookingFormCapacity(rt, 'roulette-bk-fields');
-  wireConfirmButtonState('roulette-bk-fields', 'roulette-bk-confirm-btn');
-  if (window.flatpickr) { initBookingDatePickers(appState.currentExpId); }
-  else { var _s=document.createElement('script');_s.src='https://cdn.jsdelivr.net/npm/flatpickr';_s.onload=function(){initBookingDatePickers(appState.currentExpId);};document.head.appendChild(_s); }
-
+  // Hand off to the real experience detail page — same tabs (Overview/Programme/
+  // Amenities/Reviews), same real data, same booking pipeline as any classic box.
   // The experience already exists in expDB (getSurprisePool() reads straight from
-  // it), so confirmExpBooking() will find it there directly — no need to inject it.
+  // it), so loadExp() will find it there directly.
   appState.currentExpId = exp.id;
+  appState.currentBoxId = 'surprise';
+  appState.expContext = 'booking';
+  loadExp(exp.id);
+  go('expdetail');
 }
 
 
