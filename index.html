@@ -8828,9 +8828,15 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
                 </div>
                 <div class="fg">
                   <label>Linked partner account <span style="font-weight:400;color:var(--muted)">(optional — controls who manages this experience, validates bookings, and receives commissions)</span></label>
-                  <select class="fi" id="aef-linked-partner" onchange="admOnLinkedPartnerChange()">
-                    <option value="">— No linked account (house-managed) —</option>
-                  </select>
+                  <input type="hidden" id="aef-linked-partner" value="">
+                  <div id="aef-linked-partner-display" style="display:none;padding:8px 12px;background:var(--b50);border:1px solid var(--b200);border-radius:8px;font-size:.82rem;color:var(--navy);align-items:center;justify-content:space-between">
+                    <span id="aef-linked-partner-display-text"></span>
+                    <button type="button" class="btn bg bsm" onclick="admClearLinkedPartner()" style="margin-left:8px">Change</button>
+                  </div>
+                  <div id="aef-linked-partner-search-wrap" style="position:relative">
+                    <input class="fi" id="aef-linked-partner-search" placeholder="Type an email or partner name…" autocomplete="off" oninput="admFilterLinkedPartnerSuggestions()" onfocus="admFilterLinkedPartnerSuggestions()">
+                    <div id="aef-linked-partner-suggestions" style="display:none;position:absolute;z-index:20;background:#fff;border:1px solid var(--border);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.12);max-height:220px;overflow-y:auto;width:100%;margin-top:2px"></div>
+                  </div>
                 </div>
                 <div class="fg-row">
                   <div class="fg">
@@ -20100,43 +20106,109 @@ async function renderAdmExpTable(keepPage) {
   }
 }
 
-// Loads active partner accounts into the "Linked partner account" dropdown and
-// pre-selects the given email (used both when opening a blank form and when
-// editing an existing experience).
+// Candidate partner accounts for linking: active partners (from `partners`)
+// PLUS active partner accounts with no `partners` row at all (a known data gap —
+// several real accounts exist only in user_profiles), flagged so they're still
+// visible and pickable instead of silently missing from search.
 var _admLinkedPartnersCache = null;
-async function admPopulateLinkedPartnerSelect(selectedEmail) {
-  var sel = document.getElementById('aef-linked-partner');
-  if (!sel) return;
-  if (!_admLinkedPartnersCache) {
-    try {
-      var res = await db_client.from('partners').select('contact_email, business_name').eq('is_active', true).order('business_name');
-      _admLinkedPartnersCache = res.data || [];
-    } catch (e) { console.warn('admPopulateLinkedPartnerSelect:', e.message); _admLinkedPartnersCache = []; }
-  }
-  sel.innerHTML = '<option value="">— No linked account (house-managed) —</option>'
-    + _admLinkedPartnersCache.map(function(p) {
-        return '<option value="' + (p.contact_email||'').replace(/"/g,'&quot;') + '" data-name="' + (p.business_name||'').replace(/"/g,'&quot;') + '">'
-          + (p.business_name || p.contact_email) + ' — ' + (p.contact_email||'') + '</option>';
-      }).join('');
-  // If the experience's current partner_email doesn't match any active partner
-  // (e.g. a deactivated account), keep it as its own option instead of silently
-  // losing it the next time this form is saved.
-  var matches = selectedEmail && _admLinkedPartnersCache.some(function(p){ return p.contact_email === selectedEmail; });
-  if (selectedEmail && !matches) {
-    sel.innerHTML += '<option value="' + selectedEmail.replace(/"/g,'&quot;') + '">⚠️ ' + selectedEmail + ' (not an active partner)</option>';
-  }
-  sel.value = selectedEmail || '';
+async function admLoadLinkedPartnerCandidates() {
+  if (_admLinkedPartnersCache) return _admLinkedPartnersCache;
+  var list = [];
+  try {
+    var pRes = await db_client.from('partners').select('contact_email, business_name').eq('is_active', true).order('business_name');
+    (pRes.data || []).forEach(function(p) {
+      if (p.contact_email) list.push({ email: p.contact_email, name: p.business_name || p.contact_email, flagged: false });
+    });
+  } catch (e) { console.warn('admLoadLinkedPartnerCandidates (partners):', e.message); }
+  try {
+    var uRes = await db_client.from('user_profiles').select('email, partner_name').eq('role', 'partner').eq('status', 'active');
+    var existing = list.map(function(p){ return p.email; });
+    (uRes.data || []).forEach(function(u) {
+      if (u.email && existing.indexOf(u.email) === -1) {
+        list.push({ email: u.email, name: u.partner_name || u.email, flagged: true });
+      }
+    });
+  } catch (e) { console.warn('admLoadLinkedPartnerCandidates (user_profiles):', e.message); }
+  _admLinkedPartnersCache = list;
+  return list;
 }
 
-// Convenience only — pre-fills the display name text field when a partner account
-// is linked. The admin keeps full control and can still edit it freely afterward.
-function admOnLinkedPartnerChange() {
-  var sel = document.getElementById('aef-linked-partner');
+async function admFilterLinkedPartnerSuggestions() {
+  var input = document.getElementById('aef-linked-partner-search');
+  var box = document.getElementById('aef-linked-partner-suggestions');
+  if (!input || !box) return;
+  var q = input.value.trim().toLowerCase();
+  if (!q) { box.style.display = 'none'; box.innerHTML = ''; return; }
+  var list = await admLoadLinkedPartnerCandidates();
+  var matches = list.filter(function(p) {
+    return (p.email||'').toLowerCase().indexOf(q) !== -1 || (p.name||'').toLowerCase().indexOf(q) !== -1;
+  }).slice(0, 8);
+  if (!matches.length) {
+    box.innerHTML = '<div style="padding:10px 12px;color:var(--muted);font-size:.78rem">No match</div>';
+    box.style.display = 'block';
+    return;
+  }
+  box.innerHTML = matches.map(function(p) {
+    var safeEmail = p.email.replace(/'/g,"\\'");
+    var safeName  = (p.name||'').replace(/'/g,"\\'");
+    return '<div style="padding:9px 12px;cursor:pointer;font-size:.8rem;border-bottom:1px solid var(--border)" '
+      + 'onmouseover="this.style.background=\'var(--b50)\'" onmouseout="this.style.background=\'\'" '
+      + 'onclick="admSelectLinkedPartner(\'' + safeEmail + '\',\'' + safeName + '\')">'
+      + '<strong>' + (p.name || p.email) + '</strong>'
+      + (p.flagged ? ' <span style="color:#d97706;font-size:.7rem">⚠️ no partners record</span>' : '')
+      + '<br><span style="color:var(--muted);font-size:.72rem">' + p.email + '</span>'
+      + '</div>';
+  }).join('');
+  box.style.display = 'block';
+}
+
+// Requires an explicit confirmation before linking — this grants real access
+// (booking validation, editing, commissions), so it shouldn't happen from a
+// single accidental click.
+function admSelectLinkedPartner(email, name) {
+  var ok = confirm('Link this experience to "' + name + '" (' + email + ')?\n\nThey will be able to manage it, validate bookings, and receive commissions for it.');
+  if (!ok) return;
+  document.getElementById('aef-linked-partner').value = email;
   var nameEl = document.getElementById('aef-partner');
-  if (!sel || !nameEl) return;
-  var opt = sel.options[sel.selectedIndex];
-  var name = opt ? opt.getAttribute('data-name') : '';
-  if (name) nameEl.value = name;
+  if (nameEl && !nameEl.value.trim()) nameEl.value = name;
+  admShowLinkedPartnerDisplay(email, name);
+  var box = document.getElementById('aef-linked-partner-suggestions');
+  if (box) { box.style.display = 'none'; box.innerHTML = ''; }
+}
+
+function admShowLinkedPartnerDisplay(email, name) {
+  var display = document.getElementById('aef-linked-partner-display');
+  var searchWrap = document.getElementById('aef-linked-partner-search-wrap');
+  var textEl = document.getElementById('aef-linked-partner-display-text');
+  if (!display || !searchWrap || !textEl) return;
+  textEl.innerHTML = '🔗 Linked: <strong>' + (name || email) + '</strong> (' + email + ')';
+  display.style.display = 'flex';
+  searchWrap.style.display = 'none';
+}
+
+function admClearLinkedPartner() {
+  document.getElementById('aef-linked-partner').value = '';
+  document.getElementById('aef-linked-partner-display').style.display = 'none';
+  document.getElementById('aef-linked-partner-search-wrap').style.display = 'block';
+  document.getElementById('aef-linked-partner-search').value = '';
+  var box = document.getElementById('aef-linked-partner-suggestions');
+  if (box) { box.style.display = 'none'; box.innerHTML = ''; }
+}
+
+// Used when opening the form (new or edit) to reset/restore the linked-partner UI.
+async function admInitLinkedPartnerField(selectedEmail) {
+  admClearLinkedPartner();
+  if (!selectedEmail) return;
+  var list = await admLoadLinkedPartnerCandidates();
+  var found = list.find(function(p){ return p.email === selectedEmail; });
+  document.getElementById('aef-linked-partner').value = selectedEmail;
+  admShowLinkedPartnerDisplay(selectedEmail, found ? found.name : null);
+  if (!found) {
+    // Existing partner_email doesn't match any known candidate (e.g. deactivated
+    // account) — still shown and preserved, just flagged, instead of silently lost.
+    document.getElementById('aef-linked-partner-display-text').innerHTML =
+      '⚠️ Linked to <strong>' + selectedEmail + '</strong> (not found in active partner list)';
+  }
 }
 
 async function admShowExpFormById(expId) {
@@ -20179,7 +20251,7 @@ async function admShowExpFormById(expId) {
     if (amWrap) amWrap.innerHTML = buildAmenitiesCheckboxes('aef', []);
     admExpTypeNote();
     if (window.google) initPlacesAC('aef-loc', 'aef-lat', 'aef-lng');
-    admPopulateLinkedPartnerSelect('');
+    admInitLinkedPartnerField('');
     return;
   }
 
@@ -20203,7 +20275,7 @@ async function admShowExpFormById(expId) {
     // ── Populate all fields ──
     document.getElementById('aef-name').value    = e.name          || '';
     document.getElementById('aef-partner').value = e.partner_name  || '';
-    admPopulateLinkedPartnerSelect(e.partner_email || '');
+    admInitLinkedPartnerField(e.partner_email || '');
     document.getElementById('aef-loc').value     = e.location      || '';
     document.getElementById('aef-lat').value     = e.lat           || '';
     document.getElementById('aef-lng').value     = e.lng           || '';
