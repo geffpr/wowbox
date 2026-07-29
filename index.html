@@ -833,14 +833,20 @@ async function submitResetPassword() {
     if (result.error) throw result.error;
     if (sucEl) sucEl.textContent = '✅ Password updated! Redirecting...';
     // Now that the password gate is complete, sign them into the app properly
-    // (PASSWORD_RECOVERY intentionally skips this until this point).
+    // AND route them based on their role (navigate=true), same as a normal
+    // login — not a hardcoded go('home'), which used to send every role
+    // (including partners/admins) to the generic homepage regardless.
     try {
       var sessRes = await db_client.auth.getSession();
       if (sessRes.data && sessRes.data.session && sessRes.data.session.user) {
-        await authOnSignedIn(sessRes.data.session.user, false);
+        setTimeout(function() { authOnSignedIn(sessRes.data.session.user, true); }, 1500);
+      } else {
+        setTimeout(function() { go('home'); }, 1500);
       }
-    } catch (e2) { console.warn('post-reset sign-in:', e2.message); }
-    setTimeout(function() { go('home'); }, 2000);
+    } catch (e2) {
+      console.warn('post-reset sign-in:', e2.message);
+      setTimeout(function() { go('home'); }, 1500);
+    }
   } catch(e) {
     if (errEl) errEl.textContent = e.message || 'Error updating password. Please try again.';
     if (btn) { btn.disabled = false; btn.textContent = 'Set new password'; }
