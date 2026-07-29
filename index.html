@@ -832,6 +832,14 @@ async function submitResetPassword() {
     var result = await db_client.auth.updateUser({ password: pw });
     if (result.error) throw result.error;
     if (sucEl) sucEl.textContent = '✅ Password updated! Redirecting...';
+    // Now that the password gate is complete, sign them into the app properly
+    // (PASSWORD_RECOVERY intentionally skips this until this point).
+    try {
+      var sessRes = await db_client.auth.getSession();
+      if (sessRes.data && sessRes.data.session && sessRes.data.session.user) {
+        await authOnSignedIn(sessRes.data.session.user, false);
+      }
+    } catch (e2) { console.warn('post-reset sign-in:', e2.message); }
     setTimeout(function() { go('home'); }, 2000);
   } catch(e) {
     if (errEl) errEl.textContent = e.message || 'Error updating password. Please try again.';
@@ -1985,6 +1993,18 @@ async function loadUserBoxes(email) {
 }
 
 db_client.auth.onAuthStateChange(function(event, session) {
+  if (event === 'PASSWORD_RECOVERY') {
+    // Supabase fires this specific event when a recovery link is opened — force the
+    // set-new-password screen instead of letting the generic SIGNED_IN handling
+    // below treat this as an ordinary login into the app.
+    document.querySelectorAll('.page').forEach(function(p){ p.classList.remove('active'); p.style.display=''; });
+    var _pss = document.getElementById('page-partner-storefront');
+    if (_pss) _pss.style.display = 'none';
+    var rpEl = document.getElementById('page-reset-password');
+    if (rpEl) { rpEl.classList.add('active'); rpEl.style.display=''; }
+    initResetPassword();
+    return;
+  }
   if (event === 'SIGNED_IN' && session && session.user && !currentUser) {
     authOnSignedIn(session.user, false);
   }
@@ -6687,13 +6707,27 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       <div style="font-family:'Cormorant Garamond',serif;font-size:1.9rem;font-weight:700;color:var(--b600);margin-bottom:7px">WowBox</div>
       <h2 style="font-size:1.1rem;font-weight:700;color:var(--navy);margin:0 0 6px">Set a new password</h2>
       <p style="font-size:.82rem;color:var(--muted);margin:0 0 20px">Choose a new password for your account.</p>
+      <p style="font-size:.72rem;color:var(--muted);background:var(--b50);border-radius:8px;padding:8px 10px;margin:0 0 16px">🔒 For your security, if you were signed into a different account in this browser, that session has been replaced by this one.</p>
       <div class="auth-error"   id="rp-error"></div>
       <div class="auth-success" id="rp-success"></div>
       <div class="fg" style="text-align:left;margin-bottom:10px">
         <label>New password *</label>
         <div style="position:relative">
-          <input class="fi" id="rp-password" type="password" placeholder="Min. 8 characters, 1 number & 1 symbol" style="padding-right:40px">
+          <input class="fi" id="rp-password" type="password" placeholder="Min. 8 characters, 1 number & 1 symbol" oninput="wbUpdatePwIndicators(this.value,['rp-pw-indicator'])" style="padding-right:40px">
           <button type="button" onclick="authTogglePw('rp-password',this)" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--muted);font-size:.9rem;padding:0"><i class="fa fa-eye"></i></button>
+        </div>
+        <div class="wb-pw-indicator" id="rp-pw-indicator" style="display:none;margin-top:8px;margin-bottom:4px">
+          <div style="display:flex;gap:4px;margin-bottom:6px">
+            <div class="wb-pw-bar" style="flex:1;height:4px;border-radius:2px;background:var(--border);transition:background .2s"></div>
+            <div class="wb-pw-bar" style="flex:1;height:4px;border-radius:2px;background:var(--border);transition:background .2s"></div>
+            <div class="wb-pw-bar" style="flex:1;height:4px;border-radius:2px;background:var(--border);transition:background .2s"></div>
+          </div>
+          <div class="wb-pw-label" style="font-size:.72rem;font-weight:600;margin-bottom:4px"></div>
+          <ul style="list-style:none;padding:0;margin:0;font-size:.72rem;color:var(--muted)">
+            <li data-check="len" style="margin-bottom:2px"><i class="fa fa-circle" style="font-size:.5rem;margin-right:6px;color:var(--border)"></i>At least 8 characters</li>
+            <li data-check="num" style="margin-bottom:2px"><i class="fa fa-circle" style="font-size:.5rem;margin-right:6px;color:var(--border)"></i>At least 1 number</li>
+            <li data-check="special"><i class="fa fa-circle" style="font-size:.5rem;margin-right:6px;color:var(--border)"></i>At least 1 special character</li>
+          </ul>
         </div>
       </div>
       <div class="fg" style="text-align:left;margin-bottom:18px">
