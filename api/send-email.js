@@ -893,6 +893,32 @@ function tplPartnerApplication(o) {
   };
 }
 
+// Alert for when the "partners" table record still doesn't exist after the
+// signup form's own retries — this exact silent gap has previously left real,
+// already-approved partners with no commission rate, no storefront, and no
+// bank-account reminder for weeks, undetected. Includes everything the
+// applicant submitted, so it can be recreated from this email alone if needed.
+function tplPartnerRecordMissing(o) {
+  return {
+    subject: `⚠️ Partner record missing — ${o.bizName || o.email}`,
+    html: layout(`
+      ${badge('⚠️ Data Gap', '#dc2626')}
+      ${h1('Partner record failed to save')}
+      <p style="margin:0 0 16px;font-size:14px;color:${C.body}">${o.bizName || 'This applicant'}'s account was created successfully, but the detailed <code>partners</code> record failed to save even after automatic retries. Commission rate, CRM visibility, and the bank-account reminder will not work for this partner until it's created manually.</p>
+      ${infoTable(
+        infoRow('Business name', o.bizName || '—') +
+        infoRow('Email', o.email || '—') +
+        infoRow('Phone', o.phone || '—') +
+        infoRow('City', o.city || '—') +
+        infoRow('Type', o.type || '—') +
+        infoRow('Date', new Date().toLocaleDateString('en-ZA'))
+      )}
+      ${hr()}
+      ${btn('Review in Admin', 'https://wowbox.co.za/admin', C.midBrown)}
+    `, HEROES.partner, 'Partner record failed to save'),
+  };
+}
+
 function tplContactForm(o) {
   return {
     subject: `📩 Contact form — ${o.subject || 'New message'} (${o.name})`,
@@ -1195,6 +1221,10 @@ export default async function handler(req, res) {
       }
       case 'partner_application': {
         emailJobs.push({ to: ADMIN_EMAIL, cc: ADMIN_CC, ...tplPartnerApplication(o) });
+        break;
+      }
+      case 'partner_record_missing': {
+        emailJobs.push({ to: ADMIN_EMAIL, cc: ADMIN_CC, ...tplPartnerRecordMissing(o) });
         break;
       }
       case 'contact_form': {

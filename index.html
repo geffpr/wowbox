@@ -17058,25 +17058,57 @@ async function plSubmitPartner() {
       });
     }
 
-    // Save partner application details
-    try {
-      await db_client.from('partners').insert({
-        business_name:           bizName,
-        contact_name:            contact,
-        contact_email:           email,
-        contact_phone:           phone,
-        category:                type,
-        location:                city,
-        region:                  (document.getElementById('pl-city')||{}).dataset?.province || null,
-        page_status:             'pending',
-        registration_number:     regNum,
-        business_type:           bizType,
-        vat_number:              vat || null,
-        website_url:             website || null,
-        experience_description:  expDesc,
-        terms_accepted_at:       new Date().toISOString(),
-      });
-    } catch(e2) { console.warn('partners table:', e2.message); }
+    // Save partner application details — with automatic retries and a
+    // post-write verification, since this insert has silently failed before
+    // (leaving real, already-approved partners with no commission rate, no
+    // storefront, and no bank-account reminder for weeks, undetected).
+    var partnersRecordOk = false;
+    var partnersPayload = {
+      business_name:           bizName,
+      contact_name:            contact,
+      contact_email:           email,
+      contact_phone:           phone,
+      category:                type,
+      location:                city,
+      region:                  (document.getElementById('pl-city')||{}).dataset?.province || null,
+      page_status:             'pending',
+      registration_number:     regNum,
+      business_type:           bizType,
+      vat_number:              vat || null,
+      website_url:             website || null,
+      experience_description:  expDesc,
+      terms_accepted_at:       new Date().toISOString(),
+    };
+    for (var partnersAttempt = 1; partnersAttempt <= 3 && !partnersRecordOk; partnersAttempt++) {
+      try {
+        var partnersInsRes = await db_client.from('partners').insert(partnersPayload);
+        if (!partnersInsRes.error) { partnersRecordOk = true; }
+        else { console.warn('partners insert attempt ' + partnersAttempt + ':', partnersInsRes.error.message); }
+      } catch (e2) {
+        console.warn('partners insert attempt ' + partnersAttempt + ' (exception):', e2.message);
+      }
+      if (!partnersRecordOk && partnersAttempt < 3) {
+        await new Promise(function(resolve){ setTimeout(resolve, 800 * partnersAttempt); });
+      }
+    }
+    // Verify it actually landed, even if the insert reported success — belt and
+    // braces given how consequential (and previously invisible) this gap was.
+    if (partnersRecordOk) {
+      try {
+        var partnersVerifyRes = await db_client.from('partners').select('id').eq('contact_email', email).maybeSingle();
+        if (!partnersVerifyRes.data) partnersRecordOk = false;
+      } catch (e3) { partnersRecordOk = false; }
+    }
+    if (!partnersRecordOk) {
+      // Alert admin immediately instead of letting this disappear silently.
+      try {
+        await fetch('/api/send-email', { method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ type:'partner_record_missing', data:{
+            bizName: bizName, email: email, phone: phone, city: city, type: type
+          }})
+        });
+      } catch (e4) { console.error('partner_record_missing alert failed:', e4.message); }
+    }
 
     // Send structured admin notification
     // Awaited (rather than fire-and-forget) so the request isn't at risk of being
