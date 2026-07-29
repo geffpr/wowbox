@@ -29335,9 +29335,10 @@ async function admLoadPartnersCRM() {
     if (pErr) throw pErr;
 
     // Experiences linked to each partner
-    const { data: experiences } = await db_client
+    const { data: experiences, error: expErr } = await db_client
       .from('experiences')
-      .select('id, name, type, status, location, partner_email, price, capacity, booking_type, nights, accessible, certification, description, created_at');
+      .select('id, name, category, is_active, location, partner_email, price, capacity, booking_type, duration_nights, accessible, certification, description, created_at');
+    if (expErr) console.error('CRM experiences fetch failed:', expErr.message);
 
     // Bookings (to count per partner)
     const { data: bookings } = await db_client
@@ -29437,18 +29438,18 @@ function admOpenPCRMDetail(partnerId) {
 
   // Experiences
   const expsHTML = p._experiences.length ? p._experiences.map(e => {
-    const st = e.status === 'active' ? '<span class="sbadge sb-a">Active</span>' : '<span class="sbadge sb-p">Draft</span>';
+    const st = e.is_active ? '<span class="sbadge sb-a">Active</span>' : '<span class="sbadge sb-p">Draft</span>';
     const price = e.price ? 'R' + Number(e.price).toLocaleString('en-ZA') : '—';
     return `<div style="padding:8px 0;border-bottom:1px solid var(--border)">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">
         <div style="font-size:.82rem;font-weight:600;color:var(--navy)">${e.name || '—'}</div>
         ${st}
       </div>
-      <div style="font-size:.73rem;color:var(--muted)">${e.type || '—'} · ${e.location || '—'}</div>
+      <div style="font-size:.73rem;color:var(--muted)">${e.category || '—'} · ${e.location || '—'}</div>
       <div style="display:flex;gap:12px;margin-top:4px;flex-wrap:wrap">
         ${price !== '—' ? `<span style="font-size:.7rem;color:var(--green);font-weight:600">${price}</span>` : ''}
         ${e.capacity ? `<span style="font-size:.7rem;color:var(--muted)">Cap: ${e.capacity}</span>` : ''}
-        ${e.nights   ? `<span style="font-size:.7rem;color:var(--muted)">${e.nights} nights</span>` : ''}
+        ${e.duration_nights ? `<span style="font-size:.7rem;color:var(--muted)">${e.duration_nights} nights</span>` : ''}
         ${e.accessible ? `<span style="font-size:.7rem;color:var(--b600)">♿ PMR</span>` : ''}
         ${e.certification ? `<span style="font-size:.7rem;color:var(--muted)">📜 ${e.certification}</span>` : ''}
       </div>
