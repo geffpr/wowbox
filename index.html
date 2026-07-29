@@ -29354,7 +29354,7 @@ async function admLoadPartnersCRM() {
     _admPCRMData = (partners || []).map(p => {
       const pExps     = (experiences || []).filter(e => e.partner_id === p.id);
       const pBookings = (bookings    || []).filter(b =>
-        (b.partner_name || '').toLowerCase() === (p.company_name || p.full_name || '').toLowerCase()
+        (b.partner_name || '').toLowerCase() === (p.partner_name || p.full_name || '').toLowerCase()
       );
       const pRequest  = (requests   || []).find(r => r.contact_email === p.email) || null;
       return { ...p, _experiences: pExps, _bookings: pBookings, _request: pRequest };
@@ -29376,7 +29376,7 @@ function admRenderPartnersCRMTable() {
 
   const filtered = _admPCRMData.filter(p => {
     const matchSearch = !search ||
-      (p.company_name||p.full_name||'').toLowerCase().includes(search) ||
+      (p.partner_name||p.full_name||'').toLowerCase().includes(search) ||
       (p.email||'').toLowerCase().includes(search) ||
       (p._request?.location||p.partner_address||'').toLowerCase().includes(search);
     const matchStatus = !status || (p.status || 'pending') === status;
@@ -29391,7 +29391,7 @@ function admRenderPartnersCRMTable() {
   }
 
   tbody.innerHTML = filtered.map(p => {
-    const name    = p.company_name || p.full_name || '—';
+    const name    = p.partner_name || p.full_name || '—';
     const email   = p.email || '—';
     const type    = p._request?.category || p._request?.business_type || '—';
     const city    = p._request?.location || p.partner_address || '—';
@@ -29424,7 +29424,7 @@ function admOpenPCRMDetail(partnerId) {
   split.style.gridTemplateColumns = '1fr 380px';
   split.style.gap = '14px';
   panel.style.display = 'block';
-  document.getElementById('pcrm-detail-name').textContent = p.company_name || p.full_name || 'Partner';
+  document.getElementById('pcrm-detail-name').textContent = p.partner_name || p.full_name || 'Partner';
   admRenderPartnersCRMTable();
 
   const infoRow = (label, value) =>
@@ -30292,25 +30292,25 @@ function admExportPartnersCRMCSV() {
 
   const filtered = _admPCRMData.filter(p => {
     const matchSearch = !search ||
-      (p.company_name||p.full_name||'').toLowerCase().includes(search) ||
+      (p.partner_name||p.full_name||'').toLowerCase().includes(search) ||
       (p.email||'').toLowerCase().includes(search) ||
-      (p.city||'').toLowerCase().includes(search);
-    const matchStatus = !status || (p.partner_status || 'pending') === status;
+      (p._request?.location||p.partner_address||'').toLowerCase().includes(search);
+    const matchStatus = !status || (p.status || 'pending') === status;
     const d = p.created_at ? p.created_at.slice(0,10) : '';
     return matchSearch && matchStatus && (!from || d >= from) && (!to || d <= to);
   });
 
   const headers = ['Name','Email','Phone','Type','City','Province','Experiences','Bookings','Status','Joined'];
   const rows = filtered.map(p => [
-    p.company_name || p.full_name || '',
+    p.partner_name || p.full_name || '',
     p.email || '',
     p.phone || '',
-    p.experience_type || p.business_type || '',
-    p.city || '',
-    p.province || '',
+    p._request?.category || p._request?.business_type || '',
+    p._request?.location || p.partner_address || '',
+    p._request?.region || '',
     p._experiences.length,
     p._bookings.length,
-    p.partner_status || 'pending',
+    p.status || 'pending',
     p.created_at?.slice(0,10) || ''
   ].map(v => '"' + String(v).replace(/"/g,'""') + '"').join(','));
 
