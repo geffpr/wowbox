@@ -28523,6 +28523,15 @@ window.addEventListener('DOMContentLoaded', async () => {
     }, 800);
   }
 
+  // Supabase's admin.generateLink() (used for the partner-approval "set your
+  // password" email) is known to sometimes ignore the requested redirect_to and
+  // land on any path — not just /reset-password. Regardless of where it lands,
+  // detect the recovery link here and let the onAuthStateChange PASSWORD_RECOVERY
+  // handler be the only thing that decides what's shown — skip all of this
+  // function's own path-based routing/redirects entirely, so nothing (like the
+  // '/' → go('home') case below) can override the password-reset screen.
+  if (window.location.hash.indexOf('type=recovery') !== -1) { return; }
+
   // Check auth session FIRST — needed before routing protected pages
   try {
     var sessionResult = await db_client.auth.getSession();
