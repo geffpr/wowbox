@@ -29337,7 +29337,7 @@ async function admLoadPartnersCRM() {
     // Experiences linked to each partner
     const { data: experiences } = await db_client
       .from('experiences')
-      .select('id, name, type, status, location, partner_id, price, capacity, booking_type, nights, accessible, certification, description, created_at');
+      .select('id, name, type, status, location, partner_email, price, capacity, booking_type, nights, accessible, certification, description, created_at');
 
     // Bookings (to count per partner)
     const { data: bookings } = await db_client
@@ -29352,7 +29352,7 @@ async function admLoadPartnersCRM() {
       .select('*');
 
     _admPCRMData = (partners || []).map(p => {
-      const pExps     = (experiences || []).filter(e => e.partner_id === p.id);
+      const pExps     = (experiences || []).filter(e => e.partner_email === p.email);
       const pBookings = (bookings    || []).filter(b =>
         (b.partner_name || '').toLowerCase() === (p.partner_name || p.full_name || '').toLowerCase()
       );
