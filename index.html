@@ -29343,7 +29343,7 @@ async function admLoadPartnersCRM() {
     // Bookings (to count per partner)
     const { data: bookings } = await db_client
       .from('bookings')
-      .select('partner_name, status, experience_name, created_at, customer_email, booking_date');
+      .select('partner_email, partner_name, status, experience_name, created_at, customer_email, booking_date');
 
     // Partner application/business data (real table is "partners", matched by email —
     // "partner_requests" doesn't exist in this schema, which is why every detail
@@ -29354,9 +29354,7 @@ async function admLoadPartnersCRM() {
 
     _admPCRMData = (partners || []).map(p => {
       const pExps     = (experiences || []).filter(e => e.partner_email === p.email);
-      const pBookings = (bookings    || []).filter(b =>
-        (b.partner_name || '').toLowerCase() === (p.partner_name || p.full_name || '').toLowerCase()
-      );
+      const pBookings = (bookings    || []).filter(b => b.partner_email === p.email);
       const pRequest  = (requests   || []).find(r => r.contact_email === p.email) || null;
       return { ...p, _experiences: pExps, _bookings: pBookings, _request: pRequest };
     });
