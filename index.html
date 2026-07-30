@@ -8594,7 +8594,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
           <div class="astat"><div class="astat-ico" style="background:#fce7f3"><i class="fa fa-database" style="color:#db2777"></i></div><div class="astat-val" id="adm-kpi-databases">—</div><div class="astat-lbl">Exp. databases</div><div class="astat-chg" id="adm-kpi-exp-count">—</div></div>
           <div class="astat" style="background:linear-gradient(135deg,#fffbeb,#fef3c7);border-color:#fcd34d"><div class="astat-ico" style="background:#fef3c7"><i class="fa fa-inbox" style="color:#d97706"></i></div><div class="astat-val" id="adm-kpi-requests" style="color:#d97706">—</div><div class="astat-lbl">Partner requests</div><div class="astat-chg" style="color:#d97706;cursor:pointer" onclick="switchAdm(document.querySelectorAll('.anl')[4],'adm-requests')">→ Review now</div></div>
         </div>
-        <div class="comm-note"><i class="fa fa-lock"></i><strong>Default commission: 35%</strong> — Configurable per partner or experience. Partners receive the remainder.</div>
+        <div class="comm-note"><i class="fa fa-lock"></i><strong id="adm-dash-comm-rate">Default commission: 35%</strong> — Configurable per partner or experience. Partners receive the remainder.</div>
       </div>
 
       <!-- ══ GIFT BOXES ══ -->
@@ -8605,7 +8605,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         </div>
         <div class="atbl" style="margin-bottom:20px">
           <table>
-            <thead><tr><th>Box name</th><th>Database</th><th>Exp. count</th><th>Price</th><th>Delivery</th><th>Sold</th><th>Status</th><th>Actions</th></tr></thead>
+            <thead><tr><th>Box name</th><th>Database</th><th>Exp. count</th><th>Price</th><th>Delivery</th><th>Sold</th><th>Status</th><th>Purchasable</th><th>Actions</th></tr></thead>
             <tbody id="adm-boxes-tbody"></tbody>
           </table>
         </div>
@@ -8648,6 +8648,13 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
             <div class="fg"><label>Status</label>
               <select class="fi" id="abf-status" style="width:auto">
                 <option>Active</option><option>Draft</option><option>Archived</option>
+              </select>
+            </div>
+            <div class="fg">
+              <label>Purchasable <span style="font-weight:400;color:var(--muted)">(controls whether people can buy this box, separate from Status above)</span></label>
+              <select class="fi" id="abf-purchasable" style="width:auto">
+                <option value="true">Yes — normal price, add to cart, checkout</option>
+                <option value="false">No — shows "Coming soon" instead</option>
               </select>
             </div>
             <div class="fg" style="margin-top:4px">
@@ -11090,9 +11097,12 @@ function go(page) {
   // Separate, narrower guard: only blocks starting checkout (a box purchase) —
   // it does not touch browsing, bookings, or add-on payments for a box someone
   // already owns, which is a different flow entirely and shouldn't be affected.
-  if (window._wbPurchasesDisabled && page === 'checkout') {
-    wbShowNotifyMeModal();
-    return;
+  if (page === 'checkout') {
+    var _cartBlocked = appState.cart.some(function(c){ return !wbBoxPurchasable(boxDB[c.boxId]); });
+    if (_cartBlocked) {
+      wbShowNotifyMeModal();
+      return;
+    }
   }
   // While pre-launch mode is active, a partner account is restricted to their
   // Partner Portal — block any attempt to reach the public catalog, no matter
@@ -11511,6 +11521,7 @@ function openBrowsePage(boxId, expiresAt, voucherCode) {
           price: b.price             || local.price,
           db:    b.database_name     || local.db,
           img:   b.image_url         || local.img,
+          is_purchasable: b.is_purchasable !== false,
         });
         renderBrowse();
       }
@@ -11789,6 +11800,7 @@ async function renderBoxGrids() {
           img: b.image_url || localImgs[b.id],
           images: b.images || local.images,
           video_url: b.video_url || null,
+          is_purchasable: b.is_purchasable !== false,
           badge: b.badge, rating: b.rating, sold: b.sold_count, desc: b.description,
           featured: b.is_featured || false,
           creator_name: b.creator_name || null,
@@ -11863,7 +11875,7 @@ async function renderBoxGrids() {
         <div class="bcard-desc">${b.description.substring(0,90)}…</div>
         ${renderCouponBadgeHTML(b.id)}
         <div class="bcard-foot" style="margin-top:8px">
-          <div class="price-disp">${window._wbPurchasesDisabled ? '<small>&nbsp;</small>Coming soon' : '<small>From</small>R' + b.price.toLocaleString()}</div>
+          <div class="price-disp">${!wbBoxPurchasable(b) ? '<small>&nbsp;</small>Coming soon' : '<small>From</small>R' + b.price.toLocaleString()}</div>
           <button class="btn bp bsm" onclick="event.stopPropagation();loadProduct('${b.id}');go('product')">View box</button>
         </div>
       </div>
@@ -11890,7 +11902,7 @@ async function renderBoxGrids() {
         <div class="bcard-title">${b.name}</div>
         <div class="bcard-desc">${(b.description||'').substring(0,90)}…</div>
         <div class="bcard-foot" style="margin-top:8px">
-          <div class="price-disp">${window._wbPurchasesDisabled ? '<small>&nbsp;</small>Coming soon' : '<small>From</small>R' + b.price.toLocaleString()}</div>
+          <div class="price-disp">${!wbBoxPurchasable(b) ? '<small>&nbsp;</small>Coming soon' : '<small>From</small>R' + b.price.toLocaleString()}</div>
           <button class="btn bp bsm" onclick="event.stopPropagation();loadProduct('${b.id}');go('product')">View collection</button>
         </div>
       </div>
@@ -11928,6 +11940,7 @@ async function renderBoxGrids() {
       cnt:    realExpCnt[b.id] !== undefined ? realExpCnt[b.id] : ((boxDB[b.id] && boxDB[b.id].cnt) || b.experience_count),
       img:    resolvedImg,
       images: resolvedImgs,
+      is_purchasable: b.is_purchasable !== false,
       badge:  b.badge,
       rating: b.rating,
       sold:   b.sold_count,
@@ -12194,6 +12207,7 @@ function loadProduct(boxId) {
         boxDB[boxId] = {
           name: raw.name, price: raw.price, db: raw.database_name, cnt: raw.experience_count || 0,
           img: raw.image_url, images: raw.images, video_url: raw.video_url,
+          is_purchasable: raw.is_purchasable !== false,
           badge: raw.badge, rating: raw.rating, sold: raw.sold_count, desc: raw.description,
           featured: raw.is_featured || false,
           creator_name: raw.creator_name, creator_email: raw.creator_email, creator_bio: raw.creator_bio,
@@ -12219,7 +12233,7 @@ function loadProduct(boxId) {
 
   document.getElementById('prod-bc').textContent = b.name;
   document.getElementById('prod-title-r').textContent = b.name;
-  document.getElementById('prod-price-r').textContent = window._wbPurchasesDisabled ? 'Coming soon' : 'R' + b.price.toLocaleString();
+  document.getElementById('prod-price-r').textContent = !wbBoxPurchasable(b) ? 'Coming soon' : 'R' + b.price.toLocaleString();
   var _pbEl = document.getElementById('prod-coupon-badge');
   if (_pbEl) _pbEl.innerHTML = renderCouponBadgeHTML(boxId);
   document.getElementById('prod-desc').textContent = b.desc;
@@ -12239,7 +12253,7 @@ function loadProduct(boxId) {
   }
   appState.priceBase = b.price;
   document.getElementById('qty-v').textContent = '1';
-  document.getElementById('qty-total').textContent = window._wbPurchasesDisabled ? 'Coming soon' : 'R' + b.price.toLocaleString();
+  document.getElementById('qty-total').textContent = !wbBoxPurchasable(b) ? 'Coming soon' : 'R' + b.price.toLocaleString();
 
   wbRenderCreatorBlock(b);
 
@@ -14083,13 +14097,13 @@ function loadExp(expId) {
         + '<div style="padding:10px">'
         + '<div style="font-size:.8rem;font-weight:700;color:var(--navy);margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+bx.name+'</div>'
         + '<div style="font-size:.72rem;color:var(--muted);margin-bottom:6px">'+ratingHtml+(bx.cnt||'?')+' experiences</div>'
-        + '<div style="font-size:.9rem;font-weight:700;color:var(--navy)">'+(window._wbPurchasesDisabled ? 'Coming soon' : 'R'+(bx.price||0).toLocaleString())+'</div>'
+        + '<div style="font-size:.9rem;font-weight:700;color:var(--navy)">'+(!wbBoxPurchasable(bx) ? 'Coming soon' : 'R'+(bx.price||0).toLocaleString())+'</div>'
         + '</div></div>';
     }).join('');
 
     // Keep legacy IDs populated for buy panel
     if (b) {
-      document.getElementById('exp-buy-price').textContent  = window._wbPurchasesDisabled ? 'Coming soon' : 'R' + b.price.toLocaleString();
+      document.getElementById('exp-buy-price').textContent  = !wbBoxPurchasable(b) ? 'Coming soon' : 'R' + b.price.toLocaleString();
       document.getElementById('exp-info-count').textContent = b.cnt;
     }
   })();
@@ -15113,8 +15127,8 @@ async function cancelBooking(voucherCode, bookingDate, cancelWindowHours) {
 }
 
 function addBoxFromExp() {
-  if (window._wbPurchasesDisabled) { wbShowNotifyMeModal(); return; }
   const e = expDB.find(x => x.id === appState.currentExpId);
+  if (e && e.box && !wbBoxPurchasable(boxDB[e.box])) { wbShowNotifyMeModal(); return; }
   if (e && e.box) { addToCart(e.box, 'ebox'); go('cart'); }
 }
 function switchExpTab(tab, btn) {
@@ -16277,7 +16291,7 @@ function cartReplaceConfirm(newBoxId, newType) {
   admToast('Your E-Box has been updated.');
 }
 function addCurrentToCart() {
-  if (window._wbPurchasesDisabled) { wbShowNotifyMeModal(); return; }
+  if (!wbBoxPurchasable(boxDB[appState.currentBoxId])) { wbShowNotifyMeModal(); return; }
   addToCart(appState.currentBoxId, appState.deliveryType);
   const qty = parseInt(document.getElementById('qty-v').textContent);
   // E-Box is always a single gift — never let the quantity selector override it
@@ -18619,6 +18633,15 @@ function wbDismissPartnerBanner() {
 
 /* ── Shown instead of checkout while purchases are disabled — same dynamic
    modal pattern used elsewhere in this file (e.g. the QR code modal below). ── */
+// Whether a given box can currently be bought: the existing global
+// "Disable Purchases" toggle still works as a site-wide override (e.g. for a
+// payment outage), AND each box can now also be individually marked not yet
+// ready to sell — shown as "Coming soon" instead, while staying fully browsable.
+function wbBoxPurchasable(box) {
+  if (window._wbPurchasesDisabled) return false;
+  return !box || box.is_purchasable !== false;
+}
+
 function wbShowNotifyMeModal() {
   var old = document.getElementById('wb-notify-modal');
   if (old) old.remove();
@@ -19374,7 +19397,7 @@ async function renderAdmin() {
   // Render boxes table with real exp counts + databases from Supabase
   const at = document.getElementById('adm-boxes-tbody');
   if (at) {
-    at.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:18px;color:var(--muted)"><i class="fa fa-circle-notch fa-spin"></i> Loading…</td></tr>';
+    at.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:18px;color:var(--muted)"><i class="fa fa-circle-notch fa-spin"></i> Loading…</td></tr>';
     try {
       // Admin must see EVERY box regardless of status (Active/Draft/Archived) —
       // boxDB is filtered to is_active=true only (that's correct for the public
@@ -19403,6 +19426,9 @@ async function renderAdmin() {
         const statusHtml = b.is_active === false
           ? '<span class="sbadge" style="background:#f3f4f6;color:#6b7280">Draft</span>'
           : '<span class="sbadge sb-a">Active</span>';
+        const isPurch = b.is_purchasable !== false;
+        const purchHtml = '<label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:.75rem;color:'+(isPurch?'var(--green)':'var(--muted)')+'">'
+          + '<input type="checkbox" '+(isPurch?'checked':'')+' onchange="admToggleBoxPurchasable(\''+k+'\',this)"> '+(isPurch?'Yes':'Coming soon')+'</label>';
         return '<tr><td><strong>'+b.name+'</strong></td>'
           +'<td style="font-size:.78rem;color:var(--slate)">'+dbs+'</td>'
           +'<td><strong style="color:var(--b700)">'+cnt+'</strong></td>'
@@ -19410,13 +19436,17 @@ async function renderAdmin() {
           +'<td><span class="tag" style="background:#fef3c7;color:#92400e;font-size:.68rem">E + Physical</span></td>'
           +'<td><strong>'+sold+'</strong></td>'
           +'<td>'+statusHtml+'</td>'
+          +'<td>'+purchHtml+'</td>'
           +'<td style="white-space:nowrap"><button class="btn bg bsm" onclick="admShowBoxForm(\''+k+'\')"><i class="fa fa-pen"></i> Edit</button></td>'
           +'</tr>';
       }).join('');
     } catch(e) {
       at.innerHTML = Object.keys(boxDB).map(function(k) {
         const b = boxDB[k];
-        return '<tr><td><strong>'+b.name+'</strong></td><td><span class="tag t-act" style="font-size:.7rem">'+b.db+'</span></td><td><strong style="color:var(--b700)">'+b.cnt+'</strong></td><td>R'+b.price.toLocaleString()+'</td><td><span class="tag" style="background:#fef3c7;color:#92400e;font-size:.68rem">E + Physical</span></td><td>'+(b.sold||0)+'</td><td><span class="sbadge sb-a">Active</span></td><td style="white-space:nowrap"><button class="btn bg bsm" onclick="admShowBoxForm(\''+k+'\')"><i class="fa fa-pen"></i> Edit</button></td></tr>';
+        const fbIsPurch = b.is_purchasable !== false;
+        const fbPurchHtml = '<label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:.75rem;color:'+(fbIsPurch?'var(--green)':'var(--muted)')+'">'
+          + '<input type="checkbox" '+(fbIsPurch?'checked':'')+' onchange="admToggleBoxPurchasable(\''+k+'\',this)"> '+(fbIsPurch?'Yes':'Coming soon')+'</label>';
+        return '<tr><td><strong>'+b.name+'</strong></td><td><span class="tag t-act" style="font-size:.7rem">'+b.db+'</span></td><td><strong style="color:var(--b700)">'+b.cnt+'</strong></td><td>R'+b.price.toLocaleString()+'</td><td><span class="tag" style="background:#fef3c7;color:#92400e;font-size:.68rem">E + Physical</span></td><td>'+(b.sold||0)+'</td><td><span class="sbadge sb-a">Active</span></td><td>'+fbPurchHtml+'</td><td style="white-space:nowrap"><button class="btn bg bsm" onclick="admShowBoxForm(\''+k+'\')"><i class="fa fa-pen"></i> Edit</button></td></tr>';
       }).join('');
     }
   }
@@ -19426,6 +19456,16 @@ async function renderAdmin() {
 async function loadAdminDashStats() {
   const set = function(id, val) { const el = document.getElementById(id); if (el) el.textContent = val; };
   try {
+    // Real global commission rate — same source as the Commission settings page
+    // (commission_rates, rate_type='global'), instead of a hardcoded "35%" that
+    // never reflected changes made there.
+    db_client.from('commission_rates').select('platform_rate').eq('rate_type','global').eq('target_id','__global__').maybeSingle()
+      .then(function(r){
+        const rate = (r.data && r.data.platform_rate != null) ? Number(r.data.platform_rate) : 35;
+        set('adm-dash-comm-rate', 'Default commission: ' + rate + '%');
+      })
+      .catch(function(e){ console.warn('dash commission rate:', e.message); });
+
     const now = new Date();
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
     const lastMonthStart = new Date(now.getFullYear(), now.getMonth()-1, 1).toISOString();
@@ -19799,6 +19839,7 @@ async function admShowBoxForm(boxId) {
       b = {
         name: raw.name, price: raw.price, desc: raw.description, featured: raw.is_featured,
         images: raw.images, img: raw.image_url, video_url: raw.video_url, is_active: raw.is_active,
+        is_purchasable: raw.is_purchasable !== false,
         creator_name: raw.creator_name, creator_email: raw.creator_email, creator_bio: raw.creator_bio,
         creator_avatar_url: raw.creator_avatar_url, creator_instagram: raw.creator_instagram,
         creator_tiktok: raw.creator_tiktok, creator_post_url_1: raw.creator_post_url_1,
@@ -19813,6 +19854,8 @@ async function admShowBoxForm(boxId) {
     document.getElementById('abf-featured').checked = b.featured || false;
     var statusSel = document.getElementById('abf-status');
     if (statusSel) statusSel.value = (b.is_active === false) ? 'Draft' : 'Active';
+    var purchSel = document.getElementById('abf-purchasable');
+    if (purchSel) purchSel.value = (b.is_purchasable === false) ? 'false' : 'true';
     const imgs4 = (b.images && b.images.length) ? b.images : (b.img ? [b.img] : []);
     abfLoadImgSlots(imgs4);
     var vUrlEl = document.getElementById('abf-video-url');
@@ -19855,6 +19898,8 @@ async function admShowBoxForm(boxId) {
     document.getElementById('abf-featured').checked = false;
     var statusSel2 = document.getElementById('abf-status');
     if (statusSel2) statusSel2.value = 'Active';
+    var purchSel2 = document.getElementById('abf-purchasable');
+    if (purchSel2) purchSel2.value = 'true';
     abfResetImgSlots();
     var vUrlEl2 = document.getElementById('abf-video-url');
     var vSlotEl2 = document.getElementById('abf-video-slot');
@@ -20448,6 +20493,27 @@ function admRemoveBoxImg(idx) {
   admBoxImgUrls.splice(idx, 1);
   renderBoxGallery();
 }
+// Quick toggle from the boxes table, without opening the full edit form.
+async function admToggleBoxPurchasable(boxId, checkbox) {
+  const newVal = checkbox.checked;
+  checkbox.disabled = true;
+  try {
+    const res = await db_client.from('boxes').update({ is_purchasable: newVal }).eq('id', boxId);
+    if (res.error) throw res.error;
+    if (boxDB[boxId]) boxDB[boxId].is_purchasable = newVal;
+    const label = checkbox.closest('label');
+    if (label) {
+      label.style.color = newVal ? 'var(--green)' : 'var(--muted)';
+      label.lastChild.textContent = ' ' + (newVal ? 'Yes' : 'Coming soon');
+    }
+    admToast(newVal ? '✅ Box is now purchasable' : '✅ Box now shows "Coming soon"');
+  } catch (e) {
+    checkbox.checked = !newVal; // revert on failure
+    admToast('Error: ' + e.message);
+  }
+  checkbox.disabled = false;
+}
+
 async function admSaveBox() {
   const name     = document.getElementById('abf-name')?.value?.trim();
   const price    = parseInt(document.getElementById('abf-price')?.value || '0');
@@ -20455,6 +20521,7 @@ async function admSaveBox() {
   const featured = document.getElementById('abf-featured')?.checked || false;
   const statusVal = document.getElementById('abf-status')?.value || 'Active';
   const isActive = statusVal === 'Active';
+  const isPurchasable = (document.getElementById('abf-purchasable')?.value || 'true') === 'true';
 
   if (!name || !price) { admToast('Please fill in box name and price.'); return; }
 
@@ -20502,6 +20569,7 @@ async function admSaveBox() {
     price,
     description:   desc,
     is_active:     isActive,
+    is_purchasable: isPurchasable,
     is_featured:   featured,
     images:        allImgs,
     ...(mainImg ? { image_url: mainImg } : {}),
