@@ -803,6 +803,14 @@ function authShowSuccess(msg) {
   }
 }
 
+function vpGoToSignIn(email) {
+  go('login');
+  var emailEl = document.getElementById('auth-email');
+  if (emailEl && email) emailEl.value = email;
+  var pwEl = document.getElementById('auth-password');
+  if (pwEl) pwEl.focus();
+}
+
 async function initVerifyPartner() {
   var bodyEl = document.getElementById('vp-body');
   if (!bodyEl) return;
@@ -823,10 +831,29 @@ async function initVerifyPartner() {
     var data = await res.json();
 
     if (data.success) {
-      bodyEl.innerHTML = '<div style="font-size:2rem;margin-bottom:10px">✅</div>'
-        + '<h2 style="font-size:1.1rem;font-weight:700;color:var(--navy);margin:0 0 8px">Email verified!</h2>'
-        + '<p style="font-size:.85rem;color:var(--muted);margin-bottom:20px">Your partner account is now active. Sign in with the password you chose to get started.</p>'
-        + '<button class="btn bp block" onclick="go(\'login\')">Sign in</button>';
+      // If this browser already has a valid session for this exact email
+      // (e.g. they used "sign in & link" earlier), skip straight to the
+      // portal — no need to make them sign in again. The existing welcome
+      // modal/checklist there already guide toward listing a first experience.
+      var existingSession = null;
+      try {
+        var sessCheck = await db_client.auth.getSession();
+        if (sessCheck.data && sessCheck.data.session && sessCheck.data.session.user.email === data.email) {
+          existingSession = sessCheck.data.session;
+        }
+      } catch (eSess) { /* ignore, fall through to sign-in */ }
+
+      if (existingSession) {
+        bodyEl.innerHTML = '<div style="font-size:2rem;margin-bottom:10px">✅</div>'
+          + '<h2 style="font-size:1.1rem;font-weight:700;color:var(--navy);margin:0 0 8px">Email verified!</h2>'
+          + '<p style="font-size:.85rem;color:var(--muted)">Taking you to your Partner Portal…</p>';
+        await authOnSignedIn(existingSession.user, true);
+      } else {
+        bodyEl.innerHTML = '<div style="font-size:2rem;margin-bottom:10px">✅</div>'
+          + '<h2 style="font-size:1.1rem;font-weight:700;color:var(--navy);margin:0 0 8px">Email verified!</h2>'
+          + '<p style="font-size:.85rem;color:var(--muted);margin-bottom:20px">Your partner account is now active. Sign in with the password you chose to get started.</p>'
+          + '<button class="btn bp block" onclick="vpGoToSignIn(\'' + (data.email||'').replace(/'/g,"\\'") + '\')">Sign in</button>';
+      }
     } else if (data.error === 'expired_token') {
       bodyEl.innerHTML = '<h2 style="font-size:1.1rem;font-weight:700;color:var(--navy);margin:0 0 8px">Link expired</h2>'
         + '<p style="font-size:.85rem;color:var(--muted)">This verification link has expired. Please contact us at <a href="mailto:support@wowbox.co.za" style="color:var(--b600)">support@wowbox.co.za</a> and we\'ll send you a new one.</p>';
