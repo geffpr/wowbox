@@ -840,6 +840,25 @@ function tplExperienceRejected(o) {
   };
 }
 
+// Sent immediately at signup (real password already chosen in the form) —
+// this link is entirely ours, not a Supabase recovery link, so we control
+// exactly where it goes and how it's verified (see /verify-partner handling).
+function tplPartnerVerifyEmail(o) {
+  const link = SITE_URL + '/verify-partner?token=' + encodeURIComponent(o.token || '');
+  return {
+    subject: '✉️ Verify your email to activate your WowBox partner account',
+    html: layout(`
+      ${badge('✉️ Verify your email', '#2563eb')}
+      ${h1('One more step, ' + (o.name || 'there') + '!')}
+      ${p("Thanks for applying to join the WowBox partner network as <strong>" + (o.bizName || 'your business') + "</strong>. Click below to verify your email and activate your account — your password is already set, so you'll be able to log straight in.")}
+      ${btn('Verify email & activate account', link)}
+      ${sm('This link expires in 48 hours. If it expires, you can request a new one from the sign-in page.')}
+      ${hr()}
+      ${sm('Need help? <a href="mailto:support@wowbox.co.za" style="color:' + C.goldDark + '">support@wowbox.co.za</a>')}
+    `, HEROES.partner, 'Verify your email to activate your WowBox partner account'),
+  };
+}
+
 function tplPartnerApproved(o) {
   return {
     subject: '🎉 Welcome to WowBox — your partner portal is ready',
@@ -1106,6 +1125,66 @@ export default async function handler(req, res) {
   try {
     const body = req.body || {};
 
+    // ── Partner email verification — fully separate from email sending below.
+    // Merged into this same function (rather than a new api/*.js file) to stay
+    // within Vercel's Hobby-plan serverless function limit. Uses the service
+    // key to activate an account that isn't signed in yet; deliberately not
+    // built on Supabase's Auth recovery-link mechanism (redirect_to has proven
+    // unreliable — see the earlier /reset-password debugging).
+    if (body.action === 'verify_partner_token') {
+      const token = (body.token || '').trim();
+      if (!token) return res.status(400).json({ success: false, error: 'Missing verification token' });
+      if (!SUPABASE_SERVICE_KEY) {
+        console.error('verify_partner_token: SUPABASE_SERVICE_ROLE_KEY not configured');
+        return res.status(500).json({ success: false, error: 'Server not configured' });
+      }
+
+      const lookupRes = await fetch(
+        `${SUPABASE_URL}/rest/v1/user_profiles?email_verify_token=eq.${encodeURIComponent(token)}&select=id,email,role,status,email_verify_expires_at,partner_name`,
+        { headers: { apikey: SUPABASE_SERVICE_KEY, Authorization: `Bearer ${SUPABASE_SERVICE_KEY}` } }
+      );
+      const rows = await lookupRes.json();
+      if (!lookupRes.ok) {
+        console.error('verify_partner_token lookup failed:', rows);
+        return res.status(500).json({ success: false, error: 'Lookup failed' });
+      }
+      const profile = Array.isArray(rows) ? rows[0] : null;
+      if (!profile) return res.status(400).json({ success: false, error: 'invalid_token' });
+
+      if (!profile.email_verify_expires_at || new Date(profile.email_verify_expires_at) < new Date()) {
+        return res.status(400).json({ success: false, error: 'expired_token' });
+      }
+
+      if (profile.role === 'partner' && profile.status === 'active') {
+        return res.status(200).json({ success: true, already_verified: true, email: profile.email });
+      }
+
+      const updateRes = await fetch(
+        `${SUPABASE_URL}/rest/v1/user_profiles?id=eq.${encodeURIComponent(profile.id)}`,
+        {
+          method: 'PATCH',
+          headers: {
+            apikey: SUPABASE_SERVICE_KEY,
+            Authorization: `Bearer ${SUPABASE_SERVICE_KEY}`,
+            'Content-Type': 'application/json',
+            Prefer: 'return=minimal',
+          },
+          body: JSON.stringify({
+            role: 'partner',
+            status: 'active',
+            role_granted_at: new Date().toISOString(),
+            email_verify_token: null,
+            email_verify_expires_at: null,
+          }),
+        }
+      );
+      if (!updateRes.ok) {
+        console.error('verify_partner_token activation failed:', await updateRes.text());
+        return res.status(500).json({ success: false, error: 'Activation failed' });
+      }
+      return res.status(200).json({ success: true, email: profile.email, partner_name: profile.partner_name });
+    }
+
     // ── Resend Audience sync — fully separate from email sending below.
     // Returns early if `segment` is present; otherwise falls through
     // untouched to the existing email switch(type) logic.
@@ -1225,6 +1304,10 @@ export default async function handler(req, res) {
       }
       case 'partner_record_missing': {
         emailJobs.push({ to: ADMIN_EMAIL, cc: ADMIN_CC, ...tplPartnerRecordMissing(o) });
+        break;
+      }
+      case 'partner_verify_email': {
+        if (o.email) emailJobs.push({ to: o.email, ...tplPartnerVerifyEmail(o) });
         break;
       }
       case 'contact_form': {

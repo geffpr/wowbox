@@ -803,6 +803,44 @@ function authShowSuccess(msg) {
   }
 }
 
+async function initVerifyPartner() {
+  var bodyEl = document.getElementById('vp-body');
+  if (!bodyEl) return;
+  var params = new URLSearchParams(window.location.search);
+  var token = params.get('token');
+
+  if (!token) {
+    bodyEl.innerHTML = '<h2 style="font-size:1.1rem;font-weight:700;color:var(--navy);margin:0 0 8px">Invalid link</h2>'
+      + '<p style="font-size:.85rem;color:var(--muted)">This verification link is missing its token. Please use the exact link from your email.</p>';
+    return;
+  }
+
+  try {
+    var res = await fetch('/api/send-email', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'verify_partner_token', token: token }),
+    });
+    var data = await res.json();
+
+    if (data.success) {
+      bodyEl.innerHTML = '<div style="font-size:2rem;margin-bottom:10px">✅</div>'
+        + '<h2 style="font-size:1.1rem;font-weight:700;color:var(--navy);margin:0 0 8px">Email verified!</h2>'
+        + '<p style="font-size:.85rem;color:var(--muted);margin-bottom:20px">Your partner account is now active. Sign in with the password you chose to get started.</p>'
+        + '<button class="btn bp block" onclick="go(\'login\')">Sign in</button>';
+    } else if (data.error === 'expired_token') {
+      bodyEl.innerHTML = '<h2 style="font-size:1.1rem;font-weight:700;color:var(--navy);margin:0 0 8px">Link expired</h2>'
+        + '<p style="font-size:.85rem;color:var(--muted)">This verification link has expired. Please contact us at <a href="mailto:support@wowbox.co.za" style="color:var(--b600)">support@wowbox.co.za</a> and we\'ll send you a new one.</p>';
+    } else {
+      bodyEl.innerHTML = '<h2 style="font-size:1.1rem;font-weight:700;color:var(--navy);margin:0 0 8px">Invalid link</h2>'
+        + '<p style="font-size:.85rem;color:var(--muted)">This verification link is invalid. Please use the exact link from your email, or contact <a href="mailto:support@wowbox.co.za" style="color:var(--b600)">support@wowbox.co.za</a>.</p>';
+    }
+  } catch (e) {
+    bodyEl.innerHTML = '<h2 style="font-size:1.1rem;font-weight:700;color:var(--navy);margin:0 0 8px">Something went wrong</h2>'
+      + '<p style="font-size:.85rem;color:var(--muted)">Could not verify your email right now. Please try again in a moment.</p>';
+    console.error('initVerifyPartner:', e.message);
+  }
+}
+
 function initResetPassword() {
   // Supabase puts the session tokens in the URL hash after redirect
   // supabase-js v2 handles this automatically via onAuthStateChange
@@ -6748,6 +6786,20 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
   </div>
 </div>
 
+<div id="page-verify-partner" class="page">
+  <div class="login-wrap">
+    <div class="lc">
+      <div style="font-family:'Cormorant Garamond',serif;font-size:1.9rem;font-weight:700;color:var(--b600);margin-bottom:7px">WowBox</div>
+      <div id="vp-body">
+        <div style="text-align:center;padding:20px 0">
+          <i class="fa fa-circle-notch fa-spin" style="font-size:1.8rem;color:var(--b500)"></i>
+          <p style="font-size:.85rem;color:var(--muted);margin-top:14px">Verifying your email…</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- ═══════════════════════ PAGE: PARTNER LANDING ═══════════════════════ -->
 <!-- ═══════════════════════ PAGE: CREATORS LANDING ═══════════════════════ -->
 <style>
@@ -7218,11 +7270,39 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
           <input type="hidden" id="pl-lng">
           <div style="font-size:.7rem;color:var(--muted);margin-top:4px"><i class="fa fa-map-pin" style="color:var(--b500)"></i> Select from the dropdown to auto-fill coordinates</div>
         </div>
+        <div class="fg">
+          <label>Password *</label>
+          <div style="position:relative">
+            <input class="fi" id="pl-password" type="password" placeholder="Min. 8 characters, 1 number & 1 symbol" oninput="wbUpdatePwIndicators(this.value,['pl-pw-indicator']);plCheckPwMatch()" style="padding-right:40px">
+            <button type="button" onclick="authTogglePw('pl-password',this)" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--muted);font-size:.9rem;padding:0"><i class="fa fa-eye"></i></button>
+          </div>
+          <div class="wb-pw-indicator" id="pl-pw-indicator" style="display:none;margin-top:8px;margin-bottom:4px">
+            <div style="display:flex;gap:4px;margin-bottom:6px">
+              <div class="wb-pw-bar" style="flex:1;height:4px;border-radius:2px;background:var(--border);transition:background .2s"></div>
+              <div class="wb-pw-bar" style="flex:1;height:4px;border-radius:2px;background:var(--border);transition:background .2s"></div>
+              <div class="wb-pw-bar" style="flex:1;height:4px;border-radius:2px;background:var(--border);transition:background .2s"></div>
+            </div>
+            <div class="wb-pw-label" style="font-size:.72rem;font-weight:600;margin-bottom:4px"></div>
+            <ul style="list-style:none;padding:0;margin:0;font-size:.72rem;color:var(--muted)">
+              <li data-check="len" style="margin-bottom:2px"><i class="fa fa-circle" style="font-size:.5rem;margin-right:6px;color:var(--border)"></i>At least 8 characters</li>
+              <li data-check="num" style="margin-bottom:2px"><i class="fa fa-circle" style="font-size:.5rem;margin-right:6px;color:var(--border)"></i>At least 1 number</li>
+              <li data-check="special"><i class="fa fa-circle" style="font-size:.5rem;margin-right:6px;color:var(--border)"></i>At least 1 special character</li>
+            </ul>
+          </div>
+        </div>
+        <div class="fg">
+          <label>Confirm password *</label>
+          <div style="position:relative">
+            <input class="fi" id="pl-password-confirm" type="password" placeholder="Re-enter your password" oninput="plCheckPwMatch()" style="padding-right:40px">
+            <button type="button" onclick="authTogglePw('pl-password-confirm',this)" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--muted);font-size:.9rem;padding:0"><i class="fa fa-eye"></i></button>
+          </div>
+          <div id="pl-password-confirm-msg" style="display:none;font-size:.75rem;margin-top:4px"></div>
+        </div>
         <label style="display:flex;align-items:flex-start;gap:10px;margin-bottom:18px;cursor:pointer;font-size:.8rem;color:#374151;line-height:1.5">
           <input type="checkbox" id="pl-terms" style="margin-top:2px;flex-shrink:0;width:15px;height:15px;cursor:pointer">
           <span>I have read and agree to the WowBox <a href="/terms" target="_blank" style="color:var(--b600);text-decoration:underline">Partner Terms & Conditions</a> and confirm I am authorised to list services on behalf of my business. *</span>
         </label>
-        <div style="font-size:.72rem;color:#8a6a50;margin-bottom:18px">Your application will be reviewed within 24 hours. You will receive a confirmation email once approved.</div>
+        <div style="font-size:.72rem;color:#8a6a50;margin-bottom:18px">Check your email for a verification link to activate your account.</div>
         <button type="button" class="btn bp block" id="pl-submit-btn" onclick="plSubmitPartner()"><i class="fa fa-paper-plane"></i> Submit application</button>
         <div id="pl-error-bottom" style="display:none;background:#fee2e2;border:1px solid #fca5a5;border-radius:8px;padding:10px 14px;font-size:.78rem;color:#991b1b;margin-top:14px"></div>
         <div id="pl-success-bottom" style="display:none;background:#d1fae5;border:1px solid #6ee7b7;border-radius:8px;padding:10px 14px;font-size:.78rem;color:#065f46;margin-top:14px"></div>
@@ -9160,7 +9240,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
             <div>
               <h2 style="font-size:1.4rem;color:var(--navy)">Partner Applications</h2>
-              <p style="color:var(--muted);font-size:.78rem">New partners awaiting approval. Approve to grant portal access.</p>
+              <p style="color:var(--muted);font-size:.78rem">Awaiting email verification — accounts activate automatically once the applicant clicks the link in their email.</p>
             </div>
             <span id="adm-partner-apps-badge" style="background:#ef4444;color:#fff;padding:3px 10px;border-radius:99px;font-size:.7rem;font-weight:700;display:none"></span>
           </div>
@@ -11346,6 +11426,17 @@ function goFromHash() {
     var rpEl = document.getElementById('page-reset-password');
     if (rpEl) { rpEl.classList.add('active'); rpEl.style.display=''; }
     initResetPassword();
+    return;
+  }
+
+  // ── /verify-partner?token=... ──
+  if (path === '/verify-partner') {
+    document.querySelectorAll('.page').forEach(function(p){ p.classList.remove('active'); p.style.display=''; });
+    var _pss2 = document.getElementById('page-partner-storefront');
+    if (_pss2) _pss2.style.display = 'none';
+    var vpEl = document.getElementById('page-verify-partner');
+    if (vpEl) { vpEl.classList.add('active'); vpEl.style.display=''; }
+    initVerifyPartner();
     return;
   }
 
@@ -16980,6 +17071,23 @@ function plSwitchTab(tab) {
   if (sucEl) sucEl.style.display = 'none';
 }
 
+function plCheckPwMatch() {
+  var pwEl  = document.getElementById('pl-password');
+  var cpEl  = document.getElementById('pl-password-confirm');
+  var msgEl = document.getElementById('pl-password-confirm-msg');
+  if (!pwEl || !cpEl || !msgEl) return;
+  var cp = cpEl.value;
+  if (!cp) { msgEl.style.display = 'none'; return; }
+  msgEl.style.display = 'block';
+  if (cp === pwEl.value) {
+    msgEl.textContent = '✓ Passwords match';
+    msgEl.style.color = '#16a34a';
+  } else {
+    msgEl.textContent = 'Passwords do not match';
+    msgEl.style.color = '#dc2626';
+  }
+}
+
 async function plSubmitPartner() {
   var bizName  = (document.getElementById('pl-biz-name')  ||{value:''}).value.trim();
   var contact  = (document.getElementById('pl-contact')   ||{value:''}).value.trim();
@@ -16995,6 +17103,8 @@ async function plSubmitPartner() {
   var lat      = parseFloat((document.getElementById('pl-lat')  ||{value:''}).value) || null;
   var lng      = parseFloat((document.getElementById('pl-lng')  ||{value:''}).value) || null;
   var terms    = (document.getElementById('pl-terms')     ||{checked:false}).checked;
+  var pw       = (document.getElementById('pl-password')        ||{value:''}).value;
+  var pw2      = (document.getElementById('pl-password-confirm')||{value:''}).value;
   var errTop = document.getElementById('pl-error');
   var sucTop = document.getElementById('pl-success');
   var errBot = document.getElementById('pl-error-bottom');
@@ -17042,16 +17152,30 @@ async function plSubmitPartner() {
     if (errEl) { errEl.textContent = 'Please accept the Partner Terms & Conditions to continue.'; errEl.style.display = 'block'; }
     return;
   }
+  var pwErr = wbPasswordError(pw);
+  if (pwErr) {
+    if (errEl) { errEl.textContent = pwErr; errEl.style.display = 'block'; }
+    return;
+  }
+  if (pw !== pw2) {
+    if (errEl) { errEl.textContent = 'Passwords do not match.'; errEl.style.display = 'block'; }
+    return;
+  }
 
   if (btn) { btn.disabled = true; btn.textContent = 'Submitting...'; }
 
   try {
-    // Create Supabase auth account. No password is collected at this stage —
-    // a random one is generated so a real Supabase Auth account can still be
-    // created (same mechanism as before). The applicant sets their own real
-    // password later, via the existing password-reset flow, once approved.
-    var randomPw = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2).toUpperCase() + '!7';
-    var signUpRes = await db_client.auth.signUp({ email: email, password: randomPw });
+    // Block re-application if this email already belongs to an active partner —
+    // otherwise their existing account would get silently reset back to pending.
+    var existingCheck = await db_client.from('user_profiles').select('role,status').eq('email', email).maybeSingle();
+    if (existingCheck.data && existingCheck.data.role === 'partner' && existingCheck.data.status === 'active') {
+      if (errEl) { errEl.textContent = 'This email is already a partner account. Sign in to manage your existing account instead.'; errEl.style.display = 'block'; }
+      if (btn) { btn.disabled = false; btn.textContent = 'Submit application'; }
+      return;
+    }
+
+    // Create Supabase auth account with the real password chosen above.
+    var signUpRes = await db_client.auth.signUp({ email: email, password: pw });
     if (signUpRes.error) throw signUpRes.error;
     window.dataLayer = window.dataLayer || [];
     window.dataLayer.push({ event: 'account_created' });
@@ -17142,12 +17266,35 @@ async function plSubmitPartner() {
       console.error('admin_new_partner notification error:', notifErr.message);
     }
 
+    // Generate our own email-verification token (48h expiry) — deliberately NOT
+    // using Supabase's recovery-link mechanism, given the redirect_to/quota
+    // issues encountered with it elsewhere. We fully control this link.
+    if (userId) {
+      var verifyToken = (Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2) + Date.now().toString(36));
+      var verifyExpires = new Date(Date.now() + 48*3600*1000).toISOString();
+      try {
+        await db_client.from('user_profiles').update({
+          email_verify_token: verifyToken,
+          email_verify_expires_at: verifyExpires,
+        }).eq('id', userId);
+      } catch (eTok) { console.error('verify token save failed:', eTok.message); }
+
+      try {
+        var verifyMailRes = await fetch('/api/send-email', { method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ type:'partner_verify_email', data:{
+            email: email, name: contact, bizName: bizName, token: verifyToken
+          }})
+        });
+        if (!verifyMailRes.ok) console.error('partner_verify_email send failed:', verifyMailRes.status, await verifyMailRes.text());
+      } catch (eMail) { console.error('partner_verify_email error:', eMail.message); }
+    }
+
     if (sucEl) {
-      sucEl.innerHTML = '<strong>Application submitted!</strong> We will review your listing within 24 hours and contact you at <strong>' + email + '</strong>.';
+      sucEl.innerHTML = '<strong>Application submitted!</strong> Check your email at <strong>' + email + '</strong> for a verification link to activate your account.';
       sucEl.style.display = 'block';
     }
     // Clear form
-    ['pl-biz-name','pl-contact','pl-email','pl-phone','pl-city','pl-reg-num','pl-vat','pl-website','pl-exp-desc'].forEach(function(id) {
+    ['pl-biz-name','pl-contact','pl-email','pl-phone','pl-city','pl-reg-num','pl-vat','pl-website','pl-exp-desc','pl-password','pl-password-confirm'].forEach(function(id) {
       var el = document.getElementById(id); if (el) el.value = '';
     });
     var typeEl = document.getElementById('pl-type'); if (typeEl) typeEl.value = '';
@@ -17241,6 +17388,14 @@ async function plLinkExistingAsPartner() {
 
     var userId = signInRes.data.user.id;
 
+    // Block re-application if this account is already an active partner —
+    // otherwise it would get silently reset back to pending.
+    var existingCheck2 = await db_client.from('user_profiles').select('role,status').eq('id', userId).maybeSingle();
+    if (existingCheck2.data && existingCheck2.data.role === 'partner' && existingCheck2.data.status === 'active') {
+      if (errEl) { errEl.textContent = 'This account is already an active partner.'; errEl.style.display = 'block'; }
+      return;
+    }
+
     // Update existing profile to pending_partner
     await db_client.from('user_profiles').update({
       role: 'pending_partner',
@@ -17249,25 +17404,80 @@ async function plLinkExistingAsPartner() {
       partner_address: city,
     }).eq('id', userId);
 
-    // Create partners application entry
+    // Create partners application entry — same retried + verified write as the
+    // main form, since this insert has silently failed before.
+    var linkPartnersOk = false;
+    var linkPartnersPayload = {
+      business_name: bizName, contact_name: contact, contact_email: email, contact_phone: phone, category: type, location: city,
+      region: (document.getElementById('pl-city')||{}).dataset?.province || null,
+      page_status: 'pending', registration_number: regNum, business_type: bizType,
+      vat_number: vat || null, website_url: website || null,
+      experience_description: expDesc, terms_accepted_at: new Date().toISOString(),
+    };
+    for (var linkAttempt = 1; linkAttempt <= 3 && !linkPartnersOk; linkAttempt++) {
+      try {
+        var linkInsRes = await db_client.from('partners').insert(linkPartnersPayload);
+        if (!linkInsRes.error) { linkPartnersOk = true; }
+        else { console.warn('partners insert attempt ' + linkAttempt + ':', linkInsRes.error.message); }
+      } catch (e2) {
+        console.warn('partners insert attempt ' + linkAttempt + ' (exception):', e2.message);
+      }
+      if (!linkPartnersOk && linkAttempt < 3) {
+        await new Promise(function(resolve){ setTimeout(resolve, 800 * linkAttempt); });
+      }
+    }
+    if (linkPartnersOk) {
+      try {
+        var linkVerifyRes = await db_client.from('partners').select('id').eq('contact_email', email).maybeSingle();
+        if (!linkVerifyRes.data) linkPartnersOk = false;
+      } catch (e3) { linkPartnersOk = false; }
+    }
+    if (!linkPartnersOk) {
+      try {
+        await fetch('/api/send-email', { method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ type:'partner_record_missing', data:{
+            bizName: bizName, email: email, phone: phone, city: city, type: type
+          }})
+        });
+      } catch (e4) { console.error('partner_record_missing alert failed:', e4.message); }
+    }
+
+    // Admin notification (previously missing on this path)
     try {
-      await db_client.from('partners').insert({
-        business_name: bizName, contact_name: contact, contact_email: email, contact_phone: phone, category: type, location: city,
-        region: (document.getElementById('pl-city')||{}).dataset?.province || null,
-        page_status: 'pending', registration_number: regNum, business_type: bizType,
-        vat_number: vat || null, website_url: website || null,
-        experience_description: expDesc, terms_accepted_at: new Date().toISOString(),
+      var linkNotifRes = await fetch('/api/send-email', { method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ type:'admin_new_partner', data:{
+          bizName: bizName, name: contact, email: email, phone: phone, location: city, type: type
+        }})
       });
-    } catch(e2) { console.warn('partners table:', e2.message); }
+      if (!linkNotifRes.ok) console.error('admin_new_partner notification failed:', linkNotifRes.status, await linkNotifRes.text());
+    } catch (notifErr2) { console.error('admin_new_partner notification error:', notifErr2.message); }
+
+    // Same self-owned email-verification link as the main form — sign-in here
+    // proves password ownership, but activation still waits for the click,
+    // for consistent behavior and a single admin-visible "awaiting verification" list.
+    var linkVerifyToken = (Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2) + Date.now().toString(36));
+    var linkVerifyExpires = new Date(Date.now() + 48*3600*1000).toISOString();
+    try {
+      await db_client.from('user_profiles').update({
+        email_verify_token: linkVerifyToken,
+        email_verify_expires_at: linkVerifyExpires,
+      }).eq('id', userId);
+      var linkMailRes = await fetch('/api/send-email', { method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ type:'partner_verify_email', data:{
+          email: email, name: contact, bizName: bizName, token: linkVerifyToken
+        }})
+      });
+      if (!linkMailRes.ok) console.error('partner_verify_email send failed:', linkMailRes.status, await linkMailRes.text());
+    } catch (eTok2) { console.error('verify token/email failed:', eTok2.message); }
 
     var modal = document.getElementById('pl-link-modal');
     if (modal) {
       modal.querySelector('div').innerHTML = '<div style="text-align:center;padding:10px 0">'
         + '<div style="font-size:2.2rem;margin-bottom:10px">✅</div>'
         + '<h3 style="font-size:1.05rem;color:var(--navy);margin-bottom:8px">Application submitted!</h3>'
-        + '<p style="font-size:.82rem;color:var(--muted)">Your existing WowBox account has been linked. We will review your listing within 24 hours and contact you at <strong>' + email + '</strong>.</p>'
+        + '<p style="font-size:.82rem;color:var(--muted)">Your existing WowBox account has been linked. Check your email at <strong>' + email + '</strong> for a verification link to activate your partner account.</p>'
         + '</div>';
-      setTimeout(function(){ modal.remove(); }, 3000);
+      setTimeout(function(){ modal.remove(); }, 4000);
     }
   } catch(e) {
     if (errEl) { errEl.textContent = 'Sign in failed: ' + (e.message||'Incorrect password.'); errEl.style.display = 'block'; }
@@ -21400,7 +21610,7 @@ async function renderAdmPartnerApps() {
     (partRes.data||[]).forEach(function(p){ partMap[p.contact_email] = p; });
 
     if (!apps.length) {
-      listEl.innerHTML = '<div style="padding:24px;text-align:center;color:var(--muted);font-size:.85rem"><i class="fa fa-inbox" style="font-size:1.5rem;opacity:.3;display:block;margin-bottom:8px"></i>No pending applications.</div>';
+      listEl.innerHTML = '<div style="padding:24px;text-align:center;color:var(--muted);font-size:.85rem"><i class="fa fa-inbox" style="font-size:1.5rem;opacity:.3;display:block;margin-bottom:8px"></i>No applications awaiting verification.</div>';
       return;
     }
     listEl.innerHTML = apps.map(function(a) {
@@ -21414,7 +21624,7 @@ async function renderAdmPartnerApps() {
       return '<div class="atbl" style="margin-bottom:12px">'
         + '<div class="atbl-hdr" style="background:linear-gradient(135deg,#fffbeb,#fef3c7)">'
         + '<span style="font-weight:600;font-size:.85rem;color:var(--navy)">' + (a.partner_name||a.full_name||'Unknown') + '</span>'
-        + '<span class="sbadge sb-p" style="margin-left:8px">Pending</span>'
+        + '<span class="sbadge sb-p" style="margin-left:8px">Awaiting verification</span>'
         + '<span style="font-size:.72rem;color:var(--muted);margin-left:auto">' + date + '</span>'
         + '</div>'
         + '<div style="padding:14px 18px">'
@@ -21435,8 +21645,7 @@ async function renderAdmPartnerApps() {
         + '</div>'
         + (p.experience_description ? '<div style="background:var(--bg);border-radius:8px;padding:10px 14px;font-size:.78rem;color:var(--navy);margin-bottom:12px"><strong>Experience description:</strong><br>' + p.experience_description + '</div>' : '')
         + '<div style="display:flex;gap:8px">'
-        + '<button class="btn bgreen bsm" onclick="admApprovePartner(\''+a.id+'\')"><i class="fa fa-check"></i> Approve</button>'
-        + '<button class="btn bg bsm" style="color:var(--red);border-color:#fca5a5" onclick="admRejectPartner(\''+a.id+'\')"><i class="fa fa-xmark"></i> Reject</button>'
+        + '<button class="btn bp bsm" onclick="admResendPartnerVerification(\''+a.id+'\',\''+a.email+'\')"><i class="fa fa-paper-plane"></i> Resend verification email</button>'
         + '</div>'
         + '</div></div>';
     }).join('');
@@ -21444,6 +21653,31 @@ async function renderAdmPartnerApps() {
     if (b) { b.textContent = apps.length; b.style.display = apps.length ? '' : 'none'; }
   } catch(e) {
     if (listEl) listEl.innerHTML = '<div style="padding:16px;color:#dc2626;font-size:.82rem">Error: ' + (e.message||'unknown') + '</div>';
+  }
+}
+
+// Generates a fresh token (invalidating any previous one) and re-sends the
+// verification email — used from the admin "awaiting verification" list when
+// an applicant lost their link or it expired.
+async function admResendPartnerVerification(userId, email) {
+  try {
+    var profRes = await db_client.from('user_profiles').select('email,full_name,partner_name').eq('id', userId).single();
+    if (profRes.error || !profRes.data) throw new Error('Could not find this applicant.');
+    var newToken = (Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2) + Date.now().toString(36));
+    var newExpires = new Date(Date.now() + 48*3600*1000).toISOString();
+    await db_client.from('user_profiles').update({
+      email_verify_token: newToken,
+      email_verify_expires_at: newExpires,
+    }).eq('id', userId);
+    var res = await fetch('/api/send-email', { method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ type:'partner_verify_email', data:{
+        email: profRes.data.email, name: profRes.data.full_name || '', bizName: profRes.data.partner_name || '', token: newToken
+      }})
+    });
+    if (!res.ok) throw new Error('Email send failed (' + res.status + ')');
+    admToast('✅ Verification email resent to ' + (email || profRes.data.email));
+  } catch (e) {
+    admToast('Error: ' + e.message);
   }
 }
 
@@ -28615,15 +28849,68 @@ window.addEventListener('DOMContentLoaded', async () => {
         if (sessionRes.data && sessionRes.data.session) {
           var userId = sessionRes.data.session.user.id;
           var email  = sessionRes.data.session.user.email;
+
+          // Block re-linking if this account is already an active partner.
+          var glExisting = await db_client.from('user_profiles').select('role,status').eq('id', userId).maybeSingle();
+          if (glExisting.data && glExisting.data.role === 'partner' && glExisting.data.status === 'active') {
+            admToast('This account is already an active partner.');
+            sessionStorage.removeItem('wb_pending_partner_app');
+            return;
+          }
+
           await db_client.from('user_profiles').update({ role: 'pending_partner', status: 'pending' }).eq('id', userId);
           var pendingApp = JSON.parse(sessionStorage.getItem('wb_pending_partner_app') || 'null');
           if (pendingApp) {
+            var glPartnersOk = false;
+            for (var glAttempt = 1; glAttempt <= 3 && !glPartnersOk; glAttempt++) {
+              try {
+                var glInsRes = await db_client.from('partners').insert(Object.assign({}, pendingApp, { contact_email: email }));
+                if (!glInsRes.error) { glPartnersOk = true; }
+                else { console.warn('partners insert after google link attempt ' + glAttempt + ':', glInsRes.error.message); }
+              } catch(e2) { console.warn('partners insert after google link attempt ' + glAttempt + ' (exception):', e2.message); }
+              if (!glPartnersOk && glAttempt < 3) { await new Promise(function(resolve){ setTimeout(resolve, 800 * glAttempt); }); }
+            }
+            if (glPartnersOk) {
+              try {
+                var glVerifyRes = await db_client.from('partners').select('id').eq('contact_email', email).maybeSingle();
+                if (!glVerifyRes.data) glPartnersOk = false;
+              } catch (e3) { glPartnersOk = false; }
+            }
+            if (!glPartnersOk) {
+              try {
+                await fetch('/api/send-email', { method:'POST', headers:{'Content-Type':'application/json'},
+                  body: JSON.stringify({ type:'partner_record_missing', data:{
+                    bizName: pendingApp.business_name, email: email, phone: pendingApp.contact_phone, city: pendingApp.location, type: pendingApp.category
+                  }})
+                });
+              } catch (e4) { console.error('partner_record_missing alert failed:', e4.message); }
+            }
             try {
-              await db_client.from('partners').insert(Object.assign({}, pendingApp, { contact_email: email }));
-            } catch(e2) { console.warn('partners insert after google link:', e2.message); }
+              var glNotifRes = await fetch('/api/send-email', { method:'POST', headers:{'Content-Type':'application/json'},
+                body: JSON.stringify({ type:'admin_new_partner', data:{
+                  bizName: pendingApp.business_name, name: pendingApp.contact_name, email: email, phone: pendingApp.contact_phone, location: pendingApp.location, type: pendingApp.category
+                }})
+              });
+              if (!glNotifRes.ok) console.error('admin_new_partner notification failed:', glNotifRes.status, await glNotifRes.text());
+            } catch (notifErr3) { console.error('admin_new_partner notification error:', notifErr3.message); }
+
+            var glVerifyToken = (Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2) + Date.now().toString(36));
+            var glVerifyExpires = new Date(Date.now() + 48*3600*1000).toISOString();
+            try {
+              await db_client.from('user_profiles').update({
+                email_verify_token: glVerifyToken,
+                email_verify_expires_at: glVerifyExpires,
+              }).eq('id', userId);
+              await fetch('/api/send-email', { method:'POST', headers:{'Content-Type':'application/json'},
+                body: JSON.stringify({ type:'partner_verify_email', data:{
+                  email: email, name: pendingApp.contact_name, bizName: pendingApp.business_name, token: glVerifyToken
+                }})
+              });
+            } catch (eTok3) { console.error('verify token/email failed:', eTok3.message); }
+
             sessionStorage.removeItem('wb_pending_partner_app');
           }
-          admToast('✅ Your account is now linked as a pending partner. We will review your application within 24 hours.');
+          admToast('✅ Application submitted! Check your email to verify and activate your partner account.');
         }
       } catch(e) { console.warn('Google link completion:', e.message); }
     }, 800);
