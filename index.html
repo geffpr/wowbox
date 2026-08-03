@@ -18879,6 +18879,105 @@ function wbBoxPurchasable(box) {
   return !box || box.is_purchasable !== false;
 }
 
+// ── Welcome discount popup (site-wide, once per session) ───────────────────
+// Modern two-column style: real box image (random each time) + a real,
+// working coupon revealed only after leaving an email. Same non-intrusive
+// trigger pattern as the partner page's email-capture popup (20s dwell OR
+// 50% scroll), never shown immediately, never to staff, never twice per
+// session.
+var WB_WELCOME_POPUP_IMAGES = [
+  'Adventure_Premium.png','Celebration.png','Chill_box.png','City_break.png',
+  'Couples_retreat.png','Family_fun.png','Reset.png','Road_trip.png',
+  'Signature_experience.png','Surprise.png'
+].map(function(f){ return 'https://gfqxuygfkzgmotnxrlwb.supabase.co/storage/v1/object/public/site-assets/wowbox%20packages/' + f; });
+
+function wbSetupWelcomePopup() {
+  if (sessionStorage.getItem('wb_welcome_popup_shown')) return;
+  if (currentUser && ['partner','admin','creator'].indexOf(currentUser.role) !== -1) return;
+  var path = window.location.pathname;
+  if (path.startsWith('/admin') || path.startsWith('/partner') || path === '/verify-partner' || path === '/reset-password' || path === '/checkout') return;
+
+  var shown = false;
+  function maybeShow() {
+    if (shown || sessionStorage.getItem('wb_welcome_popup_shown')) return;
+    shown = true;
+    sessionStorage.setItem('wb_welcome_popup_shown', '1');
+    wbShowWelcomePopup();
+    window.removeEventListener('scroll', onScroll);
+    clearTimeout(delayTimer);
+  }
+  function onScroll() {
+    var scrolled = window.scrollY + window.innerHeight;
+    var full = document.body.scrollHeight;
+    if (full > 0 && scrolled / full > 0.5) maybeShow();
+  }
+  window.addEventListener('scroll', onScroll, { passive: true });
+  var delayTimer = setTimeout(maybeShow, 20000);
+}
+
+function wbShowWelcomePopup() {
+  var old = document.getElementById('wb-welcome-popup');
+  if (old) old.remove();
+  var img = WB_WELCOME_POPUP_IMAGES[Math.floor(Math.random() * WB_WELCOME_POPUP_IMAGES.length)];
+  var modal = document.createElement('div');
+  modal.id = 'wb-welcome-popup';
+  modal.style.cssText = 'position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(44,26,14,.55);backdrop-filter:blur(3px)';
+  modal.innerHTML = '<div style="background:#fff;border-radius:18px;max-width:640px;width:100%;display:flex;overflow:hidden;box-shadow:0 24px 60px rgba(0,0,0,.3);position:relative">'
+    + '<button onclick="document.getElementById(\'wb-welcome-popup\').remove()" style="position:absolute;top:14px;right:14px;z-index:2;background:rgba(255,255,255,.85);border:none;border-radius:50%;width:30px;height:30px;font-size:1rem;color:#2c1a0e;cursor:pointer;line-height:1">✕</button>'
+    + '<div style="flex:1 1 42%;min-width:0"><img src="' + img + '" alt="" style="width:100%;height:100%;object-fit:cover;display:block;min-height:280px"></div>'
+    + '<div style="flex:1 1 58%;padding:32px 28px;display:flex;flex-direction:column;justify-content:center;text-align:center">'
+    + '<div id="wb-welcome-step-1">'
+    + '<div style="font-size:.72rem;font-weight:700;letter-spacing:.08em;color:#b45309;text-transform:uppercase;margin-bottom:8px">Launching soon</div>'
+    + '<h2 style="font-family:Georgia,serif;font-size:1.6rem;font-weight:700;color:#2c1a0e;margin:0 0 10px;line-height:1.15">Get 10% off<br>at launch</h2>'
+    + '<p style="font-size:.85rem;color:#8a6a50;margin:0 0 20px">Leave your email and we\'ll unlock your code instantly.</p>'
+    + '<input type="email" id="wb-welcome-email" placeholder="you@example.com" class="fi" style="width:100%;margin-bottom:10px;text-align:center">'
+    + '<button type="button" class="btn bp block" onclick="wbSubmitWelcomePopup()">Unlock my 10% off</button>'
+    + '<div id="wb-welcome-error" style="color:#dc2626;font-size:.75rem;margin-top:8px;display:none"></div>'
+    + '</div>'
+    + '<div id="wb-welcome-step-2" style="display:none">'
+    + '<div style="font-size:2rem;margin-bottom:8px">🎉</div>'
+    + '<h2 style="font-family:Georgia,serif;font-size:1.3rem;font-weight:700;color:#2c1a0e;margin:0 0 14px">Here\'s your code!</h2>'
+    + '<div style="display:flex;align-items:center;gap:8px;background:var(--bg,#fdf6ee);border:1.5px dashed #d4a853;border-radius:10px;padding:12px 16px;margin-bottom:14px">'
+    + '<strong id="wb-welcome-code" style="flex:1;font-size:1.05rem;letter-spacing:.05em;color:#2c1a0e">WELCOME10</strong>'
+    + '<button type="button" onclick="wbCopyWelcomeCode()" style="background:#2c1a0e;color:#fff;border:none;border-radius:8px;padding:8px 14px;font-size:.75rem;font-weight:600;cursor:pointer;white-space:nowrap">Copy code</button>'
+    + '</div>'
+    + '<p style="font-size:.78rem;color:#8a6a50;margin:0">Save it — use it at checkout once WowBox launches.</p>'
+    + '</div>'
+    + '</div></div>';
+  document.body.appendChild(modal);
+  modal.addEventListener('click', function(ev){ if (ev.target === modal) modal.remove(); });
+}
+
+async function wbSubmitWelcomePopup() {
+  var emailEl = document.getElementById('wb-welcome-email');
+  var errEl   = document.getElementById('wb-welcome-error');
+  var email = emailEl ? emailEl.value.trim() : '';
+  if (!email || !email.includes('@')) {
+    if (errEl) { errEl.textContent = 'Please enter a valid email address.'; errEl.style.display = 'block'; }
+    return;
+  }
+  if (errEl) errEl.style.display = 'none';
+  try {
+    var res = await db_client.from('waitlist').insert({ email: email, signup_type: 'welcome_discount' });
+    if (res.error && res.error.code !== '23505') throw res.error;
+  } catch (e) {
+    console.warn('wbSubmitWelcomePopup:', e.message);
+    // Still reveal the code even if the save failed — don't punish the visitor for our error.
+  }
+  var step1 = document.getElementById('wb-welcome-step-1');
+  var step2 = document.getElementById('wb-welcome-step-2');
+  if (step1) step1.style.display = 'none';
+  if (step2) step2.style.display = 'block';
+}
+
+function wbCopyWelcomeCode() {
+  var codeEl = document.getElementById('wb-welcome-code');
+  if (!codeEl) return;
+  navigator.clipboard.writeText(codeEl.textContent.trim()).then(function(){
+    admToast('✅ Code copied!');
+  }).catch(function(){});
+}
+
 function wbShowNotifyMeModal() {
   var old = document.getElementById('wb-notify-modal');
   if (old) old.remove();
@@ -28800,6 +28899,7 @@ async function loadSiteSettingsOnStartup() {
     // Check pre-launch mode first
     await checkPrelaunchMode();
     wbCheckPartnerBanner();
+    wbSetupWelcomePopup();
     loadPaystackMode();
     var res = await db_client.from('site_settings').select('key,value');
     if (res.error || !res.data) return;
