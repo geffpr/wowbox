@@ -7307,82 +7307,139 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 
       <!-- SIGN UP FORM -->
       <div id="pl-form-signup">
-        <div class="fg"><label>Business name *</label><input class="fi" id="pl-biz-name" type="text" placeholder="The Vineyard Hotel"></div>
-        <div class="fg"><label>Contact person *</label><input class="fi" id="pl-contact" type="text" placeholder="Your full name"></div>
-        <div class="fg"><label>Email address *</label><input class="fi" id="pl-email" type="email" placeholder="hello@yourplace.co.za"></div>
-        <div class="fg"><label>Phone number *</label><input class="fi" id="pl-phone" type="tel" placeholder="083 000 0000"></div>
-        <div class="fg">
-          <label>Type of experience *</label>
-          <select class="fi" id="pl-type" style="cursor:pointer">
-            <option value="">Select a category...</option>
-            <option>Hotel / Lodge</option>
-            <option>Restaurant / Dining</option>
-            <option>Spa / Wellness</option>
-            <option>Safari / Wildlife</option>
-            <option>Hiking / Outdoor</option>
-            <option>Wine / Winelands</option>
-            <option>Adventure Activity</option>
-            <option>Cultural Experience</option>
-            <option>Other</option>
-          </select>
-        </div>
-        <div class="fg"><label>Business registration number (CIPC) <span style="color:var(--muted);font-weight:400">(optional)</span></label><input class="fi" id="pl-reg-num" type="text" placeholder="e.g. 2023/123456/07"></div>
-        <div class="fg">
-          <label>Business type *</label>
-          <select class="fi" id="pl-biz-type">
-            <option value="">Select...</option>
-            <option>Sole Proprietor</option>
-            <option>Private Company (Pty) Ltd</option>
-            <option>Close Corporation (CC)</option>
-            <option>Trust</option>
-            <option>Non-Profit Organisation</option>
-            <option>Other</option>
-          </select>
-        </div>
-        <div class="fg"><label>VAT number <span style="color:var(--muted);font-weight:400">(optional)</span></label><input class="fi" id="pl-vat" type="text" placeholder="e.g. 4123456789"></div>
-        <div class="fg"><label>Website or Instagram URL <span style="color:var(--muted);font-weight:400">(optional)</span></label><input class="fi" id="pl-website" type="url" placeholder="https://yoursite.co.za or @handle"></div>
-        <div class="fg"><label>Brief description of your experience(s) *</label><textarea class="fi" id="pl-exp-desc" rows="3" placeholder="Tell us what guests will experience — location, activity, what makes it special…" style="resize:vertical"></textarea></div>
-        <div class="fg" style="margin-bottom:4px">
-          <label>Address / Location *</label>
-          <input class="fi" id="pl-city" type="text" placeholder="Start typing your address or venue…" autocomplete="off">
-          <input type="hidden" id="pl-lat">
-          <input type="hidden" id="pl-lng">
-          <div style="font-size:.7rem;color:var(--muted);margin-top:4px"><i class="fa fa-map-pin" style="color:var(--b500)"></i> Select from the dropdown to auto-fill coordinates</div>
-        </div>
-        <div class="fg">
-          <label>Password *</label>
-          <div style="position:relative">
-            <input class="fi" id="pl-password" type="password" placeholder="Min. 8 characters, 1 number & 1 symbol" oninput="wbUpdatePwIndicators(this.value,['pl-pw-indicator']);plCheckPwMatch()" style="padding-right:40px">
-            <button type="button" onclick="authTogglePw('pl-password',this)" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--muted);font-size:.9rem;padding:0"><i class="fa fa-eye"></i></button>
+        <!-- WIZARD PROGRESS -->
+        <div style="margin-bottom:22px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+            <span id="pl-wizard-step-label" style="font-size:.8rem;font-weight:700;color:var(--navy)">Step 1 of 4</span>
+            <span style="font-size:.75rem;color:var(--muted)"><i class="fa-regular fa-clock" style="margin-right:4px"></i>Takes about 2 minutes</span>
           </div>
-          <div class="wb-pw-indicator" id="pl-pw-indicator" style="display:none;margin-top:8px;margin-bottom:4px">
-            <div style="display:flex;gap:4px;margin-bottom:6px">
-              <div class="wb-pw-bar" style="flex:1;height:4px;border-radius:2px;background:var(--border);transition:background .2s"></div>
-              <div class="wb-pw-bar" style="flex:1;height:4px;border-radius:2px;background:var(--border);transition:background .2s"></div>
-              <div class="wb-pw-bar" style="flex:1;height:4px;border-radius:2px;background:var(--border);transition:background .2s"></div>
+          <div style="display:flex;gap:5px;margin-bottom:16px">
+            <div class="pl-wizard-seg" id="pl-wseg-1" style="flex:1;height:5px;border-radius:3px;background:var(--b500);transition:background .2s"></div>
+            <div class="pl-wizard-seg" id="pl-wseg-2" style="flex:1;height:5px;border-radius:3px;background:var(--border);transition:background .2s"></div>
+            <div class="pl-wizard-seg" id="pl-wseg-3" style="flex:1;height:5px;border-radius:3px;background:var(--border);transition:background .2s"></div>
+            <div class="pl-wizard-seg" id="pl-wseg-4" style="flex:1;height:5px;border-radius:3px;background:var(--border);transition:background .2s"></div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:6px">
+            <div style="font-size:.78rem;color:#7a3b1e"><i class="fa fa-check" style="color:var(--b500);margin-right:6px"></i>Free to join</div>
+            <div style="font-size:.78rem;color:#7a3b1e"><i class="fa fa-check" style="color:var(--b500);margin-right:6px"></i>No upfront fees</div>
+            <div style="font-size:.78rem;color:#7a3b1e"><i class="fa fa-check" style="color:var(--b500);margin-right:6px"></i>We'll help you create your first experience</div>
+          </div>
+        </div>
+
+        <!-- STEP 1 -->
+        <div id="pl-step-1" class="pl-wizard-step">
+          <h3 style="font-family:Georgia,serif;font-size:1.1rem;color:var(--navy);margin-bottom:16px">Tell us about your business</h3>
+          <div class="fg"><label>Business name *</label><input class="fi" id="pl-biz-name" type="text" placeholder="The Vineyard Hotel"></div>
+          <div class="fg"><label>Contact person *</label><input class="fi" id="pl-contact" type="text" placeholder="Your full name"></div>
+          <div class="fg"><label>Email address *</label><input class="fi" id="pl-email" type="email" placeholder="hello@yourplace.co.za"></div>
+          <div class="fg"><label>Phone number *</label><input class="fi" id="pl-phone" type="tel" placeholder="083 000 0000"></div>
+          <div id="pl-step1-error" style="display:none;color:#dc2626;font-size:.78rem;margin-bottom:10px"></div>
+          <button type="button" class="btn bp block" onclick="plWizardNext(1)">Continue</button>
+        </div>
+
+        <!-- STEP 2 -->
+        <div id="pl-step-2" class="pl-wizard-step" style="display:none">
+          <h3 style="font-family:Georgia,serif;font-size:1.1rem;color:var(--navy);margin-bottom:16px">Tell us about your experience</h3>
+          <div class="fg">
+            <label>Type of experience *</label>
+            <select class="fi" id="pl-type" style="cursor:pointer">
+              <option value="">Select a category...</option>
+              <option>Hotel / Lodge</option>
+              <option>Restaurant / Dining</option>
+              <option>Spa / Wellness</option>
+              <option>Safari / Wildlife</option>
+              <option>Hiking / Outdoor</option>
+              <option>Wine / Winelands</option>
+              <option>Adventure Activity</option>
+              <option>Cultural Experience</option>
+              <option>Other</option>
+            </select>
+          </div>
+          <div class="fg"><label>Brief description of your experience(s) *</label><textarea class="fi" id="pl-exp-desc" rows="3" placeholder="Tell us what guests will experience — location, activity, what makes it special…" style="resize:vertical"></textarea></div>
+          <div class="fg"><label>Website or Instagram URL <span style="color:var(--muted);font-weight:400">(optional)</span></label><input class="fi" id="pl-website" type="url" placeholder="https://yoursite.co.za or @handle"></div>
+          <div class="fg" style="margin-bottom:4px">
+            <label>Address / Location *</label>
+            <input class="fi" id="pl-city" type="text" placeholder="Start typing your address or venue…" autocomplete="off">
+            <input type="hidden" id="pl-lat">
+            <input type="hidden" id="pl-lng">
+            <div style="font-size:.7rem;color:var(--muted);margin-top:4px"><i class="fa fa-map-pin" style="color:var(--b500)"></i> Select from the dropdown to auto-fill coordinates</div>
+          </div>
+          <div id="pl-step2-error" style="display:none;color:#dc2626;font-size:.78rem;margin:10px 0"></div>
+          <div style="display:flex;gap:10px">
+            <button type="button" class="btn bg" style="flex:1" onclick="plWizardBack(2)">← Back</button>
+            <button type="button" class="btn bp" style="flex:2" onclick="plWizardNext(2)">Continue</button>
+          </div>
+        </div>
+
+        <!-- STEP 3 -->
+        <div id="pl-step-3" class="pl-wizard-step" style="display:none">
+          <h3 style="font-family:Georgia,serif;font-size:1.1rem;color:var(--navy);margin-bottom:16px">Business information</h3>
+          <div class="fg">
+            <label>Business type *</label>
+            <select class="fi" id="pl-biz-type">
+              <option value="">Select...</option>
+              <option>Sole Proprietor</option>
+              <option>Private Company (Pty) Ltd</option>
+              <option>Close Corporation (CC)</option>
+              <option>Trust</option>
+              <option>Non-Profit Organisation</option>
+              <option>Other</option>
+            </select>
+          </div>
+          <div style="background:var(--b50);border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-top:6px">
+            <div style="font-size:.72rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:12px">Optional business information</div>
+            <div class="fg"><label>Business registration number (CIPC) <span style="color:var(--muted);font-weight:400">(optional)</span></label><input class="fi" id="pl-reg-num" type="text" placeholder="e.g. 2023/123456/07"></div>
+            <div class="fg" style="margin-bottom:0"><label>VAT number <span style="color:var(--muted);font-weight:400">(optional)</span></label><input class="fi" id="pl-vat" type="text" placeholder="e.g. 4123456789"></div>
+          </div>
+          <div id="pl-step3-error" style="display:none;color:#dc2626;font-size:.78rem;margin:10px 0"></div>
+          <div style="display:flex;gap:10px;margin-top:16px">
+            <button type="button" class="btn bg" style="flex:1" onclick="plWizardBack(3)">← Back</button>
+            <button type="button" class="btn bp" style="flex:2" onclick="plWizardNext(3)">Continue</button>
+          </div>
+        </div>
+
+        <!-- STEP 4 -->
+        <div id="pl-step-4" class="pl-wizard-step" style="display:none">
+          <h3 style="font-family:Georgia,serif;font-size:1.1rem;color:var(--navy);margin-bottom:16px">Create your account</h3>
+          <div class="fg">
+            <label>Password *</label>
+            <div style="position:relative">
+              <input class="fi" id="pl-password" type="password" placeholder="Min. 8 characters, 1 number & 1 symbol" oninput="wbUpdatePwIndicators(this.value,['pl-pw-indicator']);plCheckPwMatch()" style="padding-right:40px">
+              <button type="button" onclick="authTogglePw('pl-password',this)" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--muted);font-size:.9rem;padding:0"><i class="fa fa-eye"></i></button>
             </div>
-            <div class="wb-pw-label" style="font-size:.72rem;font-weight:600;margin-bottom:4px"></div>
-            <ul style="list-style:none;padding:0;margin:0;font-size:.72rem;color:var(--muted)">
-              <li data-check="len" style="margin-bottom:2px"><i class="fa fa-circle" style="font-size:.5rem;margin-right:6px;color:var(--border)"></i>At least 8 characters</li>
-              <li data-check="num" style="margin-bottom:2px"><i class="fa fa-circle" style="font-size:.5rem;margin-right:6px;color:var(--border)"></i>At least 1 number</li>
-              <li data-check="special"><i class="fa fa-circle" style="font-size:.5rem;margin-right:6px;color:var(--border)"></i>At least 1 special character</li>
-            </ul>
+            <div class="wb-pw-indicator" id="pl-pw-indicator" style="display:none;margin-top:8px;margin-bottom:4px">
+              <div style="display:flex;gap:4px;margin-bottom:6px">
+                <div class="wb-pw-bar" style="flex:1;height:4px;border-radius:2px;background:var(--border);transition:background .2s"></div>
+                <div class="wb-pw-bar" style="flex:1;height:4px;border-radius:2px;background:var(--border);transition:background .2s"></div>
+                <div class="wb-pw-bar" style="flex:1;height:4px;border-radius:2px;background:var(--border);transition:background .2s"></div>
+              </div>
+              <div class="wb-pw-label" style="font-size:.72rem;font-weight:600;margin-bottom:4px"></div>
+              <ul style="list-style:none;padding:0;margin:0;font-size:.72rem;color:var(--muted)">
+                <li data-check="len" style="margin-bottom:2px"><i class="fa fa-circle" style="font-size:.5rem;margin-right:6px;color:var(--border)"></i>At least 8 characters</li>
+                <li data-check="num" style="margin-bottom:2px"><i class="fa fa-circle" style="font-size:.5rem;margin-right:6px;color:var(--border)"></i>At least 1 number</li>
+                <li data-check="special"><i class="fa fa-circle" style="font-size:.5rem;margin-right:6px;color:var(--border)"></i>At least 1 special character</li>
+              </ul>
+            </div>
+          </div>
+          <div class="fg">
+            <label>Confirm password *</label>
+            <div style="position:relative">
+              <input class="fi" id="pl-password-confirm" type="password" placeholder="Re-enter your password" oninput="plCheckPwMatch()" style="padding-right:40px">
+              <button type="button" onclick="authTogglePw('pl-password-confirm',this)" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--muted);font-size:.9rem;padding:0"><i class="fa fa-eye"></i></button>
+            </div>
+            <div id="pl-password-confirm-msg" style="display:none;font-size:.75rem;margin-top:4px"></div>
+          </div>
+          <label style="display:flex;align-items:flex-start;gap:10px;margin-bottom:18px;cursor:pointer;font-size:.8rem;color:#374151;line-height:1.5">
+            <input type="checkbox" id="pl-terms" style="margin-top:2px;flex-shrink:0;width:15px;height:15px;cursor:pointer">
+            <span>I have read and agree to the WowBox <a href="/terms" target="_blank" style="color:var(--b600);text-decoration:underline">Partner Terms & Conditions</a> and confirm I am authorised to list services on behalf of my business. *</span>
+          </label>
+          <div style="font-size:.72rem;color:#8a6a50;margin-bottom:18px">Check your email for a verification link to activate your account.</div>
+          <div style="display:flex;gap:10px">
+            <button type="button" class="btn bg" style="flex:1" onclick="plWizardBack(4)">← Back</button>
+            <button type="button" class="btn bp" style="flex:2" id="pl-submit-btn" onclick="plSubmitPartner()"><i class="fa fa-paper-plane"></i> Join WowBox</button>
           </div>
         </div>
-        <div class="fg">
-          <label>Confirm password *</label>
-          <div style="position:relative">
-            <input class="fi" id="pl-password-confirm" type="password" placeholder="Re-enter your password" oninput="plCheckPwMatch()" style="padding-right:40px">
-            <button type="button" onclick="authTogglePw('pl-password-confirm',this)" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--muted);font-size:.9rem;padding:0"><i class="fa fa-eye"></i></button>
-          </div>
-          <div id="pl-password-confirm-msg" style="display:none;font-size:.75rem;margin-top:4px"></div>
-        </div>
-        <label style="display:flex;align-items:flex-start;gap:10px;margin-bottom:18px;cursor:pointer;font-size:.8rem;color:#374151;line-height:1.5">
-          <input type="checkbox" id="pl-terms" style="margin-top:2px;flex-shrink:0;width:15px;height:15px;cursor:pointer">
-          <span>I have read and agree to the WowBox <a href="/terms" target="_blank" style="color:var(--b600);text-decoration:underline">Partner Terms & Conditions</a> and confirm I am authorised to list services on behalf of my business. *</span>
-        </label>
-        <div style="font-size:.72rem;color:#8a6a50;margin-bottom:18px">Check your email for a verification link to activate your account.</div>
-        <button type="button" class="btn bp block" id="pl-submit-btn" onclick="plSubmitPartner()"><i class="fa fa-paper-plane"></i> Submit application</button>
+
         <div id="pl-error-bottom" style="display:none;background:#fee2e2;border:1px solid #fca5a5;border-radius:8px;padding:10px 14px;font-size:.78rem;color:#991b1b;margin-top:14px"></div>
         <div id="pl-success-bottom" style="display:none;background:#d1fae5;border:1px solid #6ee7b7;border-radius:8px;padding:10px 14px;font-size:.78rem;color:#065f46;margin-top:14px"></div>
       </div>
@@ -17148,6 +17205,62 @@ function plSwitchTab(tab) {
   var sucEl = document.getElementById('pl-success');
   if (errEl) errEl.style.display = 'none';
   if (sucEl) sucEl.style.display = 'none';
+}
+
+// ── Partner signup wizard: purely presentational — plSubmitPartner() itself
+// (called only from step 4) is completely unchanged, still does its own full
+// validation as a safety net regardless of what these per-step checks catch.
+function plWizardShowStep(n) {
+  for (var i = 1; i <= 4; i++) {
+    var el = document.getElementById('pl-step-' + i);
+    if (el) el.style.display = (i === n) ? 'block' : 'none';
+    var seg = document.getElementById('pl-wseg-' + i);
+    if (seg) seg.style.background = (i <= n) ? 'var(--b500)' : 'var(--border)';
+  }
+  var lbl = document.getElementById('pl-wizard-step-label');
+  if (lbl) lbl.textContent = 'Step ' + n + ' of 4';
+}
+
+function plWizardValidateStep(n) {
+  var errEl = document.getElementById('pl-step' + n + '-error');
+  if (errEl) { errEl.style.display = 'none'; errEl.textContent = ''; }
+  function fail(msg) {
+    if (errEl) { errEl.textContent = msg; errEl.style.display = 'block'; }
+    return false;
+  }
+  if (n === 1) {
+    var biz = (document.getElementById('pl-biz-name') || {value:''}).value.trim();
+    var contact = (document.getElementById('pl-contact') || {value:''}).value.trim();
+    var email = (document.getElementById('pl-email') || {value:''}).value.trim();
+    if (!biz || !contact) return fail('Please fill in your business name and contact person.');
+    if (!wbIsValidEmail(email)) return fail('Please enter a valid email address.');
+    var phoneErr = wbPhoneDigitError(wbPhoneGetFull('pl-phone'));
+    if (phoneErr) return fail(phoneErr);
+    return true;
+  }
+  if (n === 2) {
+    var type = (document.getElementById('pl-type') || {value:''}).value;
+    var desc = (document.getElementById('pl-exp-desc') || {value:''}).value.trim();
+    var city = (document.getElementById('pl-city') || {value:''}).value.trim();
+    if (!type) return fail('Please select the type of experience.');
+    if (!desc) return fail('Please add a brief description of your experience.');
+    if (!city) return fail('Please add your address or location.');
+    return true;
+  }
+  if (n === 3) {
+    var bizType = (document.getElementById('pl-biz-type') || {value:''}).value;
+    if (!bizType) return fail('Please select your business type.');
+    return true;
+  }
+  return true;
+}
+
+function plWizardNext(fromStep) {
+  if (!plWizardValidateStep(fromStep)) return;
+  plWizardShowStep(fromStep + 1);
+}
+function plWizardBack(fromStep) {
+  plWizardShowStep(fromStep - 1);
 }
 
 function plCheckPwMatch() {
