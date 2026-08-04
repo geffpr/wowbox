@@ -7058,7 +7058,8 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 .pl-cat{border-radius:16px;overflow:hidden;position:relative;height:240px;cursor:pointer}
 .pl-cat img{width:100%;height:100%;object-fit:cover;transition:transform .4s}
 .pl-cat:hover img{transform:scale(1.05)}
-.pl-cat-label{position:absolute;bottom:0;left:0;right:0;padding:20px 16px 16px;background:linear-gradient(transparent,rgba(0,0,0,.75));color:#fff;font-weight:700;font-size:1rem}
+.pl-cat::before{content:'';position:absolute;inset:0;background:rgba(44,26,14,.28);z-index:1;pointer-events:none}
+.pl-cat-label{position:absolute;bottom:0;left:0;right:0;padding:20px 16px 16px;background:linear-gradient(transparent,rgba(0,0,0,.75));color:#fff;font-weight:700;font-size:1rem;z-index:2}
 
 .pl-benefits{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:28px}
 .pl-benefit{background:#fdf6ee;border-radius:16px;padding:28px;border:1px solid #e8d5c0}
