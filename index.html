@@ -25918,7 +25918,7 @@ function psInitBookingDatePickers() {
         onReady: function(d,s,inst){ inst.calendarContainer.style.zIndex='9999'; }
       });
     } else {
-      fp(el, { dateFormat:'d/m/Y', minDate:'today',
+      fp(el, { dateFormat:'d/m/Y', minDate:'today', disableMobile: true,
         onReady: function(d,s,inst){ inst.calendarContainer.style.zIndex='9999'; }
       });
     }
@@ -25971,11 +25971,11 @@ function psToggleBookingTab(btn, blockId) {
             onReady: function(d,s,inst){ inst.calendarContainer.style.zIndex='9999'; }
           });
         } else if (fid === 'ps-f-checkout') {
-          fp(el, { dateFormat:'d/m/Y', minDate:'today',
+          fp(el, { dateFormat:'d/m/Y', minDate:'today', disableMobile: true,
             onReady: function(d,s,inst){ inst.calendarContainer.style.zIndex='9999'; }
           });
         } else {
-          fp(el, { dateFormat:'d/m/Y', minDate:'today',
+          fp(el, { dateFormat:'d/m/Y', minDate:'today', disableMobile: true,
             onReady: function(d,s,inst){ inst.calendarContainer.style.zIndex='9999'; }
           });
         }
