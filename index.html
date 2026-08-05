@@ -25275,36 +25275,9 @@ function psRenderBlocks(blocks, p, color, exps, partnerContact, slug, barColor, 
     bookingEl.dataset.accentColor = color;
     bookingEl.dataset.textColor = barTextColor;
 
-    // Init Flatpickr date range on Check-in/Check-out
-    setTimeout(function() {
-      var cinEl  = document.getElementById('ps-f-checkin');
-      var coutEl = document.getElementById('ps-f-checkout');
-      if (cinEl && coutEl && (typeof flatpickr !== 'undefined' || window.flatpickr)) {
-        var fp = window.flatpickr || flatpickr;
-        fp(cinEl, {
-          mode: 'range',
-          dateFormat: 'd/m/Y',
-          minDate: 'today',
-          locale: { rangeSeparator: ' → ' },
-          onChange: function(dates) {
-            if (dates.length === 2 && coutEl._flatpickr) {
-              coutEl._flatpickr.setDate(dates[1]);
-              coutEl.value = fp.formatDate ? fp.formatDate(dates[1], 'd/m/Y') : '';
-            }
-          },
-          onReady: function(dates, s, fp) {
-            fp.calendarContainer.style.zIndex = '9999';
-          }
-        });
-        fp(coutEl, {
-          dateFormat: 'd/m/Y',
-          minDate: 'today',
-          onReady: function(dates, s, fp) {
-            fp.calendarContainer.style.zIndex = '9999';
-          }
-        });
-      }
-    }, 100);
+    // Init date pickers on whichever tab is shown by default (same shared
+    // logic used on every subsequent tab switch — see psInitBookingDatePickers)
+    setTimeout(psInitBookingDatePickers, 100);
 
     // Render initial tab
     psRenderFilteredExps([bookingBlocks[0].id], exps, color, CAT_MAP);
@@ -25920,6 +25893,36 @@ function psRenderFilteredExps(activeBlockIds, exps, color, catMap) {
     }
   }
   el.innerHTML = html;
+}
+
+// Shared Flatpickr init for all 5 possible date fields — used both on the
+// very first render (whichever tab is shown by default) and on every
+// subsequent tab switch, so no tab is ever left with the plain native input.
+function psInitBookingDatePickers() {
+  var fp = window.flatpickr || (typeof flatpickr !== 'undefined' ? flatpickr : null);
+  if (!fp) return;
+  var dateFields = ['ps-f-checkin','ps-f-checkout','ps-f-dine-date','ps-f-spa-date','ps-f-act-date'];
+  dateFields.forEach(function(fid) {
+    var el = document.getElementById(fid);
+    if (!el) return;
+    if (el._flatpickr) el._flatpickr.destroy();
+    if (fid === 'ps-f-checkin') {
+      fp(el, { mode:'range', dateFormat:'d/m/Y', minDate:'today',
+        locale:{ rangeSeparator:' → ' },
+        onChange: function(dates) {
+          var co = document.getElementById('ps-f-checkout');
+          if (dates.length===2 && co) {
+            if (co._flatpickr) co._flatpickr.setDate(dates[1]);
+          }
+        },
+        onReady: function(d,s,inst){ inst.calendarContainer.style.zIndex='9999'; }
+      });
+    } else {
+      fp(el, { dateFormat:'d/m/Y', minDate:'today',
+        onReady: function(d,s,inst){ inst.calendarContainer.style.zIndex='9999'; }
+      });
+    }
+  });
 }
 
 function psToggleBookingTab(btn, blockId) {
@@ -26606,6 +26609,10 @@ function ppBuilderSetMode(mode) {
     if (btnD) { btnD.style.background='var(--b600)'; btnD.style.color='#fff'; btnD.style.border='none'; }
     if (btnM) { btnM.style.background='var(--b50)'; btnM.style.color='var(--navy)'; btnM.style.border='1px solid var(--border)'; }
   }
+  // Re-render so the booking bar recalculates against the new width — without
+  // this, it stayed frozen in whichever layout (desktop/mobile) was built
+  // before the toggle, just visually clipped by the narrower frame.
+  if (typeof ppBuilderUpdate === 'function') ppBuilderUpdate();
 }
 
 function ppBuilderUpdatePublishPreview() {
