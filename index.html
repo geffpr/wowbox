@@ -8761,6 +8761,34 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
   </div>
 </div>
 
+<div id="ps-domain-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:600;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(4px)" onclick="if(event.target===this)document.getElementById('ps-domain-modal').style.display='none'">
+  <div style="background:var(--white);border-radius:var(--rx);padding:32px;max-width:480px;width:100%;box-shadow:var(--xl);position:relative;max-height:88vh;overflow-y:auto">
+    <button onclick="document.getElementById('ps-domain-modal').style.display='none'" style="position:absolute;top:14px;right:14px;width:30px;height:30px;border-radius:50%;background:var(--bg);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:.85rem;color:var(--muted)"><i class="fa fa-xmark"></i></button>
+    <h3 style="font-size:1.3rem;color:var(--navy);margin-bottom:5px"><i class="fa fa-globe" style="margin-right:8px"></i>Connect your domain</h3>
+    <p style="font-size:.78rem;color:var(--muted);margin-bottom:18px">Redirect your own domain to your WowBox page. Setup takes a few minutes and depends on your domain provider.</p>
+    <div style="background:var(--bg);border-radius:10px;padding:10px 14px;margin-bottom:18px;display:flex;align-items:center;justify-content:space-between;gap:10px">
+      <strong id="ps-domain-modal-url" style="font-size:.85rem;color:var(--navy);word-break:break-all">https://wowbox.co.za/wow/</strong>
+      <button type="button" onclick="navigator.clipboard.writeText(document.getElementById('ps-domain-modal-url').textContent).then(function(){admToast('✅ Link copied!')})" style="background:var(--navy);color:#fff;border:none;border-radius:6px;padding:6px 10px;font-size:.7rem;font-weight:600;cursor:pointer;white-space:nowrap;flex-shrink:0">Copy</button>
+    </div>
+    <div class="fg">
+      <label>Your domain provider</label>
+      <select class="fi" id="ps-domain-provider" onchange="psDomainShowInstructions()">
+        <option value="">Select your provider...</option>
+        <option value="namecheap">Namecheap</option>
+        <option value="godaddy">GoDaddy</option>
+        <option value="google">Google Domains</option>
+        <option value="ovh">OVH</option>
+        <option value="ionos">IONOS</option>
+        <option value="wix">Wix</option>
+        <option value="cloudflare">Cloudflare</option>
+        <option value="other">Other / not listed</option>
+      </select>
+    </div>
+    <div id="ps-domain-instructions" style="display:none;background:#fdf6ee;border:1px solid var(--border);border-radius:10px;padding:14px 16px;font-size:.8rem;color:var(--navy);line-height:1.6;margin-top:4px"></div>
+    <button type="button" class="btn bp block" style="margin-top:18px" onclick="document.getElementById('ps-domain-modal').style.display='none'">Done</button>
+  </div>
+</div>
+
 <!-- ═══════════════════════ PAGE: ADMIN ══════════════════════════ -->
 <div id="page-admin" class="page">
   <div class="adm-layout">
@@ -21773,6 +21801,34 @@ function admRemoveExpImg(idx) {
   admExpImgUrls.splice(idx, 1);
   renderExpGallery();
 }
+// Keeps each partner's public "My Page" experience list (page_experiences) in
+// sync whenever an experience's owner changes: removes it from the old
+// partner's page, adds it to the new one's. Non-blocking on failure — the
+// core experience save (partner_email itself) must never be undone by this.
+async function admSyncPageExperiences(expId, oldEmail, newEmail) {
+  if (!expId || oldEmail === newEmail) return;
+  try {
+    if (oldEmail) {
+      var oldRes = await db_client.from('user_profiles').select('page_experiences').eq('email', oldEmail).maybeSingle();
+      var oldList = (oldRes.data && Array.isArray(oldRes.data.page_experiences)) ? oldRes.data.page_experiences : [];
+      var filtered = oldList.filter(function(x){ return x && x.id !== expId; });
+      if (filtered.length !== oldList.length) {
+        await db_client.from('user_profiles').update({ page_experiences: filtered }).eq('email', oldEmail);
+      }
+    }
+    if (newEmail) {
+      var newRes = await db_client.from('user_profiles').select('page_experiences').eq('email', newEmail).maybeSingle();
+      var newList = (newRes.data && Array.isArray(newRes.data.page_experiences)) ? newRes.data.page_experiences.slice() : [];
+      if (!newList.some(function(x){ return x && x.id === expId; })) {
+        newList.push({ id: expId });
+        await db_client.from('user_profiles').update({ page_experiences: newList }).eq('email', newEmail);
+      }
+    }
+  } catch (e) {
+    console.error('admSyncPageExperiences failed:', e.message);
+  }
+}
+
 async function admSaveExp() {
   const name    = document.getElementById('aef-name')?.value?.trim();
   const partner = document.getElementById('aef-partner')?.value?.trim() || '';
@@ -21820,6 +21876,16 @@ async function admSaveExp() {
   if (imgs.length < 3) { admToast('Please upload at least 3 photos for this experience.'); return; }
   const videoUrl = document.getElementById('aef-video-url')?.value?.trim() || null;
   const videoPosition = parseInt(document.getElementById('aef-video-position')?.value) || 1;
+
+  // Capture the current owner (before this save overwrites it) so we can keep
+  // "My Page" in sync on both sides if the partner is being changed.
+  var oldPartnerEmail = null;
+  if (appState.editingExpId) {
+    try {
+      var oldExpRes = await db_client.from('experiences').select('partner_email').eq('id', appState.editingExpId).maybeSingle();
+      oldPartnerEmail = oldExpRes.data ? oldExpRes.data.partner_email : null;
+    } catch (e) { console.warn('could not fetch previous partner_email:', e.message); }
+  }
 
   const payload = {
     name,
@@ -21885,6 +21951,9 @@ async function admSaveExp() {
         if (insRes.error) { admToast('⚠️ Saved but database links failed: ' + insRes.error.message); return; }
       }
     }
+
+    // Keep each partner's public "My Page" list consistent with the real owner
+    await admSyncPageExperiences(savedId, oldPartnerEmail, linkedPartnerEmail);
 
     admHideExpForm();
     admToast('✅ Experience saved to Supabase!');
