@@ -20828,7 +20828,10 @@ function admSelectLinkedPartner(email, name) {
   if (!ok) return;
   document.getElementById('aef-linked-partner').value = email;
   var nameEl = document.getElementById('aef-partner');
-  if (nameEl && !nameEl.value.trim()) nameEl.value = name;
+  // Always match the newly selected partner's name, even if this field already
+  // had text — previously this only filled empty fields, which meant a stale
+  // name from a prior owner silently stuck around after every transfer.
+  if (nameEl) nameEl.value = name;
   admShowLinkedPartnerDisplay(email, name);
   var box = document.getElementById('aef-linked-partner-suggestions');
   if (box) { box.style.display = 'none'; box.innerHTML = ''; }
