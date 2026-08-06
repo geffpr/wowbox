@@ -20884,9 +20884,11 @@ async function admShowExpFormById(expId) {
     // ── Add new experience ──
     document.getElementById('adm-exp-form-title').textContent = 'Add new experience';
     ['aef-name','aef-partner','aef-loc','aef-lat','aef-lng','aef-desc','aef-cap',
-     'aef-certification','aef-ical','aef-opening','aef-closing','aef-slot-duration','aef-cancel-note'].forEach(function(id){
+     'aef-certification','aef-ical','aef-opening','aef-closing','aef-slot-duration','aef-cancel-note',
+     'aef-video-url'].forEach(function(id){
       var el = document.getElementById(id); if (el) el.value = '';
     });
+    var vPosResetEl = document.getElementById('aef-video-position'); if (vPosResetEl) vPosResetEl.value = 1;
     var cancelSel = document.getElementById('aef-cancel-hours'); if (cancelSel) cancelSel.value = '24';
     var el;
     el = document.getElementById('aef-rt');           if (el) el.value   = '';
@@ -20949,6 +20951,10 @@ async function admShowExpFormById(expId) {
     document.getElementById('aef-slot-duration').value = e.slot_duration_minutes || '';
     document.getElementById('aef-cancel-hours').value  = e.cancellation_hours || 24;
     document.getElementById('aef-cancel-note').value   = e.cancellation_note || '';
+    var vUrlElA = document.getElementById('aef-video-url');
+    var vPosElA = document.getElementById('aef-video-position');
+    if (vUrlElA) vUrlElA.value = e.video_url || '';
+    if (vPosElA) vPosElA.value = e.video_position || 1;
 
     var el;
     el = document.getElementById('aef-rt');           if (el) el.value   = e.reservation_type       || '';
@@ -21926,7 +21932,8 @@ async function admSaveExp() {
     ...(slotDuration ? { slot_duration_minutes: slotDuration } : {}),
     ...(cancelHours ? { cancellation_hours: cancelHours } : {}),
     ...(cancelNote ? { cancellation_note: cancelNote } : {}),
-    ...(videoUrl ? { video_url: videoUrl, video_position: videoPosition } : {}),
+    video_url:          videoUrl,
+    video_position:     videoUrl ? videoPosition : null,
   };
 
   try {
