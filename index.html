@@ -22241,7 +22241,9 @@ async function admImpPreview() {
     var res = await fetch(url);
     if (!res.ok) throw new Error('Could not fetch the sheet (HTTP ' + res.status + '). Make sure it is published to the web as CSV.');
     var csvText = await res.text();
-    var parsed = Papa.parse(csvText, { header: true, skipEmptyLines: true });
+    // delimiter: '' lets PapaParse auto-detect comma vs semicolon — Google Sheets
+    // exports with ';' for accounts on European/French locale settings, ',' otherwise.
+    var parsed = Papa.parse(csvText, { header: true, skipEmptyLines: true, delimiter: '' });
     var rows = parsed.data || [];
     if (!rows.length) throw new Error('No rows found in the sheet.');
 
