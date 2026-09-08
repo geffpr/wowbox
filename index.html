@@ -64,6 +64,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
 <!-- End Google Tag Manager -->
 <!-- Connexion Supabase -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.0/dist/umd/supabase.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 <script>
   var SUPABASE_URL = 'https://gfqxuygfkzgmotnxrlwb.supabase.co';
   var SUPABASE_KEY = 'sb_publishable_NNDH11RkDff2KHghf_k-8g_wL2NtUIL';
@@ -9065,8 +9066,57 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       <div id="adm-exp" style="display:none">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
           <h2 style="font-size:1.7rem;color:var(--navy)">Experiences</h2>
-          <button class="btn bp bsm" onclick="admShowExpForm(null)"><i class="fa fa-plus"></i> Add experience</button>
+          <div style="display:flex;gap:8px">
+            <button class="btn bg bsm" onclick="admToggleSheetImport()"><i class="fa fa-file-csv"></i> Import from Google Sheet</button>
+            <button class="btn bp bsm" onclick="admShowExpForm(null)"><i class="fa fa-plus"></i> Add experience</button>
+          </div>
         </div>
+
+        <!-- Google Sheet bulk import -->
+        <div class="atbl" id="adm-exp-import" style="display:none;padding:20px;margin-bottom:22px;border:2px solid var(--b400)">
+          <div style="margin-bottom:14px">
+            <h3 style="font-size:.95rem;color:var(--navy);margin-bottom:3px"><i class="fa fa-file-csv" style="color:var(--b600)"></i> Import experiences from Google Sheet</h3>
+            <p style="font-size:.75rem;color:var(--muted);margin:0">Publish your Sheet as CSV (File → Share → Publish to web → CSV) and paste the link below. Every imported row is assigned to the single partner you choose here — exactly as if you'd picked them in the form above.</p>
+          </div>
+          <div class="fg" style="margin-bottom:12px">
+            <label>Published CSV URL</label>
+            <input class="fi" id="imp-csv-url" placeholder="https://docs.google.com/spreadsheets/d/e/.../pub?output=csv">
+          </div>
+          <div class="fg" style="margin-bottom:12px">
+            <label>Assign all imported experiences to</label>
+            <input type="hidden" id="imp-partner-email" value="">
+            <div id="imp-partner-display" style="display:none;padding:8px 12px;background:var(--b50);border:1px solid var(--b200);border-radius:8px;font-size:.82rem;color:var(--navy);align-items:center;justify-content:space-between">
+              <span id="imp-partner-display-text"></span>
+              <button type="button" class="btn bg bsm" onclick="admImpClearPartner()" style="margin-left:8px">Change</button>
+            </div>
+            <div id="imp-partner-search-wrap" style="position:relative">
+              <input class="fi" id="imp-partner-search" placeholder="Type an email or partner name…" autocomplete="off" oninput="admImpFilterPartnerSuggestions()" onfocus="admImpFilterPartnerSuggestions()">
+              <div id="imp-partner-suggestions" style="display:none;position:absolute;z-index:20;background:#fff;border:1px solid var(--border);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.12);max-height:220px;overflow-y:auto;width:100%;margin-top:2px"></div>
+            </div>
+          </div>
+          <div class="fg" style="margin-bottom:14px">
+            <label>If a row's name matches an existing experience</label>
+            <select class="fi" id="imp-dup-mode" style="width:auto">
+              <option value="skip">Skip it (keep the existing one untouched)</option>
+              <option value="update">Update the existing one with the Sheet's values</option>
+            </select>
+          </div>
+          <div style="display:flex;gap:10px;flex-wrap:wrap">
+            <button class="btn bp bsm" id="imp-preview-btn" onclick="admImpPreview()"><i class="fa fa-magnifying-glass"></i> Check the file</button>
+            <button class="btn bg bsm" id="imp-confirm-btn" onclick="admImpConfirmImport()" style="display:none"><i class="fa fa-check"></i> Confirm import</button>
+            <button class="btn bg bsm" onclick="admToggleSheetImport()">Cancel</button>
+          </div>
+          <div id="imp-status" style="font-size:.78rem;color:var(--muted);margin-top:10px"></div>
+          <div id="imp-preview-wrap" style="margin-top:14px;display:none">
+            <div style="overflow-x:auto">
+              <table>
+                <thead><tr><th>#</th><th>Name</th><th>Status</th><th>Details</th></tr></thead>
+                <tbody id="imp-preview-tbody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
         <div class="atbl" id="adm-exp-list-wrap">
           <div class="atbl-hdr"><h3>All experiences</h3>
             <input type="text" class="fi" id="adm-exp-search" style="width:180px;padding:7px 11px;font-size:.76rem" placeholder="🔍 Search..." oninput="renderAdmExpTable()">
@@ -21970,6 +22020,328 @@ async function admSaveExp() {
   } catch(e) {
     console.error('Save exp error:', e);
     admToast('Error saving: ' + (e.message || 'unknown error'));
+  }
+}
+
+/* ── Bulk import experiences from a published Google Sheet (CSV) ──
+   Builds the exact same payload shape as admSaveExp() so an imported row
+   behaves identically to a manually-entered one. Nothing is written to
+   Supabase until admImpConfirmImport() runs, after the person has reviewed
+   the per-row preview from admImpPreview(). */
+
+var _admImpRows = []; // cached validated rows from the last preview, consumed by confirm
+
+function admToggleSheetImport() {
+  var el = document.getElementById('adm-exp-import');
+  if (!el) return;
+  var show = el.style.display === 'none';
+  el.style.display = show ? 'block' : 'none';
+  if (show) {
+    document.getElementById('imp-csv-url').value = '';
+    admImpClearPartner();
+    document.getElementById('imp-dup-mode').value = 'skip';
+    document.getElementById('imp-status').textContent = '';
+    document.getElementById('imp-preview-wrap').style.display = 'none';
+    document.getElementById('imp-preview-tbody').innerHTML = '';
+    document.getElementById('imp-confirm-btn').style.display = 'none';
+    _admImpRows = [];
+  }
+}
+
+// Reuses admLoadLinkedPartnerCandidates() / the same partner list as the
+// manual "Linked partner account" picker — same source of truth, just a
+// separate search box scoped to this import panel.
+async function admImpFilterPartnerSuggestions() {
+  var input = document.getElementById('imp-partner-search');
+  var box = document.getElementById('imp-partner-suggestions');
+  if (!input || !box) return;
+  var q = input.value.trim().toLowerCase();
+  if (!q) { box.style.display = 'none'; box.innerHTML = ''; return; }
+  var list = await admLoadLinkedPartnerCandidates();
+  var matches = list.filter(function(p) {
+    return (p.email||'').toLowerCase().indexOf(q) !== -1 || (p.name||'').toLowerCase().indexOf(q) !== -1;
+  }).slice(0, 8);
+  if (!matches.length) {
+    box.innerHTML = '<div style="padding:10px 12px;color:var(--muted);font-size:.78rem">No match</div>';
+    box.style.display = 'block';
+    return;
+  }
+  box.innerHTML = matches.map(function(p) {
+    var safeEmail = p.email.replace(/'/g,"\\'");
+    var safeName  = (p.name||'').replace(/'/g,"\\'");
+    return '<div style="padding:9px 12px;cursor:pointer;font-size:.8rem;border-bottom:1px solid var(--border)" '
+      + 'onmouseover="this.style.background=\'var(--b50)\'" onmouseout="this.style.background=\'\'" '
+      + 'onclick="admImpSelectPartner(\'' + safeEmail + '\',\'' + safeName + '\')">'
+      + '<strong>' + (p.name || p.email) + '</strong>'
+      + (p.flagged ? ' <span style="color:#d97706;font-size:.7rem">⚠️ no partners record</span>' : '')
+      + '<br><span style="color:var(--muted);font-size:.72rem">' + p.email + '</span>'
+      + '</div>';
+  }).join('');
+  box.style.display = 'block';
+}
+
+function admImpSelectPartner(email, name) {
+  document.getElementById('imp-partner-email').value = email;
+  document.getElementById('imp-partner-display-text').innerHTML = '🔗 <strong>' + (name || email) + '</strong> (' + email + ')';
+  document.getElementById('imp-partner-display').style.display = 'flex';
+  document.getElementById('imp-partner-search-wrap').style.display = 'none';
+  var box = document.getElementById('imp-partner-suggestions');
+  if (box) { box.style.display = 'none'; box.innerHTML = ''; }
+}
+
+function admImpClearPartner() {
+  document.getElementById('imp-partner-email').value = '';
+  document.getElementById('imp-partner-display').style.display = 'none';
+  document.getElementById('imp-partner-search-wrap').style.display = 'block';
+  document.getElementById('imp-partner-search').value = '';
+  var box = document.getElementById('imp-partner-suggestions');
+  if (box) { box.style.display = 'none'; box.innerHTML = ''; }
+}
+
+var WOWBOX_IMPORT_RT         = ['accommodation','dining','wellness','activity','rental','event','combo'];
+var WOWBOX_IMPORT_PROVINCES  = ['Gauteng','Western Cape','KwaZulu-Natal','Eastern Cape','Limpopo','Mpumalanga','North West','Free State','Northern Cape'];
+var WOWBOX_IMPORT_CATEGORIES = ['accommodation','dining','wellness','activity','culture','nature','event','rental'];
+var WOWBOX_IMPORT_WEEKEND    = ['romantic','family','adventure','relaxation','gastronomic','cultural'];
+var WOWBOX_IMPORT_ACCOM      = ['hotel','lodge','boutique','guesthouse','insolite','farm','villa'];
+var WOWBOX_IMPORT_BOOKING    = ['on_site','online','phone'];
+var WOWBOX_IMPORT_PRICING    = ['per_person','fixed'];
+var WOWBOX_IMPORT_STATUS     = ['Active','Draft','Inactive'];
+var WOWBOX_IMPORT_CANCEL_H   = ['24','48','72','168','336'];
+
+function admImpSlugify(name) {
+  return name.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
+}
+function admImpBool(v) { return String(v||'').trim().toUpperCase() === 'TRUE'; }
+function admImpNum(v) { var n = parseFloat(v); return isNaN(n) ? null : n; }
+
+// Validates one CSV row and, if valid, builds the exact same payload shape
+// as admSaveExp()'s `payload` — same required fields, same optional-field
+// spread pattern — so an imported experience is indistinguishable in the
+// database from one entered by hand.
+function admImpBuildRowResult(row, rowIndex, partnerEmail, partnerName) {
+  var errors = [];
+  var name = (row.name||'').trim();
+  if (!name) errors.push('Missing name');
+
+  var rt = (row.reservation_type||'').trim();
+  if (!rt) errors.push('Missing reservation_type');
+  else if (WOWBOX_IMPORT_RT.indexOf(rt) === -1) errors.push('Invalid reservation_type: "' + rt + '"');
+
+  var city = (row.city||'').trim();
+  if (!city) errors.push('Missing city');
+
+  var province = (row.province||'').trim();
+  if (!province) errors.push('Missing province');
+  else if (WOWBOX_IMPORT_PROVINCES.indexOf(province) === -1) errors.push('Invalid province: "' + province + '"');
+
+  var capacity = admImpNum(row.capacity);
+  if (!capacity) errors.push('Missing/invalid capacity');
+
+  var imgs = [row.image_1, row.image_2, row.image_3, row.image_4, row.image_5, row.image_6]
+    .map(function(u){ return (u||'').trim(); }).filter(Boolean);
+  if (imgs.length < 3) errors.push('Needs at least 3 photos (' + imgs.length + ' found)');
+
+  var enumChecks = {
+    category: WOWBOX_IMPORT_CATEGORIES, weekend_type: WOWBOX_IMPORT_WEEKEND,
+    accommodation_type: WOWBOX_IMPORT_ACCOM, booking_type: WOWBOX_IMPORT_BOOKING,
+    wow_pricing_type: WOWBOX_IMPORT_PRICING, status: WOWBOX_IMPORT_STATUS,
+    cancellation_hours: WOWBOX_IMPORT_CANCEL_H
+  };
+  Object.keys(enumChecks).forEach(function(f){
+    var v = (row[f]||'').trim();
+    if (v && enumChecks[f].indexOf(v) === -1) errors.push('Invalid ' + f + ': "' + v + '"');
+  });
+
+  var programme = [1,2,3,4].map(function(i){
+    var title = (row['programme_'+i+'_title']||'').trim();
+    var text  = (row['programme_'+i+'_text']||'').trim();
+    return (title||text) ? {title:title, text:text} : null;
+  }).filter(Boolean);
+
+  var amenitiesRaw = (row.amenities||'').split(',').map(function(s){ return s.trim(); }).filter(Boolean);
+  var validAmenityIds = WB_AMENITIES.map(function(a){ return a.id; });
+  var badAmenities = amenitiesRaw.filter(function(a){ return validAmenityIds.indexOf(a) === -1; });
+  if (badAmenities.length) errors.push('Unknown amenities: ' + badAmenities.join(', '));
+  var customAmenities = (row.custom_amenities||'').split(',').map(function(s){ return s.trim(); }).filter(Boolean).slice(0,3);
+
+  var slug = name ? admImpSlugify(name) : null;
+  var statusVal = (row.status||'').trim() || 'Active';
+
+  var payload = null;
+  if (!errors.length) {
+    payload = Object.assign({ id: slug, name: name,
+      partner_name:       partnerName,
+      partner_email:      partnerEmail,
+      reservation_type:   rt,
+      location:           city,
+      address:            (row.address||'').trim() || null,
+      phone:              (row.phone||'').trim() || null,
+      capacity:           capacity,
+      description:        (row.description||'').trim(),
+      is_active:          statusVal === 'Active',
+      image_urls:         imgs,
+      province:           province,
+      city:               city,
+      wow_pricing_type:   (row.wow_pricing_type||'').trim() || 'per_person',
+      booking_type:       (row.booking_type||'').trim() || 'on_site',
+      duration_nights:    admImpNum(row.duration_nights) || 0,
+      category:           (row.category||'').trim() || null,
+      weekend_type:       (row.weekend_type||'').trim() || null,
+      accommodation_type: (row.accommodation_type||'').trim() || null,
+      certification:      (row.certification||'').trim() || null,
+      accessible:         admImpBool(row.accessible),
+      insolite:           admImpBool(row.insolite),
+      programme:          programme,
+      amenities:          amenitiesRaw.concat(customAmenities),
+    },
+      imgs[0] ? { image_url: imgs[0] } : {},
+      admImpNum(row.lat) ? { lat: admImpNum(row.lat) } : {},
+      admImpNum(row.lng) ? { lng: admImpNum(row.lng) } : {},
+      admImpNum(row.price) ? { price: admImpNum(row.price) } : {},
+      admImpNum(row.wow_price) ? { wow_price: admImpNum(row.wow_price) } : {},
+      (row.ical_url||'').trim() ? { ical_url: row.ical_url.trim() } : {},
+      (row.opening_time||'').trim() ? { opening_time: row.opening_time.trim() } : {},
+      (row.closing_time||'').trim() ? { closing_time: row.closing_time.trim() } : {},
+      admImpNum(row.slot_duration_minutes) ? { slot_duration_minutes: admImpNum(row.slot_duration_minutes) } : {},
+      admImpNum(row.cancellation_hours) ? { cancellation_hours: admImpNum(row.cancellation_hours) } : {},
+      (row.cancellation_note||'').trim() ? { cancellation_note: row.cancellation_note.trim() } : {},
+      (row.video_url||'').trim() ? { video_url: row.video_url.trim(), video_position: admImpNum(row.video_position) || 1 } : {}
+    );
+  }
+
+  return { rowIndex: rowIndex, name: name || '(no name)', slug: slug, errors: errors, payload: payload };
+}
+
+// Step 1: fetch + validate only. Nothing is written to Supabase here.
+async function admImpPreview() {
+  var url = document.getElementById('imp-csv-url')?.value?.trim();
+  var partnerEmail = document.getElementById('imp-partner-email')?.value?.trim();
+  var statusEl = document.getElementById('imp-status');
+  var previewWrap = document.getElementById('imp-preview-wrap');
+  var tbody = document.getElementById('imp-preview-tbody');
+  var confirmBtn = document.getElementById('imp-confirm-btn');
+  var btn = document.getElementById('imp-preview-btn');
+
+  if (!url) { admToast('Paste the published CSV URL first.'); return; }
+  if (!partnerEmail) { admToast('Choose the partner to assign these experiences to.'); return; }
+  if (typeof Papa === 'undefined') { admToast('CSV parser failed to load — check your connection and refresh.'); return; }
+
+  var list = await admLoadLinkedPartnerCandidates();
+  var found = list.find(function(p){ return p.email === partnerEmail; });
+  var partnerName = found ? found.name : partnerEmail;
+
+  confirmBtn.style.display = 'none';
+  _admImpRows = [];
+  if (previewWrap) previewWrap.style.display = 'none';
+  if (tbody) tbody.innerHTML = '';
+  if (statusEl) statusEl.textContent = 'Fetching the sheet…';
+  if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Checking…'; }
+
+  try {
+    var res = await fetch(url);
+    if (!res.ok) throw new Error('Could not fetch the sheet (HTTP ' + res.status + '). Make sure it is published to the web as CSV.');
+    var csvText = await res.text();
+    var parsed = Papa.parse(csvText, { header: true, skipEmptyLines: true });
+    var rows = parsed.data || [];
+    if (!rows.length) throw new Error('No rows found in the sheet.');
+
+    // Flag duplicates by the same slug logic used for manual creation.
+    var slugs = rows.map(function(r){ return r.name ? admImpSlugify(r.name.trim()) : null; }).filter(Boolean);
+    var existingNames = {};
+    if (slugs.length) {
+      var exRes = await db_client.from('experiences').select('id,name').in('id', slugs);
+      if (exRes.error) throw exRes.error;
+      (exRes.data || []).forEach(function(e){ existingNames[e.id] = e.name; });
+    }
+
+    var results = rows.map(function(row, i){
+      var r = admImpBuildRowResult(row, i, partnerEmail, partnerName);
+      r.isDuplicate = !!(r.slug && existingNames[r.slug]);
+      return r;
+    });
+    _admImpRows = results;
+
+    var okCount  = results.filter(function(r){ return !r.errors.length && !r.isDuplicate; }).length;
+    var dupCount = results.filter(function(r){ return !r.errors.length && r.isDuplicate; }).length;
+    var errCount = results.filter(function(r){ return r.errors.length; }).length;
+
+    if (tbody) {
+      tbody.innerHTML = results.map(function(r){
+        var statusHtml, detailHtml;
+        if (r.errors.length) {
+          statusHtml = '<span style="color:#dc2626">❌ Error</span>';
+          detailHtml = r.errors.join('; ');
+        } else if (r.isDuplicate) {
+          statusHtml = '<span style="color:#d97706">⚠️ Duplicate</span>';
+          detailHtml = 'Matches existing experience "' + existingNames[r.slug] + '"';
+        } else {
+          statusHtml = '<span style="color:#16a34a">✅ Ready</span>';
+          detailHtml = '';
+        }
+        return '<tr><td>' + (r.rowIndex+1) + '</td><td>' + (r.name||'') + '</td><td>' + statusHtml + '</td>'
+          + '<td style="font-size:.72rem;color:var(--muted)">' + detailHtml + '</td></tr>';
+      }).join('');
+    }
+    if (previewWrap) previewWrap.style.display = 'block';
+    if (statusEl) statusEl.textContent = okCount + ' ready to import · ' + dupCount + ' duplicate(s) · ' + errCount + ' error(s) out of ' + results.length + ' row(s).';
+    if (okCount + dupCount > 0) confirmBtn.style.display = 'inline-flex';
+  } catch (e) {
+    if (statusEl) statusEl.textContent = '';
+    admToast('⚠️ ' + e.message);
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa fa-magnifying-glass"></i> Check the file'; }
+  }
+}
+
+// Step 2: only runs on the rows already validated by admImpPreview() above.
+async function admImpConfirmImport() {
+  if (!_admImpRows.length) return;
+  var dupMode = document.getElementById('imp-dup-mode')?.value || 'skip';
+  var statusEl = document.getElementById('imp-status');
+  var confirmBtn = document.getElementById('imp-confirm-btn');
+
+  var toInsert   = _admImpRows.filter(function(r){ return !r.errors.length && !r.isDuplicate; });
+  var toUpdate   = dupMode === 'update' ? _admImpRows.filter(function(r){ return !r.errors.length && r.isDuplicate; }) : [];
+  var skippedDup = dupMode === 'skip'   ? _admImpRows.filter(function(r){ return !r.errors.length && r.isDuplicate; }).length : 0;
+  var failed     = _admImpRows.filter(function(r){ return r.errors.length; }).length;
+
+  if (!toInsert.length && !toUpdate.length) { admToast('Nothing to import.'); return; }
+
+  var ok = confirm('Import ' + toInsert.length + ' new experience(s)'
+    + (toUpdate.length ? ' and update ' + toUpdate.length + ' existing one(s)' : '')
+    + '? This cannot be bulk-undone.');
+  if (!ok) return;
+
+  if (confirmBtn) { confirmBtn.disabled = true; confirmBtn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Importing…'; }
+  if (statusEl) statusEl.textContent = 'Importing…';
+
+  var insertedCount = 0, updatedCount = 0, failedNow = 0;
+  try {
+    if (toInsert.length) {
+      var insRes = await db_client.from('experiences').insert(toInsert.map(function(r){ return r.payload; }));
+      if (insRes.error) throw insRes.error;
+      insertedCount = toInsert.length;
+    }
+    for (var i = 0; i < toUpdate.length; i++) {
+      var r = toUpdate[i];
+      var updPayload = Object.assign({}, r.payload);
+      delete updPayload.id;
+      var updRes = await db_client.from('experiences').update(updPayload).eq('id', r.slug);
+      if (updRes.error) { failedNow++; console.error('Update failed for ' + r.slug, updRes.error); }
+      else updatedCount++;
+    }
+    if (statusEl) statusEl.textContent = '✅ ' + insertedCount + ' imported · ' + updatedCount + ' updated · '
+      + skippedDup + ' duplicate(s) skipped · ' + failed + ' invalid row(s) skipped'
+      + (failedNow ? ' · ' + failedNow + ' update(s) failed' : '') + '.';
+    admToast('✅ Import complete: ' + insertedCount + ' new, ' + updatedCount + ' updated.');
+    _admImpRows = [];
+    if (confirmBtn) confirmBtn.style.display = 'none';
+    if (typeof renderAdmExpTable === 'function') renderAdmExpTable();
+  } catch (e) {
+    if (statusEl) statusEl.textContent = '';
+    admToast('⚠️ Import failed: ' + e.message);
+  } finally {
+    if (confirmBtn) { confirmBtn.disabled = false; confirmBtn.innerHTML = '<i class="fa fa-check"></i> Confirm import'; }
   }
 }
 
