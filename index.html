@@ -9095,6 +9095,13 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
             </div>
           </div>
           <div class="fg" style="margin-bottom:14px">
+            <label>Assign all imported experiences to Database(s)</label>
+            <select id="imp-db-select" class="fi" multiple style="height:100px">
+            </select>
+            <div style="font-size:.7rem;color:var(--muted);margin:4px 0 8px">Ctrl+click (Cmd+click on Mac) to select several.</div>
+            <input class="fi" id="imp-db-new" placeholder="Or create a new Database (leave empty to skip)">
+          </div>
+          <div class="fg" style="margin-bottom:14px">
             <label>If a row's name matches an existing experience</label>
             <select class="fi" id="imp-dup-mode" style="width:auto">
               <option value="skip">Skip it (keep the existing one untouched)</option>
@@ -22105,6 +22112,8 @@ function admToggleSheetImport() {
   if (show) {
     document.getElementById('imp-csv-url').value = '';
     admImpClearPartner();
+    admImpPopulateDbSelect();
+    document.getElementById('imp-db-new').value = '';
     document.getElementById('imp-dup-mode').value = 'skip';
     document.getElementById('imp-status').textContent = '';
     document.getElementById('imp-preview-wrap').style.display = 'none';
@@ -22162,6 +22171,15 @@ function admImpClearPartner() {
   document.getElementById('imp-partner-search').value = '';
   var box = document.getElementById('imp-partner-suggestions');
   if (box) { box.style.display = 'none'; box.innerHTML = ''; }
+}
+
+// admDatabases is the same global list already used to render Admin → Exp. Databases
+function admImpPopulateDbSelect() {
+  var sel = document.getElementById('imp-db-select');
+  if (!sel) return;
+  sel.innerHTML = (admDatabases || []).map(function(d){
+    return '<option value="' + d.id + '">' + (d.icon || '📁') + ' ' + d.name + '</option>';
+  }).join('');
 }
 
 var WOWBOX_IMPORT_RT         = ['accommodation','dining','wellness','activity','rental','event','combo'];
@@ -22376,6 +22394,19 @@ async function admImpConfirmImport() {
 
   if (!toInsert.length && !toUpdate.length) { admToast('Nothing to import.'); return; }
 
+  // Database assignment: existing selections + an optional new one.
+  // Blocked outright — not silently reused — if the typed name already exists,
+  // so nobody accidentally ends up with two near-identical Databases.
+  var selectedDbIds = Array.from(document.getElementById('imp-db-select')?.selectedOptions || []).map(function(o){ return o.value; });
+  var newDbName = (document.getElementById('imp-db-new')?.value || '').trim();
+  if (newDbName) {
+    var clash = (admDatabases || []).find(function(d){ return (d.name||'').toLowerCase() === newDbName.toLowerCase(); });
+    if (clash) {
+      admToast('⚠️ A Database named "' + clash.name + '" already exists — pick it from the list above instead of creating a duplicate.');
+      return;
+    }
+  }
+
   var ok = confirm('Import ' + toInsert.length + ' new experience(s)'
     + (toUpdate.length ? ' and update ' + toUpdate.length + ' existing one(s)' : '')
     + '? This cannot be bulk-undone.');
@@ -22399,9 +22430,43 @@ async function admImpConfirmImport() {
       if (updRes.error) { failedNow++; console.error('Update failed for ' + r.slug, updRes.error); }
       else updatedCount++;
     }
+
+    // Database assignment — same experience_database_links table and upsert
+    // pattern used everywhere else in the admin (e.g. the Database detail page).
+    var dbIds = selectedDbIds.slice();
+    var dbLinkNote = '';
+    if (newDbName) {
+      var newDbId = newDbName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+      var dbInsRes = await db_client.from('databases').insert({ id: newDbId, name: newDbName, icon: '📁', color: '#e0f2fe', is_active: true });
+      if (dbInsRes.error) {
+        admToast('⚠️ Experiences imported, but the new Database "' + newDbName + '" could not be created: ' + dbInsRes.error.message);
+      } else {
+        dbIds.push(newDbId);
+        if (typeof loadAdmDatabases === 'function') await loadAdmDatabases();
+      }
+    }
+    if (dbIds.length) {
+      var linkedExpIds = toInsert.map(function(r){ return r.slug; })
+        .concat(toUpdate.filter(function(r){ return true; }).map(function(r){ return r.slug; }));
+      // (updates that failed are harmless no-ops here — linking an experience that didn't
+      // actually change is fine, since the row already existed before this import)
+      var linkRows = [];
+      linkedExpIds.forEach(function(expId){
+        dbIds.forEach(function(dbId){ linkRows.push({ experience_id: expId, database_id: dbId }); });
+      });
+      if (linkRows.length) {
+        var linkRes = await db_client.from('experience_database_links').upsert(linkRows, { onConflict: 'experience_id,database_id' });
+        if (linkRes.error) {
+          dbLinkNote = ' · ⚠️ Database linking failed: ' + linkRes.error.message;
+        } else {
+          dbLinkNote = ' · linked to ' + dbIds.length + ' Database(s)';
+        }
+      }
+    }
+
     if (statusEl) statusEl.textContent = '✅ ' + insertedCount + ' imported · ' + updatedCount + ' updated · '
       + skippedDup + ' duplicate(s) skipped · ' + failed + ' invalid row(s) skipped'
-      + (failedNow ? ' · ' + failedNow + ' update(s) failed' : '') + '.';
+      + (failedNow ? ' · ' + failedNow + ' update(s) failed' : '') + dbLinkNote + '.';
     admToast('✅ Import complete: ' + insertedCount + ' new, ' + updatedCount + ' updated.');
     _admImpRows = [];
     if (confirmBtn) confirmBtn.style.display = 'none';
