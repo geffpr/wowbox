@@ -9028,7 +9028,10 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
           <div id="adm-db-exp-wrap" class="atbl">
             <div class="atbl-hdr">
               <h4 id="adm-db-detail-subtitle" style="font-size:.88rem;color:var(--navy)"></h4>
-              <button class="btn bp bsm" onclick="admOpenExpPicker()"><i class="fa fa-plus"></i> Add experience to DB</button>
+              <div style="display:flex;gap:8px">
+                <button class="btn bg bsm" onclick="admImportIntoThisDb()"><i class="fa fa-file-csv"></i> Import from Google Sheet</button>
+                <button class="btn bp bsm" onclick="admOpenExpPicker()"><i class="fa fa-plus"></i> Add experience to DB</button>
+              </div>
             </div>
             <table>
               <thead><tr><th>Experience</th><th>Type</th><th>Partner</th><th>Location</th><th>Status</th><th>Actions</th></tr></thead>
@@ -9042,12 +9045,22 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
               <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;flex-wrap:wrap">
                 <strong style="color:var(--navy);font-size:.95rem">Select experiences to add</strong>
                 <input type="text" class="fi" id="adm-picker-search" style="width:200px;padding:7px 11px;font-size:.76rem" placeholder="🔍 Filter..." oninput="admPickerFilter()">
+                <select id="adm-picker-filter-tier" class="fi" style="width:auto;padding:7px 11px;font-size:.76rem" onchange="admPickerFilter()">
+                  <option value="">All tiers</option>
+                  <option value="Essential">Essential</option><option value="Classic">Classic</option>
+                  <option value="Comfort">Comfort</option><option value="Select">Select</option>
+                  <option value="Premium">Premium</option><option value="Prestige">Prestige</option>
+                  <option value="Deluxe">Deluxe</option><option value="Ultra">Ultra</option>
+                  <option value="Platinum">Platinum</option><option value="Exclusive">Exclusive</option>
+                  <option value="Iconic">Iconic</option>
+                </select>
+                <select id="adm-picker-filter-batch" class="fi" style="width:auto;padding:7px 11px;font-size:.76rem" onchange="admPickerFilter()"><option value="">All import batches</option></select>
                 <span id="adm-picker-count" style="font-size:.78rem;color:var(--muted);margin-left:auto"></span>
               </div>
               <div id="adm-picker-list" style="max-height:340px;overflow-y:auto;border:1px solid var(--border);border-radius:var(--rs)">
                 <table style="width:100%">
                   <thead style="position:sticky;top:0;background:var(--bg);z-index:1">
-                    <tr><th style="width:36px;padding:8px 10px"><input type="checkbox" id="adm-picker-all" onchange="admPickerToggleAll(this.checked)"></th><th>Experience</th><th>Type</th><th>Partner</th><th>Location</th></tr>
+                    <tr><th style="width:36px;padding:8px 10px"><input type="checkbox" id="adm-picker-all" onchange="admPickerToggleAll(this.checked)"></th><th>Experience</th><th>Type</th><th>Partner</th><th>Location</th><th>Tier</th><th>Imported</th></tr>
                   </thead>
                   <tbody id="adm-picker-tbody"></tbody>
                 </table>
@@ -9102,6 +9115,10 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
             <input class="fi" id="imp-db-new" placeholder="Or create a new Database (leave empty to skip)">
           </div>
           <div class="fg" style="margin-bottom:14px">
+            <label>Batch label <span style="font-weight:400;color:var(--muted)">(so you can find and bulk-select these later)</span></label>
+            <input class="fi" id="imp-batch-label" placeholder="e.g. Cape Town Wellness Batch 2">
+          </div>
+          <div class="fg" style="margin-bottom:14px">
             <label>If a row's name matches an existing experience</label>
             <select class="fi" id="imp-dup-mode" style="width:auto">
               <option value="skip">Skip it (keep the existing one untouched)</option>
@@ -9149,6 +9166,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
               <option value="Exclusive">Exclusive (T10)</option>
               <option value="Iconic">Iconic (T11)</option>
             </select>
+            <select id="adm-exp-filter-batch" class="fi" style="font-size:.74rem;padding:5px 8px;width:auto" onchange="renderAdmExpTable()"><option value="">All import batches</option></select>
             <button class="btn bg bsm" onclick="admExpClearFilters()" style="font-size:.72rem">✕ Clear</button>
             <button class="btn bg bsm" onclick="admRecalcAllTiers()" style="font-size:.72rem"><i class="fa fa-arrows-rotate"></i> Recalculate tiers</button>
           </div>
@@ -9160,6 +9178,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
               <th style="cursor:pointer;white-space:nowrap" onclick="admExpSort('partner_name')">Partner <span id="adm-exp-sort-partner_name"></span></th>
               <th style="cursor:pointer;white-space:nowrap" onclick="admExpSort('price')">Value <span id="adm-exp-sort-price"></span></th>
               <th style="cursor:pointer;white-space:nowrap" onclick="admExpSort('tier')">Tier <span id="adm-exp-sort-tier"></span></th>
+              <th style="cursor:pointer;white-space:nowrap" onclick="admExpSort('created_at')">Imported <span id="adm-exp-sort-created_at"></span></th>
               <th style="cursor:pointer;white-space:nowrap" onclick="admExpSort('category')">Category <span id="adm-exp-sort-category"></span></th>
               <th style="cursor:pointer;white-space:nowrap" onclick="admExpSort('province')">Province <span id="adm-exp-sort-province"></span></th>
               <th style="cursor:pointer;white-space:nowrap" onclick="admExpSort('city')">City <span id="adm-exp-sort-city"></span></th>
@@ -20681,7 +20700,7 @@ function admExpSort(field) {
 
 function admExpClearFilters() {
   ['adm-exp-search','adm-exp-filter-status','adm-exp-filter-partner',
-   'adm-exp-filter-province','adm-exp-filter-city','adm-exp-filter-category','adm-exp-filter-tier'].forEach(function(id) {
+   'adm-exp-filter-province','adm-exp-filter-city','adm-exp-filter-category','adm-exp-filter-tier','adm-exp-filter-batch'].forEach(function(id) {
     var el = document.getElementById(id);
     if (el) el.value = '';
   });
@@ -20699,7 +20718,7 @@ async function renderAdmExpTable(keepPage) {
   if (!keepPage) window._admExpPage = 1;
   const tbody = document.getElementById('adm-exp-tbody');
   if (!tbody) return;
-  tbody.innerHTML = '<tr><td colspan="12" style="text-align:center;padding:18px;color:var(--muted)"><i class="fa fa-circle-notch fa-spin"></i> Loading…</td></tr>';
+  tbody.innerHTML = '<tr><td colspan="13" style="text-align:center;padding:18px;color:var(--muted)"><i class="fa fa-circle-notch fa-spin"></i> Loading…</td></tr>';
 
   const q = (document.getElementById('adm-exp-search')?.value || '').toLowerCase();
   const rtBadge = {accommodation:'rt-accommodation',dining:'rt-dining',wellness:'rt-wellness',activity:'rt-activity',rental:'rt-rental',event:'rt-event'};
@@ -20713,7 +20732,7 @@ async function renderAdmExpTable(keepPage) {
     // Load all experiences from Supabase — single source of truth
     var [expRes, linkRes] = await Promise.all([
       db_client.from('experiences')
-        .select('id,name,partner_name,location,reservation_type,image_url,image_urls,images,is_active,price,city,province,category,booking_type,tier')
+        .select('id,name,partner_name,location,reservation_type,image_url,image_urls,images,is_active,price,city,province,category,booking_type,tier,import_batch,created_at')
         .order('name', {ascending:true}),
       db_client.from('experience_database_links').select('experience_id,database_id')
     ]);
@@ -20745,6 +20764,8 @@ async function renderAdmExpTable(keepPage) {
     repopulate(fProvince, [...new Set(rows.map(function(e){ return e.province||''; }).filter(Boolean))].sort());
     repopulate(fCity,     [...new Set(rows.map(function(e){ return e.city||''; }).filter(Boolean))].sort());
     repopulate(fCat,      [...new Set(rows.map(function(e){ return e.category||''; }).filter(Boolean))].sort());
+    var fBatch = document.getElementById('adm-exp-filter-batch');
+    if (fBatch) repopulate(fBatch, [...new Set(rows.map(function(e){ return e.import_batch||''; }).filter(Boolean))].sort().reverse());
 
     // Read active filters
     var fStatus   = (document.getElementById('adm-exp-filter-status')?.value   || '').toLowerCase();
@@ -20753,6 +20774,7 @@ async function renderAdmExpTable(keepPage) {
     var fCityV    = (document.getElementById('adm-exp-filter-city')?.value     || '').toLowerCase();
     var fCatV     = (document.getElementById('adm-exp-filter-category')?.value || '').toLowerCase();
     var fTierV    = (document.getElementById('adm-exp-filter-tier')?.value     || '').toLowerCase();
+    var fBatchV   = document.getElementById('adm-exp-filter-batch')?.value     || '';
 
     // Sort
     if (window._admExpSortField) {
@@ -20775,11 +20797,12 @@ async function renderAdmExpTable(keepPage) {
       var matchCity     = !fCityV    || (e.city||'').toLowerCase() === fCityV;
       var matchCat      = !fCatV     || (e.category||'').toLowerCase() === fCatV;
       var matchTier     = !fTierV    || (e.tier||'').toLowerCase() === fTierV;
-      return matchQ && matchStatus && matchPartner && matchProv && matchCity && matchCat && matchTier;
+      var matchBatch    = !fBatchV   || e.import_batch === fBatchV;
+      return matchQ && matchStatus && matchPartner && matchProv && matchCity && matchCat && matchTier && matchBatch;
     });
 
     if (!filtered.length) {
-      tbody.innerHTML = '<tr><td colspan="12" style="text-align:center;padding:24px;color:var(--muted)">No experiences found.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="13" style="text-align:center;padding:24px;color:var(--muted)">No experiences found.</td></tr>';
       var pagEl0 = document.getElementById('adm-exp-pagination'); if (pagEl0) pagEl0.innerHTML = '';
       return;
     }
@@ -20804,12 +20827,16 @@ async function renderAdmExpTable(keepPage) {
         : '<div style="width:44px;height:36px;border-radius:var(--rs);background:var(--b50);flex-shrink:0"></div>';
       var priceCell = e.price ? '<strong style="color:var(--navy)">R '+Number(e.price).toLocaleString()+'</strong>' : '<span style="color:var(--muted)">—</span>';
       var tierCell = e.tier ? '<span class="sbadge" style="background:var(--b50);color:var(--b700)">'+e.tier+'</span>' : '<span style="color:var(--muted)">—</span>';
+      var importedCell = e.created_at
+        ? '<span title="' + (e.import_batch || '') + '">' + new Date(e.created_at).toLocaleDateString() + '</span>'
+        : '<span style="color:var(--muted)">—</span>';
       return '<tr>'
         +'<td>'+img+'</td>'
         +'<td style="white-space:nowrap"><strong>'+(e.name||'—')+'</strong></td>'
         +'<td style="font-size:.8rem">'+(e.partner_name||'—')+'</td>'
         +'<td style="font-size:.8rem;white-space:nowrap">'+priceCell+'</td>'
         +'<td style="font-size:.8rem;white-space:nowrap">'+tierCell+'</td>'
+        +'<td style="font-size:.78rem;white-space:nowrap">'+importedCell+'</td>'
         +'<td style="font-size:.75rem">'+(e.category||'<span style="color:var(--muted)">—</span>')+'</td>'
         +'<td style="font-size:.75rem">'+(e.province||'<span style="color:var(--muted)">—</span>')+'</td>'
         +'<td style="font-size:.75rem">'+(e.city||'<span style="color:var(--muted)">—</span>')+'</td>'
@@ -20838,7 +20865,7 @@ async function renderAdmExpTable(keepPage) {
 
   } catch(err) {
     console.error('[renderAdmExpTable]', err);
-    tbody.innerHTML = '<tr><td colspan="12" style="text-align:center;padding:24px;color:var(--muted)">Error loading experiences.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="13" style="text-align:center;padding:24px;color:var(--muted)">Error loading experiences.</td></tr>';
   }
 }
 
@@ -21542,6 +21569,24 @@ async function loadAdmDatabases() {
 
 var _admPickerAllExps = []; // cache of all experiences for picker
 
+// Shortcut from a Database's own page: jump to the Experiences tab, open the
+// Google Sheet importer, and pre-select this Database so the whole batch
+// lands here directly — same importer, no duplicated logic.
+function admImportIntoThisDb() {
+  if (!admCurrentDbId) return;
+  var navBtn = document.querySelector('.anl[onclick*="\'adm-exp\'"]');
+  switchAdm(navBtn, 'adm-exp');
+  setTimeout(function(){
+    var panel = document.getElementById('adm-exp-import');
+    if (panel && panel.style.display === 'none') admToggleSheetImport();
+    setTimeout(function(){
+      var sel = document.getElementById('imp-db-select');
+      if (sel) Array.from(sel.options).forEach(function(o){ o.selected = (o.value === admCurrentDbId); });
+      if (panel) panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 60);
+  }, 60);
+}
+
 async function admOpenExpPicker() {
   if (!admCurrentDbId) return;
   var picker = document.getElementById('adm-db-picker');
@@ -21549,7 +21594,7 @@ async function admOpenExpPicker() {
   picker.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 
   var tbody = document.getElementById('adm-picker-tbody');
-  tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:18px;color:var(--muted)"><i class="fa fa-circle-notch fa-spin"></i> Loading…</td></tr>';
+  tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:18px;color:var(--muted)"><i class="fa fa-circle-notch fa-spin"></i> Loading…</td></tr>';
   document.getElementById('adm-picker-search').value = '';
   document.getElementById('adm-picker-status').textContent = '';
   document.getElementById('adm-picker-save').textContent = 'Add selected (0)';
@@ -21561,19 +21606,30 @@ async function admOpenExpPicker() {
     var alreadyLinked = new Set((linkedRes.data || []).map(function(l){ return l.experience_id; }));
 
     // Fetch all active experiences
-    var expRes = await db_client.from('experiences').select('id,name,reservation_type,partner_name,location,is_active').eq('is_active', true).order('name');
+    var expRes = await db_client.from('experiences').select('id,name,reservation_type,partner_name,location,is_active,tier,import_batch,created_at').eq('is_active', true).order('name');
     var supaExps = expRes.data || [];
 
     // Merge with hardcoded expDB entries not in Supabase
     var supaIds = new Set(supaExps.map(function(e){ return e.id; }));
     var hardcoded = expDB.filter(function(e){ return !supaIds.has(e.id); }).map(function(e){
-      return { id: e.id, name: e.name, reservation_type: e.reservation_type || e.type, partner_name: e.partner || '', location: e.loc || '', is_active: true };
+      return { id: e.id, name: e.name, reservation_type: e.reservation_type || e.type, partner_name: e.partner || '', location: e.loc || '', is_active: true, tier: null, import_batch: null, created_at: null };
     });
 
     _admPickerAllExps = supaExps.concat(hardcoded).filter(function(e){ return !alreadyLinked.has(e.id); });
+    var batchSel = document.getElementById('adm-picker-filter-batch');
+    if (batchSel) {
+      var cur = batchSel.value;
+      while (batchSel.options.length > 1) batchSel.remove(1);
+      [...new Set(_admPickerAllExps.map(function(e){ return e.import_batch||''; }).filter(Boolean))].sort().reverse().forEach(function(v){
+        var o = document.createElement('option'); o.value = v; o.textContent = v; batchSel.appendChild(o);
+      });
+      if (cur) batchSel.value = cur;
+    }
+    var tierSel = document.getElementById('adm-picker-filter-tier');
+    if (tierSel) tierSel.value = '';
     admPickerRender(_admPickerAllExps);
   } catch(err) {
-    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:18px;color:red">Error: ' + err.message + '</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:18px;color:red">Error: ' + err.message + '</td></tr>';
   }
 }
 
@@ -21581,7 +21637,7 @@ function admPickerRender(exps) {
   var tbody = document.getElementById('adm-picker-tbody');
   var rtIcon = { accommodation:'🏨', dining:'🍽️', wellness:'🧖', activity:'🏄', rental:'🚗', event:'🎉' };
   if (!exps.length) {
-    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:18px;color:var(--muted)">All experiences are already in this database.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:18px;color:var(--muted)">All experiences are already in this database.</td></tr>';
     document.getElementById('adm-picker-count').textContent = '';
     return;
   }
@@ -21593,14 +21649,21 @@ function admPickerRender(exps) {
       + '<td style="padding:8px 10px;font-size:.8rem">' + (rtIcon[e.reservation_type] || '🏄') + ' ' + (e.reservation_type || '—') + '</td>'
       + '<td style="padding:8px 10px;font-size:.8rem;color:var(--muted)">' + (e.partner_name || '—') + '</td>'
       + '<td style="padding:8px 10px;font-size:.8rem;color:var(--muted)">' + (e.location || '—') + '</td>'
+      + '<td style="padding:8px 10px;font-size:.75rem">' + (e.tier || '<span style="color:var(--muted)">—</span>') + '</td>'
+      + '<td style="padding:8px 10px;font-size:.72rem;color:var(--muted)" title="' + (e.import_batch||'') + '">' + (e.created_at ? new Date(e.created_at).toLocaleDateString() : '—') + '</td>'
       + '</tr>';
   }).join('');
 }
 
 function admPickerFilter() {
   var q = (document.getElementById('adm-picker-search').value || '').toLowerCase();
+  var fTier = document.getElementById('adm-picker-filter-tier')?.value || '';
+  var fBatch = document.getElementById('adm-picker-filter-batch')?.value || '';
   var filtered = _admPickerAllExps.filter(function(e){
-    return !q || e.name.toLowerCase().includes(q) || (e.partner_name||'').toLowerCase().includes(q) || (e.location||'').toLowerCase().includes(q);
+    var matchQ = !q || e.name.toLowerCase().includes(q) || (e.partner_name||'').toLowerCase().includes(q) || (e.location||'').toLowerCase().includes(q);
+    var matchTier = !fTier || e.tier === fTier;
+    var matchBatch = !fBatch || e.import_batch === fBatch;
+    return matchQ && matchTier && matchBatch;
   });
   admPickerRender(filtered);
   document.getElementById('adm-picker-all').checked = false;
@@ -22114,6 +22177,7 @@ function admToggleSheetImport() {
     admImpClearPartner();
     admImpPopulateDbSelect();
     document.getElementById('imp-db-new').value = '';
+    document.getElementById('imp-batch-label').value = 'Import ' + new Date().toISOString().slice(0,16).replace('T',' ');
     document.getElementById('imp-dup-mode').value = 'skip';
     document.getElementById('imp-status').textContent = '';
     document.getElementById('imp-preview-wrap').style.display = 'none';
@@ -22411,6 +22475,12 @@ async function admImpConfirmImport() {
     + (toUpdate.length ? ' and update ' + toUpdate.length + ' existing one(s)' : '')
     + '? This cannot be bulk-undone.');
   if (!ok) return;
+
+  var batchLabel = (document.getElementById('imp-batch-label')?.value || '').trim();
+  if (batchLabel) {
+    toInsert.forEach(function(r){ r.payload.import_batch = batchLabel; });
+    toUpdate.forEach(function(r){ r.payload.import_batch = batchLabel; });
+  }
 
   if (confirmBtn) { confirmBtn.disabled = true; confirmBtn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Importing…'; }
   if (statusEl) statusEl.textContent = 'Importing…';
