@@ -9128,7 +9128,22 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
             <select id="adm-exp-filter-province" class="fi" style="font-size:.74rem;padding:5px 8px;width:auto" onchange="renderAdmExpTable()"><option value="">All provinces</option></select>
             <select id="adm-exp-filter-city"     class="fi" style="font-size:.74rem;padding:5px 8px;width:auto" onchange="renderAdmExpTable()"><option value="">All cities</option></select>
             <select id="adm-exp-filter-category" class="fi" style="font-size:.74rem;padding:5px 8px;width:auto" onchange="renderAdmExpTable()"><option value="">All categories</option></select>
+            <select id="adm-exp-filter-tier" class="fi" style="font-size:.74rem;padding:5px 8px;width:auto" onchange="renderAdmExpTable()">
+              <option value="">All tiers</option>
+              <option value="Essential">Essential (T1)</option>
+              <option value="Classic">Classic (T2)</option>
+              <option value="Comfort">Comfort (T3)</option>
+              <option value="Select">Select (T4)</option>
+              <option value="Premium">Premium (T5)</option>
+              <option value="Prestige">Prestige (T6)</option>
+              <option value="Deluxe">Deluxe (T7)</option>
+              <option value="Ultra">Ultra (T8)</option>
+              <option value="Platinum">Platinum (T9)</option>
+              <option value="Exclusive">Exclusive (T10)</option>
+              <option value="Iconic">Iconic (T11)</option>
+            </select>
             <button class="btn bg bsm" onclick="admExpClearFilters()" style="font-size:.72rem">✕ Clear</button>
+            <button class="btn bg bsm" onclick="admRecalcAllTiers()" style="font-size:.72rem"><i class="fa fa-arrows-rotate"></i> Recalculate tiers</button>
           </div>
           <div style="overflow-x:auto">
           <table>
@@ -9137,6 +9152,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
               <th style="cursor:pointer;white-space:nowrap" onclick="admExpSort('name')">Name <span id="adm-exp-sort-name"></span></th>
               <th style="cursor:pointer;white-space:nowrap" onclick="admExpSort('partner_name')">Partner <span id="adm-exp-sort-partner_name"></span></th>
               <th style="cursor:pointer;white-space:nowrap" onclick="admExpSort('price')">Value <span id="adm-exp-sort-price"></span></th>
+              <th style="cursor:pointer;white-space:nowrap" onclick="admExpSort('tier')">Tier <span id="adm-exp-sort-tier"></span></th>
               <th style="cursor:pointer;white-space:nowrap" onclick="admExpSort('category')">Category <span id="adm-exp-sort-category"></span></th>
               <th style="cursor:pointer;white-space:nowrap" onclick="admExpSort('province')">Province <span id="adm-exp-sort-province"></span></th>
               <th style="cursor:pointer;white-space:nowrap" onclick="admExpSort('city')">City <span id="adm-exp-sort-city"></span></th>
@@ -20658,7 +20674,7 @@ function admExpSort(field) {
 
 function admExpClearFilters() {
   ['adm-exp-search','adm-exp-filter-status','adm-exp-filter-partner',
-   'adm-exp-filter-province','adm-exp-filter-city','adm-exp-filter-category'].forEach(function(id) {
+   'adm-exp-filter-province','adm-exp-filter-city','adm-exp-filter-category','adm-exp-filter-tier'].forEach(function(id) {
     var el = document.getElementById(id);
     if (el) el.value = '';
   });
@@ -20676,7 +20692,7 @@ async function renderAdmExpTable(keepPage) {
   if (!keepPage) window._admExpPage = 1;
   const tbody = document.getElementById('adm-exp-tbody');
   if (!tbody) return;
-  tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;padding:18px;color:var(--muted)"><i class="fa fa-circle-notch fa-spin"></i> Loading…</td></tr>';
+  tbody.innerHTML = '<tr><td colspan="12" style="text-align:center;padding:18px;color:var(--muted)"><i class="fa fa-circle-notch fa-spin"></i> Loading…</td></tr>';
 
   const q = (document.getElementById('adm-exp-search')?.value || '').toLowerCase();
   const rtBadge = {accommodation:'rt-accommodation',dining:'rt-dining',wellness:'rt-wellness',activity:'rt-activity',rental:'rt-rental',event:'rt-event'};
@@ -20690,7 +20706,7 @@ async function renderAdmExpTable(keepPage) {
     // Load all experiences from Supabase — single source of truth
     var [expRes, linkRes] = await Promise.all([
       db_client.from('experiences')
-        .select('id,name,partner_name,location,reservation_type,image_url,image_urls,images,is_active,price,city,province,category,booking_type')
+        .select('id,name,partner_name,location,reservation_type,image_url,image_urls,images,is_active,price,city,province,category,booking_type,tier')
         .order('name', {ascending:true}),
       db_client.from('experience_database_links').select('experience_id,database_id')
     ]);
@@ -20711,6 +20727,7 @@ async function renderAdmExpTable(keepPage) {
     var fProvince = document.getElementById('adm-exp-filter-province');
     var fCity     = document.getElementById('adm-exp-filter-city');
     var fCat      = document.getElementById('adm-exp-filter-category');
+    var fTier     = document.getElementById('adm-exp-filter-tier');
     function repopulate(sel, vals) {
       var cur = sel.value;
       while (sel.options.length > 1) sel.remove(1);
@@ -20728,6 +20745,7 @@ async function renderAdmExpTable(keepPage) {
     var fProvV    = (document.getElementById('adm-exp-filter-province')?.value || '').toLowerCase();
     var fCityV    = (document.getElementById('adm-exp-filter-city')?.value     || '').toLowerCase();
     var fCatV     = (document.getElementById('adm-exp-filter-category')?.value || '').toLowerCase();
+    var fTierV    = (document.getElementById('adm-exp-filter-tier')?.value     || '').toLowerCase();
 
     // Sort
     if (window._admExpSortField) {
@@ -20749,11 +20767,12 @@ async function renderAdmExpTable(keepPage) {
       var matchProv     = !fProvV    || (e.province||'').toLowerCase() === fProvV;
       var matchCity     = !fCityV    || (e.city||'').toLowerCase() === fCityV;
       var matchCat      = !fCatV     || (e.category||'').toLowerCase() === fCatV;
-      return matchQ && matchStatus && matchPartner && matchProv && matchCity && matchCat;
+      var matchTier     = !fTierV    || (e.tier||'').toLowerCase() === fTierV;
+      return matchQ && matchStatus && matchPartner && matchProv && matchCity && matchCat && matchTier;
     });
 
     if (!filtered.length) {
-      tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;padding:24px;color:var(--muted)">No experiences found.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="12" style="text-align:center;padding:24px;color:var(--muted)">No experiences found.</td></tr>';
       var pagEl0 = document.getElementById('adm-exp-pagination'); if (pagEl0) pagEl0.innerHTML = '';
       return;
     }
@@ -20777,11 +20796,13 @@ async function renderAdmExpTable(keepPage) {
         ? '<img src="'+imgSrc+'" style="width:44px;height:36px;object-fit:cover;border-radius:var(--rs);flex-shrink:0" loading="lazy" onerror="this.style.display=\'none\'">'
         : '<div style="width:44px;height:36px;border-radius:var(--rs);background:var(--b50);flex-shrink:0"></div>';
       var priceCell = e.price ? '<strong style="color:var(--navy)">R '+Number(e.price).toLocaleString()+'</strong>' : '<span style="color:var(--muted)">—</span>';
+      var tierCell = e.tier ? '<span class="sbadge" style="background:var(--b50);color:var(--b700)">'+e.tier+'</span>' : '<span style="color:var(--muted)">—</span>';
       return '<tr>'
         +'<td>'+img+'</td>'
         +'<td style="white-space:nowrap"><strong>'+(e.name||'—')+'</strong></td>'
         +'<td style="font-size:.8rem">'+(e.partner_name||'—')+'</td>'
         +'<td style="font-size:.8rem;white-space:nowrap">'+priceCell+'</td>'
+        +'<td style="font-size:.8rem;white-space:nowrap">'+tierCell+'</td>'
         +'<td style="font-size:.75rem">'+(e.category||'<span style="color:var(--muted)">—</span>')+'</td>'
         +'<td style="font-size:.75rem">'+(e.province||'<span style="color:var(--muted)">—</span>')+'</td>'
         +'<td style="font-size:.75rem">'+(e.city||'<span style="color:var(--muted)">—</span>')+'</td>'
@@ -20810,7 +20831,7 @@ async function renderAdmExpTable(keepPage) {
 
   } catch(err) {
     console.error('[renderAdmExpTable]', err);
-    tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;padding:24px;color:var(--muted)">Error loading experiences.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="12" style="text-align:center;padding:24px;color:var(--muted)">Error loading experiences.</td></tr>';
   }
 }
 
@@ -21888,6 +21909,50 @@ async function admSyncPageExperiences(expId, oldEmail, newEmail) {
   }
 }
 
+// Single source of truth for the internal pricing tier — computed purely from
+// `price` (the WowBox voucher value), same 11 non-overlapping bands used
+// everywhere an experience is written: the manual admin form, partner request
+// approval, and the Google Sheet importer. Never set by hand.
+function wbComputeTier(price) {
+  var p = Number(price) || 0;
+  if (p < 200)  return 'Essential';
+  if (p < 300)  return 'Classic';
+  if (p < 400)  return 'Comfort';
+  if (p < 600)  return 'Select';
+  if (p < 900)  return 'Premium';
+  if (p < 1200) return 'Prestige';
+  if (p < 1500) return 'Deluxe';
+  if (p < 2000) return 'Ultra';
+  if (p < 2500) return 'Platinum';
+  if (p < 3500) return 'Exclusive';
+  return 'Iconic';
+}
+
+// One-off admin action to backfill `tier` on experiences saved before this
+// field existed. Safe to re-run any time — it always reflects the current price.
+async function admRecalcAllTiers() {
+  var ok = confirm('Recalculate the tier of every experience based on its current price? This will overwrite any existing tier value.');
+  if (!ok) return;
+  try {
+    var res = await db_client.from('experiences').select('id,price,tier');
+    if (res.error) throw res.error;
+    var rows = res.data || [];
+    var toUpdate = rows.filter(function(e){ return wbComputeTier(e.price) !== e.tier; });
+    if (!toUpdate.length) { admToast('✅ All tiers already up to date (' + rows.length + ' experiences checked).'); return; }
+    admToast('Recalculating ' + toUpdate.length + ' experience(s)…');
+    var failed = 0;
+    for (var i = 0; i < toUpdate.length; i++) {
+      var e = toUpdate[i];
+      var upd = await db_client.from('experiences').update({ tier: wbComputeTier(e.price) }).eq('id', e.id);
+      if (upd.error) { failed++; console.error('Tier recalc failed for ' + e.id, upd.error); }
+    }
+    admToast('✅ ' + (toUpdate.length - failed) + ' tier(s) updated' + (failed ? ' · ' + failed + ' failed' : '') + '.');
+    if (typeof renderAdmExpTable === 'function') renderAdmExpTable();
+  } catch (e) {
+    admToast('⚠️ Could not recalculate tiers: ' + e.message);
+  }
+}
+
 async function admSaveExp() {
   const name    = document.getElementById('aef-name')?.value?.trim();
   const partner = document.getElementById('aef-partner')?.value?.trim() || '';
@@ -21964,6 +22029,7 @@ async function admSaveExp() {
     province,
     ...(city  ? { city }  : {}),
     ...(price ? { price } : {}),
+    tier:               wbComputeTier(price),
     ...(wowPrice ? { wow_price: wowPrice } : {}),
     wow_pricing_type:   wowPricingType,
     booking_type:       bookingType,
@@ -22191,6 +22257,7 @@ function admImpBuildRowResult(row, rowIndex, partnerEmail, partnerName) {
       certification:      (row.certification||'').trim() || null,
       accessible:         admImpBool(row.accessible),
       insolite:           admImpBool(row.insolite),
+      tier:               wbComputeTier(admImpNum(row.price)),
       programme:          programme,
       amenities:          amenitiesRaw.concat(customAmenities),
     },
@@ -22733,6 +22800,7 @@ async function admConfirmApprove(id) {
         ...(req.cancellation_hours ? { cancellation_hours: req.cancellation_hours } : {}),
         ...(req.cancellation_note ? { cancellation_note: req.cancellation_note } : {}),
         ...(req.price ? { price: req.price } : {}),
+        tier:             wbComputeTier(req.price),
         ...(req.wow_price ? { wow_price: req.wow_price } : {}),
         ...(req.wow_pricing_type ? { wow_pricing_type: req.wow_pricing_type } : {}),
         ...(req.video_url ? { video_url: req.video_url, video_position: req.video_position || 1 } : {}),
@@ -22773,6 +22841,7 @@ async function admConfirmApprove(id) {
         image_urls:       req.image_urls || [],
         box_id:           resolvedBoxId || null,
         price:            req.price || null,
+        tier:             wbComputeTier(req.price),
         ...(req.wow_price ? { wow_price: req.wow_price } : {}),
         ...(req.wow_pricing_type ? { wow_pricing_type: req.wow_pricing_type } : {}),
         ...(req.video_url ? { video_url: req.video_url, video_position: req.video_position || 1 } : {}),
