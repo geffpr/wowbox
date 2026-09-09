@@ -20978,6 +20978,14 @@ async function admInitLinkedPartnerField(selectedEmail) {
 }
 
 async function admShowExpFormById(expId) {
+  // The edit form lives inside the Experiences tab — if we're being called
+  // from elsewhere (e.g. a Database's own page), switch there first so the
+  // form is actually visible instead of opening silently behind a hidden tab.
+  var expTab = document.getElementById('adm-exp');
+  if (expTab && expTab.style.display === 'none') {
+    var navBtn = document.querySelector('.anl[onclick*="\'adm-exp\'"]');
+    switchAdm(navBtn, 'adm-exp');
+  }
   appState.editingExpId = expId || null;
   const listWrap = document.getElementById('adm-exp-list-wrap');
   const formWrap = document.getElementById('adm-exp-form');
