@@ -9170,9 +9170,26 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
             <button class="btn bg bsm" onclick="admExpClearFilters()" style="font-size:.72rem">✕ Clear</button>
             <button class="btn bg bsm" onclick="admRecalcAllTiers()" style="font-size:.72rem"><i class="fa fa-arrows-rotate"></i> Recalculate tiers</button>
           </div>
+          <div id="adm-exp-bulk-bar" style="display:none;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 14px;background:var(--b50);border:1px solid var(--b200);border-radius:var(--rs);margin-bottom:12px">
+            <strong style="font-size:.8rem;color:var(--navy)"><span id="adm-exp-bulk-count">0</span> selected</strong>
+            <button class="btn bp bsm" onclick="admExpToggleBulkDbPanel()" style="font-size:.75rem"><i class="fa fa-database"></i> Assign to Database</button>
+            <button class="btn bg bsm" onclick="admExpBulkSetDraft()" style="font-size:.75rem"><i class="fa fa-eye-slash"></i> Set to Draft</button>
+            <span id="adm-exp-bulk-status" style="font-size:.76rem;color:var(--muted)"></span>
+          </div>
+          <div id="adm-exp-bulk-db-panel" style="display:none;padding:14px;background:#fff;border:1px solid var(--border);border-radius:var(--rs);margin-bottom:12px">
+            <label style="font-size:.78rem;font-weight:600;color:var(--navy)">Add selected experiences to Database(s)</label>
+            <select id="bulk-db-select" class="fi" multiple style="height:90px;margin-top:6px"></select>
+            <div style="font-size:.7rem;color:var(--muted);margin:4px 0 8px">Ctrl+click (Cmd+click on Mac) to select several.</div>
+            <input class="fi" id="bulk-db-new" placeholder="Or create a new Database (leave empty to skip)">
+            <div style="display:flex;gap:10px;margin-top:10px">
+              <button class="btn bp bsm" onclick="admExpBulkAssignDb()"><i class="fa fa-check"></i> Confirm</button>
+              <button class="btn bg bsm" onclick="admExpToggleBulkDbPanel()">Cancel</button>
+            </div>
+          </div>
           <div style="overflow-x:auto">
           <table>
             <thead id="adm-exp-thead"><tr>
+              <th style="width:32px"><input type="checkbox" id="adm-exp-select-all" onchange="admExpToggleAll(this.checked)"></th>
               <th style="width:36px"></th>
               <th style="cursor:pointer;white-space:nowrap" onclick="admExpSort('name')">Name <span id="adm-exp-sort-name"></span></th>
               <th style="cursor:pointer;white-space:nowrap" onclick="admExpSort('partner_name')">Partner <span id="adm-exp-sort-partner_name"></span></th>
@@ -20718,7 +20735,7 @@ async function renderAdmExpTable(keepPage) {
   if (!keepPage) window._admExpPage = 1;
   const tbody = document.getElementById('adm-exp-tbody');
   if (!tbody) return;
-  tbody.innerHTML = '<tr><td colspan="13" style="text-align:center;padding:18px;color:var(--muted)"><i class="fa fa-circle-notch fa-spin"></i> Loading…</td></tr>';
+  tbody.innerHTML = '<tr><td colspan="14" style="text-align:center;padding:18px;color:var(--muted)"><i class="fa fa-circle-notch fa-spin"></i> Loading…</td></tr>';
 
   const q = (document.getElementById('adm-exp-search')?.value || '').toLowerCase();
   const rtBadge = {accommodation:'rt-accommodation',dining:'rt-dining',wellness:'rt-wellness',activity:'rt-activity',rental:'rt-rental',event:'rt-event'};
@@ -20802,7 +20819,7 @@ async function renderAdmExpTable(keepPage) {
     });
 
     if (!filtered.length) {
-      tbody.innerHTML = '<tr><td colspan="13" style="text-align:center;padding:24px;color:var(--muted)">No experiences found.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="14" style="text-align:center;padding:24px;color:var(--muted)">No experiences found.</td></tr>';
       var pagEl0 = document.getElementById('adm-exp-pagination'); if (pagEl0) pagEl0.innerHTML = '';
       return;
     }
@@ -20831,6 +20848,7 @@ async function renderAdmExpTable(keepPage) {
         ? '<span title="' + (e.import_batch || '') + '">' + new Date(e.created_at).toLocaleDateString() + '</span>'
         : '<span style="color:var(--muted)">—</span>';
       return '<tr>'
+        +'<td style="text-align:center"><input type="checkbox" class="adm-exp-chk" value="'+e.id+'" onchange="admExpUpdateBulkCount()"></td>'
         +'<td>'+img+'</td>'
         +'<td style="white-space:nowrap"><strong>'+(e.name||'—')+'</strong></td>'
         +'<td style="font-size:.8rem">'+(e.partner_name||'—')+'</td>'
@@ -20846,6 +20864,11 @@ async function renderAdmExpTable(keepPage) {
         +"<td><button class='btn bg bsm' onclick='admShowExpFormById(this.dataset.id)' data-id='"+e.id+"'><i class='fa fa-pen'></i> Edit</button></td>"
         +'</tr>';
     }).join('');
+    // Selection is scoped to what's currently rendered — reset on every re-render
+    // (filter change, page change, sort, etc.) so nothing gets acted on unseen.
+    var selectAllEl = document.getElementById('adm-exp-select-all');
+    if (selectAllEl) selectAllEl.checked = false;
+    admExpUpdateBulkCount();
 
     // Render pagination controls
     var pagEl = document.getElementById('adm-exp-pagination');
@@ -20865,7 +20888,7 @@ async function renderAdmExpTable(keepPage) {
 
   } catch(err) {
     console.error('[renderAdmExpTable]', err);
-    tbody.innerHTML = '<tr><td colspan="13" style="text-align:center;padding:24px;color:var(--muted)">Error loading experiences.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="14" style="text-align:center;padding:24px;color:var(--muted)">Error loading experiences.</td></tr>';
   }
 }
 
@@ -22028,6 +22051,110 @@ async function admRecalcAllTiers() {
     if (typeof renderAdmExpTable === 'function') renderAdmExpTable();
   } catch (e) {
     admToast('⚠️ Could not recalculate tiers: ' + e.message);
+  }
+}
+
+// ── Bulk actions on the main Experiences table (checkbox column) ──
+// Selection is intentionally scoped to what's currently rendered (one page,
+// current filters) — it resets on every renderAdmExpTable() call, so nothing
+// is ever acted on that isn't visible on screen.
+
+function admExpToggleAll(checked) {
+  document.querySelectorAll('.adm-exp-chk').forEach(function(cb){ cb.checked = checked; });
+  admExpUpdateBulkCount();
+}
+
+function admExpGetSelectedIds() {
+  return Array.from(document.querySelectorAll('.adm-exp-chk:checked')).map(function(cb){ return cb.value; });
+}
+
+function admExpUpdateBulkCount() {
+  var n = admExpGetSelectedIds().length;
+  var bar = document.getElementById('adm-exp-bulk-bar');
+  document.getElementById('adm-exp-bulk-count').textContent = n;
+  if (bar) bar.style.display = n ? 'flex' : 'none';
+  if (!n) {
+    document.getElementById('adm-exp-bulk-db-panel').style.display = 'none';
+    document.getElementById('adm-exp-bulk-status').textContent = '';
+  }
+}
+
+function admExpToggleBulkDbPanel() {
+  var panel = document.getElementById('adm-exp-bulk-db-panel');
+  var show = panel.style.display === 'none';
+  panel.style.display = show ? 'block' : 'none';
+  if (show) {
+    var sel = document.getElementById('bulk-db-select');
+    sel.innerHTML = (admDatabases || []).map(function(d){
+      return '<option value="' + d.id + '">' + (d.icon || '📁') + ' ' + d.name + '</option>';
+    }).join('');
+    document.getElementById('bulk-db-new').value = '';
+  }
+}
+
+async function admExpBulkAssignDb() {
+  var ids = admExpGetSelectedIds();
+  if (!ids.length) return;
+  var statusEl = document.getElementById('adm-exp-bulk-status');
+  var selectedDbIds = Array.from(document.getElementById('bulk-db-select')?.selectedOptions || []).map(function(o){ return o.value; });
+  var newDbName = (document.getElementById('bulk-db-new')?.value || '').trim();
+
+  if (newDbName) {
+    var clash = (admDatabases || []).find(function(d){ return (d.name||'').toLowerCase() === newDbName.toLowerCase(); });
+    if (clash) {
+      statusEl.style.color = 'red';
+      statusEl.textContent = '⚠️ A Database named "' + clash.name + '" already exists — pick it from the list instead.';
+      return;
+    }
+  }
+  if (!selectedDbIds.length && !newDbName) {
+    statusEl.style.color = 'red';
+    statusEl.textContent = 'Choose at least one Database, or type a new name.';
+    return;
+  }
+
+  statusEl.style.color = 'var(--muted)';
+  statusEl.textContent = 'Saving…';
+  try {
+    var dbIds = selectedDbIds.slice();
+    if (newDbName) {
+      var newDbId = newDbName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+      var dbInsRes = await db_client.from('databases').insert({ id: newDbId, name: newDbName, icon: '📁', color: '#e0f2fe', is_active: true });
+      if (dbInsRes.error) throw new Error('New Database could not be created: ' + dbInsRes.error.message);
+      dbIds.push(newDbId);
+      if (typeof loadAdmDatabases === 'function') await loadAdmDatabases();
+    }
+    var linkRows = [];
+    ids.forEach(function(expId){ dbIds.forEach(function(dbId){ linkRows.push({ experience_id: expId, database_id: dbId }); }); });
+    var linkRes = await db_client.from('experience_database_links').upsert(linkRows, { onConflict: 'experience_id,database_id' });
+    if (linkRes.error) throw new Error(linkRes.error.message);
+    statusEl.style.color = 'green';
+    statusEl.textContent = '✓ ' + ids.length + ' experience(s) added to ' + dbIds.length + ' Database(s).';
+    admExpToggleBulkDbPanel();
+    renderAdmExpTable(true);
+  } catch(err) {
+    statusEl.style.color = 'red';
+    statusEl.textContent = '✗ ' + err.message;
+  }
+}
+
+async function admExpBulkSetDraft() {
+  var ids = admExpGetSelectedIds();
+  if (!ids.length) return;
+  var ok = confirm('Set ' + ids.length + ' experience(s) to Draft (hidden from customers, reversible any time)?');
+  if (!ok) return;
+  var statusEl = document.getElementById('adm-exp-bulk-status');
+  statusEl.style.color = 'var(--muted)';
+  statusEl.textContent = 'Updating…';
+  try {
+    var res = await db_client.from('experiences').update({ is_active: false }).in('id', ids);
+    if (res.error) throw new Error(res.error.message);
+    statusEl.style.color = 'green';
+    statusEl.textContent = '✓ ' + ids.length + ' experience(s) set to Draft.';
+    renderAdmExpTable(true);
+  } catch(err) {
+    statusEl.style.color = 'red';
+    statusEl.textContent = '✗ ' + err.message;
   }
 }
 
