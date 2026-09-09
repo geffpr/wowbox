@@ -12586,7 +12586,7 @@ function loadProduct(boxId) {
   document.getElementById('prod-desc').textContent = b.desc;
   document.getElementById('prod-db-badge').innerHTML = isSurprise
     ? '<i class="fa fa-dice"></i> Mystery pool · 500 curated experiences · 3 rarities'
-    : '<i class="fa fa-database"></i> ' + b.db + ' · ' + b.cnt + ' experiences';
+    : '<i class="fa fa-gift"></i> ' + b.cnt + ' experience' + (b.cnt === 1 ? '' : 's');
   document.getElementById('prod-exp-cnt').textContent = isSurprise ? '(revealed by roulette)' : '(' + b.cnt + ' available)';
   document.getElementById('prod-exp-note').textContent = isSurprise
     ? '🎰 Spin the wheel below to preview random experiences'
