@@ -9173,8 +9173,12 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
             <button class="btn bg bsm" onclick="admExpClearFilters()" style="font-size:.72rem">✕ Clear</button>
             <button class="btn bg bsm" onclick="admRecalcAllTiers()" style="font-size:.72rem"><i class="fa fa-arrows-rotate"></i> Recalculate tiers</button>
           </div>
+          <div style="font-size:.78rem;color:var(--muted);margin-bottom:10px">
+            <span id="adm-exp-count-total">0</span> experiences total ·
+            <span id="adm-exp-count-filtered">0</span> match current filters ·
+            <span id="adm-exp-count-selected">0</span> selected
+          </div>
           <div id="adm-exp-bulk-bar" style="display:none;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 14px;background:var(--b50);border:1px solid var(--b200);border-radius:var(--rs);margin-bottom:12px">
-            <strong style="font-size:.8rem;color:var(--navy)"><span id="adm-exp-bulk-count">0</span> selected</strong>
             <button class="btn bp bsm" onclick="admExpToggleBulkDbPanel()" style="font-size:.75rem"><i class="fa fa-database"></i> Assign to Database</button>
             <button class="btn bg bsm" onclick="admExpBulkSetDraft()" style="font-size:.75rem"><i class="fa fa-eye-slash"></i> Set to Draft</button>
             <span id="adm-exp-bulk-status" style="font-size:.76rem;color:var(--muted)"></span>
@@ -20823,6 +20827,11 @@ async function renderAdmExpTable(keepPage) {
       return matchQ && matchStatus && matchPartner && matchProv && matchCity && matchCat && matchTier && matchBatch;
     });
 
+    var totalEl = document.getElementById('adm-exp-count-total');
+    var filteredEl = document.getElementById('adm-exp-count-filtered');
+    if (totalEl) totalEl.textContent = rows.length;
+    if (filteredEl) filteredEl.textContent = filtered.length;
+
     if (!filtered.length) {
       tbody.innerHTML = '<tr><td colspan="14" style="text-align:center;padding:24px;color:var(--muted)">No experiences found.</td></tr>';
       var pagEl0 = document.getElementById('adm-exp-pagination'); if (pagEl0) pagEl0.innerHTML = '';
@@ -22076,7 +22085,8 @@ function admExpGetSelectedIds() {
 function admExpUpdateBulkCount() {
   var n = admExpGetSelectedIds().length;
   var bar = document.getElementById('adm-exp-bulk-bar');
-  document.getElementById('adm-exp-bulk-count').textContent = n;
+  var selEl = document.getElementById('adm-exp-count-selected');
+  if (selEl) selEl.textContent = n;
   if (bar) bar.style.display = n ? 'flex' : 'none';
   if (!n) {
     document.getElementById('adm-exp-bulk-db-panel').style.display = 'none';
