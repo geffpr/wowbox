@@ -9170,6 +9170,26 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
               <option value="Iconic">Iconic (T11)</option>
             </select>
             <select id="adm-exp-filter-batch" class="fi" style="font-size:.74rem;padding:5px 8px;width:auto" onchange="renderAdmExpTable()"><option value="">All import batches</option></select>
+            <select id="adm-exp-filter-weekend" class="fi" style="font-size:.74rem;padding:5px 8px;width:auto" onchange="renderAdmExpTable()"><option value="">All weekend styles</option></select>
+            <select id="adm-exp-filter-capacity" class="fi" style="font-size:.74rem;padding:5px 8px;width:auto" onchange="renderAdmExpTable()">
+              <option value="">All capacities</option>
+              <option value="1">1 (Solo)</option>
+              <option value="2">2 (Couple)</option>
+              <option value="3+">3+ (Group)</option>
+            </select>
+            <select id="adm-exp-filter-accessible" class="fi" style="font-size:.74rem;padding:5px 8px;width:auto" onchange="renderAdmExpTable()">
+              <option value="">Accessible: any</option>
+              <option value="true">Accessible: yes</option>
+              <option value="false">Accessible: no</option>
+            </select>
+            <select id="adm-exp-filter-insolite" class="fi" style="font-size:.74rem;padding:5px 8px;width:auto" onchange="renderAdmExpTable()">
+              <option value="">Insolite: any</option>
+              <option value="true">Insolite: yes</option>
+              <option value="false">Insolite: no</option>
+            </select>
+            <label style="font-size:.74rem;color:var(--muted);display:flex;align-items:center;gap:5px;white-space:nowrap">
+              <input type="checkbox" id="adm-exp-filter-missing-photos" onchange="renderAdmExpTable()"> Missing photos only
+            </label>
             <button class="btn bg bsm" onclick="admExpClearFilters()" style="font-size:.72rem">✕ Clear</button>
             <button class="btn bg bsm" onclick="admRecalcAllTiers()" style="font-size:.72rem"><i class="fa fa-arrows-rotate"></i> Recalculate tiers</button>
           </div>
@@ -20709,10 +20729,13 @@ function admExpSort(field) {
 
 function admExpClearFilters() {
   ['adm-exp-search','adm-exp-filter-status','adm-exp-filter-partner',
-   'adm-exp-filter-province','adm-exp-filter-city','adm-exp-filter-category','adm-exp-filter-tier','adm-exp-filter-batch'].forEach(function(id) {
+   'adm-exp-filter-province','adm-exp-filter-city','adm-exp-filter-category','adm-exp-filter-tier','adm-exp-filter-batch',
+   'adm-exp-filter-weekend','adm-exp-filter-capacity','adm-exp-filter-accessible','adm-exp-filter-insolite'].forEach(function(id) {
     var el = document.getElementById(id);
     if (el) el.value = '';
   });
+  var mp = document.getElementById('adm-exp-filter-missing-photos');
+  if (mp) mp.checked = false;
   window._admExpSortField = null;
   window._admExpSortAsc   = true;
   renderAdmExpTable();
@@ -20741,7 +20764,7 @@ async function renderAdmExpTable(keepPage) {
     // Load all experiences from Supabase — single source of truth
     var [expRes, linkRes] = await Promise.all([
       db_client.from('experiences')
-        .select('id,name,partner_name,location,reservation_type,image_url,image_urls,images,is_active,price,city,province,category,booking_type,tier,import_batch,created_at')
+        .select('id,name,partner_name,location,reservation_type,image_url,image_urls,images,is_active,price,city,province,category,booking_type,tier,import_batch,created_at,weekend_type,capacity,accessible,insolite')
         .order('name', {ascending:true}),
       db_client.from('experience_database_links').select('experience_id,database_id')
     ]);
@@ -20773,6 +20796,8 @@ async function renderAdmExpTable(keepPage) {
     repopulate(fProvince, [...new Set(rows.map(function(e){ return e.province||''; }).filter(Boolean))].sort());
     repopulate(fCity,     [...new Set(rows.map(function(e){ return e.city||''; }).filter(Boolean))].sort());
     repopulate(fCat,      [...new Set(rows.map(function(e){ return e.category||''; }).filter(Boolean))].sort());
+    var fWeekendSel = document.getElementById('adm-exp-filter-weekend');
+    if (fWeekendSel) repopulate(fWeekendSel, [...new Set(rows.map(function(e){ return e.weekend_type||''; }).filter(Boolean))].sort());
     var fBatch = document.getElementById('adm-exp-filter-batch');
     if (fBatch) repopulate(fBatch, [...new Set(rows.map(function(e){ return e.import_batch||''; }).filter(Boolean))].sort().reverse());
 
@@ -20784,6 +20809,11 @@ async function renderAdmExpTable(keepPage) {
     var fCatV     = (document.getElementById('adm-exp-filter-category')?.value || '').toLowerCase();
     var fTierV    = (document.getElementById('adm-exp-filter-tier')?.value     || '').toLowerCase();
     var fBatchV   = document.getElementById('adm-exp-filter-batch')?.value     || '';
+    var fWeekendV = (document.getElementById('adm-exp-filter-weekend')?.value  || '').toLowerCase();
+    var fCapV     = document.getElementById('adm-exp-filter-capacity')?.value  || '';
+    var fAccessV  = document.getElementById('adm-exp-filter-accessible')?.value || '';
+    var fInsoliteV= document.getElementById('adm-exp-filter-insolite')?.value  || '';
+    var fMissingPhotos = document.getElementById('adm-exp-filter-missing-photos')?.checked || false;
 
     // Sort
     if (window._admExpSortField) {
@@ -20807,7 +20837,14 @@ async function renderAdmExpTable(keepPage) {
       var matchCat      = !fCatV     || (e.category||'').toLowerCase() === fCatV;
       var matchTier     = !fTierV    || (e.tier||'').toLowerCase() === fTierV;
       var matchBatch    = !fBatchV   || e.import_batch === fBatchV;
-      return matchQ && matchStatus && matchPartner && matchProv && matchCity && matchCat && matchTier && matchBatch;
+      var matchWeekend  = !fWeekendV || (e.weekend_type||'').toLowerCase() === fWeekendV;
+      var matchCap      = !fCapV     || (fCapV === '3+' ? (e.capacity||0) >= 3 : (e.capacity||0) === Number(fCapV));
+      var matchAccess   = !fAccessV  || String(!!e.accessible) === fAccessV;
+      var matchInsolite = !fInsoliteV|| String(!!e.insolite) === fInsoliteV;
+      var hasPhoto      = !!(e.image_url || (Array.isArray(e.image_urls) && e.image_urls[0]) || (Array.isArray(e.images) && e.images[0]));
+      var matchPhotos   = !fMissingPhotos || !hasPhoto;
+      return matchQ && matchStatus && matchPartner && matchProv && matchCity && matchCat && matchTier && matchBatch
+        && matchWeekend && matchCap && matchAccess && matchInsolite && matchPhotos;
     });
 
     var totalEl = document.getElementById('adm-exp-count-total');
