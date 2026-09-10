@@ -5253,6 +5253,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         <option value="relaxation">🧘 Relaxation</option>
         <option value="gastronomic">🍷 Gastronomic</option>
         <option value="cultural">🎨 Cultural</option>
+        <option value="hangout">🎉 Hangout</option>
       </select>
       <select class="wbx-sel" id="wbx-amenity" onchange="wbExploreApply()">
         <option value="">Any amenity</option>
@@ -5506,6 +5507,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
             <option value="relaxation">🧘 Relaxation</option>
             <option value="gastronomic">🍷 Gastronomic</option>
             <option value="cultural">🎨 Cultural</option>
+            <option value="hangout">🎉 Hangout</option>
           </select>
           <label class="efi" style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:.78rem;padding:8px 12px;border:1px solid var(--border);border-radius:var(--rs);background:#fff">
             <input type="checkbox" id="exp-accessible-f" onchange="renderExpList()" style="cursor:pointer"> ♿ PMR
@@ -7950,6 +7952,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
                   <option value="relaxation">🧘 Relaxation</option>
                   <option value="gastronomic">🍷 Gastronomic</option>
                   <option value="cultural">🎨 Cultural</option>
+                  <option value="hangout">🎉 Hangout</option>
                 </select>
               </div>
               <div class="fg"><label>Accommodation type</label>
@@ -9395,6 +9398,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
                       <option value="relaxation">🧘 Relaxation</option>
                       <option value="gastronomic">🍷 Gastronomic</option>
                       <option value="cultural">🎨 Cultural</option>
+                      <option value="hangout">🎉 Hangout</option>
                     </select>
                   </div>
                 </div>
@@ -11002,6 +11006,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         <label class="fcheck"><input type="checkbox" value="relaxation" onchange="renderBrowse()" class="brwf"> 🧘 Relaxation</label>
         <label class="fcheck"><input type="checkbox" value="gastronomic" onchange="renderBrowse()" class="brwf"> 🍷 Gastronomic</label>
         <label class="fcheck"><input type="checkbox" value="cultural" onchange="renderBrowse()" class="brwf"> 🎨 Cultural</label>
+        <label class="fcheck"><input type="checkbox" value="hangout" onchange="renderBrowse()" class="brwf"> 🎉 Hangout</label>
       </div>
 
       <h4>Duration</h4>
@@ -19867,7 +19872,7 @@ var TYPE_MAP = {
 };
 var WEEKEND_MAP = {
   romantic: '💑 Romantic', family: '👨‍👩‍👧 Family', adventure: '🏔️ Adventure',
-  relaxation: '🧘 Relaxation', gastronomic: '🍷 Gastronomic', cultural: '🎨 Cultural'
+  relaxation: '🧘 Relaxation', gastronomic: '🍷 Gastronomic', cultural: '🎨 Cultural', hangout: '🎉 Hangout'
 };
 var BOOKING_MAP = { online: '💻 Online', phone: '📞 By phone', on_site: '🚶 On site' };
 
@@ -22384,7 +22389,7 @@ function admImpPopulateDbSelect() {
 var WOWBOX_IMPORT_RT         = ['accommodation','dining','wellness','activity','rental','event','combo'];
 var WOWBOX_IMPORT_PROVINCES  = ['Gauteng','Western Cape','KwaZulu-Natal','Eastern Cape','Limpopo','Mpumalanga','North West','Free State','Northern Cape'];
 var WOWBOX_IMPORT_CATEGORIES = ['accommodation','dining','wellness','activity','culture','nature','event','rental'];
-var WOWBOX_IMPORT_WEEKEND    = ['romantic','family','adventure','relaxation','gastronomic','cultural'];
+var WOWBOX_IMPORT_WEEKEND    = ['romantic','family','adventure','relaxation','gastronomic','cultural','hangout'];
 var WOWBOX_IMPORT_ACCOM      = ['hotel','lodge','boutique','guesthouse','insolite','farm','villa'];
 var WOWBOX_IMPORT_BOOKING    = ['on_site','online','phone'];
 var WOWBOX_IMPORT_PRICING    = ['per_person','fixed'];
@@ -28913,7 +28918,7 @@ async function ppEditExperience(expId, expName, expDesc, expType, expCity, expCa
   var provinceOpts = ['','Gauteng','Western Cape','KwaZulu-Natal','Eastern Cape','Limpopo','Mpumalanga','North West','Free State','Northern Cape'].map(function(p){
     return '<option value="'+p+'"'+(expProvince===p?' selected':'')+'>'+( p||'— Select province —')+'</option>';
   }).join('');
-  var weekendOpts = [['','— Select —'],['romantic','💑 Romantic'],['family','👨‍👩‍👧 Family'],['adventure','🏔️ Adventure'],['relaxation','🧘 Relaxation'],['gastronomic','🍷 Gastronomic'],['cultural','🎨 Cultural']].map(function(o){
+  var weekendOpts = [['','— Select —'],['romantic','💑 Romantic'],['family','👨‍👩‍👧 Family'],['adventure','🏔️ Adventure'],['relaxation','🧘 Relaxation'],['gastronomic','🍷 Gastronomic'],['cultural','🎨 Cultural'],['hangout','🎉 Hangout']].map(function(o){
     return '<option value="'+o[0]+'"'+(expWeekend===o[0]?' selected':'')+'>'+o[1]+'</option>';
   }).join('');
   var accomOpts = [['','— N/A —'],['hotel','Hotel'],['lodge','Lodge'],['boutique','Boutique'],['guesthouse','Guest House'],['insolite','Insolite'],['farm','Farm Stay'],['villa','Villa']].map(function(o){
