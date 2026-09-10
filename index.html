@@ -22422,7 +22422,13 @@ function admImpBuildRowResult(row, rowIndex, partnerEmail, partnerName) {
 
   var imgs = [row.image_1, row.image_2, row.image_3, row.image_4, row.image_5, row.image_6]
     .map(function(u){ return (u||'').trim(); }).filter(Boolean);
-  if (imgs.length < 3) errors.push('Needs at least 3 photos (' + imgs.length + ' found)');
+  // Missing photos is NOT a blocking error — the row still imports with
+  // everything else GPT/you already prepared, but forced to Draft so an
+  // incomplete-looking fiche never goes live by accident. Flagged as a
+  // warning so it's easy to spot and finish later (upload photos, then
+  // flip back to Active).
+  var warnings = [];
+  if (imgs.length < 3) warnings.push('Only ' + imgs.length + ' photo(s) — imported as Draft, add photos then set to Active');
 
   var enumChecks = {
     category: WOWBOX_IMPORT_CATEGORIES, weekend_type: WOWBOX_IMPORT_WEEKEND,
@@ -22461,7 +22467,7 @@ function admImpBuildRowResult(row, rowIndex, partnerEmail, partnerName) {
       phone:              (row.phone||'').trim() || null,
       capacity:           capacity,
       description:        (row.description||'').trim(),
-      is_active:          statusVal === 'Active',
+      is_active:          statusVal === 'Active' && !warnings.length,
       image_urls:         imgs,
       province:           province,
       city:               city,
@@ -22493,7 +22499,7 @@ function admImpBuildRowResult(row, rowIndex, partnerEmail, partnerName) {
     );
   }
 
-  return { rowIndex: rowIndex, name: name || '(no name)', slug: slug, errors: errors, payload: payload };
+  return { rowIndex: rowIndex, name: name || '(no name)', slug: slug, errors: errors, warnings: warnings, payload: payload };
 }
 
 // Step 1: fetch + validate only. Nothing is written to Supabase here.
@@ -22547,9 +22553,10 @@ async function admImpPreview() {
     });
     _admImpRows = results;
 
-    var okCount  = results.filter(function(r){ return !r.errors.length && !r.isDuplicate; }).length;
-    var dupCount = results.filter(function(r){ return !r.errors.length && r.isDuplicate; }).length;
-    var errCount = results.filter(function(r){ return r.errors.length; }).length;
+    var okCount    = results.filter(function(r){ return !r.errors.length && !r.isDuplicate && !r.warnings.length; }).length;
+    var draftCount = results.filter(function(r){ return !r.errors.length && !r.isDuplicate && r.warnings.length; }).length;
+    var dupCount   = results.filter(function(r){ return !r.errors.length && r.isDuplicate; }).length;
+    var errCount   = results.filter(function(r){ return r.errors.length; }).length;
 
     if (tbody) {
       tbody.innerHTML = results.map(function(r){
@@ -22560,6 +22567,9 @@ async function admImpPreview() {
         } else if (r.isDuplicate) {
           statusHtml = '<span style="color:#d97706">⚠️ Duplicate</span>';
           detailHtml = 'Matches existing experience "' + existingNames[r.slug] + '"';
+        } else if (r.warnings.length) {
+          statusHtml = '<span style="color:#d97706">⚠️ Ready (Draft)</span>';
+          detailHtml = r.warnings.join('; ');
         } else {
           statusHtml = '<span style="color:#16a34a">✅ Ready</span>';
           detailHtml = '';
@@ -22569,8 +22579,8 @@ async function admImpPreview() {
       }).join('');
     }
     if (previewWrap) previewWrap.style.display = 'block';
-    if (statusEl) statusEl.textContent = okCount + ' ready to import · ' + dupCount + ' duplicate(s) · ' + errCount + ' error(s) out of ' + results.length + ' row(s).';
-    if (okCount + dupCount > 0) confirmBtn.style.display = 'inline-flex';
+    if (statusEl) statusEl.textContent = okCount + ' ready · ' + draftCount + ' ready as Draft (missing photos) · ' + dupCount + ' duplicate(s) · ' + errCount + ' error(s) out of ' + results.length + ' row(s).';
+    if (okCount + draftCount + dupCount > 0) confirmBtn.style.display = 'inline-flex';
   } catch (e) {
     if (statusEl) statusEl.textContent = '';
     admToast('⚠️ ' + e.message);
@@ -22590,6 +22600,7 @@ async function admImpConfirmImport() {
   var toUpdate   = dupMode === 'update' ? _admImpRows.filter(function(r){ return !r.errors.length && r.isDuplicate; }) : [];
   var skippedDup = dupMode === 'skip'   ? _admImpRows.filter(function(r){ return !r.errors.length && r.isDuplicate; }).length : 0;
   var failed     = _admImpRows.filter(function(r){ return r.errors.length; }).length;
+  var draftCount = toInsert.filter(function(r){ return r.warnings && r.warnings.length; }).length;
 
   if (!toInsert.length && !toUpdate.length) { admToast('Nothing to import.'); return; }
 
@@ -22607,6 +22618,7 @@ async function admImpConfirmImport() {
   }
 
   var ok = confirm('Import ' + toInsert.length + ' new experience(s)'
+    + (draftCount ? ' (' + draftCount + ' as Draft — missing photos)' : '')
     + (toUpdate.length ? ' and update ' + toUpdate.length + ' existing one(s)' : '')
     + '? This cannot be bulk-undone.');
   if (!ok) return;
@@ -22669,7 +22681,7 @@ async function admImpConfirmImport() {
       }
     }
 
-    if (statusEl) statusEl.textContent = '✅ ' + insertedCount + ' imported · ' + updatedCount + ' updated · '
+    if (statusEl) statusEl.textContent = '✅ ' + insertedCount + ' imported (' + draftCount + ' as Draft, missing photos) · ' + updatedCount + ' updated · '
       + skippedDup + ' duplicate(s) skipped · ' + failed + ' invalid row(s) skipped'
       + (failedNow ? ' · ' + failedNow + ' update(s) failed' : '') + dbLinkNote + '.';
     admToast('✅ Import complete: ' + insertedCount + ' new, ' + updatedCount + ' updated.');
