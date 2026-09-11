@@ -22768,7 +22768,7 @@ var WOWBOX_IMPORT_FIELD_GROUPS = [
   { group: 'Core', fields: [
     ['name','Name'], ['reservation_type','Reservation type'], ['city','City'], ['province','Province'],
     ['capacity','Capacity'], ['description','Description'], ['address','Address'], ['phone','Phone'],
-    ['status','Status']
+    ['status','Status'], ['source_url','Source URL']
   ]},
   { group: 'Photos', fields: [
     ['image_1','Image 1'], ['image_2','Image 2'], ['image_3','Image 3'],
@@ -22964,7 +22964,8 @@ function admImpBuildRowResult(row, rowIndex, partnerEmail, partnerName, isUpdate
       admImpNum(row.slot_duration_minutes) ? { slot_duration_minutes: admImpNum(row.slot_duration_minutes) } : {},
       admImpNum(row.cancellation_hours) ? { cancellation_hours: admImpNum(row.cancellation_hours) } : {},
       (row.cancellation_note||'').trim() ? { cancellation_note: row.cancellation_note.trim() } : {},
-      (row.video_url||'').trim() ? { video_url: row.video_url.trim(), video_position: admImpNum(row.video_position) || 1 } : {}
+      (row.video_url||'').trim() ? { video_url: row.video_url.trim(), video_position: admImpNum(row.video_position) || 1 } : {},
+      (row.source_url||'').trim() ? { source_url: row.source_url.trim() } : {}
     );
   }
 
