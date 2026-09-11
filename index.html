@@ -9258,6 +9258,20 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
             </div>
           </div>
           <div style="overflow-x:auto">
+            <button class="btn bg bsm" id="adm-exp-export-selected-btn" onclick="admExpOpenExportPanel('selected')" style="font-size:.72rem"><i class="fa fa-file-export"></i> Export selected</button>
+            <button class="btn bg bsm" onclick="admExpOpenExportPanel('filtered')" style="font-size:.72rem;margin-left:8px"><i class="fa fa-file-export"></i> Export filtered</button>
+          </div>
+          <div id="adm-exp-export-panel" style="display:none;padding:14px;background:#fff;border:1px solid var(--border);border-radius:var(--rs);margin:10px 0">
+            <h4 style="font-size:.85rem;color:var(--navy);margin-bottom:4px">Export to CSV</h4>
+            <p id="adm-exp-export-scope" style="font-size:.74rem;color:var(--muted);margin-bottom:10px"></p>
+            <div style="font-size:.76rem;color:var(--muted);margin-bottom:6px">Columns already shown in the table are included by default. Add any others you need:</div>
+            <div id="adm-exp-export-fields" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:6px 12px;font-size:.78rem"></div>
+            <div style="display:flex;gap:10px;margin-top:14px">
+              <button class="btn bp bsm" onclick="admExpDownloadCsv()"><i class="fa fa-download"></i> Download CSV</button>
+              <button class="btn bg bsm" onclick="document.getElementById('adm-exp-export-panel').style.display='none'">Cancel</button>
+            </div>
+          </div>
+          <div id="adm-exp-table-scroll" style="overflow-x:auto;cursor:grab" onmousedown="admExpDragStart(event)">
           <table>
             <thead id="adm-exp-thead"><tr>
               <th style="width:32px"><input type="checkbox" id="adm-exp-select-all" onchange="admExpToggleAll(this.checked)"></th>
@@ -9277,8 +9291,8 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
             </tr></thead>
             <tbody id="adm-exp-tbody"></tbody>
           </table>
-          <div id="adm-exp-pagination" style="display:flex;justify-content:center;gap:6px;margin-top:14px;flex-wrap:wrap"></div>
           </div>
+          <div id="adm-exp-pagination" style="display:flex;justify-content:center;gap:6px;margin-top:14px;flex-wrap:wrap"></div>
         </div>
 
         <!-- Experience edit/create form panel -->
@@ -20857,6 +20871,153 @@ function admExpSort(field) {
     if (el) el.textContent = f === field ? (window._admExpSortAsc ? ' ↑' : ' ↓') : '';
   });
   renderAdmExpTable();
+}
+
+// ── Click-and-drag horizontal scroll for the wide Experiences table ──
+// The scrollbar still works as normal; this just adds a grab-to-pan option
+// so the admin doesn't have to reach for it on a wide screen.
+var _admExpDrag = { active: false, startX: 0, startScroll: 0 };
+function admExpDragStart(e) {
+  // Ignore drags that start on an interactive element (checkbox, button,
+  // sortable header) so clicking still works exactly as before.
+  var tag = (e.target.tagName || '').toLowerCase();
+  if (tag === 'input' || tag === 'button' || tag === 'a' || e.target.closest('th') || e.target.closest('button')) return;
+  var el = document.getElementById('adm-exp-table-scroll');
+  if (!el) return;
+  _admExpDrag.active = true;
+  _admExpDrag.startX = e.pageX;
+  _admExpDrag.startScroll = el.scrollLeft;
+  el.style.cursor = 'grabbing';
+  e.preventDefault();
+}
+document.addEventListener('mousemove', function(e) {
+  if (!_admExpDrag.active) return;
+  var el = document.getElementById('adm-exp-table-scroll');
+  if (!el) return;
+  el.scrollLeft = _admExpDrag.startScroll - (e.pageX - _admExpDrag.startX);
+});
+document.addEventListener('mouseup', function() {
+  if (!_admExpDrag.active) return;
+  _admExpDrag.active = false;
+  var el = document.getElementById('adm-exp-table-scroll');
+  if (el) el.style.cursor = 'grab';
+});
+
+// ── CSV export (selected rows, or everything matching current filters) ──
+// Default columns mirror what's already visible in the table; the extra
+// checkboxes cover fields the admin might want for an offline task (finding
+// photos, double-checking a source's price) without cluttering the table itself.
+var ADM_EXP_EXPORT_DEFAULT_FIELDS = ['name','partner_name','price','tier','created_at','category','province','city','reservation_type','is_active'];
+var ADM_EXP_EXPORT_EXTRA_FIELDS = [
+  ['source_url','Source URL'], ['address','Address'], ['phone','Phone'], ['description','Description'],
+  ['capacity','Capacity'], ['weekend_type','Weekend type'], ['accommodation_type','Accommodation type'],
+  ['certification','Certification'], ['accessible','Accessible'], ['insolite','Insolite'],
+  ['amenities','Amenities'], ['custom_amenities','Custom amenities'],
+  ['cancellation_note','Cancellation note'], ['import_batch','Import batch']
+];
+var _admExpExportMode = 'filtered';
+
+function admExpOpenExportPanel(mode) {
+  if (mode === 'selected' && !admExpGetSelectedIds().length) { admToast('Select at least one row first.'); return; }
+  _admExpExportMode = mode;
+  var panel = document.getElementById('adm-exp-export-panel');
+  var scopeEl = document.getElementById('adm-exp-export-scope');
+  if (scopeEl) {
+    scopeEl.textContent = mode === 'selected'
+      ? admExpGetSelectedIds().length + ' selected row(s) will be exported.'
+      : 'All rows matching the current filters will be exported (not just this page).';
+  }
+  var fieldsEl = document.getElementById('adm-exp-export-fields');
+  if (fieldsEl) {
+    fieldsEl.innerHTML = ADM_EXP_EXPORT_EXTRA_FIELDS.map(function(pair){
+      return '<label style="display:flex;align-items:center;gap:5px"><input type="checkbox" class="adm-exp-export-field-chk" value="' + pair[0] + '"> ' + pair[1] + '</label>';
+    }).join('');
+  }
+  if (panel) panel.style.display = 'block';
+}
+
+function admExpCsvEscape(v) {
+  if (v === null || v === undefined) return '';
+  var s = Array.isArray(v) ? v.join('; ') : String(v);
+  if (/[",\n]/.test(s)) s = '"' + s.replace(/"/g, '""') + '"';
+  return s;
+}
+
+async function admExpDownloadCsv() {
+  var extraFields = Array.from(document.querySelectorAll('.adm-exp-export-field-chk:checked')).map(function(el){ return el.value; });
+  var fields = ADM_EXP_EXPORT_DEFAULT_FIELDS.concat(extraFields);
+  var panel = document.getElementById('adm-exp-export-panel');
+
+  try {
+    var rows;
+    if (_admExpExportMode === 'selected') {
+      var ids = admExpGetSelectedIds();
+      var res = await db_client.from('experiences').select('*').in('id', ids);
+      if (res.error) throw new Error(res.error.message);
+      rows = res.data || [];
+    } else {
+      // Re-fetch everything and re-apply the exact same filter predicates as
+      // the table, so the export matches what's on screen across all pages —
+      // not just the current page's 25 rows.
+      var allRes = await db_client.from('experiences').select('*');
+      if (allRes.error) throw new Error(allRes.error.message);
+      var all = allRes.data || [];
+
+      var q = (document.getElementById('adm-exp-search')?.value || '').toLowerCase();
+      var fStatus   = (document.getElementById('adm-exp-filter-status')?.value   || '').toLowerCase();
+      var fPartnerV = (document.getElementById('adm-exp-filter-partner')?.value  || '').toLowerCase();
+      var fProvV    = (document.getElementById('adm-exp-filter-province')?.value || '').toLowerCase();
+      var fCityV    = (document.getElementById('adm-exp-filter-city')?.value     || '').toLowerCase();
+      var fCatV     = (document.getElementById('adm-exp-filter-category')?.value || '').toLowerCase();
+      var fTierV    = (document.getElementById('adm-exp-filter-tier')?.value     || '').toLowerCase();
+      var fBatchV   = document.getElementById('adm-exp-filter-batch')?.value     || '';
+      var fWeekendV = (document.getElementById('adm-exp-filter-weekend')?.value  || '').toLowerCase();
+      var fCapV     = document.getElementById('adm-exp-filter-capacity')?.value  || '';
+      var fAccessV  = document.getElementById('adm-exp-filter-accessible')?.value || '';
+      var fInsoliteV= document.getElementById('adm-exp-filter-insolite')?.value  || '';
+      var fMissingPhotos = document.getElementById('adm-exp-filter-missing-photos')?.checked || false;
+
+      rows = all.filter(function(e){
+        var matchQ = !q || (e.name||'').toLowerCase().includes(q) || (e.partner_name||'').toLowerCase().includes(q) || (e.city||'').toLowerCase().includes(q) || (e.province||'').toLowerCase().includes(q) || (e.category||'').toLowerCase().includes(q);
+        var matchStatus   = !fStatus   || (fStatus==='active' ? e.is_active : !e.is_active);
+        var matchPartner  = !fPartnerV || (e.partner_name||'').toLowerCase() === fPartnerV;
+        var matchProv     = !fProvV    || (e.province||'').toLowerCase() === fProvV;
+        var matchCity     = !fCityV    || (e.city||'').toLowerCase() === fCityV;
+        var matchCat      = !fCatV     || (e.category||'').toLowerCase() === fCatV;
+        var matchTier     = !fTierV    || (e.tier||'').toLowerCase() === fTierV;
+        var matchBatch    = !fBatchV   || e.import_batch === fBatchV;
+        var matchWeekend  = !fWeekendV || (e.weekend_type||'').toLowerCase() === fWeekendV;
+        var matchCap      = !fCapV     || (fCapV === '3+' ? (e.capacity||0) >= 3 : (e.capacity||0) === Number(fCapV));
+        var matchAccess   = !fAccessV  || String(!!e.accessible) === fAccessV;
+        var matchInsolite = !fInsoliteV|| String(!!e.insolite) === fInsoliteV;
+        var hasPhoto      = !!(e.image_url || (Array.isArray(e.image_urls) && e.image_urls[0]) || (Array.isArray(e.images) && e.images[0]));
+        var matchPhotos   = !fMissingPhotos || !hasPhoto;
+        return matchQ && matchStatus && matchPartner && matchProv && matchCity && matchCat && matchTier
+          && matchBatch && matchWeekend && matchCap && matchAccess && matchInsolite && matchPhotos;
+      });
+    }
+
+    if (!rows.length) { admToast('Nothing to export.'); return; }
+
+    var header = fields.join(',');
+    var lines = rows.map(function(r){
+      return fields.map(function(f){ return admExpCsvEscape(r[f]); }).join(',');
+    });
+    var csv = header + '\n' + lines.join('\n');
+    var blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = 'wowbox-experiences-' + _admExpExportMode + '-' + new Date().toISOString().slice(0,10) + '.csv';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    if (panel) panel.style.display = 'none';
+    admToast('✅ Exported ' + rows.length + ' experience(s).');
+  } catch(err) {
+    admToast('⚠️ Export failed: ' + err.message);
+  }
 }
 
 function admExpClearFilters() {
