@@ -23085,6 +23085,12 @@ async function admImpApplyMappingAndPreview() {
   _admImpFieldMap = fieldMap;
   _admImpMappedFields = new Set(Object.keys(fieldMap).filter(function(f){ return !!fieldMap[f]; }));
 
+  // Close the mapping panel now that it's been captured — otherwise it stays
+  // on screen and pushes the preview table + Confirm button out of view,
+  // making it look like clicking "Continue" did nothing.
+  var mappingWrapEl = document.getElementById('imp-mapping-wrap');
+  if (mappingWrapEl) mappingWrapEl.style.display = 'none';
+
   var mappedRows = _admImpRawRows.map(function(rawRow){
     var out = {};
     WOWBOX_IMPORT_FIELDS_FLAT.forEach(function(pair){
@@ -23142,7 +23148,7 @@ async function admImpApplyMappingAndPreview() {
           + '<td style="font-size:.72rem;color:var(--muted)">' + detailHtml + '</td></tr>';
       }).join('');
     }
-    if (previewWrap) previewWrap.style.display = 'block';
+    if (previewWrap) { previewWrap.style.display = 'block'; previewWrap.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
     if (statusEl) statusEl.textContent = okCount + ' ready · ' + draftCount + ' ready as Draft (missing photos) · ' + dupCount + ' duplicate(s) · ' + errCount + ' error(s) out of ' + results.length + ' row(s).';
     if (okCount + draftCount + dupCount > 0) confirmBtn.style.display = 'inline-flex';
   } catch (e) {
