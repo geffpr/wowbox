@@ -5398,6 +5398,21 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     <button class="chip" data-filter="premium"       onclick="filterChip(this)"><i class="fa fa-gem"></i> Premium</button>
     <button class="chip" data-filter="surprise"      onclick="filterChip(this)"><i class="fa fa-gift"></i> Surprise</button>
     <div style="margin-left:auto;display:flex;align-items:center;gap:10px">
+      <select class="fi" id="box-range-select" style="width:auto;padding:7px 12px;font-size:.78rem" onchange="renderBoxGrid()">
+        <option value="">All ranges</option>
+        <option value="Essential">Essential</option>
+        <option value="Classic">Classic</option>
+        <option value="Comfort">Comfort</option>
+        <option value="Select">Select</option>
+        <option value="Premium">Premium</option>
+        <option value="Prestige">Prestige</option>
+        <option value="Deluxe">Deluxe</option>
+        <option value="Ultra">Ultra</option>
+        <option value="Platinum">Platinum</option>
+        <option value="Exclusive">Exclusive</option>
+        <option value="Iconic">Iconic</option>
+        <option value="Mix">Mix</option>
+      </select>
       <select class="fi" id="box-sort-select" style="width:auto;padding:7px 12px;font-size:.78rem" onchange="renderBoxGrid()">
         <option value="bestsellers">Sort: Best Sellers</option>
         <option value="price-asc">Price: Low to High</option>
@@ -9148,6 +9163,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
               <option value="Platinum">Platinum (T9)</option>
               <option value="Exclusive">Exclusive (T10)</option>
               <option value="Iconic">Iconic (T11)</option>
+              <option value="Unpriced">⚠️ Unpriced</option>
             </select>
             <button class="btn bg bsm" onclick="admExpClearFilters()" style="font-size:.72rem">✕ Clear</button>
             <button class="btn bg bsm" onclick="admRecalcAllTiers()" style="font-size:.72rem"><i class="fa fa-arrows-rotate"></i> Recalculate tiers</button>
@@ -12106,16 +12122,45 @@ async function renderBoxGrids() {
   let realExpCnt = {};  // declared outside try so it's accessible in boxes.map()
   var dbNameMap = {}; // box_id → primary database name from Supabase
   try {
-    const [boxRes, dbRes, linkRes, expCntRes] = await Promise.all([
+    const [boxRes, dbRes, linkRes, expCntRes, expDbLinkRes] = await Promise.all([
       db_client.from('boxes').select('*').eq('is_active', true).order('sold_count', { ascending: false }),
       db_client.from('databases').select('id, name, experience_count'),
       db_client.from('box_database_links').select('box_id, database_id'),
-      db_client.from('experiences').select('box_id').eq('is_active', true)
+      db_client.from('experiences').select('id, box_id, tier').eq('is_active', true),
+      db_client.from('experience_database_links').select('experience_id, database_id')
     ]);
     // Build real count map
     (expCntRes.data || []).forEach(function(e) {
       if (e.box_id) realExpCnt[e.box_id] = (realExpCnt[e.box_id] || 0) + 1;
     });
+    // Build box Range map: direct box_id experiences + experiences reached
+    // via this box's linked Database(s) — same "direct + chain" logic as the
+    // single-box detail page, just batched for the whole grid in one pass.
+    var boxRangeMap = {};
+    {
+      var tierByExpId = {};
+      (expCntRes.data || []).forEach(function(e){ tierByExpId[e.id] = e.tier; });
+      var expIdsByDb = {};
+      (expDbLinkRes.data || []).forEach(function(l){
+        if (!expIdsByDb[l.database_id]) expIdsByDb[l.database_id] = [];
+        expIdsByDb[l.database_id].push(l.experience_id);
+      });
+      var dbIdsByBox = {};
+      (linkRes.data || []).forEach(function(l){
+        if (!dbIdsByBox[l.box_id]) dbIdsByBox[l.box_id] = [];
+        dbIdsByBox[l.box_id].push(l.database_id);
+      });
+      var allBoxIds = new Set((expCntRes.data || []).map(function(e){ return e.box_id; }).filter(Boolean)
+        .concat(Object.keys(dbIdsByBox)));
+      allBoxIds.forEach(function(boxId){
+        var expIds = new Set((expCntRes.data || []).filter(function(e){ return e.box_id === boxId; }).map(function(e){ return e.id; }));
+        (dbIdsByBox[boxId] || []).forEach(function(dbId){
+          (expIdsByDb[dbId] || []).forEach(function(id){ expIds.add(id); });
+        });
+        var tiers = Array.from(expIds).map(function(id){ return tierByExpId[id]; });
+        boxRangeMap[boxId] = wbComputeBoxRange(tiers);
+      });
+    }
     if (!boxRes.error && boxRes.data && boxRes.data.length > 0) {
       var todayStr = new Date().toISOString().slice(0,10);
       boxes = boxRes.data.filter(function(b){ return !b.available_until || b.available_until >= todayStr; });
@@ -12194,12 +12239,12 @@ async function renderBoxGrids() {
       <div class="bcard-img">
         <img src="${imgSrc}" alt="${b.name}" loading="lazy">
         <div class="bcard-ov"></div>
-        <div class="badge${isFeatured?' gold':''}">${b.badge}</div>
+        <div class="badge${isFeatured?' gold':''}">${b.badge || ''}</div>
         <div class="exp-badge"><i class="fa fa-layer-group"></i> ${realCnt} experience${realCnt !== 1 ? 's' : ''}</div>
         <button class="wl-box-btn" data-id="${b.id}" onclick="wlToggleBox('${b.id}',event)" style="position:absolute;top:10px;right:10px;background:rgba(0,0,0,.35);border:none;border-radius:50%;width:32px;height:32px;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:2" title="Save to wishlist">${wlHasBox(b.id)?'<i class="fa fa-heart" style="color:#ef4444"></i>':'<i class="fa fa-heart" style="color:rgba(255,255,255,.7)"></i>'}</button>
       </div>
       <div class="bcard-body">
-        <div class="bcard-title">${b.name}</div>
+        <div class="bcard-title">${b.name}${boxRangeMap[b.id] ? ' - ' + boxRangeMap[b.id] : ''}</div>
         <div class="bcard-desc">${b.description.substring(0,90)}…</div>
         ${renderCouponBadgeHTML(b.id)}
         <div class="bcard-foot" style="margin-top:8px">
@@ -12270,6 +12315,7 @@ async function renderBoxGrids() {
       images: resolvedImgs,
       is_purchasable: b.is_purchasable !== false,
       badge:  b.badge,
+      range:  boxRangeMap[b.id] || null,
       rating: b.rating,
       sold:   b.sold_count,
       desc:   b.description,
@@ -12938,9 +12984,20 @@ async function fetchProductExps(boxId) {
     var all = direct.concat(chain);
 
     // Update boxDB metadata (even if 0 results so UI shows correct count)
+    var boxRange = wbComputeBoxRange(all.map(function(e){ return e.tier; }));
     if (boxDB[boxId]) {
       if (dbLabel) boxDB[boxId].db = dbLabel;
       boxDB[boxId].cnt = String(all.length);
+      boxDB[boxId].range = boxRange;
+    }
+    // Title elements were set before this async fetch resolved — refresh them
+    // now that we know the Range, but only if the user hasn't navigated away.
+    if (appState.currentBoxId === boxId && boxId !== 'surprise') {
+      var titleSuffix = boxRange ? ' - ' + boxRange : '';
+      var bcEl = document.getElementById('prod-bc');
+      var trEl = document.getElementById('prod-title-r');
+      if (bcEl && boxDB[boxId]) bcEl.textContent = boxDB[boxId].name + titleSuffix;
+      if (trEl && boxDB[boxId]) trEl.textContent = boxDB[boxId].name + titleSuffix;
     }
 
     // Replace expDB entries for this box with fresh Supabase data
@@ -18618,6 +18675,7 @@ function filterChip(el) {
 async function renderBoxGrid() {
   if (!_activeBadgeCoupons.length) await loadActiveBadgeCoupons();
   const sortVal   = document.getElementById('box-sort-select')?.value || 'bestsellers';
+  const rangeVal  = document.getElementById('box-range-select')?.value || '';
   const activeChip = document.querySelector('.fbar .chip.on');
   const filterKey = activeChip?.dataset.filter || 'all';
 
@@ -18626,6 +18684,11 @@ async function renderBoxGrid() {
   // Filter by category
   if (filterKey !== 'all') {
     keys = keys.filter(k => (boxCategories[k] || []).includes(filterKey));
+  }
+  // Filter by Range — an honest signal (not a price) of whether every linked
+  // experience sits in the same tier or is a "Mix". Computed by renderBoxGrids().
+  if (rangeVal) {
+    keys = keys.filter(k => boxDB[k].range === rangeVal);
   }
 
   // Sort
@@ -18642,11 +18705,11 @@ async function renderBoxGrid() {
       <div class="bcard-img">
         <img src="${b.img}" alt="${b.name}" loading="lazy">
         <div class="bcard-ov"></div>
-        <div class="badge${isFeatured?' gold':''}">${b.badge}</div>
+        <div class="badge${isFeatured?' gold':''}">${b.badge || ''}</div>
         <div class="exp-badge"><i class="fa fa-layer-group"></i> ${b.cnt} experiences</div>
       </div>
       <div class="bcard-body">
-        <div class="bcard-title">${b.name}</div>
+        <div class="bcard-title">${b.name}${b.range ? ' - ' + b.range : ''}</div>
         <div class="bcard-desc">${b.desc.substring(0,90)}…</div>
         ${renderCouponBadgeHTML(k)}
         <div class="bcard-foot" style="margin-top:8px">
@@ -21921,7 +21984,13 @@ async function admSyncPageExperiences(expId, oldEmail, newEmail) {
 // everywhere an experience is written: the manual admin form, partner request
 // approval, and the Google Sheet importer. Never set by hand.
 function wbComputeTier(price) {
-  var p = Number(price) || 0;
+  // No price yet (blank/zero/non-numeric) is not the same as a genuinely
+  // cheap experience — flag it distinctly so it never masquerades as
+  // "Essential" and never counts towards a box's public Range.
+  if (price === null || price === undefined || price === '' || Number(price) <= 0 || isNaN(Number(price))) {
+    return 'Unpriced';
+  }
+  var p = Number(price);
   if (p < 200)  return 'Essential';
   if (p < 300)  return 'Classic';
   if (p < 400)  return 'Comfort';
@@ -21933,6 +22002,18 @@ function wbComputeTier(price) {
   if (p < 2500) return 'Platinum';
   if (p < 3500) return 'Exclusive';
   return 'Iconic';
+}
+
+// A box's public "Range" — never a price, never the raw internal tier name
+// exposed as a sales pitch, just an honest signal of whether every linked
+// experience sits in the same price band ("Select", "Deluxe"...) or spans
+// several ("Mix"). Ignores Draft experiences and ones with no real price yet
+// (tier === 'Unpriced') so a single unfinished import can't skew it.
+function wbComputeBoxRange(tiers) {
+  var valid = tiers.filter(function(t){ return t && t !== 'Unpriced'; });
+  if (!valid.length) return null;
+  var distinct = [...new Set(valid)];
+  return distinct.length === 1 ? distinct[0] : 'Mix';
 }
 
 // One-off admin action to backfill `tier` on experiences saved before this
