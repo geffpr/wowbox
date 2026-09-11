@@ -9171,6 +9171,10 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
               existing experience, only the fields you map here will actually be changed; everything
               else on that experience stays exactly as it is today.
             </p>
+            <div style="display:flex;gap:10px;margin-bottom:10px">
+              <button class="btn bg bsm" onclick="admImpClearAllMappings()" style="font-size:.72rem"><i class="fa fa-eraser"></i> Clear all</button>
+              <button class="btn bg bsm" onclick="admImpRedetectMappings()" style="font-size:.72rem"><i class="fa fa-arrows-rotate"></i> Re-detect all</button>
+            </div>
             <div id="imp-mapping-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px"></div>
             <div style="display:flex;gap:10px;margin-top:14px">
               <button class="btn bp bsm" onclick="admImpApplyMappingAndPreview()"><i class="fa fa-arrow-right"></i> Continue with this mapping</button>
@@ -22672,6 +22676,7 @@ async function admSaveExp() {
 
 var _admImpRows = []; // cached validated rows from the last preview, consumed by confirm
 var _admImpRawRows = []; // raw parsed CSV rows, before column mapping is applied
+var _admImpHeaders = []; // sheet's own column headers, for "Re-detect all"
 var _admImpFieldMap = {}; // internal field -> chosen sheet column header (or '' if not provided)
 var _admImpMappedFields = new Set(); // internal field names the admin actually mapped this run
 
@@ -23008,6 +23013,7 @@ async function admImpPreview() {
     if (!headers.length) throw new Error('Could not read any column headers from the sheet.');
 
     _admImpRawRows = rows;
+    _admImpHeaders = headers;
     admImpRenderMappingUI(headers);
     if (mappingWrap) mappingWrap.style.display = 'block';
     if (statusEl) statusEl.textContent = rows.length + ' row(s) found · confirm the column mapping below to continue.';
@@ -23040,6 +23046,20 @@ function admImpRenderMappingUI(headers) {
       + '<select class="fi imp-map-select" data-field="' + field + '" style="font-size:.76rem;padding:5px 7px;width:100%">'
       + (autoMatch ? opts : optionsHtml) + '</select></div>';
   }).join('');
+}
+
+// Sets every mapping dropdown to "— not provided —" in one click — the
+// starting point for a deliberately narrow import (e.g. name + one or two
+// fields only), instead of clicking through 46 dropdowns by hand.
+function admImpClearAllMappings() {
+  document.querySelectorAll('.imp-map-select').forEach(function(sel){ sel.value = ''; });
+}
+
+// Restores the automatic name-matched mapping, discarding any manual
+// changes — the same result as if "Check the file" had just run.
+function admImpRedetectMappings() {
+  if (!_admImpHeaders.length) return;
+  admImpRenderMappingUI(_admImpHeaders);
 }
 
 // Step 2: the admin has confirmed (or adjusted) the column mapping — remap
