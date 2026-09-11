@@ -9163,6 +9163,20 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
             <button class="btn bg bsm" onclick="admToggleSheetImport()">Cancel</button>
           </div>
           <div id="imp-status" style="font-size:.78rem;color:var(--muted);margin-top:10px"></div>
+          <div id="imp-mapping-wrap" style="margin-top:14px;display:none;padding:14px;background:#fff;border:1px solid var(--border);border-radius:var(--rs)">
+            <h4 style="font-size:.85rem;color:var(--navy);margin-bottom:4px">Map your columns</h4>
+            <p style="font-size:.74rem;color:var(--muted);margin-bottom:12px">
+              Columns that already match our field names are pre-selected automatically. Leave a field
+              as <em>— not provided —</em> if your sheet doesn't have it — for a row that updates an
+              existing experience, only the fields you map here will actually be changed; everything
+              else on that experience stays exactly as it is today.
+            </p>
+            <div id="imp-mapping-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px"></div>
+            <div style="display:flex;gap:10px;margin-top:14px">
+              <button class="btn bp bsm" onclick="admImpApplyMappingAndPreview()"><i class="fa fa-arrow-right"></i> Continue with this mapping</button>
+              <button class="btn bg bsm" onclick="document.getElementById('imp-mapping-wrap').style.display='none'">Cancel</button>
+            </div>
+          </div>
           <div id="imp-preview-wrap" style="margin-top:14px;display:none">
             <div style="overflow-x:auto">
               <table>
@@ -22496,6 +22510,9 @@ async function admSaveExp() {
    the per-row preview from admImpPreview(). */
 
 var _admImpRows = []; // cached validated rows from the last preview, consumed by confirm
+var _admImpRawRows = []; // raw parsed CSV rows, before column mapping is applied
+var _admImpFieldMap = {}; // internal field -> chosen sheet column header (or '' if not provided)
+var _admImpMappedFields = new Set(); // internal field names the admin actually mapped this run
 
 function admToggleSheetImport() {
   var el = document.getElementById('adm-exp-import');
@@ -22513,7 +22530,12 @@ function admToggleSheetImport() {
     document.getElementById('imp-preview-wrap').style.display = 'none';
     document.getElementById('imp-preview-tbody').innerHTML = '';
     document.getElementById('imp-confirm-btn').style.display = 'none';
+    var mappingWrapEl = document.getElementById('imp-mapping-wrap');
+    if (mappingWrapEl) mappingWrapEl.style.display = 'none';
     _admImpRows = [];
+    _admImpRawRows = [];
+    _admImpFieldMap = {};
+    _admImpMappedFields = new Set();
   }
 }
 
@@ -22577,6 +22599,63 @@ function admImpPopulateDbSelect() {
 }
 
 var WOWBOX_IMPORT_RT         = ['accommodation','dining','wellness','activity','rental','event','combo'];
+
+// The internal fields the importer actually reads, grouped for a readable
+// mapping UI. label = what the admin sees; field = the key admImpBuildRowResult
+// expects on the (possibly remapped) row object.
+var WOWBOX_IMPORT_FIELD_GROUPS = [
+  { group: 'Core', fields: [
+    ['name','Name'], ['reservation_type','Reservation type'], ['city','City'], ['province','Province'],
+    ['capacity','Capacity'], ['description','Description'], ['address','Address'], ['phone','Phone'],
+    ['status','Status']
+  ]},
+  { group: 'Photos', fields: [
+    ['image_1','Image 1'], ['image_2','Image 2'], ['image_3','Image 3'],
+    ['image_4','Image 4'], ['image_5','Image 5'], ['image_6','Image 6']
+  ]},
+  { group: 'Pricing & booking', fields: [
+    ['price','Price'], ['wow_price','Wow price'], ['wow_pricing_type','Wow pricing type'],
+    ['booking_type','Booking type'], ['duration_nights','Duration (nights)']
+  ]},
+  { group: 'Classification', fields: [
+    ['category','Category'], ['weekend_type','Weekend type'], ['accommodation_type','Accommodation type'],
+    ['certification','Certification'], ['accessible','Accessible'], ['insolite','Insolite']
+  ]},
+  { group: 'Scheduling', fields: [
+    ['ical_url','iCal URL'], ['opening_time','Opening time'], ['closing_time','Closing time'],
+    ['slot_duration_minutes','Slot duration (min)'], ['cancellation_hours','Cancellation hours'],
+    ['cancellation_note','Cancellation note']
+  ]},
+  { group: 'Media & location', fields: [
+    ['video_url','Video URL'], ['video_position','Video position'], ['lat','Latitude'], ['lng','Longitude']
+  ]},
+  { group: 'Programme', fields: [
+    ['programme_1_title','Programme 1 title'], ['programme_1_text','Programme 1 text'],
+    ['programme_2_title','Programme 2 title'], ['programme_2_text','Programme 2 text'],
+    ['programme_3_title','Programme 3 title'], ['programme_3_text','Programme 3 text'],
+    ['programme_4_title','Programme 4 title'], ['programme_4_text','Programme 4 text']
+  ]},
+  { group: 'Amenities', fields: [
+    ['amenities','Amenities'], ['custom_amenities','Custom amenities']
+  ]}
+];
+// Flat list of [field, label] — same fields, no grouping — used wherever we
+// just need to iterate every mappable field.
+var WOWBOX_IMPORT_FIELDS_FLAT = WOWBOX_IMPORT_FIELD_GROUPS.reduce(function(acc, g){ return acc.concat(g.fields); }, []);
+
+// Which computed/derived payload keys should only survive into an UPDATE
+// (never an insert) when at least one of their real source column(s) was
+// actually mapped — protects an existing experience's other fields from
+// being blanked out by a deliberately partial sheet (e.g. photos-only).
+var WOWBOX_IMPORT_UPDATE_DEPENDS = {
+  image_urls: ['image_1','image_2','image_3','image_4','image_5','image_6'],
+  image_url:  ['image_1','image_2','image_3','image_4','image_5','image_6'],
+  tier:       ['price'],
+  is_active:  ['status','image_1','image_2','image_3','image_4','image_5','image_6'],
+  location:   ['city'],
+  programme:  ['programme_1_title','programme_1_text','programme_2_title','programme_2_text','programme_3_title','programme_3_text','programme_4_title','programme_4_text'],
+  amenities:  ['amenities','custom_amenities']
+};
 var WOWBOX_IMPORT_PROVINCES  = ['Gauteng','Western Cape','KwaZulu-Natal','Eastern Cape','Limpopo','Mpumalanga','North West','Free State','Northern Cape'];
 var WOWBOX_IMPORT_CATEGORIES = ['accommodation','dining','wellness','activity','culture','nature','event','rental'];
 var WOWBOX_IMPORT_WEEKEND    = ['romantic','family','adventure','relaxation','gastronomic','cultural','hangout'];
@@ -22592,28 +22671,55 @@ function admImpSlugify(name) {
 function admImpBool(v) { return String(v||'').trim().toUpperCase() === 'TRUE'; }
 function admImpNum(v) { var n = parseFloat(v); return isNaN(n) ? null : n; }
 
+// Keeps only the payload keys whose underlying source column(s) were
+// actually mapped this run. Every plain field maps 1:1 to itself; a few
+// computed keys (tier, is_active, image_urls...) depend on other columns —
+// see WOWBOX_IMPORT_UPDATE_DEPENDS — so they're only kept when one of THEIR
+// real source fields was mapped, never just because they showed up in the
+// payload object.
+function admImpFilterPayloadForUpdate(payload, mappedFields) {
+  // partner_name/partner_email aren't sheet columns at all — they come from
+  // the "Assign to Partner" selector the admin deliberately sets for this
+  // whole batch, so they always apply on update regardless of what got mapped.
+  var alwaysKeep = ['partner_name','partner_email'];
+  var out = {};
+  Object.keys(payload).forEach(function(key){
+    if (alwaysKeep.indexOf(key) !== -1) { out[key] = payload[key]; return; }
+    var deps = WOWBOX_IMPORT_UPDATE_DEPENDS[key] || [key];
+    var wasMapped = deps.some(function(d){ return mappedFields.has(d); });
+    if (wasMapped) out[key] = payload[key];
+  });
+  return out;
+}
+
 // Validates one CSV row and, if valid, builds the exact same payload shape
 // as admSaveExp()'s `payload` — same required fields, same optional-field
 // spread pattern — so an imported experience is indistinguishable in the
 // database from one entered by hand.
-function admImpBuildRowResult(row, rowIndex, partnerEmail, partnerName) {
+function admImpBuildRowResult(row, rowIndex, partnerEmail, partnerName, isUpdate, photosMapped) {
   var errors = [];
   var name = (row.name||'').trim();
   if (!name) errors.push('Missing name');
 
+  // reservation_type/city/province/capacity are only hard-required when this
+  // row will CREATE a new experience. When it's updating one that already
+  // exists (matched by name), a deliberately partial sheet — e.g. name +
+  // photos only — must not be blocked just because those columns weren't
+  // provided: the existing values stay untouched either way, since
+  // admImpFilterPayloadForUpdate() strips out anything that wasn't mapped.
   var rt = (row.reservation_type||'').trim();
-  if (!rt) errors.push('Missing reservation_type');
+  if (!rt) { if (!isUpdate) errors.push('Missing reservation_type'); }
   else if (WOWBOX_IMPORT_RT.indexOf(rt) === -1) errors.push('Invalid reservation_type: "' + rt + '"');
 
   var city = (row.city||'').trim();
-  if (!city) errors.push('Missing city');
+  if (!city && !isUpdate) errors.push('Missing city');
 
   var province = (row.province||'').trim();
-  if (!province) errors.push('Missing province');
+  if (!province) { if (!isUpdate) errors.push('Missing province'); }
   else if (WOWBOX_IMPORT_PROVINCES.indexOf(province) === -1) errors.push('Invalid province: "' + province + '"');
 
   var capacity = admImpNum(row.capacity);
-  if (!capacity) errors.push('Missing/invalid capacity');
+  if (!capacity && !isUpdate) errors.push('Missing/invalid capacity');
 
   var imgs = [row.image_1, row.image_2, row.image_3, row.image_4, row.image_5, row.image_6]
     .map(function(u){ return (u||'').trim(); }).filter(Boolean);
@@ -22623,7 +22729,14 @@ function admImpBuildRowResult(row, rowIndex, partnerEmail, partnerName) {
   // warning so it's easy to spot and finish later (upload photos, then
   // flip back to Active).
   var warnings = [];
-  if (imgs.length < 3) warnings.push('Only ' + imgs.length + ' photo(s) — imported as Draft, add photos then set to Active');
+  // Only force Draft over missing photos when photos are actually part of
+  // what this row is setting — a genuine new experience (always), or an
+  // update where the admin specifically mapped the photo columns. An update
+  // that doesn't touch photos at all must never flip an existing Active
+  // experience to Draft just because this particular sheet has no photo data.
+  if (imgs.length < 3 && (!isUpdate || photosMapped)) {
+    warnings.push('Only ' + imgs.length + ' photo(s) — imported as Draft, add photos then set to Active');
+  }
 
   var enumChecks = {
     category: WOWBOX_IMPORT_CATEGORIES, weekend_type: WOWBOX_IMPORT_WEEKEND,
@@ -22706,19 +22819,17 @@ async function admImpPreview() {
   var tbody = document.getElementById('imp-preview-tbody');
   var confirmBtn = document.getElementById('imp-confirm-btn');
   var btn = document.getElementById('imp-preview-btn');
+  var mappingWrap = document.getElementById('imp-mapping-wrap');
 
   if (!url) { admToast('Paste the published CSV URL first.'); return; }
   if (!partnerEmail) { admToast('Choose the partner to assign these experiences to.'); return; }
   if (typeof Papa === 'undefined') { admToast('CSV parser failed to load — check your connection and refresh.'); return; }
 
-  var list = await admLoadLinkedPartnerCandidates();
-  var found = list.find(function(p){ return p.email === partnerEmail; });
-  var partnerName = found ? found.name : partnerEmail;
-
   confirmBtn.style.display = 'none';
   _admImpRows = [];
   if (previewWrap) previewWrap.style.display = 'none';
   if (tbody) tbody.innerHTML = '';
+  if (mappingWrap) mappingWrap.style.display = 'none';
   if (statusEl) statusEl.textContent = 'Fetching the sheet…';
   if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Checking…'; }
 
@@ -22731,9 +22842,80 @@ async function admImpPreview() {
     var parsed = Papa.parse(csvText, { header: true, skipEmptyLines: true, delimiter: '' });
     var rows = parsed.data || [];
     if (!rows.length) throw new Error('No rows found in the sheet.');
+    var headers = parsed.meta && parsed.meta.fields ? parsed.meta.fields.filter(Boolean) : [];
+    if (!headers.length) throw new Error('Could not read any column headers from the sheet.');
 
+    _admImpRawRows = rows;
+    admImpRenderMappingUI(headers);
+    if (mappingWrap) mappingWrap.style.display = 'block';
+    if (statusEl) statusEl.textContent = rows.length + ' row(s) found · confirm the column mapping below to continue.';
+  } catch (e) {
+    if (statusEl) statusEl.textContent = '';
+    admToast('⚠️ ' + e.message);
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa fa-magnifying-glass"></i> Check the file'; }
+  }
+}
+
+// Renders one dropdown per internal field, pre-selecting a sheet column
+// whose header matches that field's name exactly (case-insensitive) — so a
+// sheet already using our standard headers needs zero manual mapping, and
+// only a genuinely different sheet (e.g. a photos-only export) needs the
+// admin to actually pick anything.
+function admImpRenderMappingUI(headers) {
+  var grid = document.getElementById('imp-mapping-grid');
+  if (!grid) return;
+  var headerLower = headers.map(function(h){ return h.toLowerCase().trim(); });
+  var optionsHtml = '<option value="">— not provided —</option>' + headers.map(function(h){
+    return '<option value="' + h.replace(/"/g,'&quot;') + '">' + h + '</option>';
+  }).join('');
+  grid.innerHTML = WOWBOX_IMPORT_FIELDS_FLAT.map(function(pair){
+    var field = pair[0], label = pair[1];
+    var idx = headerLower.indexOf(field.toLowerCase());
+    var autoMatch = idx !== -1 ? headers[idx] : '';
+    var opts = optionsHtml.replace('value="' + autoMatch.replace(/"/g,'&quot;') + '"', 'value="' + autoMatch.replace(/"/g,'&quot;') + '" selected');
+    return '<div><label style="font-size:.72rem;color:var(--muted);display:block;margin-bottom:2px">' + label + '</label>'
+      + '<select class="fi imp-map-select" data-field="' + field + '" style="font-size:.76rem;padding:5px 7px;width:100%">'
+      + (autoMatch ? opts : optionsHtml) + '</select></div>';
+  }).join('');
+}
+
+// Step 2: the admin has confirmed (or adjusted) the column mapping — remap
+// every raw row through it, then run exactly the same validation and
+// preview-table logic as before. Fields left "— not provided —" simply come
+// through as blank/undefined, which admImpBuildRowResult already treats as
+// absent (required-field errors, or a value just not being included).
+async function admImpApplyMappingAndPreview() {
+  var partnerEmail = document.getElementById('imp-partner-email')?.value?.trim();
+  var statusEl = document.getElementById('imp-status');
+  var previewWrap = document.getElementById('imp-preview-wrap');
+  var tbody = document.getElementById('imp-preview-tbody');
+  var confirmBtn = document.getElementById('imp-confirm-btn');
+
+  var list = await admLoadLinkedPartnerCandidates();
+  var found = list.find(function(p){ return p.email === partnerEmail; });
+  var partnerName = found ? found.name : partnerEmail;
+
+  var fieldMap = {};
+  document.querySelectorAll('.imp-map-select').forEach(function(sel){
+    fieldMap[sel.dataset.field] = sel.value || '';
+  });
+  _admImpFieldMap = fieldMap;
+  _admImpMappedFields = new Set(Object.keys(fieldMap).filter(function(f){ return !!fieldMap[f]; }));
+
+  var mappedRows = _admImpRawRows.map(function(rawRow){
+    var out = {};
+    WOWBOX_IMPORT_FIELDS_FLAT.forEach(function(pair){
+      var field = pair[0];
+      var col = fieldMap[field];
+      out[field] = col ? rawRow[col] : '';
+    });
+    return out;
+  });
+
+  try {
     // Flag duplicates by the same slug logic used for manual creation.
-    var slugs = rows.map(function(r){ return r.name ? admImpSlugify(r.name.trim()) : null; }).filter(Boolean);
+    var slugs = mappedRows.map(function(r){ return r.name ? admImpSlugify(r.name.trim()) : null; }).filter(Boolean);
     var existingNames = {};
     if (slugs.length) {
       var exRes = await db_client.from('experiences').select('id,name').in('id', slugs);
@@ -22741,8 +22923,11 @@ async function admImpPreview() {
       (exRes.data || []).forEach(function(e){ existingNames[e.id] = e.name; });
     }
 
-    var results = rows.map(function(row, i){
-      var r = admImpBuildRowResult(row, i, partnerEmail, partnerName);
+    var photosMapped = ['image_1','image_2','image_3','image_4','image_5','image_6'].some(function(f){ return _admImpMappedFields.has(f); });
+    var results = mappedRows.map(function(row, i){
+      var rowSlug = row.name ? admImpSlugify(row.name.trim()) : null;
+      var rowIsDuplicate = !!(rowSlug && existingNames[rowSlug]);
+      var r = admImpBuildRowResult(row, i, partnerEmail, partnerName, rowIsDuplicate, photosMapped);
       r.isDuplicate = !!(r.slug && existingNames[r.slug]);
       return r;
     });
@@ -22761,7 +22946,9 @@ async function admImpPreview() {
           detailHtml = r.errors.join('; ');
         } else if (r.isDuplicate) {
           statusHtml = '<span style="color:#d97706">⚠️ Duplicate</span>';
-          detailHtml = 'Matches existing experience "' + existingNames[r.slug] + '"';
+          detailHtml = _admImpMappedFields.size < WOWBOX_IMPORT_FIELDS_FLAT.length
+            ? 'Matches existing experience "' + existingNames[r.slug] + '" — only the mapped fields will be updated'
+            : 'Matches existing experience "' + existingNames[r.slug] + '"';
         } else if (r.warnings.length) {
           statusHtml = '<span style="color:#d97706">⚠️ Ready (Draft)</span>';
           detailHtml = r.warnings.join('; ');
@@ -22779,8 +22966,6 @@ async function admImpPreview() {
   } catch (e) {
     if (statusEl) statusEl.textContent = '';
     admToast('⚠️ ' + e.message);
-  } finally {
-    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa fa-magnifying-glass"></i> Check the file'; }
   }
 }
 
@@ -22838,6 +23023,10 @@ async function admImpConfirmImport() {
       var r = toUpdate[i];
       var updPayload = Object.assign({}, r.payload);
       delete updPayload.id;
+      // Only touch fields the admin actually mapped this run — a partial
+      // sheet (e.g. name + photos only) must never blank out everything
+      // else on an experience that already exists.
+      updPayload = admImpFilterPayloadForUpdate(updPayload, _admImpMappedFields);
       var updRes = await db_client.from('experiences').update(updPayload).eq('id', r.slug);
       if (updRes.error) { failedNow++; console.error('Update failed for ' + r.slug, updRes.error); }
       else updatedCount++;
