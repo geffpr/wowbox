@@ -22837,6 +22837,15 @@ function admImpSlugify(name) {
 function admImpBool(v) { return String(v||'').trim().toUpperCase() === 'TRUE'; }
 function admImpNum(v) { var n = parseFloat(v); return isNaN(n) ? null : n; }
 
+// Extracts a bare domain ("heavenlyspa.co.za") from any URL, dropping "www."
+// so two pages of the same site ("/", "/our-menus") are recognised as the
+// same place even though the full URLs differ.
+function admImpDomain(url) {
+  if (!url) return '';
+  try { return new URL(url.trim()).hostname.replace(/^www\./i, '').toLowerCase(); }
+  catch (e) { return ''; }
+}
+
 // Keeps only the payload keys whose underlying source column(s) were
 // actually mapped this run. Every plain field maps 1:1 to itself; a few
 // computed keys (tier, is_active, image_urls...) depend on other columns —
@@ -22974,7 +22983,7 @@ function admImpBuildRowResult(row, rowIndex, partnerEmail, partnerName, isUpdate
     );
   }
 
-  return { rowIndex: rowIndex, name: name || '(no name)', slug: slug, errors: errors, warnings: warnings, payload: payload };
+  return { rowIndex: rowIndex, name: name || '(no name)', slug: slug, errors: errors, warnings: warnings, payload: payload, imgCount: imgs.length };
 }
 
 // Step 1: fetch + validate only. Nothing is written to Supabase here.
@@ -23111,12 +23120,56 @@ async function admImpApplyMappingAndPreview() {
       (exRes.data || []).forEach(function(e){ existingNames[e.id] = e.name; });
     }
 
+    // Same-site photo/video reuse: when a row in the sheet has no photos of
+    // its own but its source_url points at a site we've already photographed
+    // for a DIFFERENT experience (e.g. two treatments at the same spa), offer
+    // to reuse that experience's photos instead of leaving this one in Draft.
+    var photoDonorByDomain = {};
+    {
+      var donorRes = await db_client.from('experiences')
+        .select('id,name,source_url,image_url,image_urls,video_url,video_position');
+      (donorRes.data || []).forEach(function(e){
+        var domain = admImpDomain(e.source_url);
+        if (!domain) return;
+        var photoCount = [e.image_url].concat(e.image_urls||[]).filter(function(u,i,a){ return u && a.indexOf(u)===i; }).length;
+        if (photoCount < 3) return;
+        if (!photoDonorByDomain[domain]) photoDonorByDomain[domain] = e; // first match wins
+      });
+    }
+
     var photosMapped = ['image_1','image_2','image_3','image_4','image_5','image_6'].some(function(f){ return _admImpMappedFields.has(f); });
     var results = mappedRows.map(function(row, i){
       var rowSlug = row.name ? admImpSlugify(row.name.trim()) : null;
       var rowIsDuplicate = !!(rowSlug && existingNames[rowSlug]);
       var r = admImpBuildRowResult(row, i, partnerEmail, partnerName, rowIsDuplicate, photosMapped);
       r.isDuplicate = !!(r.slug && existingNames[r.slug]);
+
+      // Only look for a donor when this row's own sheet data left it short —
+      // never overrides photos the sheet actually provided.
+      if (r.payload && r.imgCount < 3) {
+        var domain = admImpDomain(row.source_url);
+        var donor = domain ? photoDonorByDomain[domain] : null;
+        if (donor && donor.id !== r.slug) {
+          var donorImgs = [donor.image_url].concat(donor.image_urls||[]).filter(function(u,i,a){ return u && a.indexOf(u)===i; }).slice(0,6);
+          r.photoMatch = {
+            name: donor.name,
+            image_url: donorImgs[0] || '',
+            image_urls: donorImgs,
+            video_url: donor.video_url || '',
+            video_position: donor.video_position || null
+          };
+          r.payload.image_url = r.photoMatch.image_url;
+          r.payload.image_urls = r.photoMatch.image_urls;
+          if (r.photoMatch.video_url) {
+            r.payload.video_url = r.photoMatch.video_url;
+            r.payload.video_position = r.photoMatch.video_position || 1;
+          }
+          // The only reason this row would have been forced to Draft was a
+          // photo shortfall — resolved now, so the warning no longer applies.
+          r.warnings = r.warnings.filter(function(w){ return w.indexOf('photo(s)') === -1; });
+          r.payload.is_active = true;
+        }
+      }
       return r;
     });
     _admImpRows = results;
@@ -23129,20 +23182,21 @@ async function admImpApplyMappingAndPreview() {
     if (tbody) {
       tbody.innerHTML = results.map(function(r){
         var statusHtml, detailHtml;
+        var photoNote = r.photoMatch ? ' 📎 Reusing photos from "' + r.photoMatch.name + '" (same site)' : '';
         if (r.errors.length) {
           statusHtml = '<span style="color:#dc2626">❌ Error</span>';
           detailHtml = r.errors.join('; ');
         } else if (r.isDuplicate) {
           statusHtml = '<span style="color:#d97706">⚠️ Duplicate</span>';
-          detailHtml = _admImpMappedFields.size < WOWBOX_IMPORT_FIELDS_FLAT.length
+          detailHtml = (_admImpMappedFields.size < WOWBOX_IMPORT_FIELDS_FLAT.length
             ? 'Matches existing experience "' + existingNames[r.slug] + '" — only the mapped fields will be updated'
-            : 'Matches existing experience "' + existingNames[r.slug] + '"';
+            : 'Matches existing experience "' + existingNames[r.slug] + '"') + photoNote;
         } else if (r.warnings.length) {
           statusHtml = '<span style="color:#d97706">⚠️ Ready (Draft)</span>';
-          detailHtml = r.warnings.join('; ');
+          detailHtml = r.warnings.join('; ') + photoNote;
         } else {
           statusHtml = '<span style="color:#16a34a">✅ Ready</span>';
-          detailHtml = '';
+          detailHtml = photoNote;
         }
         return '<tr><td>' + (r.rowIndex+1) + '</td><td>' + (r.name||'') + '</td><td>' + statusHtml + '</td>'
           + '<td style="font-size:.72rem;color:var(--muted)">' + detailHtml + '</td></tr>';
@@ -23215,6 +23269,19 @@ async function admImpConfirmImport() {
       // sheet (e.g. name + photos only) must never blank out everything
       // else on an experience that already exists.
       updPayload = admImpFilterPayloadForUpdate(updPayload, _admImpMappedFields);
+      // A same-site photo match is a deliberate, always-safe addition — it
+      // only ever fills a gap the sheet left empty, so it survives the
+      // mapped-fields filter above even though the sheet itself had no
+      // photo columns mapped for this row.
+      if (r.photoMatch) {
+        updPayload.image_url = r.photoMatch.image_url;
+        updPayload.image_urls = r.photoMatch.image_urls;
+        updPayload.is_active = true;
+        if (r.photoMatch.video_url) {
+          updPayload.video_url = r.photoMatch.video_url;
+          updPayload.video_position = r.photoMatch.video_position || 1;
+        }
+      }
       var updRes = await db_client.from('experiences').update(updPayload).eq('id', r.slug);
       if (updRes.error) { failedNow++; console.error('Update failed for ' + r.slug, updRes.error); }
       else updatedCount++;
